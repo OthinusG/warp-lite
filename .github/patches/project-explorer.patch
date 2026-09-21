@@ -115,3 +115,9 @@ index 18cf0a3..2b16466 100644
 +                }
 +                Some(ChildView::new(&self.left_panel_view).finish())
 +            }
+diff --git a/app/src/workspace/util.rs b/app/src/workspace/util.rs
+index 2467b29..a673daa 100644
+--- a/app/src/workspace/util.rs
++++ b/app/src/workspace/util.rs
+@@ -42,0 +43 @@ pub(super) struct WorkspaceMouseStates {
++    pub(super) tools_panel_icon: MouseStateHandle,
