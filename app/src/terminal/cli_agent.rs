@@ -87,6 +87,14 @@ const PI_COLOR: ColorU = ColorU {
     a: 255,
 };
 
+/// Antigravity brand color (white, monochrome logo)
+const ANTIGRAVITY_COLOR: ColorU = ColorU {
+    r: 255,
+    g: 255,
+    b: 255,
+    a: 255,
+};
+
 /// Auggie brand color (white, monochrome logo)
 const AUGGIE_COLOR: ColorU = ColorU {
     r: 255,
@@ -103,7 +111,7 @@ const CURSOR_COLOR: ColorU = ColorU {
     a: 255,
 };
 
-/// Represents a CLI agent (e.g., Claude Code, Gemini CLI, Codex, Amp, Droid, OpenCode, Copilot, Pi, Auggie, Cursor)
+/// Represents a CLI agent (e.g., Claude Code, Gemini CLI, Codex, Amp, Droid, OpenCode, Copilot, Pi, Auggie, Cursor, Antigravity, DeepSeek Harness)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence, Serialize, Deserialize)]
 pub enum CLIAgent {
     Claude,
@@ -116,6 +124,8 @@ pub enum CLIAgent {
     Pi,
     Auggie,
     CursorCli,
+    Antigravity,
+    DeepSeekHarness,
     /// Represents an unknown/custom CLI agent matched by user-configured regex patterns.
     Unknown,
 }
@@ -134,6 +144,8 @@ impl CLIAgent {
             CLIAgent::Pi => "pi",
             CLIAgent::Auggie => "auggie",
             CLIAgent::CursorCli => "agent",
+            CLIAgent::Antigravity => "agy",
+            CLIAgent::DeepSeekHarness => "dsh",
             CLIAgent::Unknown => "",
         }
     }
@@ -164,6 +176,8 @@ impl CLIAgent {
             CLIAgent::Pi => "Pi",
             CLIAgent::Auggie => "Auggie",
             CLIAgent::CursorCli => "Cursor",
+            CLIAgent::Antigravity => "Antigravity",
+            CLIAgent::DeepSeekHarness => "DeepSeek Harness",
             CLIAgent::Unknown => "CLI Agent",
         }
     }
@@ -181,6 +195,8 @@ impl CLIAgent {
             CLIAgent::Pi => Some(Icon::PiLogo),
             CLIAgent::Auggie => Some(Icon::AuggieLogo),
             CLIAgent::CursorCli => Some(Icon::CursorLogo),
+            CLIAgent::Antigravity => Some(Icon::AntigravityLogo),
+            CLIAgent::DeepSeekHarness => Some(Icon::DeepSeekHarnessLogo),
             CLIAgent::Unknown => None,
         }
     }
@@ -208,6 +224,8 @@ impl CLIAgent {
             CLIAgent::Pi => &[SkillProvider::Agents],
             CLIAgent::Auggie => &[SkillProvider::Agents],
             CLIAgent::CursorCli => &[SkillProvider::Agents],
+            CLIAgent::Antigravity => &[],
+            CLIAgent::DeepSeekHarness => &[],
             CLIAgent::Unknown => &[],
         }
     }
@@ -247,6 +265,8 @@ impl CLIAgent {
             CLIAgent::Pi => Some(PI_COLOR),
             CLIAgent::Auggie => Some(AUGGIE_COLOR),
             CLIAgent::CursorCli => Some(CURSOR_COLOR),
+            CLIAgent::Antigravity => Some(ANTIGRAVITY_COLOR),
+            CLIAgent::DeepSeekHarness => Some(ColorU::white()),
             CLIAgent::Unknown => None,
         }
     }
@@ -255,7 +275,9 @@ impl CLIAgent {
     /// Agents with light brand colors use a dark icon for contrast.
     pub fn brand_icon_color(&self) -> ColorU {
         match self {
-            CLIAgent::Pi | CLIAgent::Auggie | CLIAgent::Droid => ColorU::new(0, 0, 0, 255),
+            CLIAgent::Pi | CLIAgent::Auggie | CLIAgent::Droid | CLIAgent::Antigravity => {
+                ColorU::new(0, 0, 0, 255)
+            }
             _ => ColorU::white(),
         }
     }
@@ -311,11 +333,37 @@ impl CLIAgent {
         // Also matches `aifx agent run claude` as Claude for Uber employees.
         enum_iterator::all::<CLIAgent>()
             .filter(|agent| !matches!(agent, CLIAgent::Unknown))
-            .find(|agent| {
-                resolved_first_word == agent.command_prefix()
-                    || (matches!(agent, CLIAgent::Claude)
-                        && Self::is_aifx_agent_run_claude(&resolved_command, ctx))
+            .find(|agent| match agent {
+                CLIAgent::DeepSeekHarness => {
+                    Self::is_deepseek_harness_tui(&resolved_command, &resolved_first_word)
+                }
+                _ => {
+                    resolved_first_word == agent.command_prefix()
+                        || (matches!(agent, CLIAgent::Claude)
+                            && Self::is_aifx_agent_run_claude(&resolved_command, ctx))
+                }
             })
+    }
+
+    fn is_deepseek_harness_tui(resolved_command: &str, resolved_first_word: &str) -> bool {
+        if resolved_first_word == "dsh-tui" {
+            return true;
+        }
+        if resolved_first_word != "dsh" {
+            return false;
+        }
+
+        let words: Vec<_> = resolved_command.split_whitespace().collect();
+        let Some(command_index) = words.iter().position(|word| *word == "dsh") else {
+            return false;
+        };
+        let arguments = &words[command_index + 1..];
+
+        arguments.first().copied() != Some("plugin")
+            && (arguments
+                .windows(2)
+                .any(|pair| pair == ["--profile", "tui"])
+                || arguments.contains(&"--profile=tui"))
     }
 
     /// Returns true if the resolved command is `aifx agent run claude` (Uber's
@@ -507,6 +555,8 @@ impl From<CLIAgent> for CLIAgentType {
             CLIAgent::Pi => CLIAgentType::Pi,
             CLIAgent::Auggie => CLIAgentType::Auggie,
             CLIAgent::CursorCli => CLIAgentType::Cursor,
+            CLIAgent::Antigravity => CLIAgentType::Antigravity,
+            CLIAgent::DeepSeekHarness => CLIAgentType::DeepSeekHarness,
             CLIAgent::Unknown => CLIAgentType::Unknown,
         }
     }

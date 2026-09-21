@@ -65,6 +65,8 @@ fn create_handler(agent: &CLIAgent) -> Option<Box<dyn CLIAgentSessionHandler>> {
         | CLIAgent::Copilot
         | CLIAgent::Pi
         | CLIAgent::CursorCli
+        | CLIAgent::Antigravity
+        | CLIAgent::DeepSeekHarness
         | CLIAgent::Unknown => None,
     }
 }

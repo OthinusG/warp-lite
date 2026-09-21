@@ -258,6 +258,7 @@ fn test_detect_known_agents() {
                 ("opencode", CLIAgent::OpenCode),
                 ("copilot", CLIAgent::Copilot),
                 ("agent", CLIAgent::CursorCli),
+                ("agy", CLIAgent::Antigravity),
             ] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
@@ -280,6 +281,65 @@ fn test_detect_with_arguments() {
             assert_eq!(
                 CLIAgent::detect("gemini chat", None, None, ctx),
                 Some(CLIAgent::Gemini),
+            );
+        });
+    });
+}
+
+#[test]
+fn test_detect_deepseek_harness_tui() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            for command in [
+                "dsh-tui",
+                "dsh --profile tui",
+                "dsh --profile=tui",
+                "dsh --profile tui --resume abc",
+            ] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    Some(CLIAgent::DeepSeekHarness),
+                    "failed to detect {command}",
+                );
+            }
+
+            for command in [
+                "dsh tui",
+                "dsh web",
+                "dsh headless",
+                "dsh --profile web",
+                "dsh --profile acp",
+                "dsh plugin --profile tui add foo",
+                "dsh --help",
+            ] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    None,
+                    "incorrectly detected {command}",
+                );
+            }
+        });
+    });
+}
+
+#[test]
+fn test_detect_deepseek_harness_tui_with_env_and_alias() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            assert_eq!(
+                CLIAgent::detect(
+                    "FOO=1 dsh --profile tui",
+                    Some(EscapeChar::Backslash),
+                    None,
+                    ctx,
+                ),
+                Some(CLIAgent::DeepSeekHarness),
+            );
+
+            let map = aliases(&[("dstui", "dsh --profile tui")]);
+            assert_eq!(
+                CLIAgent::detect("dstui", None, Some(&map), ctx),
+                Some(CLIAgent::DeepSeekHarness),
             );
         });
     });

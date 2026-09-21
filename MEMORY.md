@@ -21,3 +21,5 @@
 - Workspace initialization restores the right-side Tools Panel button for older persisted toolbar configurations that omit it.
 - `.github/workflows/sync-upstream-warp-lite.yml` syncs only the latest upstream `v*-lite` release tag, verifies before push, and publishes ad-hoc-signed macOS ZIP/DMG artifacts under the same tag name.
 - macOS packaging uses Warp's native 1024×1024 `app/DockTilePlugin/Resources/mono.png`; manual workflow dispatches intentionally rebuild and replace the current release assets even when the upstream tag is unchanged.
+- Antigravity CLI (`agy`) support is preserved across upstream syncs by `.github/patches/antigravity-cli.patch`; it uses the standard CLI Agent fallback and does not add telemetry transport or Warp AI/Cloud dependencies.
+- DeepSeek Harness TUI support is preserved across upstream syncs by `.github/patches/deepseek-harness.patch`; only `dsh-tui` and `dsh` TUI profiles enter CLI Agent management, with no listener, plugin, or telemetry upload added.

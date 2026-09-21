@@ -20,7 +20,7 @@ lazy_static! {
     /// claude code, codex CLI, or gemini CLI) suck, because the user often thinks we're
     /// intentionally trying to push them away from those CLIs into Agent Mode, so we mitigate the
     /// risk by always treating as shell.
-    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini"]);
+    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh"]);
 
     static ref ONE_OFF_NATURAL_LANGUAGE_WORDS: HashSet<&'static str> = HashSet::from(["hello", "hi", "hey", "hola", "thanks", "explain", "yes", "no", "what", "nice", "1. "]);
 
@@ -117,4 +117,19 @@ pub fn is_installed_binary(input: &ParsedTokensSnapshot) -> bool {
         .first()
         .map(|token| token.token_description.is_some())
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_one_off_shell_command_keyword;
+
+    #[test]
+    fn antigravity_is_a_shell_command_keyword() {
+        assert!(is_one_off_shell_command_keyword("agy"));
+    }
+
+    #[test]
+    fn deepseek_harness_is_a_shell_command_keyword() {
+        assert!(is_one_off_shell_command_keyword("dsh"));
+    }
 }
