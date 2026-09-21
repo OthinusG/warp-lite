@@ -76,13 +76,25 @@ jobs:
           git diff --check
           rustfmt --edition 2021 --check app/src/workspace/header_toolbar_item.rs
 
-      - name: Select Xcode and install Metal Toolchain
+      - name: Push restored update
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.sync.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            git tag "$RELEASE_TAG"
+          fi
+          git push --atomic origin "HEAD:refs/heads/$TARGET_BRANCH" "refs/tags/$RELEASE_TAG"
+
+      - name: Select Xcode and verify Metal Toolchain
         if: steps.sync.outputs.needs_release == 'true'
         shell: bash
         run: |
           set -euo pipefail
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          xcodebuild -downloadComponent MetalToolchain
+          xcrun --find metal
 
       - name: Check and build Warp Lite
         if: steps.sync.outputs.needs_release == 'true'
@@ -102,18 +114,6 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent WarpLite.app WarpLite.app.zip
           hdiutil create -volname WarpLite -srcfolder WarpLite.app -ov -format UDZO WarpLite.dmg
           hdiutil verify WarpLite.dmg
-
-      - name: Push verified update
-        if: steps.sync.outputs.needs_release == 'true'
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ steps.sync.outputs.release_tag }}
-        run: |
-          set -euo pipefail
-          if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-            git tag "$RELEASE_TAG"
-          fi
-          git push --atomic origin "HEAD:refs/heads/$TARGET_BRANCH" "refs/tags/$RELEASE_TAG"
 
       - name: Publish GitHub release
         if: steps.sync.outputs.needs_release == 'true'

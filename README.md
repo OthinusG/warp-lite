@@ -241,7 +241,7 @@ Known caveat: full `cargo fmt --check` can currently fail because the repository
 
 ## Automated Fork Sync
 
-`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies the Project Explorer patch with `script/restore-project-explorer.sh`, verifies and builds the app, then updates `warp-lite/main` and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Any merge, patch, check, build, signing, or packaging failure stops before the branch is pushed.
+`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer patch with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication.
 
 ## Branch Structure
 

@@ -7,13 +7,13 @@ PATCH="$ROOT/.github/patches/project-explorer.patch"
 
 cd "$ROOT"
 
-if git apply --reverse --check "$PATCH" 2>/dev/null; then
+if git apply --unidiff-zero --reverse --check "$PATCH" 2>/dev/null; then
     echo "Project Explorer patch is already applied."
-elif git apply --check "$PATCH" 2>/dev/null; then
+elif git apply --unidiff-zero --check "$PATCH" 2>/dev/null; then
     if [[ "${1:-}" == "--check" ]]; then
         echo "Project Explorer patch can be applied."
     else
-        git apply "$PATCH"
+        git apply --unidiff-zero "$PATCH"
         echo "Project Explorer restored."
     fi
 else

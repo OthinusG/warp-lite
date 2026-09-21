@@ -3381,6 +3381,7 @@ impl Workspace {
         };
 
         ws.configure_new_workspace(workspace_setting, ctx);
+        Self::ensure_tools_panel_in_config(ctx);
         ws.sync_panel_positions_from_config(ctx);
         ws.sync_window_button_visibility(ctx);
         ws.update_titlebar_height(ctx);
@@ -5857,6 +5858,26 @@ impl Workspace {
             report_if_error!(settings
                 .header_toolbar_chip_selection
                 .set_value(selection, ctx));
+        });
+    }
+
+    fn ensure_tools_panel_in_config(ctx: &mut ViewContext<Self>) {
+        let config = TabSettings::as_ref(ctx)
+            .header_toolbar_chip_selection
+            .clone();
+        let left = config.left_items();
+        let mut right = config.right_items();
+        if left.contains(&HeaderToolbarItemKind::ToolsPanel)
+            || right.contains(&HeaderToolbarItemKind::ToolsPanel)
+        {
+            return;
+        }
+
+        right.insert(0, HeaderToolbarItemKind::ToolsPanel);
+        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+            report_if_error!(settings
+                .header_toolbar_chip_selection
+                .set_value(HeaderToolbarChipSelection::Custom { left, right }, ctx));
         });
     }
 
