@@ -56,8 +56,9 @@ jobs:
 
           script/restore-project-explorer.sh
           if ! git diff --quiet; then
-            git add app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs
-            git commit -m "feat(warp-lite): restore project explorer"
+            git add app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
+              app/src/workspace/util.rs script/build-warp-lite-app.sh
+            git commit -m "chore(warp-lite): restore downstream customizations"
           fi
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]] \

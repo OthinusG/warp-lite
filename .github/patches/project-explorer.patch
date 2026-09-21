@@ -121,3 +121,9 @@ index 2467b29..a673daa 100644
 +++ b/app/src/workspace/util.rs
 @@ -42,0 +43 @@ pub(super) struct WorkspaceMouseStates {
 +    pub(super) tools_panel_icon: MouseStateHandle,
+diff --git a/script/build-warp-lite-app.sh b/script/build-warp-lite-app.sh
+--- a/script/build-warp-lite-app.sh
++++ b/script/build-warp-lite-app.sh
+@@ -23 +23 @@ APP_IDENTIFIER="dev.warp-lite.WarpLite"
+-SRC_PNG="app/channels/oss/icon/no-padding/512x512.png"
++SRC_PNG="app/DockTilePlugin/Resources/mono.png"
