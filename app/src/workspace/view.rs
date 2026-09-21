@@ -19243,7 +19243,16 @@ impl Workspace {
             FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
         let inner = match item {
             HeaderToolbarItemKind::TabsPanel => self.render_left_toggle_button(appearance, ctx),
-            HeaderToolbarItemKind::ToolsPanel => return None,
+            HeaderToolbarItemKind::ToolsPanel => {
+                if self.left_panel_views.is_empty() {
+                    return None;
+                }
+                if vertical_tabs_active {
+                    self.render_tools_panel_button(appearance, ctx)
+                } else {
+                    self.render_left_toggle_button(appearance, ctx)
+                }
+            }
             HeaderToolbarItemKind::AgentManagement => {
                 #[cfg(feature = "agent_management_view")]
                 {
@@ -20934,7 +20943,12 @@ impl Workspace {
                     .finish(),
                 )
             }
-            HeaderToolbarItemKind::ToolsPanel => None,
+            HeaderToolbarItemKind::ToolsPanel => {
+                if !pane_group.left_panel_open || warpui::platform::is_mobile_device() {
+                    return None;
+                }
+                Some(ChildView::new(&self.left_panel_view).finish())
+            }
             HeaderToolbarItemKind::CodeReview => {
                 if !pane_group.right_panel_open {
                     return None;

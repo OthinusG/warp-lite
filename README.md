@@ -239,6 +239,10 @@ hdiutil verify WarpLite.dmg
 
 Known caveat: full `cargo fmt --check` can currently fail because the repository still references disabled/removed upstream files. Prefer targeted formatting/checks until that cleanup is complete.
 
+## Automated Fork Sync
+
+`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies the Project Explorer patch with `script/restore-project-explorer.sh`, verifies and builds the app, then updates `warp-lite/main` and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Any merge, patch, check, build, signing, or packaging failure stops before the branch is pushed.
+
 ## Branch Structure
 
 ```text

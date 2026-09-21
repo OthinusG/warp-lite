@@ -1,0 +1,77 @@
+diff --git a/app/src/workspace/header_toolbar_item.rs b/app/src/workspace/header_toolbar_item.rs
+index 2ec2558..8857139 100644
+--- a/app/src/workspace/header_toolbar_item.rs
++++ b/app/src/workspace/header_toolbar_item.rs
+@@ -61,7 +61,7 @@ impl HeaderToolbarItemKind {
+                 FeatureFlag::VerticalTabs.is_enabled()
+                     && *TabSettings::as_ref(app).use_vertical_tabs
+             }
+-            Self::ToolsPanel => false,
++            Self::ToolsPanel => true,
+             // warp-lite: AI/agent/code-review/notification toolbar items are
+             // unsupported in pure-terminal mode (UI cleanup). Their backing
+             // logic still compiles, but no header buttons surface them.
+@@ -80,7 +80,7 @@ impl HeaderToolbarItemKind {
+     /// Whether this item opens a side panel (as opposed to replacing the content
+     /// area or opening a popover).
+     pub fn is_panel(&self) -> bool {
+-        matches!(self, Self::TabsPanel | Self::CodeReview)
++        matches!(self, Self::TabsPanel | Self::ToolsPanel | Self::CodeReview)
+     }
+ 
+     pub fn default_left() -> Vec<Self> {
+@@ -88,13 +88,11 @@ impl HeaderToolbarItemKind {
+     }
+ 
+     pub fn default_right() -> Vec<Self> {
+-        // warp-lite v0.3.6: ToolsPanel button hidden from the toolbar. The
+-        // Context Panel widgets do not yet read from Warp's existing
+-        // repo/cwd infrastructure (`repo_metadata`/`WorkingDirectoriesModel`)
+-        // reliably, so an empty panel was worse than no panel at all.
+-        // Keeping the variant in the enum so the rest of the codebase still
+-        // compiles; just removing it from the default set.
+-        vec![Self::CodeReview, Self::NotificationsMailbox]
++        vec![
++            Self::ToolsPanel,
++            Self::CodeReview,
++            Self::NotificationsMailbox,
++        ]
+     }
+ 
+     /// All toolbar item variants (availability filtering is done at the call site).
+diff --git a/app/src/workspace/view.rs b/app/src/workspace/view.rs
+index 18cf0a3..e1e2016 100644
+--- a/app/src/workspace/view.rs
++++ b/app/src/workspace/view.rs
+@@ -19243,7 +19243,16 @@ impl Workspace {
+             FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
+         let inner = match item {
+             HeaderToolbarItemKind::TabsPanel => self.render_left_toggle_button(appearance, ctx),
+-            HeaderToolbarItemKind::ToolsPanel => return None,
++            HeaderToolbarItemKind::ToolsPanel => {
++                if self.left_panel_views.is_empty() {
++                    return None;
++                }
++                if vertical_tabs_active {
++                    self.render_tools_panel_button(appearance, ctx)
++                } else {
++                    self.render_left_toggle_button(appearance, ctx)
++                }
++            }
+             HeaderToolbarItemKind::AgentManagement => {
+                 #[cfg(feature = "agent_management_view")]
+                 {
+@@ -20934,7 +20943,12 @@ impl Workspace {
+                     .finish(),
+                 )
+             }
+-            HeaderToolbarItemKind::ToolsPanel => None,
++            HeaderToolbarItemKind::ToolsPanel => {
++                if !pane_group.left_panel_open || warpui::platform::is_mobile_device() {
++                    return None;
++                }
++                Some(ChildView::new(&self.left_panel_view).finish())
++            }
+             HeaderToolbarItemKind::CodeReview => {
+                 if !pane_group.right_panel_open {
+                     return None;

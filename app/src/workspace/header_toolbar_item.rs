@@ -61,7 +61,7 @@ impl HeaderToolbarItemKind {
                 FeatureFlag::VerticalTabs.is_enabled()
                     && *TabSettings::as_ref(app).use_vertical_tabs
             }
-            Self::ToolsPanel => false,
+            Self::ToolsPanel => true,
             // warp-lite: AI/agent/code-review/notification toolbar items are
             // unsupported in pure-terminal mode (UI cleanup). Their backing
             // logic still compiles, but no header buttons surface them.
@@ -80,7 +80,7 @@ impl HeaderToolbarItemKind {
     /// Whether this item opens a side panel (as opposed to replacing the content
     /// area or opening a popover).
     pub fn is_panel(&self) -> bool {
-        matches!(self, Self::TabsPanel | Self::CodeReview)
+        matches!(self, Self::TabsPanel | Self::ToolsPanel | Self::CodeReview)
     }
 
     pub fn default_left() -> Vec<Self> {
@@ -88,13 +88,11 @@ impl HeaderToolbarItemKind {
     }
 
     pub fn default_right() -> Vec<Self> {
-        // warp-lite v0.3.6: ToolsPanel button hidden from the toolbar. The
-        // Context Panel widgets do not yet read from Warp's existing
-        // repo/cwd infrastructure (`repo_metadata`/`WorkingDirectoriesModel`)
-        // reliably, so an empty panel was worse than no panel at all.
-        // Keeping the variant in the enum so the rest of the codebase still
-        // compiles; just removing it from the default set.
-        vec![Self::CodeReview, Self::NotificationsMailbox]
+        vec![
+            Self::ToolsPanel,
+            Self::CodeReview,
+            Self::NotificationsMailbox,
+        ]
     }
 
     /// All toolbar item variants (availability filtering is done at the call site).

@@ -1,0 +1,132 @@
+name: Sync Warp Lite and release
+
+on:
+  schedule:
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-warp-lite
+  cancel-in-progress: false
+
+jobs:
+  sync-build-release:
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM_REPOSITORY: https://github.com/terzigolu/warp-lite.git
+      TARGET_BRANCH: warp-lite/main
+    steps:
+      - name: Check out Warp Lite
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          lfs: true
+          ref: warp-lite/main
+
+      - name: Merge Lite upstream
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM_REPOSITORY"
+
+          release_tag="$(
+            git ls-remote --tags --refs --sort=-version:refname upstream 'v*-lite' \
+              | awk 'NR == 1 {sub("refs/tags/", "", $2); print $2}'
+          )"
+          if [[ -z "$release_tag" ]]; then
+            echo "No upstream v*-lite release tag found." >&2
+            exit 1
+          fi
+          git fetch --no-tags upstream \
+            "refs/tags/$release_tag:refs/remotes/upstream/releases/$release_tag"
+          upstream_sha="$(git rev-parse "refs/remotes/upstream/releases/$release_tag")"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+          if ! git merge-base --is-ancestor "$upstream_sha" HEAD; then
+            git merge --no-edit "$upstream_sha"
+          fi
+
+          script/restore-project-explorer.sh
+          if ! git diff --quiet; then
+            git add app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs
+            git commit -m "feat(warp-lite): restore project explorer"
+          fi
+
+          if git merge-base --is-ancestor "$upstream_sha" "origin/$TARGET_BRANCH" \
+            && gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "needs_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify Project Explorer restoration
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          script/restore-project-explorer.sh --check
+          git diff --check
+          rustfmt --edition 2021 --check app/src/workspace/header_toolbar_item.rs
+
+      - name: Select Xcode and install Metal Toolchain
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -downloadComponent MetalToolchain
+
+      - name: Check and build Warp Lite
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check -p warp --bin warp-oss
+          cargo build --release --bin warp-oss
+
+      - name: Package and verify macOS artifacts
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          script/build-warp-lite-app.sh
+          codesign --verify --deep --strict --verbose=2 WarpLite.app
+          ditto -c -k --sequesterRsrc --keepParent WarpLite.app WarpLite.app.zip
+          hdiutil create -volname WarpLite -srcfolder WarpLite.app -ov -format UDZO WarpLite.dmg
+          hdiutil verify WarpLite.dmg
+
+      - name: Push verified update
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.sync.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            git tag "$RELEASE_TAG"
+          fi
+          git push --atomic origin "HEAD:refs/heads/$TARGET_BRANCH" "refs/tags/$RELEASE_TAG"
+
+      - name: Publish GitHub release
+        if: steps.sync.outputs.needs_release == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.sync.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Warp Lite $RELEASE_TAG" \
+              --notes "Automated verified sync from terzigolu/warp-lite with Project Explorer restored."
+          fi
