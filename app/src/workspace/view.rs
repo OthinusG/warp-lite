@@ -18652,6 +18652,52 @@ impl Workspace {
         .finish()
     }
 
+    fn render_tools_panel_button(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        let is_active = self.active_tab_pane_group().as_ref(ctx).left_panel_open;
+
+        let tooltip_text = if self.left_panel_views.len() <= 1 {
+            match self
+                .left_panel_views
+                .first()
+                .copied()
+                .unwrap_or(ToolPanelView::WarpDrive)
+            {
+                ToolPanelView::ProjectExplorer => "Project explorer",
+                ToolPanelView::GlobalSearch { .. } => "Global search",
+                ToolPanelView::WarpDrive => "Warp Drive",
+                ToolPanelView::ConversationListView => "Agent conversations",
+            }
+        } else {
+            "Tools panel"
+        };
+
+        SavePosition::new(
+            Container::new(
+                Align::new(
+                    self.render_tab_bar_icon_button(
+                        appearance,
+                        icons::Icon::Tool2,
+                        &self.mouse_states.tools_panel_icon,
+                        WorkspaceAction::ToggleLeftPanel,
+                        tooltip_text.to_string(),
+                        keybinding_name_to_display_string("workspace:toggle_left_panel", ctx),
+                        is_active,
+                        false,
+                    )
+                    .finish(),
+                )
+                .finish(),
+            )
+            .finish(),
+            "workspace:toggle_left_panel",
+        )
+        .finish()
+    }
+
     fn should_enable_file_tree_and_global_search_for_pane_group(pane_group: &PaneGroup) -> bool {
         pane_group
             .pane_ids()
