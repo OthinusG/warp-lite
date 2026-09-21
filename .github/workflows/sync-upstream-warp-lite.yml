@@ -89,7 +89,7 @@ jobs:
             app/src/terminal/cli_agent_sessions/listener/mod.rs \
             app/src/terminal/cli_agent_sessions/plugin_manager/mod.rs \
             crates/input_classifier/src/util.rs crates/warp_core/src/ui/icons.rs
-          cargo test -p input_classifier
+          cargo test -p input_classifier util::tests
 
       - name: Push restored update
         if: steps.sync.outputs.needs_release == 'true'
