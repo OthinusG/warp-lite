@@ -3,9 +3,12 @@ use pathfinder_geometry::vector::vec2f;
 use warp_core::ui::icons::Icon as WarpIcon;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::{Fill as WarpThemeFill, WarpTheme};
-use warpui::elements::{
-    ChildAnchor, ConstrainedBox, Container, CornerRadius, Element, OffsetPositioning, ParentAnchor,
-    ParentElement, ParentOffsetBounds, Radius, Stack,
+use warpui::{
+    assets::asset_cache::AssetSource,
+    elements::{
+        CacheOption, ChildAnchor, ConstrainedBox, Container, CornerRadius, Element, Image,
+        OffsetPositioning, ParentAnchor, ParentElement, ParentOffsetBounds, Radius, Stack,
+    },
 };
 
 use crate::ai::agent::conversation::ConversationStatus;
@@ -116,13 +119,23 @@ pub(crate) fn render_icon_with_status(
                 .brand_color()
                 .unwrap_or(ColorU::new(100, 100, 100, 255));
             let icon_color = agent.brand_icon_color();
-            let icon_element = agent
-                .icon()
-                .map(|icon| {
-                    icon.to_warpui_icon(WarpThemeFill::Solid(icon_color))
-                        .finish()
-                })
-                .unwrap_or_else(|| WarpIcon::Terminal.to_warpui_icon(sub_text).finish());
+            let icon_element = if matches!(agent, CLIAgent::DeepSeekHarness) {
+                Image::new(
+                    AssetSource::Bundled {
+                        path: WarpIcon::DeepSeekHarnessLogo.into(),
+                    },
+                    CacheOption::BySize,
+                )
+                .finish()
+            } else {
+                agent
+                    .icon()
+                    .map(|icon| {
+                        icon.to_warpui_icon(WarpThemeFill::Solid(icon_color))
+                            .finish()
+                    })
+                    .unwrap_or_else(|| WarpIcon::Terminal.to_warpui_icon(sub_text).finish())
+            };
             let inner = ConstrainedBox::new(icon_element)
                 .with_width(sizing.icon_size)
                 .with_height(sizing.icon_size)

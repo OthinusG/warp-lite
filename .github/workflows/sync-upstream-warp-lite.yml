@@ -65,6 +65,7 @@ jobs:
               app/src/terminal/cli_agent_sessions/plugin_manager/mod.rs \
               app/src/terminal/cli_agent_tests.rs \
               app/src/terminal/view/use_agent_footer/mod.rs \
+              app/src/ui_components/icon_with_status.rs \
               crates/input_classifier/src/util.rs crates/warp_core/src/ui/icons.rs
             git commit -m "chore(warp-lite): restore downstream customizations"
           fi
@@ -88,6 +89,7 @@ jobs:
             app/src/terminal/cli_agent.rs app/src/terminal/cli_agent_tests.rs \
             app/src/terminal/cli_agent_sessions/listener/mod.rs \
             app/src/terminal/cli_agent_sessions/plugin_manager/mod.rs \
+            app/src/ui_components/icon_with_status.rs \
             crates/input_classifier/src/util.rs crates/warp_core/src/ui/icons.rs
           cargo test -p input_classifier util::tests
 
