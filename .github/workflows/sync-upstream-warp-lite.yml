@@ -60,7 +60,8 @@ jobs:
             git commit -m "feat(warp-lite): restore project explorer"
           fi
 
-          if git merge-base --is-ancestor "$upstream_sha" "origin/$TARGET_BRANCH" \
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]] \
+            && git merge-base --is-ancestor "$upstream_sha" "origin/$TARGET_BRANCH" \
             && gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "needs_release=false" >> "$GITHUB_OUTPUT"
           else

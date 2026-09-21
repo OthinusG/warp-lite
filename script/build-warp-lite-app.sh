@@ -20,7 +20,7 @@ APP="WarpLite.app"
 APP_VERSION="0.5.7"
 APP_SHORT_VERSION="0.5.7-lite"
 APP_IDENTIFIER="dev.warp-lite.WarpLite"
-SRC_PNG="app/channels/oss/icon/no-padding/512x512.png"
+SRC_PNG="app/DockTilePlugin/Resources/mono.png"
 
 if [[ ! -f "$BIN" ]]; then
     echo "Error: $BIN not found. Run: cargo build --release --bin warp-oss" >&2

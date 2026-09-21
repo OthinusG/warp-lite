@@ -20,3 +20,4 @@
 - Project Explorer source remains in the tree. Warp Lite disabled only its `ToolsPanel` entry point; the focused restoration is stored in `.github/patches/project-explorer.patch` and replayed by `script/restore-project-explorer.sh`.
 - Workspace initialization restores the right-side Tools Panel button for older persisted toolbar configurations that omit it.
 - `.github/workflows/sync-upstream-warp-lite.yml` syncs only the latest upstream `v*-lite` release tag, verifies before push, and publishes ad-hoc-signed macOS ZIP/DMG artifacts under the same tag name.
+- macOS packaging uses Warp's native 1024×1024 `app/DockTilePlugin/Resources/mono.png`; manual workflow dispatches intentionally rebuild and replace the current release assets even when the upstream tag is unchanged.

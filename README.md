@@ -85,6 +85,7 @@ The current build is `v0.5.7-lite`.
 ### v0.5.7-lite — August upstream sync (2026-08)
 
 - Restored the native Project Explorer, including its top-right toolbar launcher, and added an auditable patch script that reapplies the feature after upstream release syncs.
+- Replaced the custom OSS app artwork with Warp's native 1024×1024 Mono icon for correctly sized macOS icon assets.
 - Integrated 193 vetted upstream-sync and Warp Lite adaptation commits while keeping AI/agent, cloud account, billing, team, remote-control, and new telemetry changes out of the default Lite product.
 - Added security hardening for external links/downloads, command and SSH escaping, environment-aware blocklist checks, auth-log redaction, OSC 52 clipboard control, and dependency fixes.
 - Improved terminal and shell reliability across PTY writes, wide-character resize, inline images, OSC hyperlinks, process-group cancellation, zsh/PowerShell bootstrap, SSH, and remote sessions.
