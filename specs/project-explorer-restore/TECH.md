@@ -23,7 +23,7 @@
 - Unreleased upstream branch commits are ignored so downstream release versions stay aligned.
 - The workflow uses the repository-scoped `GITHUB_TOKEN`; no new secret is required.
 - Artifacts are ad-hoc signed, matching the existing local packaging script; Apple notarization is out of scope.
-- The macOS runner explicitly selects full Xcode and verifies that its Metal compiler is available before compiling.
+- The macOS runner explicitly selects full Xcode, verifies its Metal compiler, and installs `protoc` before compiling.
 - A scheduled release can consume substantial macOS runner time, so unchanged upstream revisions exit before building.
 
 ## Verification

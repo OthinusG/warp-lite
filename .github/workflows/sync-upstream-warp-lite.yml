@@ -88,13 +88,14 @@ jobs:
           fi
           git push --atomic origin "HEAD:refs/heads/$TARGET_BRANCH" "refs/tags/$RELEASE_TAG"
 
-      - name: Select Xcode and verify Metal Toolchain
+      - name: Prepare macOS build tools
         if: steps.sync.outputs.needs_release == 'true'
         shell: bash
         run: |
           set -euo pipefail
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcrun --find metal
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
 
       - name: Check and build Warp Lite
         if: steps.sync.outputs.needs_release == 'true'
