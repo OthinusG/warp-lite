@@ -3,8 +3,8 @@
 **An open-source Warp Terminal alternative for macOS — the same block-based terminal, without AI, without telemetry, and without a login.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![Latest release](https://img.shields.io/github/v/release/terzigolu/warp-lite)](https://github.com/terzigolu/warp-lite/releases/latest)
-[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://github.com/terzigolu/warp-lite/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/OthinusG/warp-lite)](https://github.com/OthinusG/warp-lite/releases/latest)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
 warp-lite is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS with no Warp account login, no bundled AI agents, no cloud onboarding, and no telemetry as a product requirement. If you want a Warp alternative that keeps the terminal and drops the AI platform, this is that fork.
@@ -13,7 +13,7 @@ warp-lite is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://g
 
 Latest release:
 
-- Download the newest published build from [releases/latest](https://github.com/terzigolu/warp-lite/releases/latest).
+- Download the newest published build from [releases/latest](https://github.com/OthinusG/warp-lite/releases/latest).
 - Current build: `v0.5.7-lite`.
 - macOS artifacts: `WarpLite.dmg` (~120 MB), `WarpLite.app.zip`.
 
@@ -51,7 +51,7 @@ If you want the AI agents, cloud drive, and team features, upstream [Warp](https
 Download the latest macOS build from:
 
 ```text
-https://github.com/terzigolu/warp-lite/releases/latest
+https://github.com/OthinusG/warp-lite/releases/latest
 ```
 
 Use `WarpLite.dmg`, then drag `WarpLite.app` into `/Applications`.
@@ -74,7 +74,8 @@ The current build is `v0.5.7-lite`.
 | Platform product boundary | Enabled | Default Lite omits `warp_platform`; billing, referrals, rewards, pricing UI/model, and selected AI startup/background paths compile only for platform builds. |
 | Warp login gate | Disabled | `skip_firebase_anonymous_user` is enabled by default. Startup, "skip login", and visible account/billing menu entry points are hardened away from Warp auth in the lite build. |
 | Telemetry product goal | Removed/neutralized | Historical telemetry call-site cleanup is part of the fork; keep auditing before claiming perfect network silence. |
-| Context Panel / Tools Panel | Removed from shipped UI | The experimental Context Panel was deleted from the app wiring in `v0.5.1-lite` after causing instability and stale data issues. |
+| Project Explorer / Tools Panel | Restored | The native Project Explorer and its top-right toolbar launcher are restored without reintroducing AI, account, or cloud product surfaces. |
+| Context Panel | Removed from shipped UI | The experimental Context Panel was deleted from the app wiring in `v0.5.1-lite` after causing instability and stale data issues. |
 | Codex / Claude Code notifications | Kept | These are intentionally preserved for the lite fork. |
 | Markdown viewer | Kept | `markdown_tables` and `markdown_mermaid` remain in defaults. |
 | Agent mode | Not a target | Agent-mode product surfaces should stay out of the lite app. |
@@ -83,6 +84,7 @@ The current build is `v0.5.7-lite`.
 
 ### v0.5.7-lite — August upstream sync (2026-08)
 
+- Restored the native Project Explorer, including its top-right toolbar launcher, and added an auditable patch script that reapplies the feature after upstream release syncs.
 - Integrated 193 vetted upstream-sync and Warp Lite adaptation commits while keeping AI/agent, cloud account, billing, team, remote-control, and new telemetry changes out of the default Lite product.
 - Added security hardening for external links/downloads, command and SSH escaping, environment-aware blocklist checks, auth-log redaction, OSC 52 clipboard control, and dependency fixes.
 - Improved terminal and shell reliability across PTY writes, wide-character resize, inline images, OSC hyperlinks, process-group cancellation, zsh/PowerShell bootstrap, SSH, and remote sessions.
