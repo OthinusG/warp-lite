@@ -46,6 +46,8 @@ pub fn is_agent_supported(agent: &CLIAgent) -> bool {
             | CLIAgent::Codex
             | CLIAgent::Gemini
             | CLIAgent::Auggie
+            | CLIAgent::OhMyPi
+            | CLIAgent::Grok
     )
 }
 
@@ -56,15 +58,22 @@ fn create_handler(agent: &CLIAgent) -> Option<Box<dyn CLIAgentSessionHandler>> {
         // (https://github.com/augmentmoogi/auggie-warp), which emits the same
         // structured OSC 777 events as the first-party Claude/OpenCode/Gemini
         // plugins. We don't ship an install flow for it — we just listen.
-        CLIAgent::Claude | CLIAgent::OpenCode | CLIAgent::Gemini | CLIAgent::Auggie => {
-            Some(Box::new(DefaultSessionListener))
+        CLIAgent::Claude
+        | CLIAgent::OpenCode
+        | CLIAgent::Gemini
+        | CLIAgent::Auggie
+        | CLIAgent::OhMyPi => Some(Box::new(DefaultSessionListener)),
+        CLIAgent::Codex | CLIAgent::Grok => {
+            Some(Box::new(Osc9FallbackSessionHandler { agent: *agent }))
         }
-        CLIAgent::Codex => Some(Box::new(CodexSessionHandler)),
         CLIAgent::Amp
         | CLIAgent::Droid
         | CLIAgent::Copilot
         | CLIAgent::Pi
         | CLIAgent::CursorCli
+        | CLIAgent::Goose
+        | CLIAgent::Hermes
+        | CLIAgent::Vibe
         | CLIAgent::Antigravity
         | CLIAgent::DeepSeekHarness
         | CLIAgent::Unknown => None,
@@ -86,7 +95,7 @@ impl CLIAgentSessionHandler for DefaultSessionListener {
     }
 }
 
-/// Codex-specific handler that parses plain-text OSC 9 desktop notifications
+/// Handler that parses plain-text OSC 9 desktop notifications
 /// into CLI agent events.
 ///
 /// Codex sends notifications via OSC 9 (`\x1b]9;message\x07`) with
@@ -94,12 +103,14 @@ impl CLIAgentSessionHandler for DefaultSessionListener {
 /// from the raw text, all OSC 9 notifications are treated as `Stop` (success).
 /// The notification body becomes the event's `query` so it surfaces as the
 /// notification title in the UI.
-struct CodexSessionHandler;
+struct Osc9FallbackSessionHandler {
+    agent: CLIAgent,
+}
 
-impl CodexSessionHandler {
+impl Osc9FallbackSessionHandler {
     /// Parse a plain-text OSC 9 notification body into a `CLIAgentEvent`.
     /// Returns `None` only for empty bodies.
-    fn parse_osc9_text(body: &str) -> Option<CLIAgentEvent> {
+    fn parse_osc9_text(agent: CLIAgent, body: &str) -> Option<CLIAgentEvent> {
         let body = body.trim();
         if body.is_empty() {
             return None;
@@ -107,7 +118,7 @@ impl CodexSessionHandler {
 
         Some(CLIAgentEvent {
             v: 1,
-            agent: CLIAgent::Codex,
+            agent,
             event: CLIAgentEventType::Stop,
             session_id: None,
             cwd: None,
@@ -120,7 +131,7 @@ impl CodexSessionHandler {
     }
 }
 
-impl CLIAgentSessionHandler for CodexSessionHandler {
+impl CLIAgentSessionHandler for Osc9FallbackSessionHandler {
     /// Codex sends plain-text OSC 9 notifications (title = `None`) instead of
     /// the structured OSC 777 JSON used by Claude Code / OpenCode.
     fn try_parse(&self, title: Option<&str>, body: &str) -> Option<CLIAgentEvent> {
@@ -128,13 +139,13 @@ impl CLIAgentSessionHandler for CodexSessionHandler {
         // JSON parser first (future-proofing in case Codex adds plugin
         // support later).
         if let Some(parsed) = parse_event(title, body) {
-            return Some(parsed);
+            return (parsed.agent == self.agent).then_some(parsed);
         }
         // OSC 9 notifications have no title.
         if title.is_some() {
             return None;
         }
-        Self::parse_osc9_text(body)
+        Self::parse_osc9_text(self.agent, body)
     }
 
     fn handle_event(&mut self, event: CLIAgentEvent) -> Option<CLIAgentEvent> {
@@ -198,7 +209,9 @@ mod tests {
 
     #[test]
     fn codex_parses_any_text_as_stop() {
-        let event = CodexSessionHandler::parse_osc9_text("Agent turn complete").unwrap();
+        let event =
+            Osc9FallbackSessionHandler::parse_osc9_text(CLIAgent::Codex, "Agent turn complete")
+                .unwrap();
         assert_eq!(event.event, CLIAgentEventType::Stop);
         assert_eq!(event.agent, CLIAgent::Codex);
         assert_eq!(event.payload.query.as_deref(), Some("Agent turn complete"));
@@ -206,7 +219,8 @@ mod tests {
 
     #[test]
     fn codex_body_becomes_query() {
-        let event = CodexSessionHandler::parse_osc9_text(
+        let event = Osc9FallbackSessionHandler::parse_osc9_text(
+            CLIAgent::Codex,
             "I've updated the README with the new instructions.",
         )
         .unwrap();
@@ -219,8 +233,11 @@ mod tests {
 
     #[test]
     fn codex_approval_text_still_becomes_stop() {
-        let event =
-            CodexSessionHandler::parse_osc9_text("Approval requested: rm -rf /tmp/foo").unwrap();
+        let event = Osc9FallbackSessionHandler::parse_osc9_text(
+            CLIAgent::Codex,
+            "Approval requested: rm -rf /tmp/foo",
+        )
+        .unwrap();
         assert_eq!(event.event, CLIAgentEventType::Stop);
         assert_eq!(
             event.payload.query.as_deref(),
@@ -230,13 +247,15 @@ mod tests {
 
     #[test]
     fn codex_ignores_empty_body() {
-        assert!(CodexSessionHandler::parse_osc9_text("").is_none());
-        assert!(CodexSessionHandler::parse_osc9_text("   ").is_none());
+        assert!(Osc9FallbackSessionHandler::parse_osc9_text(CLIAgent::Codex, "").is_none());
+        assert!(Osc9FallbackSessionHandler::parse_osc9_text(CLIAgent::Codex, "   ").is_none());
     }
 
     #[test]
     fn codex_try_parse_ignores_titled_notifications() {
-        let handler = CodexSessionHandler;
+        let handler = Osc9FallbackSessionHandler {
+            agent: CLIAgent::Codex,
+        };
         assert!(handler
             .try_parse(Some("some-title"), "Agent turn complete")
             .is_none());
@@ -244,7 +263,9 @@ mod tests {
 
     #[test]
     fn codex_try_parse_handles_osc9() {
-        let handler = CodexSessionHandler;
+        let handler = Osc9FallbackSessionHandler {
+            agent: CLIAgent::Codex,
+        };
         let event = handler.try_parse(None, "Agent turn complete").unwrap();
         assert_eq!(event.event, CLIAgentEventType::Stop);
     }

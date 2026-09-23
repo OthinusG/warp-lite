@@ -120,16 +120,21 @@ enum RichInputSubmitStrategy {
 /// Returns the strategy for submitting rich input text to a CLI agent's PTY.
 fn rich_input_submit_strategy(agent: CLIAgent) -> RichInputSubmitStrategy {
     match agent {
-        CLIAgent::Codex => RichInputSubmitStrategy::BracketedPaste,
+        CLIAgent::Codex | CLIAgent::OhMyPi | CLIAgent::Hermes => {
+            RichInputSubmitStrategy::BracketedPaste
+        }
         CLIAgent::Copilot => RichInputSubmitStrategy::BracketedPasteDelayedEnter,
         CLIAgent::Claude
         | CLIAgent::OpenCode
         | CLIAgent::Gemini
         | CLIAgent::Auggie
+        | CLIAgent::Grok
         | CLIAgent::CursorCli => RichInputSubmitStrategy::DelayedEnter,
         CLIAgent::Amp
         | CLIAgent::Droid
         | CLIAgent::Pi
+        | CLIAgent::Goose
+        | CLIAgent::Vibe
         | CLIAgent::Antigravity
         | CLIAgent::DeepSeekHarness
         | CLIAgent::Unknown => RichInputSubmitStrategy::Inline,
@@ -616,6 +621,7 @@ impl TerminalView {
             sessions_model.clear_draft(view_id);
         });
 
+
         let strategy = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
             .map(|s| rich_input_submit_strategy(s.agent))
@@ -874,7 +880,6 @@ impl TerminalView {
                 ctx,
             );
         });
-
 
         // Input mode switch, buffer clear, draft restoration, and hint text
         // are handled reactively by Input's subscription to InputSessionChanged.
