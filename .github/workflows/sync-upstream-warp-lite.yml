@@ -37,18 +37,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add upstream "$UPSTREAM_REPOSITORY"
 
-          release_tag="$(
+          upstream_tag="$(
             git ls-remote --tags --refs --sort=-version:refname upstream 'v*-lite' \
               | awk 'NR == 1 {sub("refs/tags/", "", $2); print $2}'
           )"
-          if [[ -z "$release_tag" ]]; then
+          if [[ -z "$upstream_tag" ]]; then
             echo "No upstream v*-lite release tag found." >&2
             exit 1
           fi
           git fetch --no-tags upstream \
-            "refs/tags/$release_tag:refs/remotes/upstream/releases/$release_tag"
-          upstream_sha="$(git rev-parse "refs/remotes/upstream/releases/$release_tag")"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+            "refs/tags/$upstream_tag:refs/remotes/upstream/releases/$upstream_tag"
+          upstream_sha="$(git rev-parse "refs/remotes/upstream/releases/$upstream_tag")"
 
           if ! git merge-base --is-ancestor "$upstream_sha" HEAD; then
             git merge --no-edit "$upstream_sha"
@@ -58,7 +57,8 @@ jobs:
           if ! git diff --quiet \
             || ! git diff --cached --quiet \
             || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
-            git add app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
+            git add app/src/lib.rs app/src/settings_view/mod.rs \
+              app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
               app/src/workspace/util.rs script/build-warp-lite-app.sh \
               app/assets/bundled/svg/antigravity_cli.svg \
               app/assets/bundled/png/deepseek_harness.png \
@@ -73,6 +73,12 @@ jobs:
               crates/warp_core/src/ui/icons.rs
             git commit -m "chore(warp-lite): restore downstream customizations"
           fi
+
+          release_tag="$upstream_tag"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_tag="${upstream_tag}-r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          fi
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]] \
             && git merge-base --is-ancestor "$upstream_sha" "origin/$TARGET_BRANCH" \
@@ -124,6 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo check -p warp --bin warp-oss
+          cargo check -p warp --bin warp-oss --features warp_platform
           cargo build --release --bin warp-oss
 
       - name: Package and verify macOS artifacts
@@ -145,10 +152,11 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Warp Lite $RELEASE_TAG" \
-              --notes "Automated verified sync from terzigolu/warp-lite with Project Explorer restored."
+            echo "Release $RELEASE_TAG already exists; refusing to overwrite assets." >&2
+            exit 1
           fi
+          gh release create "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg \
+            --verify-tag --latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Warp Lite $RELEASE_TAG" \
+            --notes "Automated verified sync from terzigolu/warp-lite with Project Explorer restored."

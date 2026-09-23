@@ -77,6 +77,7 @@ The current build is `v0.5.7-lite`.
 | Project Explorer / Tools Panel | Restored | The native Project Explorer and its top-right toolbar launcher are restored without reintroducing AI, account, or cloud product surfaces. |
 | Context Panel | Removed from shipped UI | The experimental Context Panel was deleted from the app wiring in `v0.5.1-lite` after causing instability and stale data issues. |
 | Codex / Claude Code notifications | Kept | These are intentionally preserved for the lite fork. |
+| Warp MCP manager | Disabled in Lite | Warp's MCP config watcher, server runtime, gallery, and settings page are not started; third-party CLI agents retain their own MCP configuration. |
 | Markdown viewer | Kept | `markdown_tables` and `markdown_mermaid` remain in defaults. |
 | Agent mode | Not a target | Agent-mode product surfaces should stay out of the lite app. |
 

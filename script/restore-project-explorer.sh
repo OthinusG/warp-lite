@@ -7,6 +7,7 @@ PATCHES=(
     "$ROOT/.github/patches/project-explorer.patch"
     "$ROOT/.github/patches/antigravity-cli.patch"
     "$ROOT/.github/patches/deepseek-harness.patch"
+    "$ROOT/.github/patches/disable-warp-mcp-runtime.patch"
 )
 
 cd "$ROOT"

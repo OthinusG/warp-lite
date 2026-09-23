@@ -1,0 +1,85 @@
+diff --git a/app/src/lib.rs b/app/src/lib.rs
+--- a/app/src/lib.rs
++++ b/app/src/lib.rs
+@@ -137,2 +137,4 @@
++#[cfg(feature = "warp_platform")]
+ use crate::ai::mcp::FileBasedMCPManager;
++#[cfg(feature = "warp_platform")]
+ use crate::ai::mcp::FileMCPWatcher;
+@@ -203 +205,2 @@
++#[cfg(feature = "warp_platform")]
+ use crate::ai::mcp::MCPGalleryManager;
+@@ -1636,23 +1639,28 @@
+-    let running_mcp_servers = app_state
+-        .as_ref()
+-        .map(|app_state| app_state.running_mcp_servers.as_slice())
+-        .unwrap_or(&[]);
+-
+-    // FileMCPWatcher must be registered before FileBasedMCPManager, which subscribes to it.
+-    ctx.add_singleton_model(FileMCPWatcher::new);
+-    ctx.add_singleton_model(FileBasedMCPManager::new);
+-
+-    // TemplatableMCPServerManager must be registered after UpdateManager and MCPServerManager so it can migrate legacy MCPs on start up
+-    // It should also be registered after FileBasedMCPManager so it can receive file-based server updates.
+-    ctx.add_singleton_model(|ctx| {
+-        TemplatableMCPServerManager::new(
+-            persisted_mcp_server_installations,
+-            mcp_servers_to_restore,
+-            running_mcp_servers,
+-            ctx,
+-        )
+-    });
+-
+-    // MCPGalleryManager subscribes to UpdateManager so that it can be notified when gallery items are updated.
+-    // The registration of this singleton must be after UpdateManager is registered.
+-    ctx.add_singleton_model(MCPGalleryManager::new);
++    #[cfg(feature = "warp_platform")]
++    {
++        let running_mcp_servers = app_state
++            .as_ref()
++            .map(|app_state| app_state.running_mcp_servers.as_slice())
++            .unwrap_or(&[]);
++
++        // FileMCPWatcher must be registered before FileBasedMCPManager, which subscribes to it.
++        ctx.add_singleton_model(FileMCPWatcher::new);
++        ctx.add_singleton_model(FileBasedMCPManager::new);
++
++        // The manager must be registered after FileBasedMCPManager for file-based updates.
++        ctx.add_singleton_model(|ctx| {
++            TemplatableMCPServerManager::new(
++                persisted_mcp_server_installations,
++                mcp_servers_to_restore,
++                running_mcp_servers,
++                ctx,
++            )
++        });
++
++        // MCPGalleryManager subscribes to UpdateManager for gallery updates.
++        ctx.add_singleton_model(MCPGalleryManager::new);
++    }
++
++    // Warp Lite keeps an empty singleton for compiled AI callers but never scans or starts MCPs.
++    #[cfg(not(feature = "warp_platform"))]
++    ctx.add_singleton_model(|_| TemplatableMCPServerManager::default());
+diff --git a/app/src/settings_view/mod.rs b/app/src/settings_view/mod.rs
+--- a/app/src/settings_view/mod.rs
++++ b/app/src/settings_view/mod.rs
+@@ -39 +39,2 @@
++#[cfg(feature = "warp_platform")]
+ use mcp_servers_page::MCPServersSettingsPageView;
+@@ -285,0 +286 @@
++                    | Self::MCPServers
+@@ -1188,5 +1189,7 @@
+         // MCP Servers page
++        #[cfg(feature = "warp_platform")]
+         let mcp_servers_page_handle = ctx.add_typed_action_view(MCPServersSettingsPageView::new);
++        #[cfg(feature = "warp_platform")]
+         ctx.subscribe_to_view(&mcp_servers_page_handle, |me, _, event, ctx| {
+             me.handle_mcp_servers_page_event(event, ctx);
+         });
+@@ -1242,2 +1245,4 @@
++        #[cfg(feature = "warp_platform")]
++        settings_pages.push(SettingsPage::new(mcp_servers_page_handle));
++
+         settings_pages.extend(vec![
+-            SettingsPage::new(mcp_servers_page_handle),
