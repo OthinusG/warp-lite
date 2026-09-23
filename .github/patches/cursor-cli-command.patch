@@ -1,0 +1,23 @@
+diff --git a/app/src/terminal/cli_agent.rs b/app/src/terminal/cli_agent.rs
+--- a/app/src/terminal/cli_agent.rs
++++ b/app/src/terminal/cli_agent.rs
+@@ -184 +184 @@ impl CLIAgent {
+-            CLIAgent::CursorCli => &["agent"],
++            CLIAgent::CursorCli => &["agent", "cursor-agent"],
+diff --git a/app/src/terminal/cli_agent_tests.rs b/app/src/terminal/cli_agent_tests.rs
+--- a/app/src/terminal/cli_agent_tests.rs
++++ b/app/src/terminal/cli_agent_tests.rs
+@@ -260,0 +261 @@ fn test_detect_known_agents() {
++                ("cursor-agent", CLIAgent::CursorCli),
+diff --git a/crates/input_classifier/src/util.rs b/crates/input_classifier/src/util.rs
+--- a/crates/input_classifier/src/util.rs
++++ b/crates/input_classifier/src/util.rs
+@@ -23 +23 @@ lazy_static! {
+-    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp"]);
++    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp", "cursor-agent"]);
+@@ -130,0 +131,5 @@ mod tests {
++    #[test]
++    fn cursor_agent_is_a_shell_command_keyword() {
++        assert!(is_one_off_shell_command_keyword("cursor-agent"));
++    }
++

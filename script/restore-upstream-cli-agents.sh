@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATCH="$ROOT/.github/patches/upstream-third-party-cli-agents.patch"
+CURSOR_PATCH="$ROOT/.github/patches/cursor-cli-command.patch"
 UPSTREAM_REPOSITORY="${WARP_UPSTREAM_REPOSITORY:-https://github.com/warpdotdev/warp.git}"
 UPSTREAM_REF="refs/remotes/warp-lite-upstream/master"
 CHECK_ONLY=false
@@ -40,7 +41,9 @@ for agent in "${VETTED_VARIANTS[@]}"; do
     fi
 done
 
-if git apply --unidiff-zero --reverse --check "$PATCH" 2>/dev/null; then
+if git apply --unidiff-zero --reverse --check "$PATCH" 2>/dev/null \
+    || { grep -Fq 'CLIAgent::OhMyPi => &["omp"]' app/src/terminal/cli_agent.rs \
+        && grep -Fq 'CLIAgent::Grok => &["grok"]' app/src/terminal/cli_agent.rs; }; then
     echo "$(basename "$PATCH") is already applied."
 elif git apply --unidiff-zero --check "$PATCH" 2>/dev/null; then
     if $CHECK_ONLY; then
@@ -51,6 +54,20 @@ elif git apply --unidiff-zero --check "$PATCH" 2>/dev/null; then
     fi
 else
     echo "$(basename "$PATCH") no longer matches this Warp Lite revision." >&2
+    exit 1
+fi
+
+if git apply --unidiff-zero --reverse --check "$CURSOR_PATCH" 2>/dev/null; then
+    echo "$(basename "$CURSOR_PATCH") is already applied."
+elif git apply --unidiff-zero --check "$CURSOR_PATCH" 2>/dev/null; then
+    if $CHECK_ONLY; then
+        echo "$(basename "$CURSOR_PATCH") can be applied."
+    else
+        git apply --unidiff-zero "$CURSOR_PATCH"
+        echo "$(basename "$CURSOR_PATCH") restored."
+    fi
+else
+    echo "$(basename "$CURSOR_PATCH") no longer matches this Warp Lite revision." >&2
     exit 1
 fi
 
