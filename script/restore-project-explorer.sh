@@ -30,3 +30,5 @@ for patch in "${PATCHES[@]}"; do
         exit 1
     fi
 done
+
+"$ROOT/script/restore-upstream-cli-agents.sh" "${1:-}"

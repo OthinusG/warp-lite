@@ -55,7 +55,9 @@ jobs:
           fi
 
           script/restore-project-explorer.sh
-          if ! git diff --quiet; then
+          if ! git diff --quiet \
+            || ! git diff --cached --quiet \
+            || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
             git add app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
               app/src/workspace/util.rs script/build-warp-lite-app.sh \
               app/assets/bundled/svg/antigravity_cli.svg \
@@ -66,7 +68,9 @@ jobs:
               app/src/terminal/cli_agent_tests.rs \
               app/src/terminal/view/use_agent_footer/mod.rs \
               app/src/ui_components/icon_with_status.rs \
-              crates/input_classifier/src/util.rs crates/warp_core/src/ui/icons.rs
+              app/assets/bundled/svg app/src/terminal/cli_agent_sessions/plugin_manager \
+              crates/input_classifier/src/util.rs crates/input_classifier/src/util_tests.rs \
+              crates/warp_core/src/ui/icons.rs
             git commit -m "chore(warp-lite): restore downstream customizations"
           fi
 
