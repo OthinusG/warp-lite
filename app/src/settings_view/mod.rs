@@ -36,6 +36,7 @@ use features_page::{FeaturesPageView, FeaturesSettingsPageEvent};
 use itertools::Itertools as _;
 use keybindings::KeybindingsView;
 use main_page::{MainPageAction, MainSettingsPageEvent, MainSettingsPageView};
+#[cfg(feature = "warp_platform")]
 use mcp_servers_page::MCPServersSettingsPageView;
 use nav::{SettingsNavItem, SettingsUmbrella};
 use pathfinder_geometry::vector::Vector2F;
@@ -282,6 +283,7 @@ impl SettingsSection {
         cfg!(feature = "skip_firebase_anonymous_user")
             && matches!(
                 self,
+                    | Self::MCPServers
                 Self::Account
                     | Self::BillingAndUsage
                     | Self::Referrals
@@ -1186,7 +1188,9 @@ impl SettingsView {
         });
 
         // MCP Servers page
+        #[cfg(feature = "warp_platform")]
         let mcp_servers_page_handle = ctx.add_typed_action_view(MCPServersSettingsPageView::new);
+        #[cfg(feature = "warp_platform")]
         ctx.subscribe_to_view(&mcp_servers_page_handle, |me, _, event, ctx| {
             me.handle_mcp_servers_page_event(event, ctx);
         });
@@ -1239,8 +1243,10 @@ impl SettingsView {
         #[cfg(feature = "warp_platform")]
         settings_pages.push(SettingsPage::new(referrals_page_handle));
 
+        #[cfg(feature = "warp_platform")]
+        settings_pages.push(SettingsPage::new(mcp_servers_page_handle));
+
         settings_pages.extend(vec![
-            SettingsPage::new(mcp_servers_page_handle),
             SettingsPage::new(environments_page_handle.clone()),
             SettingsPage::new(privacy_page_handle),
             SettingsPage::new(about_page_handle),

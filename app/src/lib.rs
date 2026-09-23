@@ -134,7 +134,9 @@ pub mod themes;
 use crate::ai::active_agent_views_model::ActiveAgentViewsModel;
 #[cfg(not(target_family = "wasm"))]
 use crate::ai::aws_credentials::AwsCredentialRefresher as _;
+#[cfg(feature = "warp_platform")]
 use crate::ai::mcp::FileBasedMCPManager;
+#[cfg(feature = "warp_platform")]
 use crate::ai::mcp::FileMCPWatcher;
 use crate::uri::web_intent_parser::maybe_rewrite_web_url_to_intent;
 use ::ai::index::full_source_code_embedding::manager::CodebaseIndexManager;
@@ -200,6 +202,7 @@ use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::ai::document::ai_document_model::AIDocumentModel;
 use crate::ai::facts::manager::AIFactManager;
 use crate::ai::llms::LLMPreferences;
+#[cfg(feature = "warp_platform")]
 use crate::ai::mcp::MCPGalleryManager;
 use crate::ai::mcp::TemplatableMCPServerManager;
 use crate::ai::outline::RepoOutlines;
@@ -1633,29 +1636,34 @@ fn initialize_app(
     // LogManager must be registered before any subsystem (e.g. MCP, LSP) that creates file-based loggers.
     ctx.add_singleton_model(|_| simple_logger::manager::LogManager::new());
 
-    let running_mcp_servers = app_state
-        .as_ref()
-        .map(|app_state| app_state.running_mcp_servers.as_slice())
-        .unwrap_or(&[]);
+    #[cfg(feature = "warp_platform")]
+    {
+        let running_mcp_servers = app_state
+            .as_ref()
+            .map(|app_state| app_state.running_mcp_servers.as_slice())
+            .unwrap_or(&[]);
 
-    // FileMCPWatcher must be registered before FileBasedMCPManager, which subscribes to it.
-    ctx.add_singleton_model(FileMCPWatcher::new);
-    ctx.add_singleton_model(FileBasedMCPManager::new);
+        // FileMCPWatcher must be registered before FileBasedMCPManager, which subscribes to it.
+        ctx.add_singleton_model(FileMCPWatcher::new);
+        ctx.add_singleton_model(FileBasedMCPManager::new);
 
-    // TemplatableMCPServerManager must be registered after UpdateManager and MCPServerManager so it can migrate legacy MCPs on start up
-    // It should also be registered after FileBasedMCPManager so it can receive file-based server updates.
-    ctx.add_singleton_model(|ctx| {
-        TemplatableMCPServerManager::new(
-            persisted_mcp_server_installations,
-            mcp_servers_to_restore,
-            running_mcp_servers,
-            ctx,
-        )
-    });
+        // The manager must be registered after FileBasedMCPManager for file-based updates.
+        ctx.add_singleton_model(|ctx| {
+            TemplatableMCPServerManager::new(
+                persisted_mcp_server_installations,
+                mcp_servers_to_restore,
+                running_mcp_servers,
+                ctx,
+            )
+        });
 
-    // MCPGalleryManager subscribes to UpdateManager so that it can be notified when gallery items are updated.
-    // The registration of this singleton must be after UpdateManager is registered.
-    ctx.add_singleton_model(MCPGalleryManager::new);
+        // MCPGalleryManager subscribes to UpdateManager for gallery updates.
+        ctx.add_singleton_model(MCPGalleryManager::new);
+    }
+
+    // Warp Lite keeps an empty singleton for compiled AI callers but never scans or starts MCPs.
+    #[cfg(not(feature = "warp_platform"))]
+    ctx.add_singleton_model(|_| TemplatableMCPServerManager::default());
 
     // SkillManager is used to cache SKILL.md files for all active terminal views and their working directories
     ctx.add_singleton_model(SkillManager::new);
