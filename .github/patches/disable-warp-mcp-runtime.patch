@@ -67,7 +67,7 @@ diff --git a/app/src/settings_view/mod.rs b/app/src/settings_view/mod.rs
 @@ -39 +39,2 @@
 +#[cfg(feature = "warp_platform")]
  use mcp_servers_page::MCPServersSettingsPageView;
-@@ -285,0 +286 @@
+@@ -294,0 +295 @@
 +                    | Self::MCPServers
 @@ -1188,5 +1189,7 @@
          // MCP Servers page

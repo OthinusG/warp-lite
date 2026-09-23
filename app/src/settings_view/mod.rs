@@ -283,7 +283,6 @@ impl SettingsSection {
         cfg!(feature = "skip_firebase_anonymous_user")
             && matches!(
                 self,
-                    | Self::MCPServers
                 Self::Account
                     | Self::BillingAndUsage
                     | Self::Referrals
@@ -294,6 +293,7 @@ impl SettingsSection {
                     | Self::WarpAgent
                     | Self::AgentProfiles
                     | Self::AgentMCPServers
+                    | Self::MCPServers
                     | Self::Knowledge
                     | Self::CloudEnvironments
                     | Self::OzCloudAPIKeys
