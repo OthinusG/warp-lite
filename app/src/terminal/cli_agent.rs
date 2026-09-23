@@ -181,7 +181,7 @@ impl CLIAgent {
             CLIAgent::Pi => &["pi"],
             CLIAgent::OhMyPi => &["omp"],
             CLIAgent::Auggie => &["auggie"],
-            CLIAgent::CursorCli => &["agent"],
+            CLIAgent::CursorCli => &["agent", "cursor-agent"],
             CLIAgent::Goose => &["goose"],
             CLIAgent::Hermes => &["hermes"],
             CLIAgent::Vibe => &["vibe", "vibe-acp"],

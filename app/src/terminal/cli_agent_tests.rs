@@ -258,6 +258,7 @@ fn test_detect_known_agents() {
                 ("opencode", CLIAgent::OpenCode),
                 ("copilot", CLIAgent::Copilot),
                 ("agent", CLIAgent::CursorCli),
+                ("cursor-agent", CLIAgent::CursorCli),
                 ("agy", CLIAgent::Antigravity),
                 ("omp", CLIAgent::OhMyPi),
                 ("goose", CLIAgent::Goose),
