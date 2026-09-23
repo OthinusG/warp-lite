@@ -15,7 +15,7 @@ patch_is_present() {
     case "$(basename "$1")" in
         antigravity-cli.patch)
             [[ -f app/assets/bundled/svg/antigravity_cli.svg ]] \
-                && grep -Fq 'CLIAgent::Antigravity => &["agy"]' app/src/terminal/cli_agent.rs \
+                && grep -Eq 'CLIAgent::Antigravity => ("agy"|&\["agy"\])' app/src/terminal/cli_agent.rs \
                 && grep -Fq 'Icon::AntigravityLogo => "bundled/svg/antigravity_cli.svg"' crates/warp_core/src/ui/icons.rs \
                 && grep -Fq '"agy"' crates/input_classifier/src/util.rs
             ;;
