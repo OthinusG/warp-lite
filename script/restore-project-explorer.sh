@@ -15,15 +15,15 @@ patch_is_present() {
     case "$(basename "$1")" in
         antigravity-cli.patch)
             [[ -f app/assets/bundled/svg/antigravity_cli.svg ]] \
-                && rg -Fq 'CLIAgent::Antigravity => "agy"' app/src/terminal/cli_agent.rs \
-                && rg -Fq 'Icon::AntigravityLogo => "bundled/svg/antigravity_cli.svg"' crates/warp_core/src/ui/icons.rs \
-                && rg -Fq '"agy"' crates/input_classifier/src/util.rs
+                && grep -Fq 'CLIAgent::Antigravity => "agy"' app/src/terminal/cli_agent.rs \
+                && grep -Fq 'Icon::AntigravityLogo => "bundled/svg/antigravity_cli.svg"' crates/warp_core/src/ui/icons.rs \
+                && grep -Fq '"agy"' crates/input_classifier/src/util.rs
             ;;
         deepseek-harness.patch)
             [[ -f app/assets/bundled/png/deepseek_harness.png ]] \
-                && rg -Fq 'Self::is_deepseek_harness_tui' app/src/terminal/cli_agent.rs \
-                && rg -Fq 'Icon::DeepSeekHarnessLogo => "bundled/png/deepseek_harness.png"' crates/warp_core/src/ui/icons.rs \
-                && rg -Fq 'CLIAgent::DeepSeekHarness' app/src/ui_components/icon_with_status.rs
+                && grep -Fq 'Self::is_deepseek_harness_tui' app/src/terminal/cli_agent.rs \
+                && grep -Fq 'Icon::DeepSeekHarnessLogo => "bundled/png/deepseek_harness.png"' crates/warp_core/src/ui/icons.rs \
+                && grep -Fq 'CLIAgent::DeepSeekHarness' app/src/ui_components/icon_with_status.rs
             ;;
         *) return 1 ;;
     esac
