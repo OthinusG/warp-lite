@@ -9,8 +9,8 @@
 ## Build And Release
 
 - Primary check: `cargo check -p warp --bin warp-oss`.
-- App packaging: `script/build-warp-lite-app.sh`.
-- Release artifacts include `WarpLite.app.zip` and `WarpLite.dmg`.
+- App packaging: `script/build-warp-lite-app.sh` (macOS), `script/build-warp-lite-windows.ps1` (Windows x64).
+- Release artifacts include `WarpLite.app.zip`, `WarpLite.dmg`, `WarpLiteSetup-x64.exe`, and `WarpLite-windows-x64.zip`.
 
 ## Maintenance
 
@@ -30,4 +30,5 @@
 - Cursor's CLI starts with `cursor-agent`, while upstream Warp currently recognizes only `agent`; `.github/patches/cursor-cli-command.patch` adds the official command without removing the legacy alias and is replayed by the CLI Agent sync script.
 - The default Lite build does not register Warp MCP file watchers, file-based server management, or MCP gallery; it retains an inert `TemplatableMCPServerManager` singleton only for compiled Warp AI callers. The full MCP runtime remains available in `warp_platform` builds, while third-party CLI agents manage their own MCP configurations.
 - Upstream Warp GitHub Actions workflows (such as internal release pipelines targeting GCS/Sentry/Slack, internal repo-sync, Oz AI agent bots for triage/implementation, and proprietary multi-platform CI) were removed from `.github/workflows/`; only the fork's release and synchronization workflow (`sync-upstream-warp-lite.yml`) is retained.
+- `.github/workflows/release-windows-x64.yml` triggers automatically via `workflow_run` when `Sync Warp Lite and release` finishes. It inspects the release, skips redundant runs if Windows assets already exist, compiles `warp-oss` for `x86_64-pc-windows-msvc`, builds `WarpLiteSetup-x64.exe` (via Inno Setup) and `WarpLite-windows-x64.zip`, and attaches them to the GitHub release.
 

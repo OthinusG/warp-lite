@@ -1,0 +1,133 @@
+name: Release Windows x64
+
+on:
+  workflow_run:
+    workflows: ["Sync Warp Lite and release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to attach Windows assets to (leave blank for latest release)"
+        required: false
+        type: string
+      force_rebuild:
+        description: "Force rebuild even if Windows assets already exist"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-x64
+  cancel-in-progress: false
+
+jobs:
+  build-and-release-windows:
+    name: Build and release Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 180
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Determine target release and check existing assets
+        id: check-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$INPUT_TAG" ]]; then
+            TARGET_TAG="$INPUT_TAG"
+          else
+            TARGET_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
+          fi
+
+          if [[ -z "$TARGET_TAG" ]]; then
+            echo "No target release tag found."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Target release tag: $TARGET_TAG"
+          echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+
+          EXISTING_ASSETS="$(gh release view "$TARGET_TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)"
+
+          if echo "$EXISTING_ASSETS" | grep -qx "WarpLiteSetup-x64.exe" && [[ "$FORCE_REBUILD" != "true" ]]; then
+            echo "Windows asset WarpLiteSetup-x64.exe already exists on release $TARGET_TAG. Skipping build."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release $TARGET_TAG requires Windows x64 assets."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out Warp Lite
+        if: steps.check-release.outputs.should_build == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          lfs: true
+          ref: warp-lite/main
+
+      - name: Configure Windows git and environment
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          "CARGO_HOME=C:\cargo" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "C:\cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install build tools and dependencies
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          choco install protoc innosetup -y
+          if (Test-Path "C:\Program Files (x86)\Inno Setup 6") {
+            "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+          bash script/install_cargo_release_deps
+
+      - name: Verify build toolchain
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          rustc --version
+          cargo --version
+          protoc --version
+          cargo-about --version
+          Get-Command ISCC
+
+      - name: Build and package Windows x64 artifacts
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
+        run: |
+          pwsh script/build-warp-lite-windows.ps1 -ReleaseTag "$env:RELEASE_TAG"
+
+      - name: Check Windows release artifacts
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lh WarpLiteSetup-x64.exe WarpLite-windows-x64.zip
+          sha256sum WarpLiteSetup-x64.exe WarpLite-windows-x64.zip
+
+      - name: Upload Windows artifacts to release
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            WarpLiteSetup-x64.exe \
+            WarpLite-windows-x64.zip \
+            --repo "$GITHUB_REPOSITORY"

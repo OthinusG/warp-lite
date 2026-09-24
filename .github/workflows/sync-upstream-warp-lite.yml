@@ -60,6 +60,7 @@ jobs:
             git add app/src/lib.rs app/src/settings_view/mod.rs \
               app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
               app/src/workspace/util.rs script/build-warp-lite-app.sh \
+              script/build-warp-lite-windows.ps1 \
               app/assets/bundled/svg/antigravity_cli.svg \
               app/assets/bundled/png/deepseek_harness.png \
               app/assets/bundled/png/qoder.png \
