@@ -1,0 +1,51 @@
+diff --git a/app/src/autoupdate/windows.rs b/app/src/autoupdate/windows.rs
+index b30d8143..de287769 100644
+--- a/app/src/autoupdate/windows.rs
++++ b/app/src/autoupdate/windows.rs
+@@ -111,7 +111,7 @@ pub(super) fn check_and_report_update_errors(ctx: &mut AppContext) {
+     )
+     .is_some();
+     if has_unable_to_close {
+-        crate::();
++        log::warn!("Setup was unable to automatically close all applications");
+     }
+ 
+     let has_file_in_use = memchr::memmem::find(
+@@ -120,21 +120,21 @@ pub(super) fn check_and_report_update_errors(ctx: &mut AppContext) {
+     )
+     .is_some();
+     if has_file_in_use {
+-        crate::();
++        log::warn!("The process cannot access the file because it is being used by another process");
+     }
+ 
+     // Fired when the mutex polling loop timed out and a force-kill was attempted.
+     let has_mutex_timeout =
+         memchr::memmem::find(&contents_lowercase, b"warp mutex still held after timeout").is_some();
+     if has_mutex_timeout {
+-        crate::();
++        log::warn!("Warp mutex still held after timeout");
+     }
+ 
+     // Fired when taskkill returned non-zero after the mutex timeout.
+     let has_forcekill_failed =
+         memchr::memmem::find(&contents_lowercase, b"force-kill failed for").is_some();
+     if has_forcekill_failed {
+-        crate::();
++        log::warn!("Force-kill failed for autoupdate");
+     }
+ 
+     #[cfg(feature = "crash_reporting")]
+diff --git a/app/src/terminal/model/session.rs b/app/src/terminal/model/session.rs
+index 118ee637..9c975851 100644
+--- a/app/src/terminal/model/session.rs
++++ b/app/src/terminal/model/session.rs
+@@ -1325,7 +1325,7 @@ impl Session {
+             .arg("-NoProfile")
+             .arg("-NoLogo")
+             .arg("-Command")
+-            .arg(powershell_read_all_text_command(history_file_path))
++            .arg(powershell_read_all_text_command(OsStr::new(history_file_path)))
+             .output()
+             .await;
+         match read_result {

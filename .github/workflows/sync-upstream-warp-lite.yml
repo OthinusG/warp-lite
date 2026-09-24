@@ -58,6 +58,7 @@ jobs:
             || ! git diff --cached --quiet \
             || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
             git add app/src/lib.rs app/src/settings_view/mod.rs \
+              app/src/autoupdate/windows.rs app/src/terminal/model/session.rs \
               app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
               app/src/workspace/util.rs script/build-warp-lite-app.sh \
               script/build-warp-lite-windows.ps1 \

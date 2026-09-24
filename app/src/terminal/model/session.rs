@@ -1325,7 +1325,7 @@ impl Session {
             .arg("-NoProfile")
             .arg("-NoLogo")
             .arg("-Command")
-            .arg(powershell_read_all_text_command(history_file_path))
+            .arg(powershell_read_all_text_command(OsStr::new(history_file_path)))
             .output()
             .await;
         match read_result {

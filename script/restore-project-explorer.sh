@@ -9,6 +9,7 @@ PATCHES=(
     "$ROOT/.github/patches/deepseek-harness.patch"
     "$ROOT/.github/patches/qoder-cli.patch"
     "$ROOT/.github/patches/disable-warp-mcp-runtime.patch"
+    "$ROOT/.github/patches/windows-compilation-fixes.patch"
 )
 
 cd "$ROOT"
@@ -32,6 +33,10 @@ patch_is_present() {
                 && grep -Fq 'CLIAgent::Qoder' app/src/terminal/cli_agent.rs \
                 && grep -Fq 'Icon::QoderLogo => "bundled/png/qoder.png"' crates/warp_core/src/ui/icons.rs \
                 && grep -Fq 'CLIAgent::Qoder' app/src/ui_components/icon_with_status.rs
+            ;;
+        windows-compilation-fixes.patch)
+            ! grep -Fq 'crate::();' app/src/autoupdate/windows.rs \
+                && grep -Fq 'powershell_read_all_text_command(OsStr::new(history_file_path))' app/src/terminal/model/session.rs
             ;;
         *) return 1 ;;
     esac
