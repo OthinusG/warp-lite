@@ -76,6 +76,7 @@ fn create_handler(agent: &CLIAgent) -> Option<Box<dyn CLIAgentSessionHandler>> {
         | CLIAgent::Vibe
         | CLIAgent::Antigravity
         | CLIAgent::DeepSeekHarness
+        | CLIAgent::Qoder
         | CLIAgent::Unknown => None,
     }
 }

@@ -506,6 +506,7 @@ pub enum CLIAgentType {
     Antigravity,
     Grok,
     DeepSeekHarness,
+    Qoder,
     Unknown,
 }
 

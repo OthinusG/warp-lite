@@ -270,6 +270,7 @@ pub(crate) fn plugin_manager_for_with_shell(
         | CLIAgent::Antigravity
         | CLIAgent::Grok
         | CLIAgent::DeepSeekHarness
+        | CLIAgent::Qoder
         | CLIAgent::Unknown => None,
     }
 }

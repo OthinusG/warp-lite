@@ -7,6 +7,7 @@ PATCHES=(
     "$ROOT/.github/patches/project-explorer.patch"
     "$ROOT/.github/patches/antigravity-cli.patch"
     "$ROOT/.github/patches/deepseek-harness.patch"
+    "$ROOT/.github/patches/qoder-cli.patch"
     "$ROOT/.github/patches/disable-warp-mcp-runtime.patch"
 )
 
@@ -25,6 +26,12 @@ patch_is_present() {
                 && grep -Fq 'Self::is_deepseek_harness_tui' app/src/terminal/cli_agent.rs \
                 && grep -Fq 'Icon::DeepSeekHarnessLogo => "bundled/png/deepseek_harness.png"' crates/warp_core/src/ui/icons.rs \
                 && grep -Fq 'CLIAgent::DeepSeekHarness' app/src/ui_components/icon_with_status.rs
+            ;;
+        qoder-cli.patch)
+            [[ -f app/assets/bundled/png/qoder.png ]] \
+                && grep -Fq 'CLIAgent::Qoder' app/src/terminal/cli_agent.rs \
+                && grep -Fq 'Icon::QoderLogo => "bundled/png/qoder.png"' crates/warp_core/src/ui/icons.rs \
+                && grep -Fq 'CLIAgent::Qoder' app/src/ui_components/icon_with_status.rs
             ;;
         *) return 1 ;;
     esac

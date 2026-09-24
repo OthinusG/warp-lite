@@ -57,7 +57,9 @@ else
     exit 1
 fi
 
-if git apply --unidiff-zero --reverse --check "$CURSOR_PATCH" 2>/dev/null; then
+if git apply --unidiff-zero --reverse --check "$CURSOR_PATCH" 2>/dev/null \
+    || { grep -Fq 'CLIAgent::CursorCli => &["agent", "cursor-agent"]' app/src/terminal/cli_agent.rs \
+        && grep -Fq '"cursor-agent"' crates/input_classifier/src/util.rs; }; then
     echo "$(basename "$CURSOR_PATCH") is already applied."
 elif git apply --unidiff-zero --check "$CURSOR_PATCH" 2>/dev/null; then
     if $CHECK_ONLY; then
@@ -72,7 +74,7 @@ else
 fi
 
 local_variants="$(extract_variants < app/src/terminal/cli_agent.rs)"
-for agent in "${VETTED_VARIANTS[@]}" DeepSeekHarness; do
+for agent in "${VETTED_VARIANTS[@]}" DeepSeekHarness Qoder; do
     local_variants="$local_variants
 $agent"
 done

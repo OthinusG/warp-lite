@@ -266,6 +266,7 @@ fn test_detect_known_agents() {
                 ("vibe", CLIAgent::Vibe),
                 ("vibe-acp", CLIAgent::Vibe),
                 ("grok", CLIAgent::Grok),
+                ("qoder", CLIAgent::Qoder),
             ] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
@@ -347,6 +348,45 @@ fn test_detect_deepseek_harness_tui_with_env_and_alias() {
             assert_eq!(
                 CLIAgent::detect("dstui", None, Some(&map), ctx),
                 Some(CLIAgent::DeepSeekHarness),
+            );
+        });
+    });
+}
+
+#[test]
+fn test_detect_qoder() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            for command in [
+                "qoder",
+                "qodercli",
+                "qoder-cli",
+                "qoder --settings test",
+                "qodercli run",
+            ] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    Some(CLIAgent::Qoder),
+                    "failed to detect {command}",
+                );
+            }
+        });
+    });
+}
+
+#[test]
+fn test_detect_qoder_with_env_and_alias() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            assert_eq!(
+                CLIAgent::detect("FOO=1 qoder", Some(EscapeChar::Backslash), None, ctx),
+                Some(CLIAgent::Qoder),
+            );
+
+            let map = aliases(&[("qc", "qoder")]);
+            assert_eq!(
+                CLIAgent::detect("qc", None, Some(&map), ctx),
+                Some(CLIAgent::Qoder),
             );
         });
     });

@@ -163,6 +163,7 @@ pub enum CLIAgent {
     Antigravity,
     Grok,
     DeepSeekHarness,
+    Qoder,
     /// Represents an unknown/custom CLI agent matched by user-configured regex patterns.
     Unknown,
 }
@@ -188,6 +189,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => &["agy"],
             CLIAgent::Grok => &["grok"],
             CLIAgent::DeepSeekHarness => &["dsh"],
+            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli"],
             CLIAgent::Unknown => &[],
         }
     }
@@ -230,6 +232,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => "Antigravity",
             CLIAgent::Grok => "Grok Build",
             CLIAgent::DeepSeekHarness => "DeepSeek Harness",
+            CLIAgent::Qoder => "Qoder",
             CLIAgent::Unknown => "CLI Agent",
         }
     }
@@ -253,6 +256,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => Some(Icon::AntigravityLogo),
             CLIAgent::Grok => Some(Icon::GrokLogo),
             CLIAgent::DeepSeekHarness => Some(Icon::DeepSeekHarnessLogo),
+            CLIAgent::Qoder => Some(Icon::QoderLogo),
             CLIAgent::Unknown => None,
         }
     }
@@ -286,6 +290,7 @@ impl CLIAgent {
             }
             CLIAgent::Antigravity => &[],
             CLIAgent::DeepSeekHarness => &[],
+            CLIAgent::Qoder => &[],
             CLIAgent::Unknown => &[],
         }
     }
@@ -336,6 +341,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => Some(ANTIGRAVITY_COLOR),
             CLIAgent::Grok => Some(GROK_COLOR),
             CLIAgent::DeepSeekHarness => Some(ColorU::white()),
+            CLIAgent::Qoder => Some(ColorU::white()),
             CLIAgent::Unknown => None,
         }
     }
@@ -635,6 +641,7 @@ impl From<CLIAgent> for CLIAgentType {
             CLIAgent::Antigravity => CLIAgentType::Antigravity,
             CLIAgent::Grok => CLIAgentType::Grok,
             CLIAgent::DeepSeekHarness => CLIAgentType::DeepSeekHarness,
+            CLIAgent::Qoder => CLIAgentType::Qoder,
             CLIAgent::Unknown => CLIAgentType::Unknown,
         }
     }
