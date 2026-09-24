@@ -143,6 +143,14 @@ const GROK_COLOR: ColorU = ColorU {
     a: 255,
 };
 
+/// Trae brand color (#101114, near-black from official dark theme)
+const TRAE_COLOR: ColorU = ColorU {
+    r: 16,
+    g: 17,
+    b: 20,
+    a: 255,
+};
+
 /// Represents a third-party CLI agent supported by Warp's terminal integration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence, Serialize, Deserialize)]
 pub enum CLIAgent {
@@ -164,6 +172,7 @@ pub enum CLIAgent {
     Grok,
     DeepSeekHarness,
     Qoder,
+    Trae,
     /// Represents an unknown/custom CLI agent matched by user-configured regex patterns.
     Unknown,
 }
@@ -184,12 +193,13 @@ impl CLIAgent {
             CLIAgent::Auggie => &["auggie"],
             CLIAgent::CursorCli => &["agent", "cursor-agent"],
             CLIAgent::Goose => &["goose"],
-            CLIAgent::Hermes => &["hermes"],
+            CLIAgent::Hermes => &["hermes", "hermes-agent"],
             CLIAgent::Vibe => &["vibe", "vibe-acp"],
             CLIAgent::Antigravity => &["agy"],
             CLIAgent::Grok => &["grok"],
             CLIAgent::DeepSeekHarness => &["dsh"],
-            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli"],
+            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli", "qodercn"],
+            CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli"],
             CLIAgent::Unknown => &[],
         }
     }
@@ -233,6 +243,7 @@ impl CLIAgent {
             CLIAgent::Grok => "Grok Build",
             CLIAgent::DeepSeekHarness => "DeepSeek Harness",
             CLIAgent::Qoder => "Qoder",
+            CLIAgent::Trae => "Trae",
             CLIAgent::Unknown => "CLI Agent",
         }
     }
@@ -252,11 +263,13 @@ impl CLIAgent {
             CLIAgent::Auggie => Some(Icon::AuggieLogo),
             CLIAgent::CursorCli => Some(Icon::CursorLogo),
             CLIAgent::Goose => Some(Icon::GooseLogo),
-            CLIAgent::Hermes | CLIAgent::Vibe => None,
+            CLIAgent::Hermes => Some(Icon::HermesLogo),
+            CLIAgent::Vibe => None,
             CLIAgent::Antigravity => Some(Icon::AntigravityLogo),
             CLIAgent::Grok => Some(Icon::GrokLogo),
             CLIAgent::DeepSeekHarness => Some(Icon::DeepSeekHarnessLogo),
             CLIAgent::Qoder => Some(Icon::QoderLogo),
+            CLIAgent::Trae => Some(Icon::TraeLogo),
             CLIAgent::Unknown => None,
         }
     }
@@ -285,9 +298,11 @@ impl CLIAgent {
             CLIAgent::OhMyPi => &[SkillProvider::Agents],
             CLIAgent::Auggie => &[SkillProvider::Agents],
             CLIAgent::CursorCli => &[SkillProvider::Agents],
-            CLIAgent::Goose | CLIAgent::Hermes | CLIAgent::Vibe | CLIAgent::Grok => {
-                &[SkillProvider::Agents]
-            }
+            CLIAgent::Goose
+            | CLIAgent::Hermes
+            | CLIAgent::Vibe
+            | CLIAgent::Grok
+            | CLIAgent::Trae => &[SkillProvider::Agents],
             CLIAgent::Antigravity => &[],
             CLIAgent::DeepSeekHarness => &[],
             CLIAgent::Qoder => &[],
@@ -342,6 +357,7 @@ impl CLIAgent {
             CLIAgent::Grok => Some(GROK_COLOR),
             CLIAgent::DeepSeekHarness => Some(ColorU::white()),
             CLIAgent::Qoder => Some(ColorU::white()),
+            CLIAgent::Trae => Some(TRAE_COLOR),
             CLIAgent::Unknown => None,
         }
     }
@@ -642,6 +658,7 @@ impl From<CLIAgent> for CLIAgentType {
             CLIAgent::Grok => CLIAgentType::Grok,
             CLIAgent::DeepSeekHarness => CLIAgentType::DeepSeekHarness,
             CLIAgent::Qoder => CLIAgentType::Qoder,
+            CLIAgent::Trae => CLIAgentType::Trae,
             CLIAgent::Unknown => CLIAgentType::Unknown,
         }
     }

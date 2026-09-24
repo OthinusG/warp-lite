@@ -74,7 +74,7 @@ else
 fi
 
 local_variants="$(extract_variants < app/src/terminal/cli_agent.rs)"
-for agent in "${VETTED_VARIANTS[@]}" DeepSeekHarness Qoder; do
+for agent in "${VETTED_VARIANTS[@]}" DeepSeekHarness Qoder Trae; do
     local_variants="$local_variants
 $agent"
 done

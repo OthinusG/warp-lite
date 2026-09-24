@@ -263,10 +263,14 @@ fn test_detect_known_agents() {
                 ("omp", CLIAgent::OhMyPi),
                 ("goose", CLIAgent::Goose),
                 ("hermes", CLIAgent::Hermes),
+                ("hermes-agent", CLIAgent::Hermes),
                 ("vibe", CLIAgent::Vibe),
                 ("vibe-acp", CLIAgent::Vibe),
                 ("grok", CLIAgent::Grok),
                 ("qoder", CLIAgent::Qoder),
+                ("qodercn", CLIAgent::Qoder),
+                ("trae", CLIAgent::Trae),
+                ("traecn", CLIAgent::Trae),
             ] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
@@ -361,8 +365,10 @@ fn test_detect_qoder() {
                 "qoder",
                 "qodercli",
                 "qoder-cli",
+                "qodercn",
                 "qoder --settings test",
                 "qodercli run",
+                "qodercn start",
             ] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
@@ -387,6 +393,79 @@ fn test_detect_qoder_with_env_and_alias() {
             assert_eq!(
                 CLIAgent::detect("qc", None, Some(&map), ctx),
                 Some(CLIAgent::Qoder),
+            );
+        });
+    });
+}
+
+#[test]
+fn test_detect_trae() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            for command in [
+                "trae",
+                "traecn",
+                "trae-cli",
+                "traecn-cli",
+                "trae --settings test",
+                "traecn run",
+            ] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    Some(CLIAgent::Trae),
+                    "failed to detect {command}",
+                );
+            }
+        });
+    });
+}
+
+#[test]
+fn test_detect_trae_with_env_and_alias() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            assert_eq!(
+                CLIAgent::detect("FOO=1 trae", Some(EscapeChar::Backslash), None, ctx),
+                Some(CLIAgent::Trae),
+            );
+
+            let map = aliases(&[("tr", "traecn")]);
+            assert_eq!(
+                CLIAgent::detect("tr", None, Some(&map), ctx),
+                Some(CLIAgent::Trae),
+            );
+        });
+    });
+}
+
+#[test]
+fn test_detect_hermes_agent() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            for command in ["hermes", "hermes-agent", "hermes chat", "hermes-agent run"] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    Some(CLIAgent::Hermes),
+                    "failed to detect {command}",
+                );
+            }
+        });
+    });
+}
+
+#[test]
+fn test_detect_hermes_with_env_and_alias() {
+    App::test((), |mut app| async move {
+        app.update(|ctx| {
+            assert_eq!(
+                CLIAgent::detect("FOO=1 hermes-agent", Some(EscapeChar::Backslash), None, ctx),
+                Some(CLIAgent::Hermes),
+            );
+
+            let map = aliases(&[("ha", "hermes-agent")]);
+            assert_eq!(
+                CLIAgent::detect("ha", None, Some(&map), ctx),
+                Some(CLIAgent::Hermes),
             );
         });
     });

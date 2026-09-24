@@ -8,6 +8,8 @@ PATCHES=(
     "$ROOT/.github/patches/antigravity-cli.patch"
     "$ROOT/.github/patches/deepseek-harness.patch"
     "$ROOT/.github/patches/qoder-cli.patch"
+    "$ROOT/.github/patches/trae-cli.patch"
+    "$ROOT/.github/patches/hermes-agent.patch"
     "$ROOT/.github/patches/disable-warp-mcp-runtime.patch"
     "$ROOT/.github/patches/windows-compilation-fixes.patch"
 )
@@ -31,8 +33,21 @@ patch_is_present() {
         qoder-cli.patch)
             [[ -f app/assets/bundled/png/qoder.png ]] \
                 && grep -Fq 'CLIAgent::Qoder' app/src/terminal/cli_agent.rs \
+                && grep -Fq '"qodercn"' app/src/terminal/cli_agent.rs \
                 && grep -Fq 'Icon::QoderLogo => "bundled/png/qoder.png"' crates/warp_core/src/ui/icons.rs \
                 && grep -Fq 'CLIAgent::Qoder' app/src/ui_components/icon_with_status.rs
+            ;;
+        trae-cli.patch)
+            [[ -f app/assets/bundled/png/trae.png ]] \
+                && grep -Fq 'CLIAgent::Trae' app/src/terminal/cli_agent.rs \
+                && grep -Fq 'Icon::TraeLogo => "bundled/png/trae.png"' crates/warp_core/src/ui/icons.rs \
+                && grep -Fq 'CLIAgent::Trae' app/src/ui_components/icon_with_status.rs
+            ;;
+        hermes-agent.patch)
+            [[ -f app/assets/bundled/png/hermes.png ]] \
+                && grep -Fq 'Icon::HermesLogo => "bundled/png/hermes.png"' crates/warp_core/src/ui/icons.rs \
+                && grep -Fq 'CLIAgent::Hermes' app/src/ui_components/icon_with_status.rs \
+                && grep -Fq '"hermes-agent"' app/src/terminal/cli_agent.rs
             ;;
         windows-compilation-fixes.patch)
             ! grep -Fq 'crate::();' app/src/autoupdate/windows.rs \

@@ -1,14 +1,14 @@
-# Qoder CLI Agent Detection
+# Trae CLI Agent Detection
 
 ## Goal
 
-Recognize Qoder CLI commands as CLI Agent sessions so Warp Lite shows its existing toolbar, pane management, and rich input.
+Recognize ByteDance Trae CLI and domestic Trae CN commands as CLI Agent sessions so Warp Lite shows its existing toolbar, pane management, and rich input.
 
 ## Behavior
 
-- Recognize `qoder`, `qodercli`, `qoder-cli`, `qodercn`, and commands with additional arguments.
+- Recognize `trae`, `traecn`, `trae-cli`, `traecn-cli`, and commands with additional arguments.
 - Preserve environment-assignment and alias resolution before detection.
-- Display `Qoder` and submit rich input inline.
+- Display `Trae` and submit rich input inline.
 
 ## Boundaries
 
@@ -17,5 +17,5 @@ Recognize Qoder CLI commands as CLI Agent sessions so Warp Lite shows its existi
 ## Acceptance Criteria
 
 - Positive detection cases and alias/env-var cases have regression coverage.
-- `qoder` and `qodercn` are classified as shell command keywords.
+- `trae` and `traecn` are classified as shell command keywords.
 - The customization is reapplied by the existing upstream-sync restoration script.

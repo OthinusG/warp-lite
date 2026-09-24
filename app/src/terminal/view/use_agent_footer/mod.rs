@@ -138,6 +138,7 @@ fn rich_input_submit_strategy(agent: CLIAgent) -> RichInputSubmitStrategy {
         | CLIAgent::Antigravity
         | CLIAgent::DeepSeekHarness
         | CLIAgent::Qoder
+        | CLIAgent::Trae
         | CLIAgent::Unknown => RichInputSubmitStrategy::Inline,
     }
 }

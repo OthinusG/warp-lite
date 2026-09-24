@@ -65,6 +65,8 @@ jobs:
               app/assets/bundled/svg/antigravity_cli.svg \
               app/assets/bundled/png/deepseek_harness.png \
               app/assets/bundled/png/qoder.png \
+              app/assets/bundled/png/trae.png \
+              app/assets/bundled/png/hermes.png \
               app/src/server/telemetry/events.rs app/src/terminal/cli_agent.rs \
               app/src/terminal/cli_agent_sessions/listener/mod.rs \
               app/src/terminal/cli_agent_sessions/plugin_manager/mod.rs \

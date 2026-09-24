@@ -507,6 +507,7 @@ pub enum CLIAgentType {
     Grok,
     DeepSeekHarness,
     Qoder,
+    Trae,
     Unknown,
 }
 

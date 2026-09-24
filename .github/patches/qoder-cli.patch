@@ -101,7 +101,7 @@ index e039f91..939b7b6 100644
              CLIAgent::Antigravity => &["agy"],
              CLIAgent::Grok => &["grok"],
              CLIAgent::DeepSeekHarness => &["dsh"],
-+            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli"],
++            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli", "qodercn"],
              CLIAgent::Unknown => &[],
          }
      }
@@ -173,15 +173,16 @@ diff --git a/app/src/terminal/cli_agent_tests.rs b/app/src/terminal/cli_agent_te
 index c249e1e..53fd09a 100644
 --- a/app/src/terminal/cli_agent_tests.rs
 +++ b/app/src/terminal/cli_agent_tests.rs
-@@ -266,6 +266,7 @@ fn test_detect_known_agents() {
+@@ -266,6 +266,8 @@ fn test_detect_known_agents() {
                  ("vibe", CLIAgent::Vibe),
                  ("vibe-acp", CLIAgent::Vibe),
                  ("grok", CLIAgent::Grok),
 +                ("qoder", CLIAgent::Qoder),
++                ("qodercn", CLIAgent::Qoder),
              ] {
                  assert_eq!(
                      CLIAgent::detect(command, None, None, ctx),
-@@ -352,6 +353,45 @@ fn test_detect_deepseek_harness_tui_with_env_and_alias() {
+@@ -352,6 +354,47 @@ fn test_detect_deepseek_harness_tui_with_env_and_alias() {
      });
  }
  
@@ -193,8 +194,10 @@ index c249e1e..53fd09a 100644
 +                "qoder",
 +                "qodercli",
 +                "qoder-cli",
++                "qodercn",
 +                "qoder --settings test",
 +                "qodercli run",
++                "qodercn start",
 +            ] {
 +                assert_eq!(
 +                    CLIAgent::detect(command, None, None, ctx),
@@ -271,11 +274,11 @@ index 568320a..31ea1a4 100644
      /// intentionally trying to push them away from those CLIs into Agent Mode, so we mitigate the
      /// risk by always treating as shell.
 -    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp", "cursor-agent"]);
-+    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp", "cursor-agent", "qoder"]);
++    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp", "cursor-agent", "qoder", "qodercn"]);
  
      static ref ONE_OFF_NATURAL_LANGUAGE_WORDS: HashSet<&'static str> = HashSet::from(["hello", "hi", "hey", "hola", "thanks", "explain", "yes", "no", "what", "nice", "1. "]);
  
-@@ -137,4 +137,9 @@ mod tests {
+@@ -137,4 +137,14 @@ mod tests {
      fn deepseek_harness_is_a_shell_command_keyword() {
          assert!(is_one_off_shell_command_keyword("dsh"));
      }
@@ -283,6 +286,11 @@ index 568320a..31ea1a4 100644
 +    #[test]
 +    fn qoder_is_a_shell_command_keyword() {
 +        assert!(is_one_off_shell_command_keyword("qoder"));
++    }
++
++    #[test]
++    fn qodercn_is_a_shell_command_keyword() {
++        assert!(is_one_off_shell_command_keyword("qodercn"));
 +    }
  }
 diff --git a/crates/warp_core/src/ui/icons.rs b/crates/warp_core/src/ui/icons.rs

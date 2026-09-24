@@ -119,10 +119,15 @@ pub(crate) fn render_icon_with_status(
                 .brand_color()
                 .unwrap_or(ColorU::new(100, 100, 100, 255));
             let icon_color = agent.brand_icon_color();
-            let icon_element = if matches!(agent, CLIAgent::DeepSeekHarness | CLIAgent::Qoder) {
+            let icon_element = if matches!(
+                agent,
+                CLIAgent::DeepSeekHarness | CLIAgent::Qoder | CLIAgent::Trae | CLIAgent::Hermes
+            ) {
                 let logo_path = match agent {
                     CLIAgent::DeepSeekHarness => WarpIcon::DeepSeekHarnessLogo.into(),
                     CLIAgent::Qoder => WarpIcon::QoderLogo.into(),
+                    CLIAgent::Trae => WarpIcon::TraeLogo.into(),
+                    CLIAgent::Hermes => WarpIcon::HermesLogo.into(),
                     _ => unreachable!(),
                 };
                 Image::new(

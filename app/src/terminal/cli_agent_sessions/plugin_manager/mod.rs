@@ -271,6 +271,7 @@ pub(crate) fn plugin_manager_for_with_shell(
         | CLIAgent::Grok
         | CLIAgent::DeepSeekHarness
         | CLIAgent::Qoder
+        | CLIAgent::Trae
         | CLIAgent::Unknown => None,
     }
 }
