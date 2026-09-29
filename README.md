@@ -5,6 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Latest release](https://img.shields.io/github/v/release/OthinusG/warp-lite)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
+[![Platform: Windows](https://img.shields.io/badge/Windows-x64-blue.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
 warp-lite is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warp account login, no bundled AI agents, no cloud onboarding, and no telemetry as a product requirement. If you want a Warp alternative that keeps the terminal and drops the AI platform, this is that fork.
