@@ -10,7 +10,7 @@ See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end ev
 - A Warp singleton starts a broker after CLI session tracking is registered. Pane creation receives a random per-terminal capability and the broker endpoint. Session start binds the capability to the actual CLI type, project directory, and a fresh run ID. Session end invalidates that run and wakes its waiting requests.
 - A bridge cannot create a terminal binding itself. First registration returns the live run ID; subsequent operations require the same run. Tokens stay in memory/environment and never enter the database or MCP config.
 - Resolve project identity from the canonical terminal working directory's nearest `.git` ancestor; without a repository, use the canonical working directory. Worktrees remain separate project scopes in this release.
-- Prefer cooperative `warp_agent_wait` over PTY injection for the first automatic handoff. This avoids unsupported assumptions about agy/Qoder idle hooks and Codex's opaque OSC 9 completion notifications. No runtime claim is made for waking a dormant TUI.
+- Poll queued work while busy and submit an inbox notification when the agent returns to its input prompt. Use `warp_agent_ready` for native MCP clients without lifecycle hooks, installed completion/busy events where available, and the existing per-agent PTY submission strategies. `warp_agent_wait` remains an optional active-turn delivery path.
 - Store a versioned snapshot in a dedicated SQLite database, transactionally committing task mutations and their messages together. Bound records and input sizes. `ponytail`: snapshot writes are O(n); normalize tables when the explicit first-release capacity becomes limiting.
 - Use bounded JSON frames over Unix sockets/Windows named pipes rather than exposing a TCP listener. Limit connections, frame size, and IO deadlines. Keep server errors free of payloads and capabilities.
 - MCP schemas and operation parsing share one contract. Requests use idempotency IDs for mutations and revisions for task transitions. Results contain stable task/message IDs and explicit states.
@@ -53,10 +53,18 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 
 Use `CLIAgent::command_prefix()` for known managed types and `custom` for user-managed unknown sessions connecting through their confirmed native MCP client. Do not add a separate program allowlist to the broker. The trusted Warp start event determines the program; callers cannot spoof it. Command aliases remain the existing detector's responsibility.
 
-The MCP interface invokes the common state machine and cooperative wait. Four installed CLIs are initial runtime probes, not the release coverage boundary. Vendors without verified MCP setup commands use explicit/manual MCP configuration; never invent configuration flags or install missing agents silently.
+The MCP interface invokes the common state machine and exposes both dormant readiness and optional cooperative wait. Four installed CLIs are initial runtime probes, not the release coverage boundary. Vendors without verified MCP setup commands use explicit/manual MCP configuration; never invent configuration flags or install missing agents silently.
 
 The user explicitly excludes adapters for agents without native MCP client support. No shell interface is shipped. Custom managed sessions are verified individually and included when native MCP capability is established; the enum value `Unknown` is not an exclusion rule.
 
 The first-release snapshot has explicit 1000-record capacities for identities, messages, tasks, and idempotency records; a capacity error leaves existing data intact. Acknowledged messages can be discarded when their capacity is reached. Other records currently require an archival design before long-running high-volume use.
 
 Project-local names are unique among live terminals. An explicit registration can reclaim an offline name from a new pane, preserving its identity and pending work; it cannot take a name owned by another live terminal.
+
+## Dormant prompt wake delivery
+
+The user requires automatic delivery after a model turn ends, not only while an MCP wait call is active. Add `warp_agent_ready` to the shared contract, instruct every participating MCP client to call it as its final action before returning to its prompt, and reuse native lifecycle completion events where present. Readiness is transient and run-scoped; every other MCP operation, user PTY input, blocked/busy event, replacement, or exit invalidates it. User edits inhibit submission until a submit/cancel input boundary; MCP readiness cannot override an outstanding user draft.
+
+The Warp singleton checks pending work every 250 ms. After readiness has settled, it claims one pending notification, submits only a fixed inbox instruction plus validated UUID, and invalidates readiness until a new completion. The original message is not acknowledged by PTY delivery. Existing per-agent paste/Enter strategies are reused, with current-run and manual-input checks repeated before delayed Enter. A failed/cancelled submission leaves the notification pending and does not spin-retry into a terminal.
+
+Acceptance: simulate dormant readiness for every managed identity plus custom; deliver without AgentWait; keep busy/draft/blocked/replaced runs queued; prevent duplicate submission and stale delayed Enter; prove the message still requires MCP acknowledgement. GitHub must check both application configurations and the focused protocol tests. Real vendor input behavior remains a separate acceptance level.

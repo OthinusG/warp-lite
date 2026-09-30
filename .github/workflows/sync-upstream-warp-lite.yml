@@ -58,7 +58,8 @@ jobs:
             || ! git diff --cached --quiet \
             || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
             git add Cargo.lock app/Cargo.toml crates/agent_bus app/src/agent_communication.rs \
-              app/src/pane_group/mod.rs script/windows/windows-installer.iss \
+              app/src/pane_group/mod.rs app/src/terminal/view.rs app/src/terminal/view_test.rs \
+              script/windows/windows-installer.iss \
               app/src/lib.rs app/src/settings_view/mod.rs \
               app/src/autoupdate/windows.rs app/src/terminal/model/session.rs \
               app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \

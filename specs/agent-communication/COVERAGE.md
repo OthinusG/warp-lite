@@ -1,6 +1,6 @@
 # Native MCP Coverage
 
-Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client support is the eligibility boundary. MCP server mode alone does not qualify. No shell fallback, third-party MCP adapter, or dormant-TUI input injection is included.
+Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client support is the eligibility boundary. MCP server mode alone does not qualify. No shell fallback or third-party MCP adapter is included. Dormant native prompts are woken through Warp's existing per-agent submission strategies once the common readiness signal or installed completion hook establishes idle state.
 
 `Eligible` means that native local MCP support is established by vendor documentation or installed CLI help. It does not mean authenticated live-agent communication has passed. Every row still needs the end-to-end acceptance below in a patched Warp build.
 
@@ -52,12 +52,14 @@ claude mcp add --scope local warp-agent -- /Applications/WarpLite.app/Contents/M
 qodercn mcp add --scope local warp-agent -- /Applications/WarpLite.app/Contents/MacOS/warp-agent mcp
 ```
 
+The cooperation instructions require `warp_agent_ready` as the final action before ending each turn. This marks the native prompt available for queued work; it does not hold a tool call open. Warp checks the queue every 250 ms, waits for output to settle, and submits automatically when the pane is eligible. Busy or blocked agents keep their queued work.
+
 After configuring environment passthrough, launch the CLI in a fresh patched Warp pane, register a distinct name, and ask it to follow the server's cooperation instructions. A server discovered outside a managed Warp terminal has no live binding and cannot participate.
 
 ## Acceptance and status
 
 GitHub tests simulate the restored detector's managed program identities plus a managed custom client, exercise real local sockets, negotiate the pinned MCP SDK over child-process stdio, and verify the shared task state machine. These tests do not launch vendor models.
 
-For each eligible vendor/version, separately verify: bridge discovery with all 11 tools; inherited terminal binding; unique-name registration; cross-agent messages; wait returning a new task without a human prompt; busy task queueing; submission with evidence; reviewer rejection and revised rework; final acceptance; and rejection after CLI exit/replacement. Live model acceptance is pending until the patched build and each authenticated vendor runtime are available.
+For each eligible vendor/version, separately verify: bridge discovery with all 12 tools; inherited terminal binding; unique-name registration; cross-agent messages; a completed turn returning to the input prompt, then new work automatically being submitted without an open wait call or human prompt; busy task queueing; submission with evidence; reviewer rejection and revised rework; final acceptance; and rejection after CLI exit/replacement. Live model acceptance is pending until the patched build and each authenticated vendor runtime are available.
 
 Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --help` exposes the `stdio` transport, and Warp maps its command to `CLIAgent::Qoder`. It is not part of the unverified custom-agent exclusions. No personal MCP configuration was read during this check.
