@@ -1,5 +1,5 @@
 diff --git a/Cargo.lock b/Cargo.lock
-index 738347f..22f1ec9 100644
+index 738347f..39b56ab 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
 @@ -13639,6 +13639,7 @@ dependencies = [
@@ -20,7 +20,7 @@ index 738347f..22f1ec9 100644
 +dependencies = [
 + "anyhow",
 + "diesel",
-+ "dirs",
++ "dirs 6.0.0",
 + "libsqlite3-sys",
 + "rmcp",
 + "schemars 1.0.4",

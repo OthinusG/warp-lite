@@ -21,6 +21,11 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Keep patch inputs in LF on Windows
+        if: runner.os == 'Windows'
+        run: |
+          git config core.autocrlf false
+          git checkout-index --force --all
       - name: Restore and verify replay
         run: |
           script/restore-agent-communication.sh --check

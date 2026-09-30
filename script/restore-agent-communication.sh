@@ -17,5 +17,6 @@ elif git apply --check "$PATCH" 2>/dev/null; then
     fi
 else
     echo "Agent communication patch conflicts or is partially applied; refusing to continue." >&2
+    git apply --check "$PATCH" >&2 || true
     exit 1
 fi
