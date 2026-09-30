@@ -54,7 +54,7 @@ qodercn mcp add --scope local warp-agent -- /Applications/WarpLite.app/Contents/
 
 The cooperation instructions require `warp_agent_ready` as the final action before ending each turn. This marks the native prompt available for queued work; it does not hold a tool call open. Warp checks the queue every 250 ms, waits for output to settle, and submits automatically when the pane is eligible. Busy or blocked agents keep their queued work.
 
-After configuring environment passthrough, launch the CLI in a fresh patched Warp pane, register a distinct name, and ask it to follow the server's cooperation instructions. A server discovered outside a managed Warp terminal has no live binding and cannot participate.
+After configuring environment passthrough, launch the CLI in a fresh patched Warp pane. Native tool discovery registers a unique name automatically. Right-click the Agent tab, choose **Select communication peers**, and select another discovered agent in the same project. The connection is reciprocal; ordinary dialogue can then request communication or task delegation. Select **Disconnect <name>** to remove a connection. A server discovered outside a managed Warp terminal has no live binding and cannot participate. Initial MCP setup remains necessary; the picker explicitly reports unloaded tools rather than pretending to connect them.
 
 ## Acceptance and status
 

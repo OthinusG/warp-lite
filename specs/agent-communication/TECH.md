@@ -23,7 +23,7 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 | Tool | Arguments | Result |
 | --- | --- | --- |
 | warp_agent_register | name | agent identity and live run |
-| warp_agent_list | none | same-project agents and online/waiting state |
+| warp_agent_list | none | selected same-project peers and online/waiting state; legacy explicit registrations retain project discovery until selection |
 | warp_agent_send | to, body, request_id | message |
 | warp_agent_inbox | none | pending messages |
 | warp_agent_ack | message_id | acknowledgement |
@@ -69,3 +69,11 @@ The user requires automatic delivery after a model turn ends, not only while an 
 The Warp singleton checks pending work every 250 ms. After readiness has settled, it claims one pending notification, submits only a fixed inbox instruction plus validated UUID, and invalidates readiness until a new completion. The original message is not acknowledged by PTY delivery. Existing per-agent paste/Enter strategies are reused, with current-run and manual-input checks repeated before delayed Enter. A failed/cancelled submission leaves the notification pending and does not spin-retry into a terminal.
 
 Acceptance: simulate dormant readiness for every managed identity plus custom; deliver without AgentWait; keep busy/draft/blocked/replaced runs queued; prevent duplicate submission and stale delayed Enter; prove the message still requires MCP acknowledgement. GitHub must check both application configurations and the focused protocol tests. Real vendor input behavior remains a separate acceptance level.
+
+## Native communication picker
+
+Reuse the existing tab context menu for **Select communication peers** and the peer list. Pane menus carry the clicked terminal's identity; a selected item carries both current run IDs and is revalidated by the broker. Open the peer list after the original menu closes so pointer and keyboard selection cannot immediately dismiss it. All new UI text is English.
+
+Native MCP tool discovery requests an automatic identity before returning the tool list. The broker creates a unique program-prefixed name; no separate model registration prompt is required. Automatically registered runs start with selected-only routing. Legacy explicit protocol registration remains compatible, but selecting a connection opts both runs into selected-only routing. Peers are reciprocal run identities, not persisted permissions. Exit/replacement clears them. Message sends and task assignments, including a separately designated reviewer, are checked at the broker boundary; selected-only discovery hides unrelated identities.
+
+Connection establishment writes both inbox notices in one SQLite snapshot transaction before changing live routing. Repeated selection does not duplicate notices. The notices describe the communication tools and readiness rule without granting additional permissions. Existing delivery protects busy turns, drafts, and authorization prompts. A picker with no discovered native bridge shows an explicit unavailable state; this iteration does not implement automatic vendor configuration or claim that running clients can hot-load MCP servers.

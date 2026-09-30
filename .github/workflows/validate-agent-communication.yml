@@ -55,6 +55,7 @@ jobs:
           cargo check -p warp --bin warp-oss --locked
           cargo check -p warp --bin warp-oss --features warp_platform --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
+          cargo test -p warp --lib communication_picker_menu_targets_the_clicked_agent --locked
       - name: Build and package review artifacts
         run: |
           cargo build --release --bin warp-oss --locked

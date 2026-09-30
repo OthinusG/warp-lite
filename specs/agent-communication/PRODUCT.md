@@ -6,7 +6,7 @@ All CLI agent sessions managed by Warp Lite running in Warp Lite can exchange me
 
 ## Behavior
 
-1. Participation is explicit. After connecting the bundled MCP bridge, an agent registers a project-local name. Its identity is bound to its live Warp terminal run; callers cannot select a sender identity.
+1. Participation is explicit. The user right-clicks an Agent tab, chooses **Select communication peers**, and selects an available agent. This establishes a bidirectional connection, rather than sending a one-off task. Agents can then communicate from ordinary conversation or initiate collaboration themselves. Native MCP discovery assigns a unique project-local name automatically; users do not type registration or readiness setup prompts. Identity is bound to the live Warp terminal run.
 2. Agents discover and communicate with other registered agents in the same project. Other projects are isolated by default.
 3. A task names an assignee, a reviewer (the assigner by default), a description, and acceptance criteria. Names are resolved to stable identities when the task is created.
 4. The assignee explicitly starts a queued task, then submits a result and verification evidence. Only its reviewer can accept the submitted revision or request changes with feedback. Submission does not imply acceptance.
@@ -18,6 +18,16 @@ All CLI agent sessions managed by Warp Lite running in Warp Lite can exchange me
 10. Each supported CLI uses the same protocol. Registration is refused when the CLI no longer owns the terminal. A replacement process cannot reuse an old run's requests.
 11. Communication remains local, adds no cloud/account/telemetry dependency, and does not start Warp's disabled platform MCP client runtime.
 12. Upstream synchronization replays an auditable downstream patch. Repeated application is harmless; partial application or conflicting upstream changes fail before publication.
+
+## Communication picker acceptance
+
+- Horizontal tab and vertical pane menus target the terminal that was clicked, not a different focused terminal.
+- The picker lists live, same-project peers whose native bridge has completed discovery. Offline, remote, unloaded, cross-project, and self entries cannot be selected.
+- Selection is reciprocal, idempotent, and revalidated against both run identities. Connected entries can be disconnected. Closing or replacing a process clears its connections.
+- Auto-registered agents discover only their selected peers and cannot send messages or assign tasks to unselected agents. Legacy explicit registration remains available for protocol callers; selecting a connection opts both endpoints into selection restrictions.
+- Both agents receive a broker-generated connection notice through their existing inbox. The notice explains discovery and task/result/review tools; it never changes user permissions.
+- Busy delivery and draft/permission protection keep their existing behavior. MCP instructions supply the readiness rule automatically; the user does not repeat it in every conversation.
+- A client that has not loaded the bundled MCP bridge is not falsely shown as connected. Initial native MCP configuration remains a separate prerequisite in this iteration; the picker does not claim hot-loading support that a vendor does not provide.
 
 ## Delivery
 
