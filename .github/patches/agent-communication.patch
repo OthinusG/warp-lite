@@ -59,10 +59,10 @@ index 60c6ab2..addb30f 100644
  # AWS SDK (loading credentials for BYO LLM)
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..341d7f7
+index 0000000..d868078
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,418 @@
+@@ -0,0 +1,419 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -264,7 +264,8 @@ index 0000000..341d7f7
 +                        if !view.session_is_local(session, ctx) {
 +                            return vec![];
 +                        }
-+                        view.sessions(ctx)
++                        view.sessions_model()
++                            .as_ref(ctx)
 +                            .env_var_for_session(session, "PATH")
 +                            .map(|path| {
 +                                std::env::split_paths(std::ffi::OsStr::new(path))
