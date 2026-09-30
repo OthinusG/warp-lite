@@ -4,3 +4,10 @@ input_classifier/models/**/*tokenizer.json linguist-generated=true
 
 # Replayable patches require LF; a blank context line contains one structural space.
 *.patch text eol=lf whitespace=-blank-at-eol
+# Keep text inputs consistent for downstream replay on Windows checkouts.
+*.rs text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.iss text eol=lf
