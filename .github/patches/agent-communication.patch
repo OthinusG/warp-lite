@@ -13,7 +13,7 @@ index 738347f..29875b7 100644
 @@ -13779,6 +13780,21 @@ dependencies = [
   "warpui",
  ]
- 
+
 +[[package]]
 +name = "warp-agent-bus"
 +version = "0.1.0"
@@ -38,7 +38,7 @@ index 60c6ab2..ff79379 100644
 +++ b/app/Cargo.toml
 @@ -263,6 +263,7 @@ winit = { workspace = true }
  wgpu.workspace = true
- 
+
  [target.'cfg(not(target_family = "wasm"))'.dependencies]
 +warp-agent-bus = { path = "../crates/agent_bus" }
  async-io.workspace = true
@@ -46,11 +46,13 @@ index 60c6ab2..ff79379 100644
  comfy-table = "7.1.4"
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..b1fe721
+index 0000000..7ae613b
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,379 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
++pub(crate) mod settings_view;
++pub(crate) mod setup;
 +use crate::terminal::{
 +    cli_agent_sessions::{
 +        CLIAgentSessionStatus, CLIAgentSessionsModel, CLIAgentSessionsModelEvent,
@@ -60,7 +62,7 @@ index 0000000..b1fe721
 +use std::{
 +    collections::HashMap,
 +    ffi::OsString,
-+    path::Path,
++    path::{Path, PathBuf},
 +    sync::{Mutex, OnceLock},
 +    time::Duration,
 +};
@@ -76,6 +78,12 @@ index 0000000..b1fe721
 +    OnceLock::new();
 +pub(crate) struct AgentCommunication {
 +    _server: Option<RunningBroker>,
++    pub(crate) preferences: setup::Preferences,
++    pub(crate) available: Vec<setup::Available>,
++    pub(crate) busy: bool,
++    pub(crate) status: String,
++    preferences_path: PathBuf,
++    pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
 +}
 +impl Entity for AgentCommunication {
 +    type Event = ();
@@ -89,6 +97,9 @@ index 0000000..b1fe721
 +            .ok()
 +            .and_then(|_| RunningBroker::start(&directory.join("agent-communication.sqlite")).ok());
 +        if let Some(server) = &server {
++            server
++                .broker
++                .set_programs(Some(std::collections::HashSet::new()));
 +            let _ = BROKER.set(server.broker.clone());
 +        }
 +        VIEWS.get_or_init(|| Mutex::new(HashMap::new()));
@@ -137,10 +148,181 @@ index 0000000..b1fe721
 +            log::warn!("Local agent communication is unavailable");
 +        }
 +        Self::schedule(ctx);
-+        Self { _server: server }
++        let preferences_path = directory.join("agent-communication-settings.json");
++        let preferences = match std::fs::read(&preferences_path) {
++            Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
++            Err(_) => setup::Preferences::default(),
++        };
++        let mut model = Self {
++            _server: server,
++            preferences,
++            available: vec![],
++            busy: false,
++            status: String::new(),
++            preferences_path,
++            pending: None,
++        };
++        model.configure(None, None, ctx);
++        model
++    }
++    fn policy(&self) {
++        if let Some(broker) = BROKER.get() {
++            let programs = if self.preferences.enabled {
++                self.preferences
++                    .selected
++                    .values()
++                    .map(|entry| entry.program.clone())
++                    .collect()
++            } else {
++                std::collections::HashSet::new()
++            };
++            broker.set_programs(Some(programs));
++        }
++    }
++    pub(crate) fn configure(
++        &mut self,
++        enabled: Option<bool>,
++        command: Option<String>,
++        ctx: &mut ModelContext<Self>,
++    ) {
++        if self.busy {
++            return;
++        }
++        let mut preferences = self.preferences.clone();
++        if let Some(enabled) = enabled {
++            preferences.enabled = enabled;
++            // Revocation precedes disk IO and cannot be undone by a failed cleanup.
++            if !enabled {
++                self.preferences.enabled = false;
++                self.policy();
++            }
++        }
++        if let Some(command) = &command {
++            if let Some(entry) = preferences.selected.get(command) {
++                if let Some(broker) = BROKER.get() {
++                    let programs = preferences
++                        .selected
++                        .iter()
++                        .filter(|(name, _)| *name != command)
++                        .map(|(_, e)| e.program.clone())
++                        .collect();
++                    broker.set_programs(Some(programs));
++                }
++                let _ = entry;
++            }
++        }
++        self.busy = true;
++        self.status = "Updating native MCP configuration…".into();
++        let path = self.preferences_path.clone();
++        let commands = enum_iterator::all::<CLIAgent>()
++            .flat_map(|agent| {
++                agent
++                    .command_prefixes()
++                    .iter()
++                    .map(move |command| (agent.command_prefix().to_owned(), (*command).to_owned()))
++            })
++            .collect();
++        let (sender, receiver) = std::sync::mpsc::channel();
++        self.pending = Some(receiver);
++        std::thread::spawn(move || {
++            let mut errors = Vec::new();
++            let mut available = match setup::companion() {
++                Ok(bridge) => setup::discover(commands, &bridge),
++                Err(_) => {
++                    errors.push("Bundled communication bridge is missing".to_owned());
++                    vec![]
++                }
++            };
++            if setup::atomic_write(&path, &serde_json::to_vec(&preferences).unwrap()).is_err() {
++                preferences.enabled = false;
++                let _ = sender.send((
++                    preferences,
++                    available,
++                    "Could not save communication preferences; communication remains disabled"
++                        .into(),
++                ));
++                return;
++            }
++            let was_selected = command
++                .as_ref()
++                .is_some_and(|name| preferences.selected.contains_key(name));
++            let remove: Vec<String> = if !preferences.enabled {
++                preferences.selected.keys().cloned().collect()
++            } else {
++                command
++                    .as_ref()
++                    .filter(|name| preferences.selected.contains_key(*name))
++                    .cloned()
++                    .into_iter()
++                    .collect()
++            };
++            for name in remove {
++                let entry = &preferences.selected[&name];
++                if setup::configure(entry, false, true).is_ok() {
++                    preferences.selected.remove(&name);
++                } else {
++                    errors.push(format!("{name}: cleanup failed; configuration was preserved. Retry by unchecking or disabling communication."));
++                }
++            }
++            if preferences.enabled {
++                if let Some(name) = &command {
++                    if !was_selected
++                        && !errors
++                            .iter()
++                            .any(|error| error.starts_with(&format!("{name}:")))
++                    {
++                        if let Some(entry) = available
++                            .iter()
++                            .find(|row| &row.command == name)
++                            .and_then(|row| row.installed.clone())
++                        {
++                            if setup::configure(&entry, true, false).is_ok() {
++                                preferences.selected.insert(name.clone(), entry);
++                            } else {
++                                errors.push(format!(
++                                    "{name}: setup failed; existing configuration was preserved"
++                                ));
++                            }
++                        }
++                    }
++                }
++            }
++            for row in &mut available {
++                if preferences.selected.contains_key(&row.command) {
++                    row.status = "Configured — restart this agent to load the bridge".into();
++                }
++            }
++            if setup::atomic_write(&path, &serde_json::to_vec(&preferences).unwrap()).is_err() {
++                preferences.enabled = false;
++                errors.push(
++                    "Could not save communication preferences; communication remains disabled"
++                        .into(),
++                );
++            }
++            let status = if errors.is_empty() {
++                "Restart running agents to reload MCP configuration. Agents in the same project communicate automatically.".into()
++            } else {
++                errors.join("\n")
++            };
++            let _ = sender.send((preferences, available, status));
++        });
++        ctx.notify();
 +    }
 +    fn schedule(ctx: &mut ModelContext<Self>) {
-+        ctx.spawn(Timer::after(Duration::from_millis(250)), |_, _, ctx| {
++        ctx.spawn(Timer::after(Duration::from_millis(250)), |model, _, ctx| {
++            if let Some(result) = model
++                .pending
++                .as_ref()
++                .and_then(|receiver| receiver.try_recv().ok())
++            {
++                model.preferences = result.0;
++                model.available = result.1;
++                model.status = result.2;
++                model.busy = false;
++                model.pending = None;
++                model.policy();
++                ctx.notify();
++            }
 +            if let (Some(broker), Some(views)) = (BROKER.get(), VIEWS.get()) {
 +                // ponytail: scan registered terminals; event-driven delivery if many panes make this measurable.
 +                let bindings: Vec<_> = views
@@ -247,6 +429,569 @@ index 0000000..b1fe721
 +        .connect(&terminal, run, peer, peer_run, connected)
 +        .map_err(|error| error.to_string())
 +}
+diff --git a/app/src/agent_communication/settings_view.rs b/app/src/agent_communication/settings_view.rs
+new file mode 100644
+index 0000000..2008e67
+--- /dev/null
++++ b/app/src/agent_communication/settings_view.rs
+@@ -0,0 +1,166 @@
++//! Local-only setup controls for independently installed CLI agents.
++use super::AgentCommunication;
++use crate::{
++    appearance::Appearance,
++    settings_view::{features_page::FeaturesPageView, settings_page::SettingsWidget},
++};
++use std::{cell::RefCell, collections::HashMap};
++use warpui::elements::{ChildView, Container, Flex, MouseStateHandle, ParentElement};
++use warpui::ui_components::{
++    button::ButtonVariant, components::UiComponent, switch::SwitchStateHandle,
++};
++use warpui::{
++    AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
++};
++
++#[derive(Clone)]
++pub enum Action {
++    Enable,
++    Select(String),
++    Refresh,
++}
++pub struct CommunicationSettingsView {
++    switch: SwitchStateHandle,
++    refresh: MouseStateHandle,
++    checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
++}
++impl CommunicationSettingsView {
++    pub fn new(ctx: &mut ViewContext<Self>) -> Self {
++        ctx.observe(&AgentCommunication::handle(ctx), |_, _, ctx| ctx.notify());
++        Self {
++            switch: Default::default(),
++            refresh: Default::default(),
++            checkboxes: Default::default(),
++        }
++    }
++}
++impl Entity for CommunicationSettingsView {
++    type Event = ();
++}
++impl TypedActionView for CommunicationSettingsView {
++    type Action = Action;
++    fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
++        AgentCommunication::handle(ctx).update(ctx, |model, ctx| match action {
++            Action::Enable => model.configure(Some(!model.preferences.enabled), None, ctx),
++            Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
++            Action::Refresh => model.configure(None, None, ctx),
++        });
++    }
++}
++impl View for CommunicationSettingsView {
++    fn ui_name() -> &'static str {
++        "AgentCommunicationSettings"
++    }
++    fn render(&self, app: &AppContext) -> Box<dyn Element> {
++        let appearance = Appearance::as_ref(app);
++        let builder = appearance.ui_builder();
++        let model = AgentCommunication::as_ref(app);
++        let switch = builder
++            .switch(self.switch.clone())
++            .check(model.preferences.enabled);
++        let switch = if model.busy { switch.disable() } else { switch };
++        let mut body = Flex::column();
++        body.add_child(
++            Flex::row()
++                .with_child(
++                    builder
++                        .paragraph("Agent communication".to_owned())
++                        .build()
++                        .finish(),
++                )
++                .with_child(
++                    switch
++                        .build()
++                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Enable))
++                        .finish(),
++                )
++                .finish(),
++        );
++        body.add_child(builder.paragraph("Configure local MCP access for selected CLI agents. Communication stays within each project.".to_owned()).build().finish());
++        if model.preferences.enabled || !model.preferences.selected.is_empty() {
++            let mut rows = model.available.clone();
++            // Keep removed executables visible so owned configuration can still be cleaned up.
++            for (command, installed) in &model.preferences.selected {
++                if !rows.iter().any(|row| &row.command == command) {
++                    rows.push(super::setup::Available {
++                        command: command.clone(),
++                        program: installed.program.clone(),
++                        installed: Some(installed.clone()),
++                        status: "Not installed — uncheck to remove configuration".into(),
++                    });
++                }
++            }
++            if rows.is_empty() && !model.busy {
++                body.add_child(
++                    builder
++                        .paragraph("No installed managed CLI agents were found.".to_owned())
++                        .build()
++                        .finish(),
++                );
++            }
++            for row in rows {
++                let state = self
++                    .checkboxes
++                    .borrow_mut()
++                    .entry(row.command.clone())
++                    .or_default()
++                    .clone();
++                let checkbox = builder
++                    .checkbox(state, None)
++                    .check(model.preferences.selected.contains_key(&row.command));
++                let checkbox = if model.busy || row.installed.is_none() {
++                    checkbox.disable()
++                } else {
++                    checkbox
++                };
++                let command = row.command.clone();
++                body.add_child(
++                    Flex::row()
++                        .with_child(
++                            checkbox
++                                .build()
++                                .on_click(move |ctx, _, _| {
++                                    ctx.dispatch_typed_action(Action::Select(command.clone()))
++                                })
++                                .finish(),
++                        )
++                        .with_child(
++                            builder
++                                .paragraph(format!("{} — {}", row.command, row.status))
++                                .build()
++                                .finish(),
++                        )
++                        .finish(),
++                );
++            }
++        }
++        body.add_child(builder.paragraph(model.status.clone()).build().finish());
++        let refresh = builder
++            .button(ButtonVariant::Text, self.refresh.clone())
++            .with_text_label("Refresh agents / retry cleanup".to_owned());
++        let refresh = if model.busy {
++            refresh.disable()
++        } else {
++            refresh
++        };
++        body.add_child(
++            refresh
++                .build()
++                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
++                .finish(),
++        );
++        Container::new(body.finish())
++            .with_margin_bottom(16.)
++            .finish()
++    }
++}
++pub struct CommunicationWidget(pub ViewHandle<CommunicationSettingsView>);
++impl SettingsWidget for CommunicationWidget {
++    type View = FeaturesPageView;
++    fn search_terms(&self) -> &str {
++        "agent communication collaboration mcp bridge"
++    }
++    fn render(&self, _: &FeaturesPageView, _: &Appearance, _: &AppContext) -> Box<dyn Element> {
++        ChildView::new(&self.0).finish()
++    }
++}
+diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
+new file mode 100644
+index 0000000..42a30fa
+--- /dev/null
++++ b/app/src/agent_communication/setup.rs
+@@ -0,0 +1,385 @@
++//! Reversible native MCP configuration. Never persist live terminal capabilities.
++use anyhow::{bail, ensure, Result};
++use serde::{Deserialize, Serialize};
++use serde_json::{json, Value};
++use std::{
++    collections::BTreeMap,
++    io::Write,
++    path::{Path, PathBuf},
++    process::{Command, Stdio},
++    thread,
++    time::{Duration, Instant},
++};
++
++pub const SERVER: &str = "warp-lite-communication";
++const START: &str = "# BEGIN WARP LITE COMMUNICATION";
++const END: &str = "# END WARP LITE COMMUNICATION";
++
++#[derive(Clone, Default, Serialize, Deserialize)]
++pub struct Preferences {
++    pub enabled: bool,
++    pub selected: BTreeMap<String, Installed>,
++}
++#[derive(Clone, Serialize, Deserialize)]
++pub struct Installed {
++    pub program: String,
++    pub executable: PathBuf,
++    pub adapter: Adapter,
++    pub bridge: PathBuf,
++}
++#[derive(Clone, Serialize, Deserialize)]
++pub enum Adapter {
++    Codex(PathBuf),
++    Json {
++        path: PathBuf,
++        key: String,
++        value: Value,
++    },
++    Cli {
++        add: Vec<String>,
++        remove: Vec<String>,
++        get: Vec<String>,
++    },
++}
++#[derive(Clone)]
++pub struct Available {
++    pub command: String,
++    pub program: String,
++    pub installed: Option<Installed>,
++    pub status: String,
++}
++
++pub fn companion() -> Result<PathBuf> {
++    let path = std::env::current_exe()?.with_file_name(if cfg!(windows) {
++        "warp-agent.exe"
++    } else {
++        "warp-agent"
++    });
++    ensure!(path.is_file(), "Bundled communication bridge is missing");
++    Ok(path)
++}
++fn output(executable: &Path, args: &[String]) -> Result<Option<String>> {
++    let mut child = Command::new(executable)
++        .args(args)
++        .stdin(Stdio::null())
++        .stdout(Stdio::piped())
++        .stderr(Stdio::null())
++        .spawn()?;
++    // Drain stdout concurrently so help output cannot fill a pipe and deadlock.
++    let stdout = child.stdout.take().unwrap();
++    let reader = thread::spawn(move || {
++        use std::io::Read;
++        let mut bytes = Vec::new();
++        stdout.take(1024 * 1024).read_to_end(&mut bytes).ok();
++        String::from_utf8_lossy(&bytes).into_owned()
++    });
++    let deadline = Instant::now() + Duration::from_secs(8);
++    loop {
++        if let Some(status) = child.try_wait()? {
++            let text = reader.join().unwrap_or_default();
++            return Ok(status.success().then_some(text));
++        }
++        if Instant::now() >= deadline {
++            let _ = child.kill();
++            let _ = child.wait();
++            bail!("Agent configuration command timed out");
++        }
++        thread::sleep(Duration::from_millis(25));
++    }
++}
++fn executable(command: &str) -> Option<PathBuf> {
++    let mut paths: Vec<_> =
++        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
++    // GUI launches may not inherit the login shell's PATH.
++    if let Some(home) = dirs::home_dir() {
++        paths.extend([
++            home.join(".local/bin"),
++            home.join(".cargo/bin"),
++            home.join(".npm-global/bin"),
++        ]);
++    }
++    #[cfg(unix)]
++    paths.extend([
++        PathBuf::from("/opt/homebrew/bin"),
++        PathBuf::from("/usr/local/bin"),
++    ]);
++    for path in paths {
++        for suffix in if cfg!(windows) {
++            vec![".exe", ".cmd", ".bat", ""]
++        } else {
++            vec![""]
++        } {
++            let candidate = path.join(format!("{command}{suffix}"));
++            if candidate.is_file() {
++                return Some(candidate);
++            }
++        }
++    }
++    None
++}
++pub fn discover(commands: Vec<(String, String)>, bridge: &Path) -> Vec<Available> {
++    let Some(home) = dirs::home_dir() else {
++        return vec![];
++    };
++    commands
++        .into_iter()
++        .filter_map(|(program, command)| {
++            let executable = executable(&command)?;
++            let adapter = adapter(&home, &command, &executable, bridge);
++            let status = if adapter.is_some() {
++                "Available"
++            } else {
++                "Native MCP setup is not supported by this installed version"
++            }
++            .into();
++            Some(Available {
++                command,
++                program: program.clone(),
++                status,
++                installed: adapter.map(|adapter| Installed {
++                    program,
++                    executable,
++                    adapter,
++                    bridge: bridge.to_owned(),
++                }),
++            })
++        })
++        .collect()
++}
++fn adapter(home: &Path, command: &str, executable: &Path, bridge: &Path) -> Option<Adapter> {
++    let standard = json!({"command": bridge, "args": ["mcp"]});
++    let json_config = match command {
++        "gemini" => Some((".gemini/settings.json", "mcpServers", standard.clone())),
++        "opencode" => Some((
++            ".config/opencode/opencode.json",
++            "mcp",
++            json!({"type":"local", "command":[bridge, "mcp"], "enabled":true}),
++        )),
++        "amp" => Some((
++            ".config/amp/settings.json",
++            "amp.mcpServers",
++            standard.clone(),
++        )),
++        "agent" | "cursor-agent" => Some((".cursor/mcp.json", "mcpServers", standard.clone())),
++        "copilot" => Some((
++            ".copilot/mcp-config.json",
++            "mcpServers",
++            json!({"type":"local", "command":bridge, "args":["mcp"], "tools":["*"]}),
++        )),
++        "droid" => Some((
++            ".factory/mcp.json",
++            "mcpServers",
++            json!({"type":"stdio", "command":bridge, "args":["mcp"], "disabled":false}),
++        )),
++        _ => None,
++    };
++    if command == "codex" {
++        return Some(Adapter::Codex(home.join(".codex/config.toml")));
++    }
++    if let Some((path, key, value)) = json_config {
++        return Some(Adapter::Json {
++            path: home.join(path),
++            key: key.into(),
++            value,
++        });
++    }
++    // Probe native commands rather than guessing flags or installing fallback adapters.
++    let help = output(executable, &["mcp".into(), "add".into(), "--help".into()]).ok()??;
++    if !help.contains("name") || !(help.contains("command") || help.contains("COMMAND")) {
++        return None;
++    }
++    let mut add = vec!["mcp".into(), "add".into()];
++    let mut remove = vec!["mcp".into(), "remove".into()];
++    let mut get = vec!["mcp".into(), "get".into()];
++    if help.contains("--scope") && help.contains("user") {
++        add.extend(["--scope".into(), "user".into()]);
++        let remove_help = output(
++            executable,
++            &["mcp".into(), "remove".into(), "--help".into()],
++        )
++        .ok()??;
++        if remove_help.contains("--scope") {
++            remove.extend(["--scope".into(), "user".into()]);
++        }
++    }
++    if help.contains("--type") {
++        add.extend(["--type".into(), "stdio".into()]);
++    } else if help.contains("--transport") {
++        add.extend(["--transport".into(), "stdio".into()]);
++    }
++    add.push(SERVER.into());
++    if command != "agy" {
++        add.push("--".into());
++    }
++    add.extend([bridge.to_string_lossy().into_owned(), "mcp".into()]);
++    remove.push(SERVER.into());
++    get.push(SERVER.into());
++    // A native get/remove contract is required for ownership checks and reversibility.
++    for operation in ["get", "remove"] {
++        let help = output(
++            executable,
++            &["mcp".into(), operation.into(), "--help".into()],
++        )
++        .ok()??;
++        if !help.to_lowercase().contains("name") {
++            return None;
++        }
++    }
++    Some(Adapter::Cli { add, remove, get })
++}
++
++pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
++    let parent = path
++        .parent()
++        .ok_or_else(|| anyhow::anyhow!("Invalid configuration path"))?;
++    std::fs::create_dir_all(parent)?;
++    ensure!(
++        !path
++            .symlink_metadata()
++            .is_ok_and(|m| m.file_type().is_symlink()),
++        "Refusing to replace a configuration symlink"
++    );
++    let mut file = tempfile::NamedTempFile::new_in(parent)?;
++    if let Ok(metadata) = std::fs::metadata(path) {
++        file.as_file().set_permissions(metadata.permissions())?;
++    }
++    file.write_all(bytes)?;
++    file.as_file().sync_all()?;
++    file.persist(path)
++        .map_err(|_| anyhow::anyhow!("Could not replace configuration file"))?;
++    Ok(())
++}
++fn codex_block(bridge: &Path) -> String {
++    let command = toml::Value::String(bridge.to_string_lossy().into_owned());
++    format!("{START}\n[mcp_servers.{SERVER}]\ncommand = {command}\nargs = [\"mcp\"]\nenv_vars = [\"WARP_AGENT_ENDPOINT\", \"WARP_AGENT_CAPABILITY\", \"WARP_TERMINAL_SESSION_UUID\"]\n{END}\n")
++}
++pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
++    match &installed.adapter {
++        Adapter::Codex(path) => {
++            let text = match std::fs::read_to_string(path) {
++                Ok(s) => s,
++                Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
++                Err(e) => return Err(e.into()),
++            };
++            let parsed: toml::Value = toml::from_str(&text)
++                .map_err(|_| anyhow::anyhow!("Invalid Codex TOML; configuration was preserved"))?;
++            let block = codex_block(&installed.bridge);
++            let present = parsed
++                .get("mcp_servers")
++                .and_then(|v| v.get(SERVER))
++                .is_some();
++            if present {
++                ensure!(
++                    owned && text.contains(&block),
++                    "Communication configuration was changed or belongs to the user; preserved"
++                );
++            }
++            if enable && present || !enable && !present {
++                return Ok(());
++            }
++            let next = if enable {
++                format!("{text}\n{block}")
++            } else {
++                text.replacen(&block, "", 1)
++            };
++            toml::from_str::<toml::Value>(&next)
++                .map_err(|_| anyhow::anyhow!("Invalid generated Codex configuration"))?;
++            atomic_write(path, next.as_bytes())
++        }
++        Adapter::Json { path, key, value } => {
++            let text = match std::fs::read(path) {
++                Ok(s) => s,
++                Err(e) if e.kind() == std::io::ErrorKind::NotFound => b"{}".to_vec(),
++                Err(e) => return Err(e.into()),
++            };
++            let mut root: Value = serde_json::from_slice(&text)
++                .map_err(|_| anyhow::anyhow!("Invalid agent JSON; configuration was preserved"))?;
++            let object = root
++                .as_object_mut()
++                .ok_or_else(|| anyhow::anyhow!("Agent configuration must be an object"))?;
++            if !enable && !object.contains_key(key) {
++                return Ok(());
++            }
++            let servers = object
++                .entry(key.clone())
++                .or_insert_with(|| json!({}))
++                .as_object_mut()
++                .ok_or_else(|| anyhow::anyhow!("MCP configuration must be an object"))?;
++            if let Some(existing) = servers.get(SERVER) {
++                ensure!(
++                    owned && existing == value,
++                    "Communication configuration was changed or belongs to the user; preserved"
++                );
++            }
++            if enable {
++                servers.insert(SERVER.into(), value.clone());
++            } else {
++                servers.remove(SERVER);
++            }
++            atomic_write(path, &serde_json::to_vec_pretty(&root)?)
++        }
++        Adapter::Cli { add, remove, get } => {
++            let current = output(&installed.executable, get)?;
++            if let Some(current) = &current {
++                ensure!(
++                    owned
++                        && current.contains(installed.bridge.to_string_lossy().as_ref())
++                        && current.contains("mcp"),
++                    "Communication server already exists or was modified; preserved"
++                );
++            }
++            if enable && current.is_some() || !enable && current.is_none() {
++                return Ok(());
++            }
++            ensure!(
++                output(&installed.executable, if enable { add } else { remove })?.is_some(),
++                "Agent rejected communication configuration"
++            );
++            Ok(())
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn managed_configuration_is_reversible_and_preserves_user_settings() {
++        let directory = tempfile::tempdir().unwrap();
++        for adapter in [
++            Adapter::Codex(directory.path().join("config.toml")),
++            Adapter::Json {
++                path: directory.path().join("config.json"),
++                key: "mcpServers".into(),
++                value: json!({"command":"/bridge", "args":["mcp"]}),
++            },
++        ] {
++            let path = match &adapter {
++                Adapter::Codex(p) => p,
++                Adapter::Json { path, .. } => path,
++                _ => unreachable!(),
++            };
++            std::fs::write(path, if matches!(adapter, Adapter::Codex(_)) {"# user comment\nmodel = \"existing\"\n"} else {"{\"theme\":\"existing\",\"mcpServers\":{\"user-server\":{\"command\":\"user\"}}}"}).unwrap();
++            let installed = Installed {
++                program: "test".into(),
++                executable: PathBuf::from("test"),
++                adapter: adapter.clone(),
++                bridge: PathBuf::from("/bridge"),
++            };
++            configure(&installed, true, false).unwrap();
++            configure(&installed, true, true).unwrap();
++            assert!(configure(&installed, true, false).is_err());
++            configure(&installed, false, true).unwrap();
++            configure(&installed, false, true).unwrap();
++            let remaining = std::fs::read_to_string(path).unwrap();
++            assert!(remaining.contains("existing"));
++            assert!(!remaining.contains(SERVER));
++            if matches!(adapter, Adapter::Codex(_)) {
++                assert!(remaining.contains("# user comment"));
++                assert!(!remaining.contains("env_vars"));
++            } else {
++                assert!(remaining.contains("user-server"));
++            }
++        }
++    }
++}
 diff --git a/app/src/lib.rs b/app/src/lib.rs
 index d930877..64e49c7 100644
 --- a/app/src/lib.rs
@@ -279,18 +1024,33 @@ index 2b8773e..768e19b 100644
          add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
 +        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 +        let agent_terminal = crate::agent_communication::prepare(&mut env_vars);
- 
+
          cfg_if::cfg_if! {
              if #[cfg(feature = "remote_tty")] {
 @@ -5538,6 +5540,8 @@ impl PaneGroup {
          }
- 
+
          let terminal_view = terminal_manager.as_ref(ctx).view();
 +        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 +        crate::agent_communication::bind(&terminal_view, agent_terminal);
          (terminal_view, terminal_manager)
      }
- 
+
+diff --git a/app/src/settings_view/features_page.rs b/app/src/settings_view/features_page.rs
+index 5e5b9cb..80d63e2 100644
+--- a/app/src/settings_view/features_page.rs
++++ b/app/src/settings_view/features_page.rs
+@@ -2533,6 +2533,10 @@ impl FeaturesPageView {
+     fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
+         let mut general_widgets: Vec<Box<dyn SettingsWidget<View = Self>>> =
+             vec![Box::new(DefaultSessionModeWidget::default())];
++        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
++        general_widgets.push(Box::new(crate::agent_communication::settings_view::CommunicationWidget(
++            ctx.add_typed_action_view(crate::agent_communication::settings_view::CommunicationSettingsView::new),
++        )));
+
+         let native_preference_settings = NativePreferenceSettings::as_ref(ctx);
+         if native_preference_settings
 diff --git a/app/src/tab.rs b/app/src/tab.rs
 index 42eb48e..d2cb7f0 100644
 --- a/app/src/tab.rs
@@ -306,7 +1066,7 @@ index 42eb48e..d2cb7f0 100644
 @@ -311,6 +312,42 @@ impl TabData {
          menu_items
      }
- 
+
 +    fn communication_menu_items(
 +        &self,
 +        index: usize,
@@ -352,7 +1112,7 @@ index 4302c6a..c880aed 100644
 +++ b/app/src/terminal/view.rs
 @@ -7712,6 +7712,8 @@ impl TerminalView {
          }
- 
+
          let bytes = data.into();
 +        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 +        crate::agent_communication::user_input(self.view_id, &bytes);
@@ -374,7 +1134,7 @@ index 829d6d7..6b84fc2 100644
 +++ b/app/src/terminal/view/use_agent_footer/mod.rs
 @@ -702,7 +702,81 @@ impl TerminalView {
          }
- 
+
          let strategy = rich_input_submit_strategy(agent);
 -        self.write_cli_agent_text_then_submit(text_bytes, strategy, ctx);
 +        self.write_cli_agent_text_then_submit(text_bytes, strategy, None, None, ctx);
@@ -453,17 +1213,17 @@ index 829d6d7..6b84fc2 100644
 +            .shared_session_status()
 +            .is_sharer_or_viewer()
      }
- 
+
      /// Simulates clipboard image paste for each pending image attachment by
 @@ -727,7 +801,7 @@ impl TerminalView {
          }
- 
+
          if images.is_empty() {
 -            self.write_cli_agent_text_then_submit(text_bytes, strategy, ctx);
 +            self.write_cli_agent_text_then_submit(text_bytes, strategy, None, None, ctx);
              return;
          }
- 
+
 @@ -783,7 +857,7 @@ impl TerminalView {
                  if !ok || !me.has_active_cli_agent_input_session(ctx) {
                      return;
@@ -774,7 +1534,7 @@ index e8badca..2e88693 100644
 @@ -7471,6 +7471,57 @@ impl Workspace {
              == 1
      }
- 
+
 +    #[cfg(all(
 +        feature = "local_tty",
 +        not(feature = "remote_tty"),
@@ -904,7 +1664,7 @@ index 10bf8d4..ae1fb97 100644
 @@ -3360,6 +3360,7 @@ fn test_standard_tab_context_menu_shows_hover_only_tab_bar() {
      });
  }
- 
+
 +#[cfg(feature = "agent_management_view")]
  #[test]
  fn test_open_cloud_agent_setup_guide_action_opens_management_view_and_is_idempotent() {
@@ -1771,10 +2531,10 @@ index 0000000..6b8d98a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..e8f7e6d
+index 0000000..18d42fc
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,888 @@
+@@ -0,0 +1,914 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
@@ -1844,6 +2604,7 @@ index 0000000..e8f7e6d
 +struct State {
 +    store: Store,
 +    terminals: HashMap<String, Terminal>,
++    programs: Option<HashSet<String>>,
 +}
 +struct Shared {
 +    state: Mutex<State>,
@@ -1917,6 +2678,7 @@ index 0000000..e8f7e6d
 +            state: Mutex::new(State {
 +                store,
 +                terminals: HashMap::new(),
++                programs: None,
 +            }),
 +            changed: Condvar::new(),
 +            stopped: AtomicBool::new(false),
@@ -1987,6 +2749,23 @@ index 0000000..e8f7e6d
 +    }
 +}
 +impl Broker {
++    /// App settings are authoritative; tests may retain an unrestricted broker.
++    pub fn set_programs(&self, programs: Option<HashSet<String>>) {
++        if let Ok(mut state) = self.shared.state.lock() {
++            state.programs = programs;
++            let allowed = state.programs.clone();
++            for binding in state.terminals.values_mut() {
++                if binding.live.as_ref().is_some_and(|live| {
++                    allowed
++                        .as_ref()
++                        .is_some_and(|programs| !programs.contains(&live.program))
++                }) {
++                    binding.live = None;
++                }
++            }
++        }
++        self.shared.changed.notify_all();
++    }
 +    pub fn peers(&self, terminal: &str) -> Vec<Peer> {
 +        let Ok(state) = self.shared.state.lock() else {
 +            return vec![];
@@ -2109,6 +2888,13 @@ index 0000000..e8f7e6d
 +            .state
 +            .lock()
 +            .map_err(|_| anyhow!("Broker unavailable"))?;
++        ensure!(
++            state
++                .programs
++                .as_ref()
++                .is_none_or(|programs| programs.contains(program)),
++            "Agent communication is disabled for this program"
++        );
 +        let old_run = state
 +            .terminals
 +            .get(terminal)
@@ -3251,7 +4037,7 @@ index 4f7781e..44a851f 100755
 +++ b/script/build-warp-lite-app.sh
 @@ -16,6 +16,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
  cd "$ROOT"
- 
+
  BIN="target/release/warp-oss"
 +AGENT_BIN="target/release/warp-agent"
  APP="WarpLite.app"
@@ -3260,7 +4046,7 @@ index 4f7781e..44a851f 100755
 @@ -27,6 +28,11 @@ if [[ ! -f "$BIN" ]]; then
      exit 1
  fi
- 
+
 +if [[ ! -f "$AGENT_BIN" ]]; then
 +    echo "Error: $AGENT_BIN not found. Build warp-agent-bus on GitHub before packaging." >&2
 +    exit 1
@@ -3270,13 +4056,13 @@ index 4f7781e..44a851f 100755
      echo "Error: source icon $SRC_PNG not found." >&2
      exit 1
 @@ -38,7 +44,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
- 
+
  # 1) Copy the binary
  cp "$BIN" "$APP/Contents/MacOS/warp-oss"
 -chmod +x "$APP/Contents/MacOS/warp-oss"
 +cp "$AGENT_BIN" "$APP/Contents/MacOS/warp-agent"
 +chmod +x "$APP/Contents/MacOS/warp-oss" "$APP/Contents/MacOS/warp-agent"
- 
+
  # 2) Generate AppIcon.icns from the 512×512 source via iconset
  ICONSET="$(mktemp -d)/AppIcon.iconset"
 diff --git a/script/build-warp-lite-windows.ps1 b/script/build-warp-lite-windows.ps1
@@ -3286,7 +4072,7 @@ index 1465d59..680d685 100644
 @@ -46,6 +46,9 @@ if ($LASTEXITCODE -ne 0) {
      throw "cargo build failed with exit code $LASTEXITCODE"
  }
- 
+
 +cargo build -p warp-agent-bus --profile $CargoProfile --bin warp-agent --target $PlatformTarget
 +if ($LASTEXITCODE -ne 0) { throw "Agent companion build failed" }
 +
@@ -3296,7 +4082,7 @@ index 1465d59..680d685 100644
 @@ -87,6 +90,7 @@ $PortableDir = "$RepoRoot\target\WarpLite-portable-x64"
  if (Test-Path $PortableDir) { Remove-Item $PortableDir -Recurse -Force }
  New-Item -ItemType Directory -Path $PortableDir -Force | Out-Null
- 
+
 +Copy-Item "$TargetOutputDir\warp-agent.exe" "$PortableDir\warp-agent.exe" -Force
  Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\WarpLite.exe" -Force
  Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\warp-oss.exe" -Force
@@ -3307,7 +4093,7 @@ index 15fa051..1de97f8 100644
 +++ b/script/windows/windows-installer.iss
 @@ -94,6 +94,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
  Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
- 
+
  [Files]
 +Source: "{#TargetProfileDir}\warp-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
  ; NOTE: Don't use "Flags: ignoreversion" on any shared system files

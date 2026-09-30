@@ -6,7 +6,7 @@ All CLI agent sessions managed by Warp Lite running in Warp Lite can exchange me
 
 ## Behavior
 
-1. Participation is explicit. The user right-clicks an Agent tab, chooses **Select communication peers**, and selects an available agent. This establishes a bidirectional connection, rather than sending a one-off task. Agents can then communicate from ordinary conversation or initiate collaboration themselves. Native MCP discovery assigns a unique project-local name automatically; users do not type registration or readiness setup prompts. Identity is bound to the live Warp terminal run.
+1. Participation is controlled by Settings > Features > Agent communication, disabled by default. Enabling it discovers installed managed CLI agents. Checking an agent configures the bundled native MCP bridge and required environment passthrough in the background. Unchecking removes only Warp-owned configuration; disabling communication revokes all live communication immediately and cleans up all owned configuration. Running clients may require restart to reload MCP configuration. Native discovery assigns unique project-local identities automatically.
 2. Agents discover and communicate with other registered agents in the same project. Other projects are isolated by default.
 3. A task names an assignee, a reviewer (the assigner by default), a description, and acceptance criteria. Names are resolved to stable identities when the task is created.
 4. The assignee explicitly starts a queued task, then submits a result and verification evidence. Only its reviewer can accept the submitted revision or request changes with feedback. Submission does not imply acceptance.
@@ -19,15 +19,17 @@ All CLI agent sessions managed by Warp Lite running in Warp Lite can exchange me
 11. Communication remains local, adds no cloud/account/telemetry dependency, and does not start Warp's disabled platform MCP client runtime.
 12. Upstream synchronization replays an auditable downstream patch. Repeated application is harmless; partial application or conflicting upstream changes fail before publication.
 
-## Communication picker acceptance
+## Settings and project communication acceptance
 
-- Horizontal tab and vertical pane menus target the terminal that was clicked, not a different focused terminal.
-- The picker lists live, same-project peers whose native bridge has completed discovery. Offline, remote, unloaded, cross-project, and self entries cannot be selected.
-- Selection is reciprocal, idempotent, and revalidated against both run identities. Connected entries can be disconnected. Closing or replacing a process clears its connections.
-- Auto-registered agents discover only their selected peers and cannot send messages or assign tasks to unselected agents. Legacy explicit registration remains available for protocol callers; selecting a connection opts both endpoints into selection restrictions.
-- Both agents receive a broker-generated connection notice through their existing inbox. The notice explains discovery and task/result/review tools; it never changes user permissions.
-- Busy delivery and draft/permission protection keep their existing behavior. MCP instructions supply the readiness rule automatically; the user does not repeat it in every conversation.
-- A client that has not loaded the bundled MCP bridge is not falsely shown as connected. Initial native MCP configuration remains a separate prerequisite in this iteration; the picker does not claim hot-loading support that a vendor does not provide.
+- Implement settings and reversible vendor configuration first, then replace manual peer selection with automatic project routing.
+- Reuse native switches, checkboxes, and settings layout; all UI text is English.
+- Discovery follows the managed enum and aliases. Installed tools without a verified native setup adapter are visibly unavailable, never falsely enabled. No agents are installed by Warp.
+- Configuration runs off the UI thread, reports success/failure per agent, preserves unrelated settings, rejects conflicting ownership, and never writes live capability values.
+- Enable/disable operations are serialized. Only successfully configured agents are authorized. Disabling revokes active runs before cleanup; failed cleanup remains visible and retryable after restart.
+- Same-project registered agents automatically discover, message, and delegate to each other. There is no peer picker, pair permission, or connection step.
+- Canonical repository root scopes projects; subdirectories share the root, separate repositories and worktrees remain isolated. Offline/unloaded/disallowed clients cannot participate.
+- Test configuration add/remove/idempotency/conflicts, project isolation, disable/re-enable and stale runs, existing task lifecycle, and dormant wake protection.
+- GitHub checks default/platform builds and packages review artifacts. No local compilation; live vendor and screenshot validation limitations must be reported honestly.
 
 ## Delivery
 
