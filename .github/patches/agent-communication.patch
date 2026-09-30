@@ -50,10 +50,10 @@ index 60c6ab2..ff79379 100644
  comfy-table = "7.1.4"
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..4d814d7
+index 0000000..a79c685
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,392 @@
+@@ -0,0 +1,383 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -170,16 +170,7 @@ index 0000000..4d814d7
 +    }
 +    fn policy(&self) {
 +        if let Some(broker) = BROKER.get() {
-+            let programs = if self.preferences.enabled {
-+                self.preferences
-+                    .selected
-+                    .values()
-+                    .filter(|entry| entry.active)
-+                    .map(|entry| entry.program.clone())
-+                    .collect()
-+            } else {
-+                std::collections::HashSet::new()
-+            };
++            let programs = self.preferences.programs();
 +            broker.set_programs(Some(programs));
 +        }
 +    }
@@ -448,10 +439,10 @@ index 0000000..4d814d7
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..287b052
+index 0000000..01a715c
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
-@@ -0,0 +1,522 @@
+@@ -0,0 +1,554 @@
 +//! Reversible native MCP configuration. Never persist live terminal capabilities.
 +use anyhow::{bail, ensure, Result};
 +use serde::{Deserialize, Serialize};
@@ -473,6 +464,18 @@ index 0000000..287b052
 +pub struct Preferences {
 +    pub enabled: bool,
 +    pub selected: BTreeMap<String, Installed>,
++}
++impl Preferences {
++    pub fn programs(&self) -> std::collections::HashSet<String> {
++        if !self.enabled {
++            return std::collections::HashSet::new();
++        }
++        self.selected
++            .values()
++            .filter(|entry| entry.active)
++            .map(|entry| entry.program.clone())
++            .collect()
++    }
 +}
 +#[derive(Clone, Serialize, Deserialize)]
 +pub struct Installed {
@@ -960,6 +963,26 @@ index 0000000..287b052
 +            configure(&installed, true, false).unwrap();
 +            configure(&installed, true, true).unwrap();
 +            assert!(configure(&installed, true, false).is_err());
++            let original = std::fs::read_to_string(path).unwrap();
++            let changed = original.replace("/bridge", "/user-bridge");
++            std::fs::write(path, &changed).unwrap();
++            assert!(configure(&installed, false, true).is_err());
++            assert_eq!(std::fs::read_to_string(path).unwrap(), changed);
++            std::fs::write(path, original).unwrap();
++            let mut preferences = Preferences::default();
++            preferences
++                .selected
++                .insert("test".into(), installed.clone());
++            assert!(preferences.programs().is_empty());
++            preferences.enabled = true;
++            assert!(preferences.programs().contains("test"));
++            preferences.selected.get_mut("test").unwrap().active = false;
++            let restored: Preferences =
++                serde_json::from_slice(&serde_json::to_vec(&preferences).unwrap()).unwrap();
++            assert!(
++                restored.programs().is_empty(),
++                "Pending cleanup must never restore authorization"
++            );
 +            configure(&installed, false, true).unwrap();
 +            configure(&installed, false, true).unwrap();
 +            let remaining = std::fs::read_to_string(path).unwrap();
@@ -1020,18 +1043,21 @@ index 2b8773e..768e19b 100644
  
 diff --git a/app/src/settings_view/agent_communication.rs b/app/src/settings_view/agent_communication.rs
 new file mode 100644
-index 0000000..a3c67c6
+index 0000000..bf72d8d
 --- /dev/null
 +++ b/app/src/settings_view/agent_communication.rs
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,176 @@
 +//! Local-only setup controls for independently installed CLI agents.
 +use crate::agent_communication::AgentCommunication;
 +use crate::{
 +    appearance::Appearance,
-+    settings_view::{features_page::FeaturesPageView, settings_page::SettingsWidget},
++    settings_view::{
++        features_page::FeaturesPageView,
++        settings_page::{render_body_item, LocalOnlyIconState, SettingsWidget, ToggleState},
++    },
 +};
 +use std::{cell::RefCell, collections::HashMap};
-+use warpui::elements::{ChildView, Container, Flex, MouseStateHandle, ParentElement};
++use warpui::elements::{ChildView, Container, Expanded, Flex, MouseStateHandle, ParentElement};
 +use warpui::ui_components::{
 +    button::ButtonVariant, components::UiComponent, switch::SwitchStateHandle,
 +};
@@ -1086,22 +1112,22 @@ index 0000000..a3c67c6
 +            .check(model.preferences.enabled);
 +        let switch = if model.busy { switch.disable() } else { switch };
 +        let mut body = Flex::column();
-+        body.add_child(
-+            Flex::row()
-+                .with_child(
-+                    builder
-+                        .paragraph("Agent communication".to_owned())
-+                        .build()
-+                        .finish(),
-+                )
-+                .with_child(
-+                    switch
-+                        .build()
-+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Enable))
-+                        .finish(),
-+                )
++        body.add_child(render_body_item::<Action>(
++            "Agent communication".into(),
++            None,
++            LocalOnlyIconState::Hidden,
++            if model.busy {
++                ToggleState::Disabled
++            } else {
++                ToggleState::Enabled
++            },
++            appearance,
++            switch
++                .build()
++                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Enable))
 +                .finish(),
-+        );
++            None,
++        ));
 +        body.add_child(builder.paragraph("Configure local MCP access for selected CLI agents. Communication stays within each project.".to_owned()).build().finish());
 +        if model.preferences.enabled || !model.preferences.selected.is_empty() {
 +            let mut rows = model.available.clone();
@@ -1155,10 +1181,13 @@ index 0000000..a3c67c6
 +                                .finish(),
 +                        )
 +                        .with_child(
-+                            builder
-+                                .paragraph(format!("{} — {}", row.command, row.status))
-+                                .build()
-+                                .finish(),
++                            Expanded::new(
++                                builder
++                                    .paragraph(format!("{} — {}", row.command, row.status))
++                                    .build()
++                                    .finish(),
++                            )
++                            .finish(),
 +                        )
 +                        .finish(),
 +                );
