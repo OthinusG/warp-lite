@@ -37,7 +37,7 @@ index 738347f..d6642b9 100644
  name = "warp_core"
  version = "0.0.0"
 diff --git a/app/Cargo.toml b/app/Cargo.toml
-index 60c6ab2..ff79379 100644
+index 60c6ab2..addb30f 100644
 --- a/app/Cargo.toml
 +++ b/app/Cargo.toml
 @@ -263,6 +263,7 @@ winit = { workspace = true }
@@ -48,12 +48,21 @@ index 60c6ab2..ff79379 100644
  async-io.workspace = true
  axum.workspace = true
  comfy-table = "7.1.4"
+@@ -277,7 +278,7 @@ http_server.workspace = true
+ hyper.workspace = true
+ libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
+ mio = { version = "1.1.1", features = ["os-poll", "os-ext"] }
+-tokio.workspace = true
++tokio = { workspace = true, features = ["process"] }
+ tokio-util.workspace = true
+ 
+ # AWS SDK (loading credentials for BYO LLM)
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..14860ba
+index 0000000..93ebc01
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,390 @@
+@@ -0,0 +1,386 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -255,7 +264,7 @@ index 0000000..14860ba
 +            } else {
 +                vec![]
 +            };
-+            if setup::atomic_write(&path, &serde_json::to_vec(&preferences).unwrap()).is_err() {
++            if setup::save_preferences(&path, &preferences).is_err() {
 +                preferences.enabled = false;
 +                let _ = sender.send((
 +                    preferences,
@@ -303,11 +312,7 @@ index 0000000..14860ba
 +                                pending_entry.active = false;
 +                                preferences.selected.insert(name.clone(), pending_entry);
 +                                // Persist cleanup intent before invoking a vendor command or replacing its file.
-+                                if setup::atomic_write(
-+                                    &path,
-+                                    &serde_json::to_vec(&preferences).unwrap(),
-+                                )
-+                                .is_ok()
++                                if setup::save_preferences(&path, &preferences).is_ok()
 +                                    && setup::configure(&entry, true, false).is_ok()
 +                                {
 +                                    preferences.selected.insert(name.clone(), entry);
@@ -335,7 +340,7 @@ index 0000000..14860ba
 +                    .into();
 +                }
 +            }
-+            if setup::atomic_write(&path, &serde_json::to_vec(&preferences).unwrap()).is_err() {
++            if setup::save_preferences(&path, &preferences).is_err() {
 +                preferences.enabled = false;
 +                errors.push(
 +                    "Could not save communication preferences; communication remains disabled"
@@ -446,21 +451,20 @@ index 0000000..14860ba
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..01a715c
+index 0000000..045596d
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
-@@ -0,0 +1,554 @@
+@@ -0,0 +1,599 @@
 +//! Reversible native MCP configuration. Never persist live terminal capabilities.
-+use anyhow::{bail, ensure, Result};
++use anyhow::{ensure, Result};
 +use serde::{Deserialize, Serialize};
 +use serde_json::{json, Value};
 +use std::{
 +    collections::BTreeMap,
 +    io::Write,
 +    path::{Path, PathBuf},
-+    process::{Command, Stdio},
-+    thread,
-+    time::{Duration, Instant},
++    process::Stdio,
++    time::Duration,
 +};
 +
 +pub const SERVER: &str = "warp-lite-communication";
@@ -531,39 +535,40 @@ index 0000000..01a715c
 +    Ok(path)
 +}
 +fn run(executable: &Path, args: &[String]) -> Result<(bool, String)> {
-+    let mut child = Command::new(executable)
-+        .args(args)
-+        .stdin(Stdio::null())
-+        .stdout(Stdio::piped())
-+        .stderr(Stdio::piped())
-+        .spawn()?;
-+    fn drain(pipe: impl std::io::Read + Send + 'static) -> thread::JoinHandle<String> {
-+        thread::spawn(move || {
-+            use std::io::Read;
-+            let mut bytes = Vec::new();
-+            pipe.take(1024 * 1024).read_to_end(&mut bytes).ok();
-+            String::from_utf8_lossy(&bytes).into_owned()
++    use tokio::io::AsyncReadExt;
++    tokio::runtime::Builder::new_current_thread()
++        .enable_all()
++        .build()?
++        .block_on(async {
++            tokio::time::timeout(Duration::from_secs(8), async {
++                let mut child = tokio::process::Command::new(executable)
++                    .args(args)
++                    .stdin(Stdio::null())
++                    .stdout(Stdio::piped())
++                    .stderr(Stdio::piped())
++                    .kill_on_drop(true)
++                    .spawn()?;
++                let mut stdout = child.stdout.take().unwrap().take(1024 * 1024);
++                let mut stderr = child.stderr.take().unwrap().take(1024 * 1024);
++                let mut out = Vec::new();
++                let mut err = Vec::new();
++                let (_, _, status) = tokio::try_join!(
++                    stdout.read_to_end(&mut out),
++                    stderr.read_to_end(&mut err),
++                    child.wait()
++                )?;
++                Ok((
++                    status.success(),
++                    format!(
++                        "{}\n{}",
++                        String::from_utf8_lossy(&out),
++                        String::from_utf8_lossy(&err)
++                    ),
++                ))
++            })
++            .await
++            .map_err(|_| anyhow::anyhow!("Agent configuration command timed out"))?
 +        })
-+    }
-+    let stdout = drain(child.stdout.take().unwrap());
-+    let stderr = drain(child.stderr.take().unwrap());
-+    let deadline = Instant::now() + Duration::from_secs(8);
-+    loop {
-+        if let Some(status) = child.try_wait()? {
-+            let text = format!(
-+                "{}\n{}",
-+                stdout.join().unwrap_or_default(),
-+                stderr.join().unwrap_or_default()
-+            );
-+            return Ok((status.success(), text));
-+        }
-+        if Instant::now() >= deadline {
-+            let _ = child.kill();
-+            let _ = child.wait();
-+            bail!("Agent configuration command timed out");
-+        }
-+        thread::sleep(Duration::from_millis(25));
-+    }
 +}
 +fn output(executable: &Path, args: &[String]) -> Result<Option<String>> {
 +    let (success, text) = run(executable, args)?;
@@ -782,6 +787,9 @@ index 0000000..01a715c
 +    file.persist(path)
 +        .map_err(|_| anyhow::anyhow!("Could not replace configuration file"))?;
 +    Ok(())
++}
++pub fn save_preferences(path: &Path, preferences: &Preferences) -> Result<()> {
++    atomic_write(path, &serde_json::to_vec(preferences)?)
 +}
 +fn codex_block(bridge: &Path) -> String {
 +    let command = toml::Value::String(bridge.to_string_lossy().into_owned());
@@ -1002,6 +1010,48 @@ index 0000000..01a715c
 +                assert!(remaining.contains("user-server"));
 +            }
 +        }
++    }
++    #[cfg(unix)]
++    #[test]
++    fn native_cli_setup_checks_ownership_and_is_reversible() {
++        use std::os::unix::fs::PermissionsExt;
++        let directory = tempfile::tempdir().unwrap();
++        let cli = directory.path().join("native-agent");
++        std::fs::write(
++            &cli,
++            r#"#!/bin/sh
++entry="$(dirname "$0")/entry"
++if [ "$3" = "--help" ]; then
++    echo "Usage: mcp $2 <name> <command> [args...]"
++    exit 0
++fi
++case "$2" in
++    get) if [ -f "$entry" ]; then cat "$entry"; else echo 'server not found' >&2; exit 1; fi ;;
++    add) printf '%s mcp' "$5" > "$entry" ;;
++    remove) rm -f "$entry" ;;
++    *) exit 2 ;;
++esac
++"#,
++        )
++        .unwrap();
++        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
++        let adapter =
++            adapter(directory.path(), "native-agent", &cli, Path::new("/bridge")).unwrap();
++        let installed = Installed {
++            active: true,
++            program: "custom".into(),
++            executable: cli,
++            adapter,
++            bridge: PathBuf::from("/bridge"),
++        };
++        configure(&installed, true, false).unwrap();
++        configure(&installed, true, true).unwrap();
++        assert!(configure(&installed, true, false).is_err());
++        std::fs::write(directory.path().join("entry"), "/user-command mcp").unwrap();
++        assert!(configure(&installed, false, true).is_err());
++        std::fs::write(directory.path().join("entry"), "/bridge mcp").unwrap();
++        configure(&installed, false, true).unwrap();
++        assert!(!directory.path().join("entry").exists());
 +    }
 +}
 diff --git a/app/src/lib.rs b/app/src/lib.rs
