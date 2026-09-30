@@ -451,10 +451,10 @@ index 0000000..93ebc01
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..292d59b
+index 0000000..b0927b0
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
-@@ -0,0 +1,583 @@
+@@ -0,0 +1,591 @@
 +//! Reversible native MCP configuration. Never persist live terminal capabilities.
 +use anyhow::{ensure, Result};
 +use serde::{Deserialize, Serialize};
@@ -664,7 +664,11 @@ index 0000000..292d59b
 +        "omp" => Some((".omp/agent/mcp.json", "mcpServers", standard.clone())),
 +        "pi" => {
 +            // Older versions require third-party extensions and are intentionally excluded.
-+            output(executable, &["mcp".into(), "add".into(), "--help".into()]).ok()??;
++            let help =
++                output(executable, &["mcp".into(), "add".into(), "--help".into()]).ok()??;
++            if !help.to_lowercase().contains("mcp add") {
++                return None;
++            }
 +            Some((".pi/agent/mcp.json", "mcpServers", standard.clone()))
 +        }
 +        "gemini" => Some((
@@ -707,7 +711,11 @@ index 0000000..292d59b
 +    }
 +    // Probe native commands rather than guessing flags or installing fallback adapters.
 +    let help = output(executable, &["mcp".into(), "add".into(), "--help".into()]).ok()??;
-+    if !help.contains("name") || !(help.contains("command") || help.contains("COMMAND")) {
++    if !help.to_lowercase().contains("mcp")
++        || !help.to_lowercase().contains("add")
++        || !help.contains("name")
++        || !(help.contains("command") || help.contains("COMMAND"))
++    {
 +        return None;
 +    }
 +    let mut add = vec!["mcp".into(), "add".into()];
