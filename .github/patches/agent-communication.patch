@@ -2665,10 +2665,10 @@ index 0000000..e8f7e6d
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
-index 0000000..4318e70
+index 0000000..dd89f82
 --- /dev/null
 +++ b/crates/agent_bus/tests/coordination.rs
-@@ -0,0 +1,572 @@
+@@ -0,0 +1,576 @@
 +use serde_json::Value;
 +use std::{path::PathBuf, thread, time::Duration};
 +use uuid::Uuid;
@@ -2953,7 +2953,11 @@ index 0000000..4318e70
 +    use rmcp::{model::CallToolRequestParam, transport::TokioChildProcess, ServiceExt};
 +    use warp_agent_bus::transport::{CAPABILITY, ENDPOINT, TERMINAL};
 +    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
-+    let reviewer = register(&server.broker, "live-reviewer", "claude");
++    let broker = server.broker.clone();
++    let reviewer =
++        tokio::task::spawn_blocking(move || register(&broker, "live-reviewer", "claude"))
++            .await
++            .unwrap();
 +    for (index, program) in managed_programs().iter().enumerate() {
 +        let terminal = format!("mcp-{index}");
 +        let capability = server.broker.prepare(&terminal).unwrap();
