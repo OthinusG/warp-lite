@@ -57,7 +57,9 @@ jobs:
           if ! git diff --quiet \
             || ! git diff --cached --quiet \
             || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
-            git add app/src/lib.rs app/src/settings_view/mod.rs \
+            git add Cargo.lock app/Cargo.toml crates/agent_bus app/src/agent_communication.rs \
+              app/src/pane_group/mod.rs script/windows/windows-installer.iss \
+              app/src/lib.rs app/src/settings_view/mod.rs \
               app/src/autoupdate/windows.rs app/src/terminal/model/session.rs \
               app/src/workspace/header_toolbar_item.rs app/src/workspace/view.rs \
               app/src/workspace/util.rs script/build-warp-lite-app.sh \
@@ -106,6 +108,7 @@ jobs:
             app/src/terminal/cli_agent_sessions/plugin_manager/mod.rs \
             app/src/ui_components/icon_with_status.rs \
             crates/input_classifier/src/util.rs crates/warp_core/src/ui/icons.rs
+          cargo test -p warp-agent-bus --locked
           cargo test -p input_classifier util::tests
 
       - name: Push restored update
@@ -137,6 +140,7 @@ jobs:
           cargo check -p warp --bin warp-oss
           cargo check -p warp --bin warp-oss --features warp_platform
           cargo build --release --bin warp-oss
+          cargo build --release -p warp-agent-bus --bin warp-agent --locked
 
       - name: Package and verify macOS artifacts
         if: steps.sync.outputs.needs_release == 'true'

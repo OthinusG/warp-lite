@@ -6,6 +6,13 @@
 - The default product excludes AI agents, telemetry, cloud account/login, billing, and related platform surfaces.
 - Project Explorer is a desired terminal-adjacent feature and must be restored without reintroducing excluded product dependencies.
 
+## Native Agent Communication Design
+
+- User clarification on 2026-09-30: the target is native communication between independent CLI agents running inside Warp Lite, including task delegation, result submission, acceptance/rework, and automatic handoff. hcom and Agent Mail are references, not a required choice or final architecture. The user first requested a design, then approved implementation. First-release coverage was expanded to every CLI agent managed by Warp Lite, including aliases; the user subsequently excluded agents without native MCP support.
+- Proposed ownership: a Warp-owned local broker for identities, messages, and task state, a thin stdio MCP bridge over local IPC for CLI access, and terminal delivery through existing PTY submission helpers. The first automatic handoff uses cooperative waiting via MCP; dormant TUI injection remains unverified; it must not reactivate Warp's platform MCP client manager or cloud AI product.
+- Qoder command recognition does not imply session-event support: Qoder currently has neither a session listener handler nor a Warp notification plugin manager. Existing CLI session events update terminal status/context; they are not an agent-to-agent task delivery mechanism.
+- `TerminalView::submit_text_to_cli_agent_pty` already submits prompts using agent-specific PTY strategies. Reuse it behind explicit readiness, live-run identity checks, and task acknowledgement; its current return value does not prove that an agent consumed a prompt, and its delayed Enter path needs lifecycle revalidation for broker use.
+
 ## Build And Release
 
 - Primary check: `cargo check -p warp --bin warp-oss`.
@@ -35,3 +42,5 @@
 - `.github/workflows/release-windows-x64.yml` triggers automatically via `workflow_run` when `Sync Warp Lite and release` finishes. It inspects the release, skips redundant runs if Windows assets already exist, compiles `warp-oss` for `x86_64-pc-windows-msvc`, builds `WarpLiteSetup-x64.exe` (via Inno Setup) and `WarpLite-windows-x64.zip`, and attaches them to the GitHub release.
 - Windows compilation fixes are preserved by `.github/patches/windows-compilation-fixes.patch` and replayed by `script/restore-project-explorer.sh`; it replaces dead `crate::();` telemetry removal leftovers in `app/src/autoupdate/windows.rs` with logging and corrects the `&OsStr` argument type to `powershell_read_all_text_command` in `app/src/terminal/model/session.rs`.
 
+- Agent communication source changes must be delivered as a replayable downstream patch integrated into upstream synchronization. The user explicitly requires GitHub compilation and no local builds.
+- Communication coverage must follow the managed `CLIAgent` enum automatically, not a separate four-vendor allowlist. The user explicitly excludes agents without native MCP support: list them, do not add shell-tool fallbacks. Protocol simulation and real vendor model acceptance are separate verification levels.

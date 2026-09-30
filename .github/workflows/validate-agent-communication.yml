@@ -1,0 +1,68 @@
+name: Validate native agent communication
+on:
+  workflow_dispatch:
+  push:
+    branches: ['warp-lite/agent-communication']
+permissions:
+  contents: read
+concurrency:
+  group: agent-communication-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  protocol:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Restore and verify replay
+        run: |
+          script/restore-agent-communication.sh --check
+          script/restore-agent-communication.sh
+          script/restore-agent-communication.sh
+          git diff --check
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.92.0 --profile minimal
+      - name: Test protocol, persistence, native sockets, and MCP
+        run: cargo test -p warp-agent-bus --locked
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          lfs: true
+      - name: Restore feature
+        run: |
+          script/restore-agent-communication.sh
+          script/restore-agent-communication.sh --check
+          git diff --check
+      - name: Prepare build tools
+        run: |
+          rustup toolchain install 1.92.0 --profile minimal
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcrun --find metal
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
+      - name: Check both application configurations and test communication
+        run: |
+          cargo test -p warp-agent-bus --locked
+          cargo check -p warp --bin warp-oss --locked
+          cargo check -p warp --bin warp-oss --features warp_platform --locked
+      - name: Build and package review artifacts
+        run: |
+          cargo build --release --bin warp-oss --locked
+          cargo build --release -p warp-agent-bus --bin warp-agent --locked
+          script/build-warp-lite-app.sh
+          codesign --verify --deep --strict WarpLite.app
+          ditto -c -k --sequesterRsrc --keepParent WarpLite.app WarpLite.app.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: WarpLite-agent-communication-macos
+          path: WarpLite.app.zip
+          retention-days: 7

@@ -76,3 +76,5 @@ for patch in "${PATCHES[@]}"; do
 done
 
 "$ROOT/script/restore-upstream-cli-agents.sh" "${1:-}"
+
+"$ROOT/script/restore-agent-communication.sh" "${1:-}"
