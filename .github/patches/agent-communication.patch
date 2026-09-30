@@ -47,10 +47,10 @@ index 60c6ab2..ff79379 100644
  comfy-table = "7.1.4"
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..39bd334
+index 0000000..e11dbd2
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,106 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +use crate::terminal::{
 +    cli_agent_sessions::{CLIAgentSessionsModel, CLIAgentSessionsModelEvent},
@@ -104,20 +104,19 @@ index 0000000..39bd334
 +            };
 +            match event {
 +                CLIAgentSessionsModelEvent::Started { agent, .. } => {
-+                    // Custom command patterns do not establish native MCP compatibility.
-+                    if *agent == CLIAgent::Unknown {
-+                        return;
-+                    }
++                    // Managed custom CLIs can participate through their verified native MCP client.
++                    let program = if *agent == CLIAgent::Unknown {
++                        "custom"
++                    } else {
++                        agent.command_prefix()
++                    };
 +                    if let Some(view) = view.upgrade(ctx) {
 +                        let model = view.as_ref(ctx).model.lock();
 +                        if let Some(directory) =
 +                            model.active_block_metadata().current_working_directory()
 +                        {
 +                            if let Ok(project) = project_root(Path::new(directory)) {
-+                                if broker
-+                                    .activate(terminal, agent.command_prefix(), &project)
-+                                    .is_err()
-+                                {
++                                if broker.activate(terminal, program, &project).is_err() {
 +                                    log::warn!("Could not activate local agent communication");
 +                                }
 +                            }
@@ -236,10 +235,10 @@ index 0000000..dc711f0
 +tokio = { workspace = true, features = ["process"] }
 diff --git a/crates/agent_bus/src/lib.rs b/crates/agent_bus/src/lib.rs
 new file mode 100644
-index 0000000..722853e
+index 0000000..180906e
 --- /dev/null
 +++ b/crates/agent_bus/src/lib.rs
-@@ -0,0 +1,582 @@
+@@ -0,0 +1,587 @@
 +//! Local coordination for third-party CLI agents; no model or cloud client lives here.
 +pub mod mcp;
 +pub mod transport;
@@ -459,7 +458,12 @@ index 0000000..722853e
 +            .snapshot
 +            .agents
 +            .values()
-+            .find(|a| a.terminal == terminal && a.program == program && a.project == project)
++            .find(|a| a.project == project && a.name == name)
++            .or_else(|| {
++                self.snapshot.agents.values().find(|a| {
++                    a.terminal == terminal && a.program == program && a.project == project
++                })
++            })
 +            .map(|a| a.id.clone())
 +            .unwrap_or_else(|| Uuid::new_v4().to_string());
 +        ensure!(
@@ -983,10 +987,10 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..514ddff
+index 0000000..c56e705
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,438 @@
+@@ -0,0 +1,452 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
@@ -1210,6 +1214,19 @@ index 0000000..514ddff
 +            }
 +            let program = live.program.clone();
 +            let project = live.project.clone();
++            ensure!(
++                !state
++                    .terminals
++                    .iter()
++                    .any(|(terminal, binding)| terminal != &request.terminal
++                        && binding
++                            .live
++                            .as_ref()
++                            .and_then(|live| live.agent.as_ref())
++                            .is_some_and(|agent| agent.project == project && agent.name == *name)),
++                "Agent name is owned by another live terminal"
++            );
++            // An offline name is reclaimed explicitly, preserving its pending work across new panes.
 +            let agent = state
 +                .store
 +                .register(&request.terminal, &program, &project, name)?;
@@ -1355,7 +1372,8 @@ index 0000000..514ddff
 +        };
 +        match result {
 +            #[cfg(windows)]
-+            Ok(0) if write => thread::sleep(Duration::from_millis(5)),
++            Ok(0) => thread::sleep(Duration::from_millis(5)),
++            #[cfg(not(windows))]
 +            Ok(0) => return Err(anyhow!("Local IPC disconnected")),
 +            Ok(count) => offset += count,
 +            Err(error) if io_pending(&error) => thread::sleep(Duration::from_millis(5)),
@@ -1427,10 +1445,10 @@ index 0000000..514ddff
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
-index 0000000..3b999f9
+index 0000000..46d133e
 --- /dev/null
 +++ b/crates/agent_bus/tests/coordination.rs
-@@ -0,0 +1,291 @@
+@@ -0,0 +1,320 @@
 +use serde_json::Value;
 +use std::{path::PathBuf, thread, time::Duration};
 +use uuid::Uuid;
@@ -1443,12 +1461,14 @@ index 0000000..3b999f9
 +}
 +fn managed_programs() -> Vec<String> {
 +    // Use the restored detector as the coverage source; aliases map to its canonical prefix.
-+    include_str!("../../../app/src/terminal/cli_agent.rs")
++    let mut programs: Vec<String> = include_str!("../../../app/src/terminal/cli_agent.rs")
 +        .lines()
 +        .filter_map(|line| line.trim().strip_prefix("CLIAgent::"))
 +        .filter(|line| line.contains("=> &[\""))
 +        .filter_map(|line| line.split('"').nth(1).map(str::to_owned))
-+        .collect()
++        .collect();
++    programs.push("custom".into());
++    programs
 +}
 +#[test]
 +fn every_managed_type_delegates_reviews_and_recovers() {
@@ -1611,7 +1631,7 @@ index 0000000..3b999f9
 +    }
 +    let mut reopened = Store::open(path.to_str().unwrap()).unwrap();
 +    let reviewer = reopened
-+        .register("reviewer", "claude", "/project", "reviewer")
++        .register("replacement-reviewer", "claude", "/project", "reviewer")
 +        .unwrap();
 +    assert!(
 +        reopened
@@ -1660,10 +1680,32 @@ index 0000000..3b999f9
 +    };
 +    transport::call(&server.broker.endpoint, &assignment).unwrap();
 +    assert_eq!(join.join().unwrap()["message"]["kind"], "assignment");
++    let mut competitor = register(&server.broker, "competitor", "claude");
++    competitor.run = None;
++    competitor.operation = Operation::AgentRegister {
++        name: "worker".into(),
++    };
++    assert!(transport::call(&server.broker.endpoint, &competitor).is_err());
++    let claim_capability = server.broker.prepare("claimant").unwrap();
++    server
++        .broker
++        .activate("claimant", "claude", "/project")
++        .unwrap();
++    let claim = Request {
++        terminal: "claimant".into(),
++        capability: claim_capability,
++        run: None,
++        operation: Operation::AgentRegister {
++            name: "worker".into(),
++        },
++    };
++    assert!(transport::call(&server.broker.endpoint, &claim).is_err());
 +    let mut forged = worker.clone();
 +    forged.capability = "invalid".into();
 +    assert!(transport::call(&server.broker.endpoint, &forged).is_err());
 +    server.broker.end("worker");
++    let recovered = transport::call(&server.broker.endpoint, &claim).unwrap();
++    assert_eq!(recovered["agent"]["name"], "worker");
 +    assert!(transport::call(&server.broker.endpoint, &worker).is_err());
 +    server.broker.activate("worker", "agy", "/project").unwrap();
 +    assert!(transport::call(&server.broker.endpoint, &worker).is_err());
@@ -1709,7 +1751,12 @@ index 0000000..3b999f9
 +            })
 +            .await
 +            .unwrap();
-+        assert_ne!(result.is_error, Some(true));
++        assert_ne!(
++            result.is_error,
++            Some(true),
++            "MCP registration failed: {:?}",
++            result.content
++        );
 +        let listed = client
 +            .call_tool(CallToolRequestParam {
 +                name: "warp_agent_list".into(),

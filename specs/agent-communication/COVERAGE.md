@@ -25,12 +25,12 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | DeepSeek Harness | dsh-tui; dsh with a TUI profile | [Official MCP client package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) | Eligible when the profile mounts the official MCP client |
 | Qoder | qoder, qodercli, qoder-cli, qodercn | [Official CLI MCP reference](https://docs.qoder.com/cli/mcp-reference); installed qodercn help confirms stdio | Eligible |
 | Trae | trae, traecn, trae-cli, traecn-cli | [Official CLI MCP documentation](https://docs.trae.cn/cli_model-context-protocol) | Eligible on the documented native MCP version; launch-name compatibility to verify |
-| Custom/Unknown | User-defined detection patterns | Detection alone does not establish MCP capability | Excluded from automatic native binding; not classified as lacking MCP |
+| Custom/Unknown | User-defined detection patterns | Detection alone does not establish MCP capability | Eligible individually after confirming native MCP; common custom binding provided |
 
 ## Excluded or unverified
 
 - Installed versions lacking native MCP client support, including older Pi releases that require an external MCP extension. Upgrade rather than ship a fallback adapter.
-- Custom managed agents with unverified MCP capability. No claim is made that all custom agents lack MCP.
+- Custom managed agents whose native MCP capability has not yet been confirmed are pending verification. Confirmed native MCP clients use the common `custom` binding and are included; they are not excluded based on the `Unknown` enum value.
 - HTTP-only clients cannot use this release's local stdio bridge until native stdio capability is established. No network listener is added for them.
 - Cloud Amp orbs are outside the local Warp terminal boundary.
 - Trae's current executable aliases require configuration verification before an adapter is marked ready. The newly documented `traecli` command is not in the current Warp detector; do not count it as a managed command without an explicit detector change.
@@ -56,6 +56,8 @@ After configuring environment passthrough, launch the CLI in a fresh patched War
 
 ## Acceptance and status
 
-GitHub tests simulate the restored detector's managed program identities, exercise real local sockets, negotiate the pinned MCP SDK over child-process stdio, and verify the shared task state machine. These tests do not launch vendor models.
+GitHub tests simulate the restored detector's managed program identities plus a managed custom client, exercise real local sockets, negotiate the pinned MCP SDK over child-process stdio, and verify the shared task state machine. These tests do not launch vendor models.
 
 For each eligible vendor/version, separately verify: bridge discovery with all 11 tools; inherited terminal binding; unique-name registration; cross-agent messages; wait returning a new task without a human prompt; busy task queueing; submission with evidence; reviewer rejection and revised rework; final acceptance; and rejection after CLI exit/replacement. Live model acceptance is pending until the patched build and each authenticated vendor runtime are available.
+
+Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --help` exposes the `stdio` transport, and Warp maps its command to `CLIAgent::Qoder`. It is not part of the unverified custom-agent exclusions. No personal MCP configuration was read during this check.

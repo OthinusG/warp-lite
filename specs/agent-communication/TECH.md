@@ -51,10 +51,12 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 
 ## Coverage constraint
 
-Use `CLIAgent::command_prefix()` for known managed types. Do not add a separate program allowlist to the broker. The trusted Warp start event determines the program; callers cannot spoof it. Command aliases remain the existing detector's responsibility.
+Use `CLIAgent::command_prefix()` for known managed types and `custom` for user-managed unknown sessions connecting through their confirmed native MCP client. Do not add a separate program allowlist to the broker. The trusted Warp start event determines the program; callers cannot spoof it. Command aliases remain the existing detector's responsibility.
 
 The MCP interface invokes the common state machine and cooperative wait. Four installed CLIs are initial runtime probes, not the release coverage boundary. Vendors without verified MCP setup commands use explicit/manual MCP configuration; never invent configuration flags or install missing agents silently.
 
-The user explicitly excludes adapters for agents without native MCP client support. No shell interface is shipped. Custom managed sessions are listed as unverified and excluded unless their native MCP capability is established.
+The user explicitly excludes adapters for agents without native MCP client support. No shell interface is shipped. Custom managed sessions are verified individually and included when native MCP capability is established; the enum value `Unknown` is not an exclusion rule.
 
 The first-release snapshot has explicit 1000-record capacities for identities, messages, tasks, and idempotency records; a capacity error leaves existing data intact. Acknowledged messages can be discarded when their capacity is reached. Other records currently require an archival design before long-running high-volume use.
+
+Project-local names are unique among live terminals. An explicit registration can reclaim an offline name from a new pane, preserving its identity and pending work; it cannot take a name owned by another live terminal.
