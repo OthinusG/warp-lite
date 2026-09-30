@@ -59,10 +59,10 @@ index 60c6ab2..addb30f 100644
  # AWS SDK (loading credentials for BYO LLM)
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..93ebc01
+index 0000000..933a685
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,412 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -249,13 +249,39 @@ index 0000000..93ebc01
 +                }
 +            }
 +        }
++        let search_paths: Vec<PathBuf> = VIEWS
++            .get()
++            .and_then(|views| views.lock().ok())
++            .map(|views| {
++                views
++                    .values()
++                    .filter_map(|(_, view)| view.upgrade(ctx))
++                    .flat_map(|view| {
++                        let view = view.as_ref(ctx);
++                        let Some(session) = view.active_block_session_id() else {
++                            return vec![];
++                        };
++                        if !view.session_is_local(session, ctx) {
++                            return vec![];
++                        }
++                        view.sessions(ctx)
++                            .env_var_for_session(session, "PATH")
++                            .map(|path| {
++                                std::env::split_paths(std::ffi::OsStr::new(path))
++                                    .collect::<Vec<_>>()
++                            })
++                            .unwrap_or_default()
++                    })
++                    .collect()
++            })
++            .unwrap_or_default();
 +        let (sender, receiver) = std::sync::mpsc::channel();
 +        self.pending = Some(receiver);
 +        std::thread::spawn(move || {
 +            let mut errors = Vec::new();
 +            let mut available = if preferences.enabled {
 +                match setup::companion() {
-+                    Ok(bridge) => setup::discover(commands, &bridge),
++                    Ok(bridge) => setup::discover(commands, &bridge, search_paths),
 +                    Err(_) => {
 +                        errors.push("Bundled communication bridge is missing".to_owned());
 +                        vec![]
@@ -451,10 +477,10 @@ index 0000000..93ebc01
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..0272d9e
+index 0000000..086becf
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
-@@ -0,0 +1,591 @@
+@@ -0,0 +1,611 @@
 +//! Reversible native MCP configuration. Never persist live terminal capabilities.
 +use anyhow::{ensure, Result};
 +use serde::{Deserialize, Serialize};
@@ -540,8 +566,14 @@ index 0000000..0272d9e
 +        .build()?
 +        .block_on(async {
 +            tokio::time::timeout(Duration::from_secs(8), async {
++                let path = std::env::join_paths(
++                    executable.parent().into_iter().map(Path::to_owned).chain(
++                        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
++                    ),
++                )?;
 +                let mut child = tokio::process::Command::new(executable)
 +                    .args(args)
++                    .env("PATH", path)
 +                    .stdin(Stdio::null())
 +                    .stdout(Stdio::piped())
 +                    .stderr(Stdio::piped())
@@ -573,9 +605,10 @@ index 0000000..0272d9e
 +    let (success, text) = run(executable, args)?;
 +    Ok(success.then_some(text))
 +}
-+fn executable(command: &str) -> Option<PathBuf> {
++fn executable(command: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
 +    let mut paths: Vec<_> =
 +        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
++    paths.splice(0..0, search_paths.iter().cloned());
 +    // GUI launches may not inherit the login shell's PATH.
 +    if let Some(home) = dirs::home_dir() {
 +        paths.extend([
@@ -603,14 +636,27 @@ index 0000000..0272d9e
 +    }
 +    None
 +}
-+pub fn discover(commands: Vec<(String, String)>, bridge: &Path) -> Vec<Available> {
++pub fn discover(
++    commands: Vec<(String, String)>,
++    bridge: &Path,
++    search_paths: Vec<PathBuf>,
++) -> Vec<Available> {
 +    let Some(home) = dirs::home_dir() else {
 +        return vec![];
 +    };
 +    commands
 +        .into_iter()
 +        .filter_map(|(program, command)| {
-+            let executable = executable(&command)?;
++            let executable = executable(&command, &search_paths)?;
++            assert_eq!(
++                discover(
++                    vec![("custom".into(), "native-agent".into())],
++                    Path::new("/bridge"),
++                    vec![directory.path().to_owned()]
++                )
++                .len(),
++                1
++            );
 +            let adapter = adapter(&home, &command, &executable, bridge);
 +            let status = if adapter.is_some() {
 +                "Available"
@@ -1298,6 +1344,22 @@ index 4ead81d..39355b5 100644
  use self::telemetry::SettingsTelemetryEvent;
  use crate::pane_group::focus_state::PaneFocusHandle;
  use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;
+diff --git a/app/src/terminal/model/session.rs b/app/src/terminal/model/session.rs
+index 9c97585..4ac904d 100644
+--- a/app/src/terminal/model/session.rs
++++ b/app/src/terminal/model/session.rs
+@@ -285,6 +285,11 @@ impl Sessions {
+         }
+     }
+ 
++    /// Read one shell variable without copying unrelated environment values.
++    pub fn env_var_for_session(&self, session_id: SessionId, name: &str) -> Option<&str> {
++        self.env_vars.get(&session_id)?.get(name).map(String::as_str)
++    }
++
+     pub fn get_env_vars_for_session(
+         &self,
+         session_id: SessionId,
 diff --git a/app/src/terminal/view.rs b/app/src/terminal/view.rs
 index 4302c6a..c880aed 100644
 --- a/app/src/terminal/view.rs
