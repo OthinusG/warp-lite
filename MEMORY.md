@@ -9,7 +9,7 @@
 ## Native Agent Communication Design
 
 - User clarification on 2026-09-30: the target is native communication between independent CLI agents running inside Warp Lite, including task delegation, result submission, acceptance/rework, and automatic handoff. hcom and Agent Mail are references, not a required choice or final architecture. The user first requested a design, then approved implementation. First-release coverage was expanded to every CLI agent managed by Warp Lite, including aliases; the user subsequently excluded agents without native MCP support.
-- Proposed ownership: a Warp-owned local broker for identities, messages, and task state, a thin stdio MCP bridge over local IPC for CLI access, and terminal delivery through existing PTY submission helpers. The first automatic handoff uses cooperative waiting via MCP; dormant TUI injection remains unverified; it must not reactivate Warp's platform MCP client manager or cloud AI product.
+- Implementation ownership: a Warp-owned local broker for identities, messages, and task state, a thin stdio MCP bridge over local IPC for CLI access, and automatic handoff through cooperative MCP waiting. The first automatic handoff uses cooperative waiting via MCP; dormant TUI injection remains unverified; it must not reactivate Warp's platform MCP client manager or cloud AI product.
 - Qoder command recognition does not imply session-event support: Qoder currently has neither a session listener handler nor a Warp notification plugin manager. Existing CLI session events update terminal status/context; they are not an agent-to-agent task delivery mechanism.
 - `TerminalView::submit_text_to_cli_agent_pty` already submits prompts using agent-specific PTY strategies. Reuse it behind explicit readiness, live-run identity checks, and task acknowledgement; its current return value does not prove that an agent consumed a prompt, and its delayed Enter path needs lifecycle revalidation for broker use.
 
@@ -44,3 +44,5 @@
 
 - Agent communication source changes must be delivered as a replayable downstream patch integrated into upstream synchronization. The user explicitly requires GitHub compilation and no local builds.
 - Communication coverage must follow the managed `CLIAgent` enum automatically, not a separate four-vendor allowlist. The user explicitly excludes agents without native MCP support: list them, do not add shell-tool fallbacks. Protocol simulation and real vendor model acceptance are separate verification levels.
+
+- macOS Unix socket endpoints must use a short private directory under `/tmp`; the system `TMPDIR` path plus a UUID can exceed macOS's 104-byte socket path ceiling. Protocol compilation/tests run on GitHub, not locally.

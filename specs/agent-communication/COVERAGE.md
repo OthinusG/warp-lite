@@ -19,7 +19,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | Cursor | agent, cursor-agent | [Official CLI offering](https://cursor.com/en-US/cli), [CLI ACP MCP support](https://prod.cursor.com/docs/cli/acp) | Eligible |
 | Goose | goose | [Maintainer's extension documentation](https://github.com/aaif-goose/goose/blob/main/documentation/docs/getting-started/using-extensions.md) | Eligible |
 | Hermes | hermes, hermes-agent | [Official MCP integration](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp) | Eligible |
-| Mistral Vibe | vibe, vibe-acp | [Official MCP connection guide](https://docs.mistral.ai/resources/mcp) | Native MCP confirmed; local stdio configuration to verify |
+| Mistral Vibe | vibe, vibe-acp | [Official native stdio configuration implementation](https://github.com/mistralai/mistral-vibe/blob/main/vibe/core/config/mcp_servers.py) | Eligible |
 | Antigravity | agy | Installed `agy mcp add --help`: native stdio transport | Eligible |
 | Grok Build | grok | [Official MCP servers](https://docs.x.ai/build/features/mcp-servers) | Eligible |
 | DeepSeek Harness | dsh-tui; dsh with a TUI profile | [Official MCP client package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) | Eligible when the profile mounts the official MCP client |
@@ -33,7 +33,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 - Custom managed agents with unverified MCP capability. No claim is made that all custom agents lack MCP.
 - HTTP-only clients cannot use this release's local stdio bridge until native stdio capability is established. No network listener is added for them.
 - Cloud Amp orbs are outside the local Warp terminal boundary.
-- Mistral Vibe's local stdio launch and Trae's current executable aliases require configuration verification before an adapter is marked ready. The newly documented `traecli` command is not in the current Warp detector; do not count it as a managed command without an explicit detector change.
+- Trae's current executable aliases require configuration verification before an adapter is marked ready. The newly documented `traecli` command is not in the current Warp detector; do not count it as a managed command without an explicit detector change.
 
 No currently listed named type has been conclusively established as having no native MCP support in its current release. Do not invent an exclusion list from older product knowledge.
 

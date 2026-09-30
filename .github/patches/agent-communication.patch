@@ -236,10 +236,10 @@ index 0000000..dc711f0
 +tokio = { workspace = true, features = ["process"] }
 diff --git a/crates/agent_bus/src/lib.rs b/crates/agent_bus/src/lib.rs
 new file mode 100644
-index 0000000..099dfab
+index 0000000..722853e
 --- /dev/null
 +++ b/crates/agent_bus/src/lib.rs
-@@ -0,0 +1,571 @@
+@@ -0,0 +1,582 @@
 +//! Local coordination for third-party CLI agents; no model or cloud client lives here.
 +pub mod mcp;
 +pub mod transport;
@@ -398,6 +398,17 @@ index 0000000..099dfab
 +
 +impl Store {
 +    pub fn open(path: &str) -> Result<Self> {
++        #[cfg(unix)]
++        if path != ":memory:" {
++            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
++            std::fs::OpenOptions::new()
++                .read(true)
++                .write(true)
++                .create(true)
++                .mode(0o600)
++                .open(path)?;
++            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
++        }
 +        let mut connection = SqliteConnection::establish(path)?;
 +        connection.batch_execute("PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS agent_bus_v1 (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);")?;
 +        let row = diesel::sql_query("SELECT payload FROM agent_bus_v1 WHERE id=1")
@@ -972,10 +983,10 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..605b439
+index 0000000..a2d8876
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,412 @@
+@@ -0,0 +1,417 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
@@ -1050,7 +1061,12 @@ index 0000000..605b439
 +                .to_str()
 +                .ok_or_else(|| anyhow!("Database path must be UTF-8"))?,
 +        )?;
-+        let directory = std::env::temp_dir().join(format!("warp-agent-{}", Uuid::new_v4()));
++        #[cfg(unix)]
++        let runtime_root = std::path::PathBuf::from("/tmp");
++        #[cfg(windows)]
++        let runtime_root = std::env::temp_dir();
++        // macOS TMPDIR can exceed the Unix socket path limit before adding a filename.
++        let directory = runtime_root.join(format!("warp-agent-{}", Uuid::new_v4()));
 +        std::fs::create_dir(&directory)?;
 +        #[cfg(unix)]
 +        {
