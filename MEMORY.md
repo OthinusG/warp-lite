@@ -49,4 +49,4 @@
 
 - User clarification: custom/downstream agents also qualify when native MCP is confirmed. `qodercn mcp add --help` confirms native stdio, and its recognized alias maps to Qoder. Do not exclude `Unknown` sessions categorically; verify their MCP capability individually.
 
-- The pinned interprocess 1.2.1 Windows named-pipe listener must use blocking accept, with a shutdown wakeup. `PIPE_NOWAIT` accept does not share Unix nonblocking semantics; keep bounded nonblocking IO on accepted streams only.
+- Native communication reuses interprocess 1.2.1's Tokio transport, already used by `crates/ipc`. Avoid sync `PIPE_NOWAIT` polling: Windows pipe semantics do not match Unix socket polling. Bound IO with async timeouts and acknowledge received frames before closing pipe connections.

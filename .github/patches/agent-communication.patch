@@ -1,5 +1,5 @@
 diff --git a/Cargo.lock b/Cargo.lock
-index 738347f..87029ea 100644
+index 738347f..b29e186 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
 @@ -13639,6 +13639,7 @@ dependencies = [
@@ -10,7 +10,7 @@ index 738347f..87029ea 100644
   "warp_core",
   "warp_editor",
   "warp_files",
-@@ -13779,6 +13780,22 @@ dependencies = [
+@@ -13779,6 +13780,23 @@ dependencies = [
   "warpui",
  ]
  
@@ -20,6 +20,7 @@ index 738347f..87029ea 100644
 +dependencies = [
 + "anyhow",
 + "diesel",
++ "futures",
 + "interprocess",
 + "libsqlite3-sys",
 + "rmcp",
@@ -203,10 +204,10 @@ index 2b8773e..768e19b 100644
  
 diff --git a/crates/agent_bus/Cargo.toml b/crates/agent_bus/Cargo.toml
 new file mode 100644
-index 0000000..dc711f0
+index 0000000..269d08c
 --- /dev/null
 +++ b/crates/agent_bus/Cargo.toml
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,27 @@
 +[package]
 +name = "warp-agent-bus"
 +version = "0.1.0"
@@ -217,13 +218,14 @@ index 0000000..dc711f0
 +[dependencies]
 +anyhow.workspace = true
 +diesel = { workspace = true, features = ["sqlite"] }
-+interprocess = "1.2.1"
++interprocess = { version = "1.2.1", features = ["tokio_support"] }
++futures.workspace = true
 +libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
 +rmcp = { workspace = true, features = ["server", "transport-io"] }
 +serde = { workspace = true, features = ["derive"] }
 +serde_json.workspace = true
 +schemars.workspace = true
-+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
++tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync"] }
 +uuid.workspace = true
 +
 +[[bin]]
@@ -989,19 +991,19 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..dfe4b09
+index 0000000..79ec84e
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,463 @@
+@@ -0,0 +1,458 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
-+use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
++use futures::io::{AsyncReadExt, AsyncWriteExt};
++use interprocess::local_socket::tokio::{LocalSocketListener, LocalSocketStream};
 +use serde::{Deserialize, Serialize};
 +use serde_json::{json, Value};
 +use std::{
 +    collections::HashMap,
-+    io::{Read, Write},
 +    path::Path,
 +    sync::{
 +        atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -1049,6 +1051,7 @@ index 0000000..dfe4b09
 +    changed: Condvar,
 +    stopped: AtomicBool,
 +    connections: AtomicUsize,
++    shutdown: tokio::sync::Notify,
 +}
 +#[derive(Clone)]
 +pub struct Broker {
@@ -1083,15 +1086,19 @@ index 0000000..dfe4b09
 +        let endpoint = directory.join("bus.sock").to_string_lossy().into_owned();
 +        #[cfg(windows)]
 +        let endpoint = format!("@warp-agent-{}", Uuid::new_v4());
-+        let listener = LocalSocketListener::bind(endpoint.as_str())?;
++        let runtime = tokio::runtime::Builder::new_multi_thread()
++            .worker_threads(2)
++            .enable_all()
++            .build()?;
++        let listener = {
++            let _entered = runtime.enter();
++            LocalSocketListener::bind(endpoint.as_str())?
++        };
 +        #[cfg(unix)]
 +        {
 +            use std::os::unix::fs::PermissionsExt;
 +            std::fs::set_permissions(&endpoint, std::fs::Permissions::from_mode(0o600))?;
 +        }
-+        // PIPE_NOWAIT accept semantics differ from Unix; keep Windows accept blocking.
-+        #[cfg(unix)]
-+        listener.set_nonblocking(true)?;
 +        let shared = Arc::new(Shared {
 +            state: Mutex::new(State {
 +                store,
@@ -1100,6 +1107,7 @@ index 0000000..dfe4b09
 +            changed: Condvar::new(),
 +            stopped: AtomicBool::new(false),
 +            connections: AtomicUsize::new(0),
++            shutdown: tokio::sync::Notify::new(),
 +        });
 +        let broker = Broker {
 +            shared: shared.clone(),
@@ -1107,31 +1115,28 @@ index 0000000..dfe4b09
 +        };
 +        let server = broker.clone();
 +        let thread = thread::spawn(move || {
-+            while !shared.stopped.load(Ordering::Acquire) {
-+                match listener.accept() {
-+                    Ok(stream) => {
-+                        if shared.connections.fetch_add(1, Ordering::AcqRel) >= 32 {
-+                            shared.connections.fetch_sub(1, Ordering::AcqRel);
-+                            continue;
++            runtime.block_on(async move {
++                loop {
++                    let stream = tokio::select! {
++                        _ = shared.shutdown.notified() => break,
++                        connection = listener.accept() => match connection { Ok(stream) => stream, Err(_) => break },
++                    };
++                    if shared.connections.fetch_add(1, Ordering::AcqRel) >= 32 {
++                        shared.connections.fetch_sub(1, Ordering::AcqRel);
++                        continue;
++                    }
++                    let broker = server.clone();
++                    tokio::spawn(async move {
++                        struct Connection(Arc<Shared>);
++                        impl Drop for Connection {
++                            fn drop(&mut self) { self.0.connections.fetch_sub(1, Ordering::AcqRel); }
 +                        }
-+                        let broker = server.clone();
-+                        thread::spawn(move || {
-+                            struct Connection(Arc<Shared>);
-+                            impl Drop for Connection {
-+                                fn drop(&mut self) {
-+                                    self.0.connections.fetch_sub(1, Ordering::AcqRel);
-+                                }
-+                            }
-+                            let _connection = Connection(broker.shared.clone());
-+                            let _ = handle(stream, &broker);
-+                        });
-+                    }
-+                    Err(error) if accept_pending(&error) => {
-+                        thread::sleep(Duration::from_millis(10))
-+                    }
-+                    Err(_) => break,
++                        let _connection = Connection(broker.shared.clone());
++                        let _ = handle(stream, broker).await;
++                    });
 +                }
-+            }
++            });
++            runtime.shutdown_timeout(Duration::from_secs(1));
 +        });
 +        Ok(Self {
 +            broker,
@@ -1144,8 +1149,7 @@ index 0000000..dfe4b09
 +    fn drop(&mut self) {
 +        self.broker.shared.stopped.store(true, Ordering::Release);
 +        self.broker.shared.changed.notify_all();
-+        #[cfg(windows)]
-+        let _ = LocalSocketStream::connect(self.broker.endpoint.as_str());
++        self.broker.shared.shutdown.notify_one();
 +        if let Some(thread) = self.thread.take() {
 +            let _ = thread.join();
 +        }
@@ -1199,6 +1203,10 @@ index 0000000..dfe4b09
 +        self.shared.changed.notify_all();
 +    }
 +    fn execute(&self, request: &Request) -> Result<Value> {
++        ensure!(
++            !self.shared.stopped.load(Ordering::Acquire),
++            "Broker stopped"
++        );
 +        let mut state = self
 +            .shared
 +            .state
@@ -1341,90 +1349,58 @@ index 0000000..dfe4b09
 +    }
 +    Ok(live)
 +}
-+fn accept_pending(error: &std::io::Error) -> bool {
-+    if error.kind() == std::io::ErrorKind::WouldBlock {
-+        return true;
-+    }
-+    #[cfg(windows)]
-+    if error.raw_os_error() == Some(536) {
-+        return true;
-+    } // ERROR_PIPE_LISTENING
-+    false
-+}
-+fn io_pending(error: &std::io::Error) -> bool {
-+    if error.kind() == std::io::ErrorKind::WouldBlock {
-+        return true;
-+    }
-+    #[cfg(windows)]
-+    if matches!(error.raw_os_error(), Some(232 | 233)) {
-+        return true;
-+    } // ERROR_NO_DATA / ERROR_PIPE_NOT_CONNECTED before pipe acceptance
-+    false
-+}
-+
-+fn transfer(
-+    stream: &mut LocalSocketStream,
-+    bytes: &mut [u8],
-+    write: bool,
-+    deadline: Instant,
-+) -> Result<()> {
-+    let mut offset = 0;
-+    while offset < bytes.len() {
-+        ensure!(Instant::now() < deadline, "Local IPC deadline exceeded");
-+        let result = if write {
-+            stream.write(&bytes[offset..])
-+        } else {
-+            stream.read(&mut bytes[offset..])
-+        };
-+        match result {
-+            #[cfg(windows)]
-+            Ok(0) => thread::sleep(Duration::from_millis(5)),
-+            #[cfg(not(windows))]
-+            Ok(0) => return Err(anyhow!("Local IPC disconnected")),
-+            Ok(count) => offset += count,
-+            Err(error) if io_pending(&error) => thread::sleep(Duration::from_millis(5)),
-+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
-+            Err(error) => {
-+                return Err(anyhow!(
-+                    "Local IPC {} failed ({:?}, OS {:?})",
-+                    if write { "write" } else { "read" },
-+                    error.kind(),
-+                    error.raw_os_error()
-+                ))
-+            }
-+        }
-+    }
-+    Ok(())
-+}
-+fn receive<T: serde::de::DeserializeOwned>(
++async fn receive<T: serde::de::DeserializeOwned>(
 +    stream: &mut LocalSocketStream,
 +    deadline: Instant,
 +) -> Result<T> {
-+    let mut header = [0; 4];
-+    transfer(stream, &mut header, false, deadline)?;
-+    let length = u32::from_be_bytes(header) as usize;
-+    ensure!(
-+        length > 0 && length <= MAX_FRAME,
-+        "Invalid local IPC frame size"
-+    );
-+    let mut bytes = vec![0; length];
-+    transfer(stream, &mut bytes, false, deadline)?;
-+    serde_json::from_slice(&bytes).map_err(|_| anyhow!("Invalid local IPC payload"))
++    tokio::time::timeout_at(deadline.into(), async {
++        let mut header = [0; 4];
++        stream
++            .read_exact(&mut header)
++            .await
++            .map_err(|_| anyhow!("Local IPC header read failed"))?;
++        let length = u32::from_be_bytes(header) as usize;
++        ensure!(
++            length > 0 && length <= MAX_FRAME,
++            "Invalid local IPC frame size"
++        );
++        let mut bytes = vec![0; length];
++        stream
++            .read_exact(&mut bytes)
++            .await
++            .map_err(|_| anyhow!("Local IPC frame read failed"))?;
++        serde_json::from_slice(&bytes).map_err(|_| anyhow!("Invalid local IPC payload"))
++    })
++    .await
++    .map_err(|_| anyhow!("Local IPC read deadline exceeded"))?
 +}
-+fn send<T: Serialize>(stream: &mut LocalSocketStream, value: &T, deadline: Instant) -> Result<()> {
-+    let mut bytes = serde_json::to_vec(value)?;
++async fn send<T: Serialize>(
++    stream: &mut LocalSocketStream,
++    value: &T,
++    deadline: Instant,
++) -> Result<()> {
++    let bytes = serde_json::to_vec(value)?;
 +    ensure!(
 +        bytes.len() <= MAX_FRAME,
 +        "Local IPC response exceeds capacity; acknowledge old messages"
 +    );
-+    let mut header = (bytes.len() as u32).to_be_bytes();
-+    transfer(stream, &mut header, true, deadline)?;
-+    transfer(stream, &mut bytes, true, deadline)
++    tokio::time::timeout_at(deadline.into(), async {
++        stream
++            .write_all(&(bytes.len() as u32).to_be_bytes())
++            .await?;
++        stream.write_all(&bytes).await?;
++        stream.flush().await
++    })
++    .await
++    .map_err(|_| anyhow!("Local IPC write deadline exceeded"))?
++    .map_err(|_| anyhow!("Local IPC write failed"))
 +}
-+fn handle(mut stream: LocalSocketStream, broker: &Broker) -> Result<()> {
-+    stream.set_nonblocking(true)?;
-+    let request: Request = receive(&mut stream, Instant::now() + Duration::from_secs(5))?;
-+    let response = match broker.execute(&request) {
++async fn handle(mut stream: LocalSocketStream, broker: Broker) -> Result<()> {
++    let request: Request = receive(&mut stream, Instant::now() + Duration::from_secs(5)).await?;
++    let result = tokio::task::spawn_blocking(move || broker.execute(&request))
++        .await
++        .map_err(|_| anyhow!("Broker unavailable"))?;
++    let response = match result {
 +        Ok(result) => Response {
 +            result: Some(result),
 +            error: None,
@@ -1439,22 +1415,43 @@ index 0000000..dfe4b09
 +        &response,
 +        Instant::now() + Duration::from_secs(5),
 +    )
++    .await?;
++    // Windows pipe close may discard queued data; wait for the client to confirm frame receipt.
++    let mut acknowledged = [0];
++    tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut acknowledged)).await??;
++    ensure!(acknowledged == [1], "Invalid frame acknowledgement");
++    Ok(())
 +}
 +pub fn call(endpoint: &str, request: &Request) -> Result<Value> {
-+    let mut stream = LocalSocketStream::connect(endpoint)?;
-+    stream.set_nonblocking(true)?;
-+    send(
-+        &mut stream,
-+        request,
-+        Instant::now() + Duration::from_secs(5),
-+    )?;
-+    let response: Response = receive(&mut stream, Instant::now() + WAIT + Duration::from_secs(5))?;
-+    if let Some(error) = response.error {
-+        return Err(anyhow!(error));
-+    }
-+    response
-+        .result
-+        .ok_or_else(|| anyhow!("Missing broker result"))
++    tokio::runtime::Builder::new_current_thread()
++        .enable_all()
++        .build()?
++        .block_on(async {
++            let mut stream =
++                tokio::time::timeout(Duration::from_secs(5), LocalSocketStream::connect(endpoint))
++                    .await
++                    .map_err(|_| anyhow!("Local IPC connect deadline exceeded"))??;
++            send(
++                &mut stream,
++                request,
++                Instant::now() + Duration::from_secs(5),
++            )
++            .await?;
++            let response: Response =
++                receive(&mut stream, Instant::now() + WAIT + Duration::from_secs(5)).await?;
++            tokio::time::timeout(Duration::from_secs(5), async {
++                stream.write_all(&[1]).await?;
++                stream.flush().await
++            })
++            .await
++            .map_err(|_| anyhow!("Local IPC acknowledgement deadline exceeded"))??;
++            if let Some(error) = response.error {
++                return Err(anyhow!(error));
++            }
++            response
++                .result
++                .ok_or_else(|| anyhow!("Missing broker result"))
++        })
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
