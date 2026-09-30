@@ -1,6 +1,6 @@
 # warp-lite
 
-**An open-source Warp Terminal alternative for macOS and Windows— the same block-based terminal, without AI, without telemetry, and without a login.**
+**An open-source Warp Terminal alternative for macOS and Windows: the block terminal, without bundled Warp AI, telemetry, or a Warp login — with restored project browsing and broader support for your own CLI agents.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Latest release](https://img.shields.io/github/v/release/OthinusG/warp-lite)](https://github.com/OthinusG/warp-lite/releases/latest)
@@ -8,17 +8,46 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-x64-blue.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
-warp-lite is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warp account login, no bundled AI agents, no cloud onboarding, and no telemetry as a product requirement. If you want a Warp alternative that keeps the terminal and drops the AI platform, this is that fork.
+This repository is [OthinusG's fork](https://github.com/OthinusG/warp-lite) of [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite), which is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warp account login, no bundled Warp AI agents, no cloud onboarding, and no telemetry as a product requirement. If you want a Warp alternative that keeps the terminal and drops the AI platform, this is that fork.
 
-> Status: alpha, but usable on macOS. The current build is **v0.5.7-lite**, a privacy-vetted August upstream sync with 193 integration commits covering terminal security, reliability, editor/Vim, tabs, performance, and platform compatibility. It builds, launches, and ships as downloadable `WarpLite.dmg` and `WarpLite.app.zip` assets on GitHub Releases.
+> Status: alpha, with published macOS and Windows x64 packages. The current build is **v0.5.7-lite**, a privacy-vetted August upstream sync with 193 integration commits covering terminal security, reliability, editor/Vim, tabs, performance, and platform compatibility. GitHub Releases includes macOS app/DMG downloads and Windows x64 installer/portable ZIP downloads.
 
 Latest release:
 
 - Download the newest published build from [releases/latest](https://github.com/OthinusG/warp-lite/releases/latest).
 - Current build: `v0.5.7-lite`.
-- macOS artifacts: `WarpLite.dmg` (~120 MB), `WarpLite.app.zip`.
+- macOS artifacts: `WarpLite.dmg`, `WarpLite.app.zip`.
+- Windows x64 artifacts: `WarpLiteSetup-x64.exe`, `WarpLite-windows-x64.zip`.
+- Agent-to-agent communication is under development on `warp-lite/agent-communication`; it is not included in the published `v0.5.7-lite` packages.
 
-See [`FORK_NOTICE.md`](FORK_NOTICE.md) for the relationship with upstream Warp.
+See [`FORK_NOTICE.md`](FORK_NOTICE.md) for upstream Warp attribution and licensing.
+
+## What this fork adds
+
+The original **warp-lite** keeps Warp's block terminal, GPU rendering, shell integration, tabs, panes, editor/Vim, themes, completions, and Markdown viewing. It removes or disables Warp's bundled AI platform, cloud/account/login flows, billing, onboarding, and telemetry surfaces. Those changes remain the foundation of this repository; the original release history and terminal guardrails are preserved below.
+
+**This fork adds tools for working with local projects and independently installed CLI agents:**
+
+| Improvement over terzigolu/warp-lite | What you get | Delivery |
+| --- | --- | --- |
+| Restored Project Explorer | Browse project files from the native Tools Panel and its toolbar button. | Available on `warp-lite/main` |
+| Native Mono app icon | Uses Warp's native Mono artwork for macOS icon assets. | Available on `warp-lite/main` |
+| Broader CLI agent recognition | Added Antigravity (`agy`), DeepSeek Harness TUI, Qoder/QoderCN (`qodercn`), and Trae/TraeCN; improved Hermes and Cursor command aliases. Agent icons appear in the existing terminal UI. | Available on `warp-lite/main` |
+| Windows x64 distribution | Download an installer or portable ZIP, with Windows-specific compilation fixes retained. | Published release assets |
+| Customizations survive upstream updates | Sync scripts restore the project browser, CLI integrations, icons, and platform fixes after an upstream update. Conflicting changes stop the sync for review. | Existing synchronization workflow |
+| Local agent-to-agent collaboration | Agents exchange messages, assign work, submit results, accept results, or send them back for revision. Busy agents keep a queue; once idle, Warp submits the next inbox instruction automatically. | In development; see below |
+
+Third-party CLI agents are installed and authenticated by you. Supporting them does not restore Warp's bundled AI service or require a Warp account. Their own provider connections remain under their control.
+
+### Agent collaboration: upcoming
+
+The communication feature is being developed on [`warp-lite/agent-communication`](https://github.com/OthinusG/warp-lite/tree/warp-lite/agent-communication). It adds a bundled local bridge for agents with native MCP support, including eligible custom agents. QoderCN has been confirmed to support the required local connection. Agents without native MCP support are excluded rather than given a shell-based workaround.
+
+After registering in the same project, agents can find each other, pass messages, and delegate tasks with completion criteria. The receiving agent submits a result and verification evidence; the reviewer accepts it or requests another revision. Warp polls queued work while an agent is busy and submits an inbox instruction when readiness is reported. The agent can finish its turn and wait at its normal prompt; an open wait call is not required. Agents without installed completion hooks report readiness through the shared communication tool before ending their turn.
+
+Automatic delivery preserves user drafts and does not answer permission requests. Messages stay pending until the receiving agent actually acknowledges or consumes them. Coordination stays on your machine; it adds no Warp cloud account or hosted messaging service.
+
+The source is delivered as a replayable patch through the same upstream-sync process. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
 ## Why
 
@@ -38,24 +67,24 @@ What this fork is **not**: a closed-source repackage, an MIT relicense, or a pro
 
 warp-lite is aimed at people who like Warp's terminal UX but not the platform around it:
 
-- You want Warp's blocks, panes, tabs, command palette, and GPU-accelerated rendering — **without AI agents** in your prompt.
+- You want Warp's blocks, panes, tabs, command palette, and GPU-accelerated rendering — **without bundled Warp AI** in your prompt. Your own CLI agents can still run in the terminal.
 - You want a terminal that opens **without a login or account**, ever.
 - You want **no cloud sync** and **no telemetry**: your commands and history stay on your machine.
 - You searched for "Warp terminal without AI" or "Warp without login" and found mostly settings toggles — this fork removes those surfaces at the source level instead.
 - You prefer **open-source (AGPL), Rust-based** terminal software you can audit and build yourself.
 - You are fine with alpha software on macOS in exchange for a lighter, local-first terminal.
 
-If you want the AI agents, cloud drive, and team features, upstream [Warp](https://github.com/warpdotdev/warp) is the right choice — this fork intentionally goes the other way.
+If you want Warp's bundled AI agents, cloud drive, and team features, upstream [Warp](https://github.com/warpdotdev/warp) is the right choice — this fork intentionally goes the other way.
 
 ## Install
 
-Download the latest macOS build from:
+Download the latest macOS or Windows x64 release from:
 
 ```text
 https://github.com/OthinusG/warp-lite/releases/latest
 ```
 
-Use `WarpLite.dmg`, then drag `WarpLite.app` into `/Applications`.
+On macOS, open `WarpLite.dmg` and drag `WarpLite.app` into `/Applications`. On Windows x64, run `WarpLiteSetup-x64.exe`, or extract `WarpLite-windows-x64.zip` and run `WarpLite.exe`.
 
 The packaged app uses:
 
@@ -72,6 +101,7 @@ The current build is `v0.5.7-lite`.
 | Terminal core | Works | Core terminal view/input/model files are preserved. Do not wholesale stub them. |
 | macOS app bundle | Works | `script/build-warp-lite-app.sh` builds `WarpLite.app`. |
 | DMG release | Works | `WarpLite.dmg` is published in GitHub Releases. |
+| Windows x64 packages | Published | Installer and portable ZIP are available on GitHub Releases. |
 | Platform product boundary | Enabled | Default Lite omits `warp_platform`; billing, referrals, rewards, pricing UI/model, and selected AI startup/background paths compile only for platform builds. |
 | Warp login gate | Disabled | `skip_firebase_anonymous_user` is enabled by default. Startup, "skip login", and visible account/billing menu entry points are hardened away from Warp auth in the lite build. |
 | Telemetry product goal | Removed/neutralized | Historical telemetry call-site cleanup is part of the fork; keep auditing before claiming perfect network silence. |
@@ -80,14 +110,14 @@ The current build is `v0.5.7-lite`.
 | Codex / Claude Code notifications | Kept | These are intentionally preserved for the lite fork. |
 | Warp MCP manager | Disabled in Lite | Warp's MCP config watcher, server runtime, gallery, and settings page are not started; third-party CLI agents retain their own MCP configuration. |
 | Markdown viewer | Kept | `markdown_tables` and `markdown_mermaid` remain in defaults. |
-| Agent mode | Not a target | Agent-mode product surfaces should stay out of the lite app. |
+| Bundled Warp agent mode | Not a target | Warp agent-mode product surfaces stay out of Lite; independently installed CLI agents are supported separately. |
 
-## What Changed Recently
+## Inherited Warp Lite Changes
+
+The history below records the original Warp Lite cleanup and upstream integration work. The downstream additions maintained by this repository are listed [above](#what-this-fork-adds).
 
 ### v0.5.7-lite — August upstream sync (2026-08)
 
-- Restored the native Project Explorer, including its top-right toolbar launcher, and added an auditable patch script that reapplies the feature after upstream release syncs.
-- Replaced the custom OSS app artwork with Warp's native 1024×1024 Mono icon for correctly sized macOS icon assets.
 - Integrated 193 vetted upstream-sync and Warp Lite adaptation commits while keeping AI/agent, cloud account, billing, team, remote-control, and new telemetry changes out of the default Lite product.
 - Added security hardening for external links/downloads, command and SSH escaping, environment-aware blocklist checks, auth-log redaction, OSC 52 clipboard control, and dependency fixes.
 - Improved terminal and shell reliability across PTY writes, wide-character resize, inline images, OSC hyperlinks, process-group cancellation, zsh/PowerShell bootstrap, SSH, and remote sessions.
@@ -223,11 +253,13 @@ The fork keeps upstream's macOS build prerequisites:
 
 4. Rust toolchain pinned by `rust-toolchain.toml`.
 
-Common commands:
+For this development branch, replay the downstream features before building and include the communication companion when packaging. Current development builds and validation run on GitHub. Commands for other contributors:
 
 ```sh
 cargo check -p warp --bin warp-oss
+script/restore-project-explorer.sh
 CARGO_BUILD_JOBS=4 cargo build --release --bin warp-oss
+CARGO_BUILD_JOBS=4 cargo build --release -p warp-agent-bus --bin warp-agent
 script/build-warp-lite-app.sh
 rm -f WarpLite.dmg
 hdiutil create -volname WarpLite -srcfolder WarpLite.app -ov -format UDZO WarpLite.dmg
@@ -246,12 +278,13 @@ Known caveat: full `cargo fmt --check` can currently fail because the repository
 
 ## Automated Fork Sync
 
-`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer and native Mono icon customizations with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication.
+`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer, native Mono icon, CLI agent integrations, and Windows fixes (plus the communication patch on its development branch) with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication. The Windows release workflow then builds and attaches the installer and portable ZIP. Custom CLI integrations are tracked separately from Warp's disabled AI/MCP product runtime.
 
 ## Branch Structure
 
 ```text
 origin/warp-lite/main         default branch; current shipped work
+origin/warp-lite/agent-communication  development branch; upcoming agent collaboration
 origin/warp-lite/sync-2026-08  upstream-sync staging branch (v0.5.7-lite cherry-picks land here first)
 origin/upstream-tracking      read-only mirror/cherry-pick source for upstream Warp changes
 upstream/master               upstream Warp source
@@ -290,7 +323,10 @@ No. There is no login gate, no sign-up prompt, and no Warp/Firebase account flow
 Telemetry removal is an explicit product goal: historical telemetry call sites have been cleaned up, and upstream changes that would reintroduce telemetry or outbound network calls are rejected during syncs. Auditing continues before claiming perfect network silence — see [Current Shipped State](#current-shipped-state) for the honest status.
 
 **Does warp-lite work on Linux or Windows?**
-Not currently. Builds and releases are macOS-only. Upstream Warp's open-source drop is what this fork tracks, and only the macOS app path is maintained here today.
+macOS and Windows x64 packages are published by this fork. Linux is not a maintained desktop release target here; Linux protocol tests do not establish Linux app support.
+
+**Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
+Yes. Independently installed CLI agents can run in Warp Lite, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable Warp's bundled AI service.
 
 **Is the AI code completely gone from the source?**
 Not yet. Some AI/cloud/auth modules still exist in the source tree but are disabled, gated, or unreachable in the shipped lite build. The [Still Present And Needs Work](#still-present-and-needs-work) table tracks this split honestly; removal continues incrementally.

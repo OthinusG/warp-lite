@@ -54,3 +54,5 @@
 - Dormant wake delivery must poll while busy and submit automatically once idle. Reuse the existing agent-specific prompt submission strategies, but guard delayed Enter against run replacement and manual input. PTY submission is not message acknowledgement; pending work is consumed through MCP. Do not depend on the code-review feature flag to access managed CLI sessions.
 
 - User clarification: busy delivery is polling, then automatic submission once idle. Manual cancellation pauses automatic submission until the user resumes with a new input; pruning a closed view must also invalidate its broker run.
+
+- README must distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, replayable sync, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
