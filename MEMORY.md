@@ -52,3 +52,5 @@
 - Native communication uses the existing Tokio dependency's Unix sockets and Windows named pipes directly. The pinned interprocess wrapper failed real Windows IO tests; avoid sync `PIPE_NOWAIT` polling and wrapper-specific readiness semantics. Keep a new listening pipe instance alive before handing off a connection, bound IO with async timeouts, and acknowledge received frames before closing pipe connections.
 
 - Dormant wake delivery must poll while busy and submit automatically once idle. Reuse the existing agent-specific prompt submission strategies, but guard delayed Enter against run replacement and manual input. PTY submission is not message acknowledgement; pending work is consumed through MCP. Do not depend on the code-review feature flag to access managed CLI sessions.
+
+- User clarification: busy delivery is polling, then automatic submission once idle. Manual cancellation pauses automatic submission until the user resumes with a new input; pruning a closed view must also invalidate its broker run.

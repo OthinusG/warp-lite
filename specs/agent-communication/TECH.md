@@ -28,6 +28,7 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 | warp_agent_inbox | none | pending messages |
 | warp_agent_ack | message_id | acknowledgement |
 | warp_agent_wait | none | next pending message or idle timeout |
+| warp_agent_ready | none | run-scoped idle announcement; finish the turn |
 | warp_task_assign | to, description, acceptance, request_id, optional reviewer | task |
 | warp_task_get | task_id | visible task |
 | warp_task_start | task_id, revision, request_id | running task |
@@ -63,7 +64,7 @@ Project-local names are unique among live terminals. An explicit registration ca
 
 ## Dormant prompt wake delivery
 
-The user requires automatic delivery after a model turn ends, not only while an MCP wait call is active. Add `warp_agent_ready` to the shared contract, instruct every participating MCP client to call it as its final action before returning to its prompt, and reuse native lifecycle completion events where present. Readiness is transient and run-scoped; every other MCP operation, user PTY input, blocked/busy event, replacement, or exit invalidates it. User edits inhibit submission until a submit/cancel input boundary; MCP readiness cannot override an outstanding user draft.
+The user requires automatic delivery after a model turn ends, not only while an MCP wait call is active. Add `warp_agent_ready` to the shared contract, instruct every participating MCP client to call it as its final action before returning to its prompt, and reuse native lifecycle completion events where present. Readiness is transient and run-scoped; every other MCP operation, user PTY input, blocked/busy event, replacement, or exit invalidates it. User edits inhibit submission until a new user submit input boundary; cancellation keeps automatic work paused; MCP readiness cannot override an outstanding user draft.
 
 The Warp singleton checks pending work every 250 ms. After readiness has settled, it claims one pending notification, submits only a fixed inbox instruction plus validated UUID, and invalidates readiness until a new completion. The original message is not acknowledged by PTY delivery. Existing per-agent paste/Enter strategies are reused, with current-run and manual-input checks repeated before delayed Enter. A failed/cancelled submission leaves the notification pending and does not spin-retry into a terminal.
 

@@ -46,10 +46,10 @@ index 60c6ab2..ff79379 100644
  comfy-table = "7.1.4"
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..2e37df4
+index 0000000..671eaf7
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,169 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +use crate::terminal::{
 +    cli_agent_sessions::{
@@ -146,7 +146,13 @@ index 0000000..2e37df4
 +                let bindings: Vec<_> = views
 +                    .lock()
 +                    .map(|mut views| {
-+                        views.retain(|_, (_, view)| view.upgrade(ctx).is_some());
++                        views.retain(|_, (terminal, view)| {
++                            let alive = view.upgrade(ctx).is_some();
++                            if !alive {
++                                broker.end(terminal);
++                            }
++                            alive
++                        });
 +                        views.values().cloned().collect()
 +                    })
 +                    .unwrap_or_default();
@@ -203,8 +209,8 @@ index 0000000..2e37df4
 +}
 +pub(crate) fn user_input(view: EntityId, bytes: &[u8]) {
 +    if let (Some(broker), Some(terminal)) = (BROKER.get(), terminal_for_view(view)) {
-+        // Only an actual submit/cancel boundary clears a draft; readiness cannot clear user input.
-+        let boundary = matches!(bytes, b"\r" | b"\n" | b"\x03" | b"\x04") || bytes.ends_with(b"\r");
++        // A submit clears a draft. Cancellation keeps automatic work paused until the user resumes.
++        let boundary = matches!(bytes, b"\r" | b"\n") || bytes.ends_with(b"\r");
 +        broker.user_input(&terminal, boundary);
 +    }
 +}
@@ -499,10 +505,10 @@ index 829d6d7..6b84fc2 100644
                  );
              }
 diff --git a/app/src/terminal/view_test.rs b/app/src/terminal/view_test.rs
-index 4226d69..15465cc 100644
+index 4226d69..989ac67 100644
 --- a/app/src/terminal/view_test.rs
 +++ b/app/src/terminal/view_test.rs
-@@ -4821,3 +4821,124 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
+@@ -4821,3 +4821,144 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
          });
      })
  }
@@ -600,7 +606,27 @@ index 4226d69..15465cc 100644
 +                .iter()
 +                .position(|request| request.terminal == wake.terminal)
 +                .unwrap();
-+            let (terminal, _, agent) = &terminals[index];
++            let (terminal, writes, agent) = &terminals[index];
++            if *agent == CLIAgent::Qoder {
++                terminal.update(&mut app, |view, ctx| {
++                    view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
++                    view.input.update(ctx, |input, ctx| {
++                        input.replace_buffer_content("unfinished user draft", ctx)
++                    });
++                    view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
++                    assert_eq!(
++                        view.input.as_ref(ctx).buffer_text(ctx),
++                        "unfinished user draft"
++                    );
++                    view.input.update(ctx, |input, ctx| {
++                        input.clear_buffer_and_reset_undo_stack(ctx)
++                    });
++                });
++                assert!(
++                    writes.borrow().is_empty(),
++                    "Automatic wake must preserve a user draft"
++                );
++            }
 +            terminal.update(&mut app, |view, ctx| {
 +                view.wake_for_peer_work(broker.clone(), wake, ctx)
 +            });
