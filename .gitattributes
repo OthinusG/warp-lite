@@ -1,3 +1,6 @@
 *.pdb filter=lfs diff=lfs merge=lfs -text
 input_classifier/models/* filter=lfs diff=lfs merge=lfs -text
 input_classifier/models/**/*tokenizer.json linguist-generated=true
+
+# Replayable patches require LF; a blank context line contains one structural space.
+*.patch text eol=lf whitespace=-blank-at-eol

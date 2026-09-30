@@ -14,7 +14,7 @@ See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end ev
 - Store a versioned snapshot in a dedicated SQLite database, transactionally committing task mutations and their messages together. Bound records and input sizes. `ponytail`: snapshot writes are O(n); normalize tables when the explicit first-release capacity becomes limiting.
 - Use bounded JSON frames over Unix sockets/Windows named pipes rather than exposing a TCP listener. Limit connections, frame size, and IO deadlines. Keep server errors free of payloads and capabilities.
 - MCP schemas and operation parsing share one contract. Requests use idempotency IDs for mutations and revisions for task transitions. Results contain stable task/message IDs and explicit states.
-- Package the companion beside Warp Lite. Setup calls vendor-supported `mcp add` commands and never parses existing personal settings.
+- Package the companion beside Warp Lite. Setup uses native vendor commands or narrowly edits the documented MCP section of the vendor configuration, preserving unrelated values. Credentials, credential files, and capability values are never copied into Warp metadata or diagnostics.
 
 ## API contract
 
@@ -23,7 +23,7 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 | Tool | Arguments | Result |
 | --- | --- | --- |
 | warp_agent_register | name | agent identity and live run |
-| warp_agent_list | none | selected same-project peers and online/waiting state; legacy explicit registrations retain project discovery until selection |
+| warp_agent_list | none | live same-project participants and online/waiting state |
 | warp_agent_send | to, body, request_id | message |
 | warp_agent_inbox | none | pending messages |
 | warp_agent_ack | message_id | acknowledgement |
@@ -54,7 +54,7 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 
 Use `CLIAgent::command_prefix()` for known managed types and `custom` for user-managed unknown sessions connecting through their confirmed native MCP client. Do not add a separate program allowlist to the broker. The trusted Warp start event determines the program; callers cannot spoof it. Command aliases remain the existing detector's responsibility.
 
-The MCP interface invokes the common state machine and exposes both dormant readiness and optional cooperative wait. Four installed CLIs are initial runtime probes, not the release coverage boundary. Vendors without verified MCP setup commands use explicit/manual MCP configuration; never invent configuration flags or install missing agents silently.
+The MCP interface invokes the common state machine and exposes both dormant readiness and optional cooperative wait. Four installed CLIs are initial runtime probes, not the release coverage boundary. Installed versions without a verified native setup adapter are displayed as unavailable; never invent configuration flags, use shell-tool fallbacks, or install missing agents.
 
 The user explicitly excludes adapters for agents without native MCP client support. No shell interface is shipped. Custom managed sessions are verified individually and included when native MCP capability is established; the enum value `Unknown` is not an exclusion rule.
 
@@ -70,16 +70,10 @@ The Warp singleton checks pending work every 250 ms. After readiness has settled
 
 Acceptance: simulate dormant readiness for every managed identity plus custom; deliver without AgentWait; keep busy/draft/blocked/replaced runs queued; prevent duplicate submission and stale delayed Enter; prove the message still requires MCP acknowledgement. GitHub must check both application configurations and the focused protocol tests. Real vendor input behavior remains a separate acceptance level.
 
-## Native communication picker
-
-Reuse the existing tab context menu for **Select communication peers** and the peer list. Pane menus carry the clicked terminal's identity; a selected item carries both current run IDs and is revalidated by the broker. Open the peer list after the original menu closes so pointer and keyboard selection cannot immediately dismiss it. All new UI text is English.
-
-Native MCP tool discovery requests an automatic identity before returning the tool list. The broker creates a unique program-prefixed name; no separate model registration prompt is required. Automatically registered runs start with selected-only routing. Legacy explicit protocol registration remains compatible, but selecting a connection opts both runs into selected-only routing. Peers are reciprocal run identities, not persisted permissions. Exit/replacement clears them. Message sends and task assignments, including a separately designated reviewer, are checked at the broker boundary; selected-only discovery hides unrelated identities.
-
-Connection establishment writes both inbox notices in one SQLite snapshot transaction before changing live routing. Repeated selection does not duplicate notices. The notices describe the communication tools and readiness rule without granting additional permissions. Existing delivery protects busy turns, drafts, and authorization prompts. A picker with no discovered native bridge shows an explicit unavailable state; this iteration does not implement automatic vendor configuration or claim that running clients can hot-load MCP servers.
-
 ## Settings-managed setup revision (2026-09-30)
 
 Replace manual vendor setup with a local settings model and serialized background configuration jobs. Discover installed managed command aliases without reading credentials. Use documented vendor config formats or native setup commands; retain ownership metadata only for the dedicated `warp-lite-communication` entry. Apply atomic file updates, preserve unrelated values, refuse collisions, and retain cleanup failures for retry. Codex explicitly passes the three dynamic environment names through `env_vars`; clients with inherited subprocess environments need no persisted capability. UI observers render per-agent status and restart guidance. Broker policy is default-deny in the app, immediately revokes unchecked programs and all programs on global disable, and requires fresh native discovery after re-enable.
 
-Second implementation phase removes the tab picker, reciprocal run sets, and selected-only routing. Existing authenticated project scope remains the single routing boundary; only live, enabled, native-discovered recipients are eligible. Preserve task review authorization and lifecycle/wake protections.
+The second implementation phase removes the tab picker, reciprocal run sets, and selected-only routing. Existing authenticated project scope remains the single routing boundary; only live, enabled, native-discovered recipients are eligible. Preserve task review authorization and lifecycle/wake protections.
+
+Ownership metadata is kept in the local secure state directory, independently of cloud-synced settings. Persist cleanup intent before injecting a server, then authorize only after setup succeeds. Pending cleanup is not participation permission. Files are replaced atomically, malformed configuration and symlinks are preserved, and collisions/user-modified managed entries are reported instead of overwritten. CLI probes and configuration commands have bounded execution time and do not pass through a shell. Shared JSON/YAML formats and Codex/Vibe TOML blocks use existing dependencies.

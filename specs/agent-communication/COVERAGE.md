@@ -37,24 +37,21 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 
 No currently listed named type has been conclusively established as having no native MCP support in its current release. Do not invent an exclusion list from older product knowledge.
 
-## MCP configuration
+## Settings-managed MCP configuration
 
-Configure the packaged executable as a local stdio server with `mcp` as its sole argument. On macOS the installed executable is `/Applications/WarpLite.app/Contents/MacOS/warp-agent`; on Windows it is `warp-agent.exe` beside Warp Lite. Do not configure a shell command or a cloud endpoint.
+Use **Settings > Features > Agent communication**. The switch is off by default. Enabling it discovers installed managed commands and their aliases. Check an available agent to configure the bundled stdio bridge in the background. No manual registration prompt, `mcp add`, or environment editing is required. Uncheck to revoke access and remove the managed entry; turning the switch off revokes every active participant before cleanup. Failed cleanup is visible, stays unauthorized, and can be retried with **Refresh agents / retry cleanup**.
 
-The bridge must inherit `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its live Warp terminal. Clients that scrub their subprocess environment need explicit passthrough of these three names. Store variable references or name-based passthrough rules, never capability values. Codex uses `env_vars` in its MCP server definition; consult the linked vendor contract for other clients. Configuration is local to the user's machine and must not commit the live capability.
+Warp owns only `warp-lite-communication`, not a user's existing `warp-agent` server or unrelated MCP configuration. JSON/YAML updates preserve unrelated values; TOML uses a marked block and preserves existing text. Malformed configurations, ownership collisions, user edits to the managed entry, and symlinks stop the operation. Preferences and cleanup metadata are machine-local. The packaged bridge is `/Applications/WarpLite.app/Contents/MacOS/warp-agent` on macOS and `warp-agent.exe` beside Warp Lite on Windows.
 
-Verified installed-CLI setup command shapes (not executed on personal settings):
+The bridge inherits `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its Warp terminal. Codex receives `env_vars` name-based passthrough automatically. Gemini receives runtime variable references. Values are never persisted in configuration or metadata. Other native stdio clients inherit the terminal environment through their native subprocess contract. A process launched outside a managed Warp terminal cannot participate.
 
-```sh
-agy mcp add --type stdio warp-agent /Applications/WarpLite.app/Contents/MacOS/warp-agent mcp
-codex mcp add warp-agent -- /Applications/WarpLite.app/Contents/MacOS/warp-agent mcp
-claude mcp add --scope local warp-agent -- /Applications/WarpLite.app/Contents/MacOS/warp-agent mcp
-qodercn mcp add --scope local warp-agent -- /Applications/WarpLite.app/Contents/MacOS/warp-agent mcp
-```
+Documented adapters cover Codex, Claude, Gemini, OpenCode, Amp, Cursor, Copilot, Droid, Auggie, native-MCP Pi, OMP, Hermes, Goose, and Vibe. Remaining installed managed commands, including Qoder/QoderCN, Antigravity, Trae and custom literal toolbar commands, are probed for native `mcp add`, inspection, and removal contracts. A missing/unsupported contract is visibly unavailable rather than silently claiming configuration success. Non-default vendor profiles and project overrides can supersede user configuration; bridge discovery remains the final participation check.
 
-The cooperation instructions require `warp_agent_ready` as the final action before ending each turn. This marks the native prompt available for queued work; it does not hold a tool call open. Warp checks the queue every 250 ms, waits for output to settle, and submits automatically when the pane is eligible. Busy or blocked agents keep their queued work.
+Restart running clients that do not hot-reload MCP configuration. A fresh managed CLI run loads the bridge and receives a unique project-local identity automatically. All live enabled agents in the same canonical project can discover, message, and delegate to one another; there is no peer picker. Repository subdirectories share scope; separate repositories and worktrees remain isolated.
 
-After configuring environment passthrough, launch the CLI in a fresh patched Warp pane. Native tool discovery registers a unique name automatically. Right-click the Agent tab, choose **Select communication peers**, and select another discovered agent in the same project. The connection is reciprocal; ordinary dialogue can then request communication or task delegation. Select **Disconnect <name>** to remove a connection. A server discovered outside a managed Warp terminal has no live binding and cannot participate. Initial MCP setup remains necessary; the picker explicitly reports unloaded tools rather than pretending to connect them.
+The cooperation instructions require `warp_agent_ready` as the last action before ending a turn. Warp polls every 250 ms, waits for output to settle, and automatically submits queued inbox work when eligible. Busy/draft/permission protections remain unchanged. Removal of MCP/environment configuration takes effect in a running vendor client after reload/restart; broker revocation takes effect immediately.
+
+Adapter references: [Pi](https://pi.dev/docs/latest/mcp), [OMP](https://github.com/can1357/oh-my-pi/blob/main/docs/mcp-config.md), [Hermes](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp), [Goose](https://github.com/aaif-goose/goose/blob/main/documentation/docs/getting-started/using-extensions.md), [Vibe](https://docs.mistral.ai/vibe/code/cli/mcp-servers), [Auggie](https://docs.augmentcode.com/cli/integrations).
 
 ## Acceptance and status
 
