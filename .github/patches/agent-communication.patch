@@ -235,10 +235,10 @@ index 0000000..dc711f0
 +tokio = { workspace = true, features = ["process"] }
 diff --git a/crates/agent_bus/src/lib.rs b/crates/agent_bus/src/lib.rs
 new file mode 100644
-index 0000000..180906e
+index 0000000..5b6d01e
 --- /dev/null
 +++ b/crates/agent_bus/src/lib.rs
-@@ -0,0 +1,587 @@
+@@ -0,0 +1,589 @@
 +//! Local coordination for third-party CLI agents; no model or cloud client lives here.
 +pub mod mcp;
 +pub mod transport;
@@ -365,6 +365,8 @@ index 0000000..180906e
 +    pub result: Option<String>,
 +    pub evidence: Option<String>,
 +    pub feedback: Vec<String>,
++    // Runtime ownership expires at restart; persisted running tasks require explicit recovery.
++    #[serde(skip)]
 +    pub executing_run: Option<String>,
 +}
 +
@@ -987,10 +989,10 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..c56e705
+index 0000000..4b4970f
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,452 @@
+@@ -0,0 +1,456 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
@@ -1087,6 +1089,8 @@ index 0000000..c56e705
 +            use std::os::unix::fs::PermissionsExt;
 +            std::fs::set_permissions(&endpoint, std::fs::Permissions::from_mode(0o600))?;
 +        }
++        // PIPE_NOWAIT accept semantics differ from Unix; keep Windows accept blocking.
++        #[cfg(unix)]
 +        listener.set_nonblocking(true)?;
 +        let shared = Arc::new(Shared {
 +            state: Mutex::new(State {
@@ -1140,6 +1144,8 @@ index 0000000..c56e705
 +    fn drop(&mut self) {
 +        self.broker.shared.stopped.store(true, Ordering::Release);
 +        self.broker.shared.changed.notify_all();
++        #[cfg(windows)]
++        let _ = LocalSocketStream::connect(self.broker.endpoint.as_str());
 +        if let Some(thread) = self.thread.take() {
 +            let _ = thread.join();
 +        }
@@ -1445,10 +1451,10 @@ index 0000000..c56e705
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
-index 0000000..46d133e
+index 0000000..f2348db
 --- /dev/null
 +++ b/crates/agent_bus/tests/coordination.rs
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,325 @@
 +use serde_json::Value;
 +use std::{path::PathBuf, thread, time::Duration};
 +use uuid::Uuid;
@@ -1764,7 +1770,12 @@ index 0000000..46d133e
 +            })
 +            .await
 +            .unwrap();
-+        assert_ne!(listed.is_error, Some(true));
++        assert_ne!(
++            listed.is_error,
++            Some(true),
++            "MCP list failed: {:?}",
++            listed.content
++        );
 +        client.cancel().await.unwrap();
 +        server.broker.end(&terminal);
 +    }

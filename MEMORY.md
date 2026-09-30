@@ -48,3 +48,5 @@
 - macOS Unix socket endpoints must use a short private directory under `/tmp`; the system `TMPDIR` path plus a UUID can exceed macOS's 104-byte socket path ceiling. Protocol compilation/tests run on GitHub, not locally.
 
 - User clarification: custom/downstream agents also qualify when native MCP is confirmed. `qodercn mcp add --help` confirms native stdio, and its recognized alias maps to Qoder. Do not exclude `Unknown` sessions categorically; verify their MCP capability individually.
+
+- The pinned interprocess 1.2.1 Windows named-pipe listener must use blocking accept, with a shutdown wakeup. `PIPE_NOWAIT` accept does not share Unix nonblocking semantics; keep bounded nonblocking IO on accepted streams only.
