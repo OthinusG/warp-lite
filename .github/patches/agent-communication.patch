@@ -1,5 +1,5 @@
 diff --git a/Cargo.lock b/Cargo.lock
-index 738347f..b29e186 100644
+index 738347f..29875b7 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
 @@ -13639,6 +13639,7 @@ dependencies = [
@@ -10,7 +10,7 @@ index 738347f..b29e186 100644
   "warp_core",
   "warp_editor",
   "warp_files",
-@@ -13779,6 +13780,23 @@ dependencies = [
+@@ -13779,6 +13780,21 @@ dependencies = [
   "warpui",
  ]
  
@@ -20,8 +20,6 @@ index 738347f..b29e186 100644
 +dependencies = [
 + "anyhow",
 + "diesel",
-+ "futures",
-+ "interprocess",
 + "libsqlite3-sys",
 + "rmcp",
 + "schemars 1.0.4",
@@ -204,10 +202,10 @@ index 2b8773e..768e19b 100644
  
 diff --git a/crates/agent_bus/Cargo.toml b/crates/agent_bus/Cargo.toml
 new file mode 100644
-index 0000000..269d08c
+index 0000000..1a65668
 --- /dev/null
 +++ b/crates/agent_bus/Cargo.toml
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,25 @@
 +[package]
 +name = "warp-agent-bus"
 +version = "0.1.0"
@@ -218,14 +216,12 @@ index 0000000..269d08c
 +[dependencies]
 +anyhow.workspace = true
 +diesel = { workspace = true, features = ["sqlite"] }
-+interprocess = { version = "1.2.1", features = ["tokio_support"] }
-+futures.workspace = true
 +libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
 +rmcp = { workspace = true, features = ["server", "transport-io"] }
 +serde = { workspace = true, features = ["derive"] }
 +serde_json.workspace = true
 +schemars.workspace = true
-+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync"] }
++tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
 +uuid.workspace = true
 +
 +[[bin]]
@@ -991,15 +987,13 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..79ec84e
+index 0000000..736d0e9
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,458 @@
+@@ -0,0 +1,500 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
-+use futures::io::{AsyncReadExt, AsyncWriteExt};
-+use interprocess::local_socket::tokio::{LocalSocketListener, LocalSocketStream};
 +use serde::{Deserialize, Serialize};
 +use serde_json::{json, Value};
 +use std::{
@@ -1012,6 +1006,11 @@ index 0000000..79ec84e
 +    thread,
 +    time::{Duration, Instant},
 +};
++use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
++#[cfg(windows)]
++use tokio::net::windows::named_pipe::{ClientOptions, ServerOptions};
++#[cfg(unix)]
++use tokio::net::{UnixListener, UnixStream};
 +use uuid::Uuid;
 +
 +pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
@@ -1085,14 +1084,20 @@ index 0000000..79ec84e
 +        #[cfg(unix)]
 +        let endpoint = directory.join("bus.sock").to_string_lossy().into_owned();
 +        #[cfg(windows)]
-+        let endpoint = format!("@warp-agent-{}", Uuid::new_v4());
++        let endpoint = format!(r"\\.\pipe\warp-agent-{}", Uuid::new_v4());
 +        let runtime = tokio::runtime::Builder::new_multi_thread()
 +            .worker_threads(2)
 +            .enable_all()
 +            .build()?;
 +        let listener = {
 +            let _entered = runtime.enter();
-+            LocalSocketListener::bind(endpoint.as_str())?
++            #[cfg(unix)]
++            let listener = UnixListener::bind(&endpoint)?;
++            #[cfg(windows)]
++            let listener = ServerOptions::new()
++                .first_pipe_instance(true)
++                .create(&endpoint)?;
++            listener
 +        };
 +        #[cfg(unix)]
 +        {
@@ -1114,12 +1119,26 @@ index 0000000..79ec84e
 +            endpoint,
 +        };
 +        let server = broker.clone();
++        #[cfg(windows)]
++        let endpoint = broker.endpoint.clone();
 +        let thread = thread::spawn(move || {
 +            runtime.block_on(async move {
++                #[cfg(windows)]
++                let mut listener = listener;
 +                loop {
 +                    let stream = tokio::select! {
 +                        _ = shared.shutdown.notified() => break,
-+                        connection = listener.accept() => match connection { Ok(stream) => stream, Err(_) => break },
++                        connection = async {
++                            #[cfg(unix)]
++                            { listener.accept().await.map(|(stream, _)| stream) }
++                            #[cfg(windows)]
++                            {
++                                listener.connect().await?;
++                                // Keep a listening instance alive before handing off the connected pipe.
++                                let next = ServerOptions::new().create(&endpoint)?;
++                                Ok::<_, std::io::Error>(std::mem::replace(&mut listener, next))
++                            }
++                        } => match connection { Ok(stream) => stream, Err(_) => break },
 +                    };
 +                    if shared.connections.fetch_add(1, Ordering::AcqRel) >= 32 {
 +                        shared.connections.fetch_sub(1, Ordering::AcqRel);
@@ -1129,7 +1148,9 @@ index 0000000..79ec84e
 +                    tokio::spawn(async move {
 +                        struct Connection(Arc<Shared>);
 +                        impl Drop for Connection {
-+                            fn drop(&mut self) { self.0.connections.fetch_sub(1, Ordering::AcqRel); }
++                            fn drop(&mut self) {
++                                self.0.connections.fetch_sub(1, Ordering::AcqRel);
++                            }
 +                        }
 +                        let _connection = Connection(broker.shared.clone());
 +                        let _ = handle(stream, broker).await;
@@ -1350,7 +1371,7 @@ index 0000000..79ec84e
 +    Ok(live)
 +}
 +async fn receive<T: serde::de::DeserializeOwned>(
-+    stream: &mut LocalSocketStream,
++    stream: &mut (impl AsyncRead + Unpin),
 +    deadline: Instant,
 +) -> Result<T> {
 +    tokio::time::timeout_at(deadline.into(), async {
@@ -1375,7 +1396,7 @@ index 0000000..79ec84e
 +    .map_err(|_| anyhow!("Local IPC read deadline exceeded"))?
 +}
 +async fn send<T: Serialize>(
-+    stream: &mut LocalSocketStream,
++    stream: &mut (impl AsyncWrite + Unpin),
 +    value: &T,
 +    deadline: Instant,
 +) -> Result<()> {
@@ -1395,7 +1416,7 @@ index 0000000..79ec84e
 +    .map_err(|_| anyhow!("Local IPC write deadline exceeded"))?
 +    .map_err(|_| anyhow!("Local IPC write failed"))
 +}
-+async fn handle(mut stream: LocalSocketStream, broker: Broker) -> Result<()> {
++async fn handle(mut stream: impl AsyncRead + AsyncWrite + Unpin, broker: Broker) -> Result<()> {
 +    let request: Request = receive(&mut stream, Instant::now() + Duration::from_secs(5)).await?;
 +    let result = tokio::task::spawn_blocking(move || broker.execute(&request))
 +        .await
@@ -1422,15 +1443,32 @@ index 0000000..79ec84e
 +    ensure!(acknowledged == [1], "Invalid frame acknowledgement");
 +    Ok(())
 +}
++#[cfg(unix)]
++async fn connect(endpoint: &str) -> std::io::Result<UnixStream> {
++    UnixStream::connect(endpoint).await
++}
++#[cfg(windows)]
++async fn connect(
++    endpoint: &str,
++) -> std::io::Result<tokio::net::windows::named_pipe::NamedPipeClient> {
++    loop {
++        match ClientOptions::new().open(endpoint) {
++            // ERROR_PIPE_BUSY: an accepted pipe is being replaced by the next listening instance.
++            Err(error) if error.raw_os_error() == Some(231) => {
++                tokio::time::sleep(Duration::from_millis(10)).await;
++            }
++            result => return result,
++        }
++    }
++}
 +pub fn call(endpoint: &str, request: &Request) -> Result<Value> {
 +    tokio::runtime::Builder::new_current_thread()
 +        .enable_all()
 +        .build()?
 +        .block_on(async {
-+            let mut stream =
-+                tokio::time::timeout(Duration::from_secs(5), LocalSocketStream::connect(endpoint))
-+                    .await
-+                    .map_err(|_| anyhow!("Local IPC connect deadline exceeded"))??;
++            let mut stream = tokio::time::timeout(Duration::from_secs(5), connect(endpoint))
++                .await
++                .map_err(|_| anyhow!("Local IPC connect deadline exceeded"))??;
 +            send(
 +                &mut stream,
 +                request,
