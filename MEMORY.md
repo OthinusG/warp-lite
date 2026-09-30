@@ -56,3 +56,5 @@
 - User clarification: busy delivery is polling, then automatic submission once idle. Manual cancellation pauses automatic submission until the user resumes with a new input; pruning a closed view must also invalidate its broker run.
 
 - README must distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, replayable sync, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
+
+- Full application test compilation exposed an inherited cloud-agent-management test referencing a field gated by `agent_management_view`. Gate that test with the same feature rather than restoring the disabled cloud UI or silently skipping native wake verification.

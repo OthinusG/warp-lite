@@ -653,6 +653,18 @@ index 4226d69..989ac67 100644
 +        }
 +    });
 +}
+diff --git a/app/src/workspace/view_test.rs b/app/src/workspace/view_test.rs
+index 10bf8d4..a98d38a 100644
+--- a/app/src/workspace/view_test.rs
++++ b/app/src/workspace/view_test.rs
+@@ -3360,6 +3360,7 @@ fn test_standard_tab_context_menu_shows_hover_only_tab_bar() {
+     });
+ }
+ 
++#[cfg(feature = "agent_management_view")]
+ #[test]
+ fn test_open_cloud_agent_setup_guide_action_opens_management_view_and_is_idempotent() {
+     let _agent_management_guard = FeatureFlag::AgentManagementView.override_enabled(true);
 diff --git a/crates/agent_bus/Cargo.toml b/crates/agent_bus/Cargo.toml
 new file mode 100644
 index 0000000..1a65668
