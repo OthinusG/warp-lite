@@ -54,11 +54,14 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcrun --find metal
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
-      - name: Check both application configurations and test communication
+      - name: Test protocol and reversible native setup
+        run: cargo test -p warp-agent-bus --locked
+      - name: Check default Lite application
+        run: cargo check -p warp --bin warp-oss --locked
+      - name: Check platform application
+        run: cargo check -p warp --bin warp-oss --features warp_platform --locked
+      - name: Test dormant wake and settings configuration
         run: |
-          cargo test -p warp-agent-bus --locked
-          cargo check -p warp --bin warp-oss --locked
-          cargo check -p warp --bin warp-oss --features warp_platform --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
       - name: Build and package review artifacts

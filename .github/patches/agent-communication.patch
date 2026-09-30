@@ -451,7 +451,7 @@ index 0000000..93ebc01
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..b0927b0
+index 0000000..0272d9e
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
 @@ -0,0 +1,591 @@
@@ -918,7 +918,7 @@ index 0000000..b0927b0
 +            if let Some(current) = &current {
 +                ensure!(
 +                    owned
-+                        && current.contains(installed.bridge.to_string_lossy().as_ref())
++                        && current.contains(&*installed.bridge.to_string_lossy())
 +                        && current.contains("mcp"),
 +                    "Communication server already exists or was modified; preserved"
 +                );
@@ -1092,10 +1092,10 @@ index 2b8773e..768e19b 100644
  
 diff --git a/app/src/settings_view/agent_communication.rs b/app/src/settings_view/agent_communication.rs
 new file mode 100644
-index 0000000..bf72d8d
+index 0000000..0eeed18
 --- /dev/null
 +++ b/app/src/settings_view/agent_communication.rs
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,177 @@
 +//! Local-only setup controls for independently installed CLI agents.
 +use crate::agent_communication::AgentCommunication;
 +use crate::{
@@ -1231,6 +1231,7 @@ index 0000000..bf72d8d
 +                        )
 +                        .with_child(
 +                            Expanded::new(
++                                1.,
 +                                builder
 +                                    .paragraph(format!("{} — {}", row.command, row.status))
 +                                    .build()
