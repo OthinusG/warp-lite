@@ -59,10 +59,10 @@ index 60c6ab2..addb30f 100644
  # AWS SDK (loading credentials for BYO LLM)
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..933a685
+index 0000000..341d7f7
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,412 @@
+@@ -0,0 +1,418 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -374,7 +374,13 @@ index 0000000..933a685
 +                );
 +            }
 +            let status = if errors.is_empty() {
-+                "Restart running agents to reload MCP configuration. Agents in the same project communicate automatically.".into()
++                if !preferences.enabled {
++                    "Communication is off.".into()
++                } else if preferences.selected.is_empty() {
++                    "Select installed agents to configure communication.".into()
++                } else {
++                    "Restart running agents to reload MCP configuration. Agents in the same project communicate automatically.".into()
++                }
 +            } else {
 +                errors.join("\n")
 +            };
@@ -1138,7 +1144,7 @@ index 2b8773e..768e19b 100644
  
 diff --git a/app/src/settings_view/agent_communication.rs b/app/src/settings_view/agent_communication.rs
 new file mode 100644
-index 0000000..0eeed18
+index 0000000..eacfafa
 --- /dev/null
 +++ b/app/src/settings_view/agent_communication.rs
 @@ -0,0 +1,177 @@
@@ -1233,7 +1239,7 @@ index 0000000..0eeed18
 +                        command: command.clone(),
 +                        program: installed.program.clone(),
 +                        installed: Some(installed.clone()),
-+                        status: "Not installed — uncheck to remove configuration".into(),
++                        status: "Disabled — select to retry configuration cleanup".into(),
 +                    });
 +                }
 +            }
