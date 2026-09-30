@@ -989,7 +989,7 @@ index 0000000..66e9a3a
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..4b4970f
+index 0000000..faa7d04
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
 @@ -0,0 +1,456 @@
@@ -1333,7 +1333,7 @@ index 0000000..4b4970f
 +        .live
 +        .as_ref()
 +        .ok_or_else(|| anyhow!("No managed agent owns this terminal"))?;
-+    if !registration {
++    if !registration || request.run.is_some() {
 +        ensure!(
 +            request.run.as_deref() == Some(&live.run),
 +            "Expired agent run; register again"
@@ -1451,10 +1451,10 @@ index 0000000..4b4970f
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
-index 0000000..f2348db
+index 0000000..842c76b
 --- /dev/null
 +++ b/crates/agent_bus/tests/coordination.rs
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,329 @@
 +use serde_json::Value;
 +use std::{path::PathBuf, thread, time::Duration};
 +use uuid::Uuid;
@@ -1714,6 +1714,10 @@ index 0000000..f2348db
 +    assert_eq!(recovered["agent"]["name"], "worker");
 +    assert!(transport::call(&server.broker.endpoint, &worker).is_err());
 +    server.broker.activate("worker", "agy", "/project").unwrap();
++    assert!(transport::call(&server.broker.endpoint, &worker).is_err());
++    worker.operation = Operation::AgentRegister {
++        name: "expired-claim".into(),
++    };
 +    assert!(transport::call(&server.broker.endpoint, &worker).is_err());
 +    let schema = warp_agent_bus::mcp::tools();
 +    assert_eq!(schema.len(), 11);
