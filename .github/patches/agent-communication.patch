@@ -50,10 +50,10 @@ index 60c6ab2..ff79379 100644
  comfy-table = "7.1.4"
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..a79c685
+index 0000000..14860ba
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,383 @@
+@@ -0,0 +1,390 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -106,7 +106,7 @@ index 0000000..a79c685
 +            let _ = BROKER.set(server.broker.clone());
 +        }
 +        VIEWS.get_or_init(|| Mutex::new(HashMap::new()));
-+        ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |_, event, ctx| {
++        ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |model, event, ctx| {
 +            let Some(broker) = BROKER.get() else {
 +                return;
 +            };
@@ -127,6 +127,9 @@ index 0000000..a79c685
 +                    } else {
 +                        agent.command_prefix()
 +                    };
++                    if !model.preferences.programs().contains(program) {
++                        return;
++                    }
 +                    if let Some(view) = view.upgrade(ctx) {
 +                        let model = view.as_ref(ctx).model.lock();
 +                        if let Some(directory) =
@@ -241,12 +244,16 @@ index 0000000..a79c685
 +        self.pending = Some(receiver);
 +        std::thread::spawn(move || {
 +            let mut errors = Vec::new();
-+            let mut available = match setup::companion() {
-+                Ok(bridge) => setup::discover(commands, &bridge),
-+                Err(_) => {
-+                    errors.push("Bundled communication bridge is missing".to_owned());
-+                    vec![]
++            let mut available = if preferences.enabled {
++                match setup::companion() {
++                    Ok(bridge) => setup::discover(commands, &bridge),
++                    Err(_) => {
++                        errors.push("Bundled communication bridge is missing".to_owned());
++                        vec![]
++                    }
 +                }
++            } else {
++                vec![]
 +            };
 +            if setup::atomic_write(&path, &serde_json::to_vec(&preferences).unwrap()).is_err() {
 +                preferences.enabled = false;
