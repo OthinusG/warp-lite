@@ -483,7 +483,7 @@ index 0000000..341d7f7
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..086becf
+index 0000000..5789e43
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
 @@ -0,0 +1,611 @@
@@ -654,15 +654,6 @@ index 0000000..086becf
 +        .into_iter()
 +        .filter_map(|(program, command)| {
 +            let executable = executable(&command, &search_paths)?;
-+            assert_eq!(
-+                discover(
-+                    vec![("custom".into(), "native-agent".into())],
-+                    Path::new("/bridge"),
-+                    vec![directory.path().to_owned()]
-+                )
-+                .len(),
-+                1
-+            );
 +            let adapter = adapter(&home, &command, &executable, bridge);
 +            let status = if adapter.is_some() {
 +                "Available"
@@ -1079,6 +1070,15 @@ index 0000000..086becf
 +        )
 +        .unwrap();
 +        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
++        assert_eq!(
++            discover(
++                vec![("custom".into(), "native-agent".into())],
++                Path::new("/bridge"),
++                vec![directory.path().to_owned()]
++            )
++            .len(),
++            1
++        );
 +        let adapter =
 +            adapter(directory.path(), "native-agent", &cli, Path::new("/bridge")).unwrap();
 +        let installed = Installed {
