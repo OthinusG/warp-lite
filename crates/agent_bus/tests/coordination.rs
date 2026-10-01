@@ -449,6 +449,60 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
     }
 }
 
+#[tokio::test]
+async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization() {
+    use std::process::Stdio;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use warp_agent_bus::transport::{CAPABILITY, ENDPOINT, TERMINAL};
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let broker = server.broker.clone();
+    tokio::task::spawn_blocking(move || register(&broker, "probe-reviewer", "claude")).await.unwrap();
+    for probe_id in [None, Some(serde_json::json!(1)), Some(serde_json::json!("discover"))] {
+        let terminal = request_id();
+        let capability = server.broker.prepare(&terminal).unwrap();
+        server.broker.activate(&terminal, "agy", "/project", false).unwrap();
+        let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"))
+            .arg("mcp")
+            .env(ENDPOINT, &server.broker.endpoint)
+            .env(CAPABILITY, capability)
+            .env(TERMINAL, &terminal)
+            .stdin(Stdio::piped()).stdout(Stdio::piped())
+            .kill_on_drop(true).spawn().unwrap();
+        let mut input = child.stdin.take().unwrap();
+        let mut output = BufReader::new(child.stdout.take().unwrap());
+        let mut messages = Vec::new();
+        if let Some(id) = &probe_id {
+            messages.push(serde_json::json!({"jsonrpc":"2.0","id":id,"method":"server/discover","params":{}}));
+        }
+        messages.extend([
+            serde_json::json!({"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"native-probe","version":"1"}}}),
+            serde_json::json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+            serde_json::json!({"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}),
+        ]);
+        for message in messages {
+            input.write_all(format!("{message}\n").as_bytes()).await.unwrap();
+        }
+        // Pipelined input verifies that the prelude retains the SDK's unread buffered bytes.
+        for expected_id in probe_id.iter().cloned().chain([serde_json::json!(2), serde_json::json!(3)]) {
+            let mut line = String::new();
+            tokio::time::timeout(Duration::from_secs(5), output.read_line(&mut line)).await.unwrap().unwrap();
+            let response: Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(response["id"], expected_id);
+            if probe_id.as_ref() == Some(&expected_id) {
+                assert_eq!(response["error"]["code"], -32601);
+            } else if expected_id == 2 {
+                assert!(response["result"]["protocolVersion"].is_string());
+            } else {
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 12);
+            }
+        }
+        assert_eq!(server.broker.peers("probe-reviewer").len(), 1);
+        drop(input);
+        tokio::time::timeout(Duration::from_secs(5), child.wait()).await.unwrap().unwrap();
+        server.broker.end(&terminal);
+    }
+}
+
 #[test]
 fn dormant_agents_wake_without_an_open_wait_call() {
     let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();

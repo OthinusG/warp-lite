@@ -27,7 +27,28 @@ See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end ev
 - Thread creation and owned turn-start requests establish busy before forwarding, including the discovery-before-thread-response race. Task-bearing initial launches suppress idle until an owned turn begins or the native thread is observed active; thread creation alone must not interrupt the initial task. The same installed option parser distinguishes a supplied prompt from session selection: empty resume/fork launches may become ready after the owned thread binds, while resume/fork with an initial prompt still waits for that turn. An authenticated internal frame can suppress the heuristic initial lease and supply the native absolute workspace before initial registration. Each forwarded MCP child supplies its actual working directory in a bounded private IPC handshake; embedded Codex receives the same dedicated relay through native command-line configuration overrides. These are bridge transport context, never MCP tool fields. Directory switches after registration fail closed rather than moving an identity with pending work into another project; start a fresh managed CLI for a new project.
 - Validation: GitHub tests the common relay with two simultaneous panes for every detector-derived managed type plus custom, without deriving their identities from the shared client's process environment. Test message isolation, draft protection, busy state, premature readiness, rediscovery and stale-run rejection. Test parameter values that resemble subcommands, native mode preservation, per-thread overrides and foreign lifecycle events. Native vendor/live-model validation requires installed authenticated clients and a patched application; keep it separate from these tests.
 
+## Codex loopback proxy repair (2026-10-01)
+
+- Reproduced the reported WebSocket `Handshake not finished` with the installed Codex 0.159.2, inherited proxy variables, an isolated temporary Codex home and the installed Warpai bridge. The local listener received no connection; adding loopback exclusions reached HTTP 101 and the native initialize stage. No model request or personal configuration change was involved.
+- Add `127.0.0.1` to both `NO_PROXY` and `no_proxy` only on the shared-mode TUI child. Preserve each existing exclusion list and fall back to the other spelling when absent. Keep provider proxy variables, daemon environment, explicit remote and embedded modes unchanged.
+- Acceptance: the generated child environment retains existing exclusions and bypasses the launch's IPv4 loopback listener, including absent, empty, mixed-case and wildcard configurations. Run the focused Rust regression and application checks on GitHub only; verify the installed native transport separately without treating a mock daemon as model acceptance.
+
+## Independent QoderCN discovery (2026-10-01)
+
+- QoderCN and Qoder are separate installed clients with separate configuration roots. Do not deduplicate QoderCN as a Qoder alias or let a nonfunctional Qoder entry script hide it.
+- Add a distinct QoderCN managed identity for `qodercn` and its native `qoderclicn` executable. Reuse Qoder's existing icon, prompt transport and native MCP configuration contract; retain separate settings selections, launchers and broker authorization.
+- Refresh the program identity of previously selected QoderCN entries from successful native discovery. Verify separate command detection, discovery despite an unavailable Qoder executable, separate selection authorization and native MCP handshake on the installed QoderCN client. No personal credentials or MCP configuration are copied into fixtures.
+
+## Cursor native environment repair (2026-10-01)
+
+- The installed Cursor 2026.09.18 client filters inherited stdio subprocess variables. A native list-tools probe failed with the old command/args-only entry and passed initialize plus all twelve tools when explicit `${env:WARP_AGENT_*}` and `${env:WARP_TERMINAL_SESSION_UUID}` references were supplied.
+- Add only runtime variable references to the dedicated native JSON entry. Never persist their values or disable native MCP approvals. Validate with an approved test server in a temporary HOME/workspace, preserving personal server configuration and approvals.
+
 ## API contract
+
+### Modern discovery fallback (2026-10-01)
+
+Antigravity 1.2.14 sends a `server/discover` request before legacy initialization. The pinned rmcp codec classifies the unknown method as a custom notification and its handshake closes the stream. Reject one initial discovery request with JSON-RPC MethodNotFound while preserving its request ID, then pass the original standard handshake and all subsequent traffic to rmcp. Do not advertise modern stateless support. Share this bounded prelude between stdio and launch relays. Native Antigravity's temporary configuration confirmed fallback, initialize, twelve tools and authenticated broker registration without a model turn. Add a regression for discovery fallback, normal initialization and oversized input. Official fallback rules: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/draft/basic/transports/stdio.mdx.
 
 All tool arguments reject unknown fields. Sender/project/run are authenticated transport context, never caller-supplied tool fields.
 

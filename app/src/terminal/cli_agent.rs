@@ -172,6 +172,7 @@ pub enum CLIAgent {
     Grok,
     DeepSeekHarness,
     Qoder,
+    QoderCN,
     Trae,
     /// Represents an unknown/custom CLI agent matched by user-configured regex patterns.
     Unknown,
@@ -213,7 +214,7 @@ impl CLIAgent {
         }
         if matches!(
             self,
-            CLIAgent::Claude | CLIAgent::Antigravity | CLIAgent::Qoder
+            CLIAgent::Claude | CLIAgent::Antigravity | CLIAgent::Qoder | CLIAgent::QoderCN
         ) && args
             .clone()
             .any(|arg| arg.starts_with("-p") && !arg.starts_with("--"))
@@ -249,7 +250,8 @@ impl CLIAgent {
             CLIAgent::Antigravity => &["agy"],
             CLIAgent::Grok => &["grok"],
             CLIAgent::DeepSeekHarness => &["dsh", "dsh-tui"],
-            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli", "qodercn"],
+            CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli"],
+            CLIAgent::QoderCN => &["qodercn", "qoderclicn"],
             CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli", "traecli"],
             CLIAgent::Unknown => &[],
         }
@@ -294,6 +296,7 @@ impl CLIAgent {
             CLIAgent::Grok => "Grok Build",
             CLIAgent::DeepSeekHarness => "DeepSeek Harness",
             CLIAgent::Qoder => "Qoder",
+            CLIAgent::QoderCN => "QoderCN",
             CLIAgent::Trae => "Trae",
             CLIAgent::Unknown => "CLI Agent",
         }
@@ -319,7 +322,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => Some(Icon::AntigravityLogo),
             CLIAgent::Grok => Some(Icon::GrokLogo),
             CLIAgent::DeepSeekHarness => Some(Icon::DeepSeekHarnessLogo),
-            CLIAgent::Qoder => Some(Icon::QoderLogo),
+            CLIAgent::Qoder | CLIAgent::QoderCN => Some(Icon::QoderLogo),
             CLIAgent::Trae => Some(Icon::TraeLogo),
             CLIAgent::Unknown => None,
         }
@@ -356,7 +359,7 @@ impl CLIAgent {
             | CLIAgent::Trae => &[SkillProvider::Agents],
             CLIAgent::Antigravity => &[],
             CLIAgent::DeepSeekHarness => &[],
-            CLIAgent::Qoder => &[],
+            CLIAgent::Qoder | CLIAgent::QoderCN => &[],
             CLIAgent::Unknown => &[],
         }
     }
@@ -407,7 +410,7 @@ impl CLIAgent {
             CLIAgent::Antigravity => Some(ANTIGRAVITY_COLOR),
             CLIAgent::Grok => Some(GROK_COLOR),
             CLIAgent::DeepSeekHarness => Some(ColorU::white()),
-            CLIAgent::Qoder => Some(ColorU::white()),
+            CLIAgent::Qoder | CLIAgent::QoderCN => Some(ColorU::white()),
             CLIAgent::Trae => Some(TRAE_COLOR),
             CLIAgent::Unknown => None,
         }
@@ -708,7 +711,7 @@ impl From<CLIAgent> for CLIAgentType {
             CLIAgent::Antigravity => CLIAgentType::Antigravity,
             CLIAgent::Grok => CLIAgentType::Grok,
             CLIAgent::DeepSeekHarness => CLIAgentType::DeepSeekHarness,
-            CLIAgent::Qoder => CLIAgentType::Qoder,
+            CLIAgent::Qoder | CLIAgent::QoderCN => CLIAgentType::Qoder,
             CLIAgent::Trae => CLIAgentType::Trae,
             CLIAgent::Unknown => CLIAgentType::Unknown,
         }

@@ -77,6 +77,7 @@ jobs:
           cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked
           cargo test -p warp --lib opaque_approval_and_question_notifications_never_announce_idle --locked
           cargo test -p warp --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
+          cargo test -p warp --lib test_detect_qoder --locked
       - name: Build and package review artifacts
         run: |
           cargo build --release --bin warp-oss --locked

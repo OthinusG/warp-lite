@@ -23,9 +23,26 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | Antigravity | agy | Installed `agy mcp add --help`: native stdio transport | Eligible |
 | Grok Build | grok | [Official MCP servers](https://docs.x.ai/build/features/mcp-servers) | Eligible |
 | DeepSeek Harness | dsh-tui; dsh with a TUI profile | [Official MCP client package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) | Eligible when the profile mounts the official MCP client |
-| Qoder | qoder, qodercli, qoder-cli, qodercn | [Official CLI MCP reference](https://docs.qoder.com/cli/mcp-reference); installed qodercn help confirms stdio | Eligible |
+| Qoder | qoder, qodercli, qoder-cli | [Official CLI MCP reference](https://docs.qoder.com/cli/mcp-reference) | Eligible; separate from QoderCN |
+| QoderCN | qodercn, qoderclicn | Installed QoderCN CLI help confirms native stdio | Eligible; independent discovery, configuration and selection |
 | Trae | trae, traecn, trae-cli, traecn-cli, traecli | [Official CLI MCP documentation](https://docs.trae.cn/cli_model-context-protocol) | Eligible on the documented native MCP version; launch-name compatibility to verify |
 | Custom/Unknown | User-defined detection patterns | Detection alone does not establish MCP capability | Eligible individually after confirming native MCP; common custom binding provided |
+
+## Installed-client handshake verification (2026-10-01)
+
+These probes launched real installed vendor clients against the installed Warpai bridge and a synthetic authenticated local broker. They verify native MCP initialization and tool discovery, without model turns or cross-pane wake acceptance. Temporary homes/workspaces preserved personal server configurations and credentials.
+
+| Installed frontend | Native handshake | Conditions |
+| --- | --- | --- |
+| Codex 0.159.2 | Passed; native remote TUI, HTTP 101, broker registration | Add IPv4 loopback proxy exclusions on the TUI child; real shared daemon remains running |
+| Claude Code 2.1.267 | Passed; initialize, 12 tools, registration | Native inline MCP config; trust only the empty temporary workspace |
+| QoderCN 1.1.65 | Passed; initialize, 12 tools, registration | Separate QoderCN executable and native inline config |
+| Cursor 2026.09.18-9a7762b | Passed; initialize, 12 tools, registration | Runtime environment references and native approval in temporary HOME/workspace |
+| Antigravity 1.2.14 | Passed; initialize, 12 tools, registration | Temporary native configuration; probe prelude returns MethodNotFound before SDK initialization |
+| DeepSeek Harness dsh-tui | Passed; initialize, 12 tools, registration | Clean temporary profile reuses installed dependencies; ordinary personal profile has duplicate journal hook loader IDs |
+| Qoder | Not installed | Existing entry wrapper reports missing Qoder CLI; do not count it as QoderCN |
+
+The Antigravity probe used a temporary protocol prelude around the installed binary to validate the fix before GitHub compilation. Source regressions verify the same fallback, buffered input retention and frame bounds. The installed app is not updated by source edits. Existing Cursor settings require unchecking/re-enabling its managed entry after upgrading to regenerate the environment references. The DeepSeek personal-profile hook conflict is outside the repository repair and remains unresolved.
 
 ## Excluded or unverified
 
@@ -45,7 +62,7 @@ Warpai owns only `warp-lite-communication`, not a user's existing `warp-agent` s
 
 The bridge inherits `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its Warpai terminal. Codex receives `env_vars` name-based passthrough automatically. Gemini and Hermes receive runtime variable references. Values are never persisted in configuration or metadata. Other eligible native stdio clients inherit the terminal environment through their native subprocess contract. A process launched outside a managed Warpai terminal cannot participate.
 
-Documented adapters cover every named managed type and alias. Codex and Grok use TOML tables; Trae uses its native YAML server list; DeepSeek Harness uses a dedicated insertion in the home Cordis patch; other named clients use their native JSON/YAML sections or confirmed native CLI setup contracts. Custom literal toolbar commands retain native contract probing. Aliases share one vendor configuration and one settings row, while terminal recognition accepts every alias. No shell-tool communication fallback is added.
+Documented adapters cover every named managed type and alias. Codex and Grok use TOML tables; Trae uses its native YAML server list; DeepSeek Harness uses a dedicated insertion in the home Cordis patch; other named clients use their native JSON/YAML sections or confirmed native CLI setup contracts. Custom literal toolbar commands retain native contract probing. Aliases of the same client share one configuration and one settings row. Qoder and QoderCN are separate clients with independent rows and authorization; an unavailable Qoder launcher must not suppress QoderCN discovery. No shell-tool communication fallback is added.
 
 Vibe uses its native `VIBE_MCP_SERVERS` environment configuration layer. Warp prepares the list and the three dynamic bridge environment variables in memory for a newly opened pane, preserves existing user/project MCP entries at that pane's startup directory, and leaves the Vibe configuration file untouched. Open a new terminal pane after enabling Vibe. Changing Vibe profiles or project configuration after opening the pane can override or stale this environment snapshot; use a new pane in the target directory. Capabilities are never written to disk. The upstream implementation is the [environment layer](https://github.com/mistralai/mistral-vibe/blob/main/vibe/core/config/layers/environment.py) and [configuration precedence](https://github.com/mistralai/mistral-vibe/blob/main/vibe/core/config/default_orchestrator.py). Native discovery is the final participation check; unsupported installed versions or organization policy may still prevent loading.
 
@@ -83,7 +100,7 @@ GitHub tests simulate the restored detector's managed program identities plus a 
 
 For each eligible vendor/version, separately verify: bridge discovery with all 12 tools; inherited terminal binding; unique-name registration; cross-agent messages; a completed turn returning to the input prompt, then new work automatically being submitted without an open wait call or human prompt; busy task queueing; submission with evidence; reviewer rejection and revised rework; final acceptance; and rejection after CLI exit/replacement. Live model acceptance is pending until the patched build and each authenticated vendor runtime are available.
 
-Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --help` exposes the `stdio` transport, and Warpai maps its command to `CLIAgent::Qoder`. It is not part of the unverified custom-agent exclusions. No personal MCP configuration was read during this check.
+Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --help` exposes the `stdio` transport. Warpai recognizes it separately as `CLIAgent::QoderCN`, including the underlying `qoderclicn` executable. It is not part of the unverified custom-agent exclusions. No personal MCP configuration was read during this check.
 
 ## Receiver feedback repair (2026-10-01)
 

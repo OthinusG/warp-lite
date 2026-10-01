@@ -363,6 +363,7 @@ impl AgentCommunication {
                     preferences.selected.get_mut(&row.command), row.installed.as_ref(),
                 ) {
                     selected.launch_options = discovered.launch_options.clone();
+                    selected.program = discovered.program.clone();
                 }
                 if preferences.selected.contains_key(&row.command) {
                     row.status = if preferences.selected[&row.command].active {

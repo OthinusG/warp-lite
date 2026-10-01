@@ -65,6 +65,15 @@ fn without_terminal_binding(command: &mut Command) {
     }
 }
 
+fn codex_no_proxy(primary: Option<OsString>, fallback: Option<OsString>) -> OsString {
+    let mut bypass = primary.or(fallback).unwrap_or_default();
+    if !bypass.is_empty() {
+        bypass.push(",");
+    }
+    bypass.push("127.0.0.1");
+    bypass
+}
+
 /// No command string or shell evaluation: aliases dispatch to the resolved native executable.
 pub fn native_executable(invocation: &str) -> Option<NativeLaunch> {
     let catalog = std::env::var_os("WARP_AGENT_LAUNCH_PATH")
@@ -237,7 +246,10 @@ impl Relay {
                         Some(directory) => bridge.with_native_directory(directory),
                         None => bridge,
                     };
-                    if let Ok(service) = bridge.serve(stream).await {
+                    let Ok(transport) = crate::mcp::legacy_transport(tokio::io::split(stream)).await else {
+                        return;
+                    };
+                    if let Ok(service) = bridge.serve(transport).await {
                         let _ = service.waiting().await;
                     }
                 });
@@ -733,7 +745,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     let relay = if (name == "codex" && codex_mode != CodexMode::Native
         || matches!(
             name,
-            "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn"
+            "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn"
         ))
         && bridge.is_some()
         && companion.is_some()
@@ -767,6 +779,13 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
         let endpoint = format!("ws://{}", listener.local_addr()?);
         let token = Uuid::new_v4().to_string();
         command.env(PROXY_TOKEN, &token);
+        // Proxy-aware Codex builds must reach this launch's loopback listener directly.
+        for (name, fallback) in [("NO_PROXY", "no_proxy"), ("no_proxy", "NO_PROXY")] {
+            command.env(
+                name,
+                codex_no_proxy(std::env::var_os(name), std::env::var_os(fallback)),
+            );
+        }
         let mut config = relay.as_ref().unwrap().config(companion.as_ref().unwrap());
         config["env_vars"] = json!([]);
         tasks.spawn(codex_proxy(
@@ -838,6 +857,27 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
 mod tests {
     use super::*;
     #[test]
+    fn codex_loopback_bypasses_proxy_without_losing_user_exclusions() {
+        for (primary, fallback, expected) in [
+            (None, None, "127.0.0.1"),
+            (Some(""), Some("internal.example"), "127.0.0.1"),
+            (None, Some("internal.example"), "internal.example,127.0.0.1"),
+            (Some("internal.example"), None, "internal.example,127.0.0.1"),
+            (
+                Some("upper.example"),
+                Some("lower.example"),
+                "upper.example,127.0.0.1",
+            ),
+            (Some("*"), None, "*,127.0.0.1"),
+        ] {
+            assert_eq!(
+                codex_no_proxy(primary.map(OsString::from), fallback.map(OsString::from)),
+                OsString::from(expected)
+            );
+        }
+    }
+
+    #[test]
     fn shared_launcher_catalog_supersedes_old_pane_snapshots() {
         let directory = tempfile::tempdir().unwrap();
         let catalog = directory.path().join(LAUNCH_CATALOG);
@@ -849,13 +889,13 @@ mod tests {
         let snapshot =
             serde_json::to_string(&BTreeMap::from([("codex", launch("codex"))])).unwrap();
         let mut current =
-            BTreeMap::from([("codex", launch("codex")), ("qodercn", launch("qoder"))]);
+            BTreeMap::from([("codex", launch("codex")), ("qodercn", launch("qodercn"))]);
         std::fs::write(&catalog, serde_json::to_vec(&current).unwrap()).unwrap();
         assert_eq!(
             resolve_native_executable("qodercn", Some(&catalog), Some(&snapshot))
                 .unwrap()
                 .program,
-            "qoder"
+            "qodercn"
         );
         current.get_mut("codex").unwrap().program = "custom".into();
         std::fs::write(&catalog, serde_json::to_vec(&current).unwrap()).unwrap();
@@ -868,7 +908,7 @@ mod tests {
             resolve_native_executable("QODERCN.EXE", Some(&catalog), Some(&snapshot))
                 .unwrap()
                 .program,
-            "qoder"
+            "qodercn"
         );
         std::fs::write(&catalog, b"invalid").unwrap();
         assert_eq!(

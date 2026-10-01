@@ -268,7 +268,8 @@ fn test_detect_known_agents() {
                 ("vibe-acp", CLIAgent::Vibe),
                 ("grok", CLIAgent::Grok),
                 ("qoder", CLIAgent::Qoder),
-                ("qodercn", CLIAgent::Qoder),
+                ("qodercn", CLIAgent::QoderCN),
+                ("qoderclicn", CLIAgent::QoderCN),
                 ("trae", CLIAgent::Trae),
                 ("traecn", CLIAgent::Trae),
             ] {
@@ -365,14 +366,19 @@ fn test_detect_qoder() {
                 "qoder",
                 "qodercli",
                 "qoder-cli",
-                "qodercn",
                 "qoder --settings test",
                 "qodercli run",
-                "qodercn start",
             ] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
                     Some(CLIAgent::Qoder),
+                    "failed to detect {command}",
+                );
+            }
+            for command in ["qodercn", "qoderclicn", "qodercn --settings test"] {
+                assert_eq!(
+                    CLIAgent::detect(command, None, None, ctx),
+                    Some(CLIAgent::QoderCN),
                     "failed to detect {command}",
                 );
             }
@@ -736,7 +742,9 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
         (CLIAgent::Codex, "codex review"),
         (CLIAgent::Codex, "codex app-server"),
         (CLIAgent::Claude, "claude -p 'task'"),
-        (CLIAgent::Qoder, "qodercn --print 'task'"),
+        (CLIAgent::Qoder, "qoder --print 'task'"),
+        (CLIAgent::QoderCN, "qodercn --print 'task'"),
+        (CLIAgent::QoderCN, "qodercn -p 'task'"),
         (CLIAgent::Antigravity, "agy -p 'task'"),
         (CLIAgent::Vibe, "vibe-acp"),
     ] {

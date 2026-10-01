@@ -156,8 +156,14 @@ fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<Pa
             home.join(".cargo/bin"),
             home.join(".npm-global/bin"),
         ]);
-        if matches!(command, "qoder" | "qodercli" | "qoder-cli" | "qodercn") {
-            paths.extend([home.join(".qoder/entry"), home.join(".qoder-cn/entry")]);
+        if matches!(command, "qoder" | "qodercli" | "qoder-cli") {
+            paths.push(home.join(".qoder/entry"));
+        }
+        if matches!(command, "qodercn" | "qoderclicn") {
+            paths.extend([
+                home.join(".qoder-cn/entry"),
+                home.join(".qoder-cn/bin/qoderclicn"),
+            ]);
         }
     }
     #[cfg(unix)]
@@ -320,7 +326,11 @@ fn adapter(
             "amp.mcpServers",
             standard.clone(),
         )),
-        "agent" | "cursor-agent" => Some((".cursor/mcp.json", "mcpServers", standard.clone())),
+        "agent" | "cursor-agent" => Some((
+            ".cursor/mcp.json",
+            "mcpServers",
+            json!({"command":bridge, "args":["mcp"], "env":{"WARP_AGENT_ENDPOINT":"${env:WARP_AGENT_ENDPOINT}", "WARP_AGENT_CAPABILITY":"${env:WARP_AGENT_CAPABILITY}", "WARP_TERMINAL_SESSION_UUID":"${env:WARP_TERMINAL_SESSION_UUID}"}}),
+        )),
         "copilot" => Some((
             ".copilot/mcp-config.json",
             "mcpServers",
@@ -857,6 +867,27 @@ mod tests {
             Some(cli),
             "Vendor entry fallback must work without a login-shell PATH"
         );
+        let qoder = entry.join("qoder");
+        std::fs::write(&qoder, "#!/bin/sh\nexit 1\n").unwrap();
+        std::fs::set_permissions(&qoder, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let available = discover(
+            vec![
+                ("qoder".into(), "qoder".into()),
+                ("qodercn".into(), "qodercn".into()),
+            ],
+            Path::new("/bridge"),
+            paths,
+        );
+        assert_eq!(available.len(), 2);
+        assert!(available[0].installed.is_none());
+        let selected = available[1].installed.clone().unwrap();
+        assert_eq!(selected.program, "qodercn");
+        let preferences = Preferences {
+            enabled: true,
+            selected: BTreeMap::from([("qodercn".into(), selected)]),
+        };
+        assert!(preferences.programs().contains("qodercn"));
+        assert!(!preferences.programs().contains("qoder"));
     }
     #[cfg(unix)]
     #[test]
@@ -877,6 +908,14 @@ mod tests {
                 adapter(home.path(), command, &cli, Path::new("/bridge"), &[]).is_some(),
                 "Missing native setup for {command}"
             );
+        }
+        let Adapter::Json { value, .. } =
+            adapter(home.path(), "cursor-agent", &cli, Path::new("/bridge"), &[]).unwrap()
+        else {
+            panic!("Cursor must use native JSON configuration")
+        };
+        for name in ["WARP_AGENT_ENDPOINT", "WARP_AGENT_CAPABILITY", "WARP_TERMINAL_SESSION_UUID"] {
+            assert_eq!(value["env"][name], format!("${{env:{name}}}"));
         }
         let path = home.path().join("vibe.toml");
         let original = "# user settings\n[[mcp_servers]]\nname = 'user-server'\ntransport = 'stdio'\ncommand = 'user-command'\n";

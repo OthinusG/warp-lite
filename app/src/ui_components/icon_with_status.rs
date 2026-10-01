@@ -121,11 +121,15 @@ pub(crate) fn render_icon_with_status(
             let icon_color = agent.brand_icon_color();
             let icon_element = if matches!(
                 agent,
-                CLIAgent::DeepSeekHarness | CLIAgent::Qoder | CLIAgent::Trae | CLIAgent::Hermes
+                CLIAgent::DeepSeekHarness
+                    | CLIAgent::Qoder
+                    | CLIAgent::QoderCN
+                    | CLIAgent::Trae
+                    | CLIAgent::Hermes
             ) {
                 let logo_path = match agent {
                     CLIAgent::DeepSeekHarness => WarpIcon::DeepSeekHarnessLogo.into(),
-                    CLIAgent::Qoder => WarpIcon::QoderLogo.into(),
+                    CLIAgent::Qoder | CLIAgent::QoderCN => WarpIcon::QoderLogo.into(),
                     CLIAgent::Trae => WarpIcon::TraeLogo.into(),
                     CLIAgent::Hermes => WarpIcon::HermesLogo.into(),
                     _ => unreachable!(),
