@@ -19,6 +19,12 @@
 
 ## Native Agent Communication Design
 
+- Continuation audit on 2026-10-02: source `fb298cb` failed its dormant wake fixture
+  because it expected `AgentReady` to permit delivery during an unfinished delegated
+  task. Keep the executing-task readiness guard; submit/fail/confirm cancellation
+  before testing a new idle wake. `PROGRESS.md` remains the engineering handover;
+  static UI and real-device/model acceptance must remain separate from protocol CI.
+
 - Continuation on 2026-10-02: the user authorized completing the v2 plan, GitHub pushes/builds and necessary operations without further permission questions, superseding the earlier readiness-repair no-upload restriction. Keep real-device/model acceptance separate from source/protocol tests. The native panel starts as an explicitly labeled static checkpoint (`WARP_COLLABORATION_PREVIEW=1`); live controller wiring waits for visual QA. The first executed v3 Windows suite exposed missing persisted assignee/reviewer updates and nested `RefCell` connection borrows in space/history reads. Cancellation-pending tasks must continue blocking another delegated start/claim until confirmed stopped.
 - Review isolation: `WARP_DATA_PROFILE` works only in debug builds; release bundles ignore it. The packaging script's `--debug` mode keeps debug assertions, uses a separate review bundle identifier and supports GitHub-built native UI review. Match the app and companion: local IPC now checks protocol major 2 and registration features before exposing MCP tools. Confirmed cancellation must belong to the original attempt's run, not merely an agent name reclaimed by another session. Archive removes tasks from routine peer summaries; full history remains explicitly paginated.
 - Reclaiming a disconnected agent identity does not prove its old process or daemon stopped. TaskStart must reject running/unknown recovery; the operator must explicitly fence the uncertain execution before retry creates a new revision. Keep unknown attempts' finish time unset and retain the recorded override risk. An application/terminal binding disappearing alone is not evidence of a stopped native background task.

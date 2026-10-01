@@ -629,7 +629,22 @@ fn dormant_agents_wake_without_an_open_wait_call() {
     };
     transport::call(&server.broker.endpoint, &issuer).unwrap();
     worker.operation = Operation::AgentReady;
+    let readiness = transport::call(&server.broker.endpoint, &worker).unwrap();
+    assert_eq!(readiness["ready"], false, "An executing task cannot announce readiness");
+    thread::sleep(Duration::from_millis(850));
+    assert!(server.broker.wakeups().is_empty());
+    worker.operation = Operation::TaskSubmit {
+        task_id: inbox["messages"][0]["task_id"].as_str().unwrap().to_owned(),
+        revision: 1,
+        result: "Inspected code".into(),
+        evidence: "Focused inspection completed".into(),
+        evidence_ids: vec![],
+        expected_version: None,
+        attempt_id: None,
+        request_id: request_id(),
+    };
     transport::call(&server.broker.endpoint, &worker).unwrap();
+    worker.operation = Operation::AgentReady;
     server.broker.user_input(&worker.terminal, false);
     transport::call(&server.broker.endpoint, &worker).unwrap();
     thread::sleep(Duration::from_millis(850));

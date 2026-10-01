@@ -2,6 +2,20 @@
 
 ## Active continuation — 2026-10-02
 
+### Recovered checkpoint for the current continuation
+
+- Latest inherited source: `fb298cb`; working tree contained only an untracked
+  local `.codegraph/` index. Existing engineering progress is recorded below.
+- Run `36915402177` failed on both platforms in
+  `dormant_agents_wake_without_an_open_wait_call`: the fixture started a task,
+  then expected model readiness to override its unfinished execution. The
+  production guard correctly refused. The fixture now asserts refusal, submits
+  the task, then checks draft protection and subsequent wake. Both OS Rust
+  tests/checks run on GitHub; no local Rust compilation.
+- Continue with M2 static visual acceptance before live integration, functional
+  M4 shared-space routing, M6 remote coordination and the M0/M7 native acceptance
+  gates. No missing real-device or real-model gate is marked passed.
+
 The user authorized completing the plan, pushing source and GitHub builds, and
 subsequently confirmed that necessary actions require no further permission questions.
 This supersedes the earlier no-upload instruction for the readiness repair.
