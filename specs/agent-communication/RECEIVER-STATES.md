@@ -12,6 +12,7 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | --- | --- | --- |
 | Not installed or native adapter unavailable | Visible unsupported state when installed; never authorize or claim connected | Native adapter/discovery checks |
 | Configured but MCP not loaded | Restart guidance; cannot be addressed as a live participant | Native discovery and recipient authentication checks |
+| MCP discovery before terminal activation | Brief bounded retry for an unregistered valid binding; never retry expired runs or capabilities | Real child-process stdio startup race regression |
 | Fresh bare interactive launch | Native discovery grants one initial readiness lease; no first human/model prompt needed | Every-program startup matrix and app PTY regression |
 | Startup with task arguments | No inferred idle lease; require native idle event or final-action readiness | Every-program startup matrix |
 | Batch/print or ACP/server mode | Refuse automatic prompt paste into noninteractive/protocol stdin even if MCP is present | Managed alias and native batch-mode regression |

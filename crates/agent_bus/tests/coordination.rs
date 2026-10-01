@@ -789,3 +789,36 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     );
     assert!(transport::call(&broker.endpoint, &original).is_err());
 }
+#[tokio::test]
+async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_runs() {
+    use rmcp::{transport::TokioChildProcess, ServiceExt};
+    use warp_agent_bus::transport::{CAPABILITY, ENDPOINT, TERMINAL};
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let capability = server.broker.prepare("starting").unwrap();
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+    command
+        .arg("mcp")
+        .env(ENDPOINT, &server.broker.endpoint)
+        .env(CAPABILITY, capability)
+        .env(TERMINAL, "starting");
+    let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+    let broker = server.broker.clone();
+    let activation = tokio::task::spawn_blocking(move || {
+        thread::sleep(Duration::from_millis(250));
+        broker
+            .activate("starting", "codex", "/project", true)
+            .unwrap();
+    });
+    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 12);
+    activation.await.unwrap();
+    server.broker.end("starting");
+    server
+        .broker
+        .activate("starting", "codex", "/project", true)
+        .unwrap();
+    assert!(
+        client.list_tools(None).await.is_err(),
+        "A discovered old bridge must not adopt a replacement run"
+    );
+    client.cancel().await.unwrap();
+}
