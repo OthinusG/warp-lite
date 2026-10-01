@@ -11,3 +11,4 @@ input_classifier/models/**/*tokenizer.json linguist-generated=true
 *.sh text eol=lf
 *.ps1 text eol=lf
 *.iss text eol=lf
+*.desktop text eol=lf
