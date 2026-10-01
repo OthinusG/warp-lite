@@ -1,5 +1,7 @@
 # Native CLI Agent Communication
 
+The proposed next implementation is specified in [the reliability and remote collaboration plan](../agent-communication-v2/PLAN.md). That plan describes future work; the current implementation and historical decisions remain documented below.
+
 ## Context
 
 See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end events; Qoder and Antigravity already have command recognition but no rich lifecycle listener. `WARP_TERMINAL_SESSION_UUID` is already assigned at pane creation. The existing PTY submit helper handles vendor-specific paste/Enter strategies but does not prove prompt consumption or guard all delayed writes against a replacement process.
