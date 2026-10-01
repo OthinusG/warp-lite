@@ -51,7 +51,6 @@ pub enum ThemeKind {
     Adeberry,
     #[schemars(description = "Phenomenon")]
     Phenomenon,
-    #[default]
     #[schemars(description = "Dark")]
     Dark,
     #[schemars(description = "Dracula")]
@@ -68,6 +67,9 @@ pub enum ThemeKind {
     WillowDream,
     #[schemars(description = "Light")]
     Light,
+    #[default]
+    #[schemars(description = "Claude Warm Light")]
+    ClaudeWarmLight,
     #[schemars(description = "Dark City")]
     DarkCity,
     #[schemars(description = "Gruvbox Dark")]
@@ -113,6 +115,7 @@ impl std::fmt::Display for ThemeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match &self {
             ThemeKind::Light => "Light",
+            ThemeKind::ClaudeWarmLight => "Claude Warm Light",
             ThemeKind::Dark => "Dark",
             ThemeKind::Dracula => "Dracula",
             ThemeKind::SolarizedDark => "Solarized Dark",
@@ -475,6 +478,7 @@ impl WarpThemeConfig {
             ),
             (ThemeKind::Dark, dark_theme()),
             (ThemeKind::Light, light_theme()),
+            (ThemeKind::ClaudeWarmLight, claude_warm_light()),
             (ThemeKind::SolarizedDark, solarized_dark()),
             (ThemeKind::SolarizedLight, solarized_light()),
             (ThemeKind::Dracula, dracula()),

@@ -50,6 +50,27 @@ const LIGHT_MODE_BRIGHT_COLORS: AnsiColors = AnsiColors::new(
     AnsiColor::from_u32(0xF1F1F1FF),
 );
 
+const CLAUDE_WARM_LIGHT_NORMAL_COLORS: AnsiColors = AnsiColors::new(
+    AnsiColor::from_u32(0x2D2D2BFF),
+    AnsiColor::from_u32(0xB75C45FF),
+    AnsiColor::from_u32(0x4F7D53FF),
+    AnsiColor::from_u32(0x9A7138FF),
+    AnsiColor::from_u32(0x657594FF),
+    AnsiColor::from_u32(0x9A6688FF),
+    AnsiColor::from_u32(0x5D7D78FF),
+    AnsiColor::from_u32(0xE8E1D8FF),
+);
+const CLAUDE_WARM_LIGHT_BRIGHT_COLORS: AnsiColors = AnsiColors::new(
+    AnsiColor::from_u32(0x6F6A62FF),
+    AnsiColor::from_u32(0xFF5F38FF),
+    AnsiColor::from_u32(0x00A85AFF),
+    AnsiColor::from_u32(0xBF8740FF),
+    AnsiColor::from_u32(0x8796B5FF),
+    AnsiColor::from_u32(0xCC7D5EFF),
+    AnsiColor::from_u32(0x7FAAA4FF),
+    AnsiColor::from_u32(0xFFFDF8FF),
+);
+
 const SOLARIZED_DARK_NORMAL_COLORS: AnsiColors = AnsiColors::new(
     AnsiColor::from_u32(0x073642FF),
     AnsiColor::from_u32(0xDC322FFF),
@@ -222,6 +243,13 @@ pub(super) fn light_mode_colors() -> TerminalColors {
     TerminalColors::new(LIGHT_MODE_NORMAL_COLORS, LIGHT_MODE_BRIGHT_COLORS)
 }
 
+pub(super) fn claude_warm_light_colors() -> TerminalColors {
+    TerminalColors::new(
+        CLAUDE_WARM_LIGHT_NORMAL_COLORS,
+        CLAUDE_WARM_LIGHT_BRIGHT_COLORS,
+    )
+}
+
 pub(super) fn dark_mode_colors() -> TerminalColors {
     TerminalColors::new(DARK_MODE_NORMAL_COLORS, DARK_MODE_BRIGHT_COLORS)
 }
@@ -282,6 +310,19 @@ pub fn light_theme() -> WarpTheme {
         light_mode_colors(),
         None,
         Some("Light".to_string()),
+    )
+}
+
+pub(super) fn claude_warm_light() -> WarpTheme {
+    WarpTheme::new(
+        Fill::Solid(ColorU::from_u32(0xF7F6F2FF)),
+        ColorU::from_u32(0x2D2D2BFF),
+        Fill::Solid(ColorU::from_u32(0xCC7D5EFF)),
+        None,
+        Some(Details::Lighter),
+        claude_warm_light_colors(),
+        None,
+        Some("Claude Warm Light".to_string()),
     )
 }
 
