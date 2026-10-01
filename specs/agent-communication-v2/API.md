@@ -115,10 +115,17 @@ The panel can expose the corresponding operations to the human operator. Separat
 
 `kind` is one of `file`, `commit`, `diff`, `test`. All descriptors identify the producing workspace and task attempt through authenticated context.
 
-- `file`: relative path, optional content hash and optional commit. A hash is validated before being labeled locally verified.
+- `file`: relative path, optional content hash and optional commit. Local verification
+  requires a 64-digit SHA-256 hash (optionally prefixed `sha256:`), hashes the
+  explicitly requested repository file and rejects a mismatch. Verification reads
+  at most 64 MiB and excludes credential paths. Metadata creation never reads files.
 - `commit`: repository ID and Git object ID; an optional branch is descriptive, not proof of content identity.
 - `diff`: relative path to a patch or base/head commit IDs. No automatic patch application or fetching.
 - `test`: command label, reported outcome (`passed`, `failed`, `not_run`), optional exit code and bounded summary/reference. A reported exit code is not independently verified merely because it is structured.
+
+Commit/diff object verification accepts only full hexadecimal Git object IDs and
+checks existing local objects with lazy fetching disabled and a bounded process
+deadline. It does not execute a test command, apply a patch or fetch remote content.
 
 Reject absolute paths, traversal and schemes masquerading as local files. Do not read a referenced file until an authorized local viewer/verifier requests it. The first remote release transfers descriptors and summaries only, not referenced bytes.
 

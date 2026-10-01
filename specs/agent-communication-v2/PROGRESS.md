@@ -86,6 +86,15 @@ complete. No plan checkbox has been promoted solely from source inspection.
   Explicit operator fencing records `unknown`/`overridden`, rather than stopped
   execution, before a new revision can be retried. Migration/recovery fixtures
   are updated to verify the stricter boundary.
+- Source `75f47f9` passed both OS protocol suites and entered application checks.
+  Local verification of evidence now compares SHA-256 content and checks existing
+  Git objects with fetching disabled. Opened-file handles are checked against the
+  authorized workspace before reading; credential paths and files over 64 MiB
+  are rejected. Tests include content mismatch and missing/malformed commits.
+  This new verifier awaits CI. It reuses pinned sha2/libc/Windows dependencies.
+- A workflow-dispatch `protocol_only` option supports focused cross-platform
+  backend iteration without cancelling an unrelated full application build.
+  Its success is protocol acceptance only; skipped app checks are not passed.
 
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)

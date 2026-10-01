@@ -13692,17 +13692,20 @@ dependencies = [
  "diesel",
  "dirs 6.0.0",
  "futures-util",
+ "libc",
  "libsqlite3-sys",
  "rmcp",
  "schemars 1.0.4",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "tempfile",
  "tokio",
  "toml 0.8.23",
  "unicode-segmentation",
  "uuid",
+ "windows 0.62.2",
 ]
 
 [[package]]

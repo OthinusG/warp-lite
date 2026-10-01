@@ -1,6 +1,11 @@
 name: Validate Warpai communication
 on:
   workflow_dispatch:
+    inputs:
+      protocol_only:
+        description: 'Run both OS protocol suites and upload native probes; skip application builds'
+        type: boolean
+        default: false
   push:
     branches: ['warp-lite/main', 'warp-lite/agent-communication']
 permissions:
@@ -42,9 +47,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Prepare Windows application build
+        if: ${{ !inputs.protocol_only }}
         shell: pwsh
         run: choco install protoc -y
       - name: Check Windows default and platform application
+        if: ${{ !inputs.protocol_only }}
         run: |
           cargo check -p warp --bin warp-oss --locked
           cargo check -p warp --bin warp-oss --features warp_platform --locked
@@ -90,10 +97,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Check default Lite application
+        if: ${{ !inputs.protocol_only }}
         run: cargo check -p warp --bin warp-oss --locked
       - name: Check platform application
+        if: ${{ !inputs.protocol_only }}
         run: cargo check -p warp --bin warp-oss --features warp_platform --locked
       - name: Test dormant wake and settings configuration
+        if: ${{ !inputs.protocol_only }}
         run: |
           cargo test -p warp --lib collaboration_fixtures_cover_required_states_and_long_content --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
@@ -104,18 +114,21 @@ jobs:
           cargo test -p warp --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
           cargo test -p warp --lib test_detect_qoder --locked
       - name: Build isolated native UI review artifact
+        if: ${{ !inputs.protocol_only }}
         run: |
           cargo build -p warp --bin warp-oss --features release_bundle --locked
           script/build-warp-lite-app.sh --debug
           codesign --verify --deep --strict WarpaiReview.app
           ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
       - name: Upload isolated native UI review artifact
+        if: ${{ !inputs.protocol_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-collaboration-UI-review-macos
           path: WarpaiReview.app.zip
           retention-days: 7
       - name: Build and package review artifacts
+        if: ${{ !inputs.protocol_only }}
         run: |
           cargo build --release --bin warp-oss --locked
           cargo build --release -p warp-agent-bus --bin warp-agent --locked
@@ -125,6 +138,7 @@ jobs:
           codesign --verify --deep --strict Warpai.app
           ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !inputs.protocol_only }}
         with:
           name: Warpai-agent-communication-macos
           path: Warpai.app.zip

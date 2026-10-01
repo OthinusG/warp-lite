@@ -3296,7 +3296,7 @@ impl Store {
         }))
     }
 
-    /// Locally verified needs a reference to check: a content hash or a commit object.
+    /// Verification is an explicit local operator read, never a model's provenance claim.
     fn evidence_verify(
         &self,
         project: &str,
@@ -3304,17 +3304,25 @@ impl Store {
         evidence_id: &str,
         verified: bool,
     ) -> Result<Value> {
-        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.hash AS hash, evidence.commit_id AS commit_id, tasks.project AS project FROM evidence JOIN tasks ON tasks.id = evidence.task_id WHERE evidence.id = ?")
+        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.kind AS kind, evidence.path AS path, evidence.hash AS hash, evidence.commit_id AS commit_id, evidence.base AS base, evidence.head AS head, evidence.device AS device, tasks.project AS project FROM evidence JOIN tasks ON tasks.id = evidence.task_id WHERE evidence.id = ?")
             .bind::<Text, _>(evidence_id)
             .get_result::<EvidenceCheckRow>(&mut *self.connection.borrow_mut())
             .optional()?;
         let row = row
             .filter(|row| row.project == project)
             .ok_or_else(|| scope_denied("Evidence not found in this project"))?;
-        ensure!(
-            row.hash.is_some() || row.commit_id.is_some(),
-            invalid_state("Evidence without a hash or commit has nothing locally verifiable")
-        );
+        if verified {
+            ensure!(row.device.is_none(), invalid_state("Remote evidence cannot be verified as local content"));
+            match row.kind.as_str() {
+                "file" | "diff" if row.path.is_some() => verify_file(project, row.path.as_deref().unwrap(), row.hash.as_deref())?,
+                "commit" => verify_commit(project, row.commit_id.as_deref())?,
+                "diff" => {
+                    verify_commit(project, row.base.as_deref())?;
+                    verify_commit(project, row.head.as_deref())?;
+                }
+                _ => return Err(invalid_state("Reported test outcomes are not independently verified")),
+            }
+        }
         diesel::sql_query("UPDATE evidence SET verified = ? WHERE id = ?")
             .bind::<Integer, _>(i32::from(verified))
             .bind::<Text, _>(evidence_id)
@@ -3715,6 +3723,113 @@ impl Store {
             .bind::<Text, _>(id)
             .get_result::<ReservationRow>(&mut *self.connection.borrow_mut())
             .optional()?)
+    }
+}
+
+/// Inspect the opened handle before reading, so a renamed parent cannot redirect verification.
+fn opened_file_path(file: &std::fs::File) -> Result<std::path::PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::{fd::AsRawFd, unix::ffi::OsStringExt};
+        let mut path = vec![0u8; libc::PATH_MAX as usize];
+        // F_GETPATH writes at most PATH_MAX bytes into this owned, initialized buffer.
+        ensure!(unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETPATH, path.as_mut_ptr()) } != -1,
+            invalid_state("Cannot inspect the opened evidence file"));
+        let length = path.iter().position(|byte| *byte == 0)
+            .ok_or_else(|| invalid_state("Evidence path is too long"))?;
+        path.truncate(length);
+        Ok(std::ffi::OsString::from_vec(path).into())
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+        use windows::Win32::{Foundation::HANDLE, Storage::FileSystem::{GetFinalPathNameByHandleW, FILE_NAME_NORMALIZED}};
+        let mut path = vec![0u16; 32768];
+        // The borrowed handle stays open and the API receives the full slice length.
+        let length = unsafe { GetFinalPathNameByHandleW(HANDLE(file.as_raw_handle()), &mut path, FILE_NAME_NORMALIZED) } as usize;
+        ensure!(length > 0 && length < path.len(), invalid_state("Cannot inspect the opened evidence file"));
+        Ok(std::ffi::OsString::from_wide(&path[..length]).into())
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = file;
+        Err(invalid_state("Local evidence verification supports macOS and Windows"))
+    }
+}
+
+fn evidence_path_allowed(path: &std::path::Path) -> bool {
+    path.components().all(|component| {
+        let value = component.as_os_str().to_string_lossy().to_ascii_lowercase();
+        !matches!(value.as_str(), ".env" | ".git" | ".ssh" | ".aws" | ".npmrc" | ".netrc" | "credentials" | "id_rsa" | "id_ed25519")
+            && !value.starts_with(".env.")
+            && ![".pem", ".p12", ".pfx", ".key"].iter().any(|suffix| value.ends_with(*suffix))
+    })
+}
+
+fn verify_file(project: &str, path: &str, hash: Option<&str>) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let hash = hash.map(|hash| hash.strip_prefix("sha256:").unwrap_or(hash))
+        .ok_or_else(|| invalid_state("File verification requires a SHA-256 hash"))?;
+    ensure!(hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        invalid_input("File verification requires a 64-digit SHA-256 hash"));
+    ensure!(evidence_path_allowed(std::path::Path::new(path)), invalid_input("Credential paths cannot be verified as evidence"));
+    let relative = crate::normalize_workspace_path(project, path)?;
+    let root = std::path::Path::new(project).canonicalize()
+        .map_err(|_| invalid_state("Producing workspace is unavailable"))?;
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    let file = options.open(root.join(relative)).map_err(|_| invalid_state("Evidence file is unavailable"))?;
+    let opened = opened_file_path(&file)?;
+    let relative = opened.strip_prefix(&root).map_err(|_| invalid_input("Opened evidence escapes the workspace"))?;
+    ensure!(evidence_path_allowed(relative), invalid_input("Credential paths cannot be verified as evidence"));
+    let metadata = file.metadata().map_err(|_| invalid_state("Evidence file cannot be inspected"))?;
+    const LIMIT: u64 = 64 * 1024 * 1024;
+    ensure!(metadata.is_file() && metadata.len() <= LIMIT, invalid_input("Evidence must be a regular file at most 64 MiB"));
+    let mut file = file.take(LIMIT + 1);
+    let mut digest = Sha256::new();
+    let mut buffer = [0u8; 8192];
+    let mut bytes = 0u64;
+    loop {
+        let count = file.read(&mut buffer).map_err(|_| invalid_state("Evidence file cannot be read"))?;
+        if count == 0 { break; }
+        bytes += count as u64;
+        ensure!(bytes <= LIMIT, invalid_input("Evidence file exceeds 64 MiB"));
+        digest.update(&buffer[..count]);
+    }
+    ensure!(format!("{:x}", digest.finalize()).eq_ignore_ascii_case(hash), invalid_state("Evidence content hash does not match"));
+    Ok(())
+}
+
+fn verify_commit(project: &str, commit: Option<&str>) -> Result<()> {
+    use std::{process::{Command, Stdio}, time::Instant};
+    let commit = commit.ok_or_else(|| invalid_state("Commit verification requires a Git object ID"))?;
+    ensure!(matches!(commit.len(), 40 | 64) && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        invalid_input("Commit verification requires a full hexadecimal Git object ID"));
+    let mut child = Command::new("git").args(["--no-lazy-fetch", "--no-optional-locks", "-C", project, "cat-file", "-e"])
+        .arg(format!("{commit}^{{commit}}"))
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+        .spawn().map_err(|_| invalid_state("Git is unavailable for local object verification"))?;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                ensure!(status.success(), invalid_state("Commit is unavailable locally or Git lacks no-fetch support"));
+                return Ok(());
+            }
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(invalid_state("Local Git object verification did not finish"));
+            }
+        }
     }
 }
 
@@ -4177,10 +4292,20 @@ struct ReservationRow {
 struct EvidenceCheckRow {
     #[diesel(sql_type = Text)]
     task_id: String,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    path: Option<String>,
     #[diesel(sql_type = Nullable<Text>)]
     hash: Option<String>,
     #[diesel(sql_type = Nullable<Text>)]
     commit_id: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    base: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    head: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    device: Option<String>,
     #[diesel(sql_type = Text)]
     project: String,
 }
@@ -5883,8 +6008,35 @@ mod tests {
     #[test]
     fn evidence_is_attempt_scoped_and_operator_verified() {
         let store = Store::open(":memory:").unwrap();
-        let issuer = actor(&store, "issuer");
-        let worker = actor(&store, "worker");
+        use sha2::{Digest, Sha256};
+        let checkout = tempfile::tempdir().unwrap();
+        let root = checkout.path().canonicalize().unwrap();
+        let project = root.to_str().unwrap();
+        std::fs::create_dir(root.join("src")).unwrap();
+        let contents = b"pub fn answer() -> u8 { 42 }\n";
+        std::fs::write(root.join("src/lib.rs"), contents).unwrap();
+        let hash = format!("{:x}", Sha256::digest(contents));
+        assert_eq!(code(&verify_file(project, ".env", Some(&hash)).unwrap_err()), "invalid_input");
+        let oversized = std::fs::File::create(root.join("oversized.bin")).unwrap();
+        oversized.set_len(64 * 1024 * 1024 + 1).unwrap();
+        assert_eq!(code(&verify_file(project, "oversized.bin", Some(&hash)).unwrap_err()), "invalid_input");
+        drop(oversized);
+        let git = |args: &[&str]| {
+            std::process::Command::new("git").args(["-C", project]).args(args)
+                .stdin(std::process::Stdio::null()).stderr(std::process::Stdio::null())
+                .output().unwrap()
+        };
+        assert!(git(&["init", "--quiet", "--template="]).status.success());
+        assert!(git(&["add", "src/lib.rs"]).status.success());
+        assert!(git(&["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+            "-c", "commit.gpgsign=false", "-c", "core.hooksPath=missing-hooks", "commit", "--quiet", "-m", "Fixture"]).status.success());
+        let head = git(&["rev-parse", "HEAD"]);
+        let head = std::str::from_utf8(&head.stdout).unwrap().trim();
+        verify_commit(project, Some(head)).unwrap();
+        assert_eq!(code(&verify_commit(project, Some("--bad")).unwrap_err()), "invalid_input");
+        assert_eq!(code(&verify_commit(project, Some(&"0".repeat(40))).unwrap_err()), "invalid_state");
+        let issuer = store.register("issuer", "custom", project, "issuer").unwrap();
+        let worker = store.register("worker", "custom", project, "worker").unwrap();
         let task = store
             .execute(
                 &issuer,
@@ -5910,7 +6062,7 @@ mod tests {
                     kind: "file".into(),
                     attempt_id: Some(attempt_id.clone()),
                     path: Some("/etc/passwd".into()),
-                    hash: Some("deadbeef".into()),
+                    hash: Some(hash.clone()),
                     commit: None,
                     repository: None,
                     branch: None,
@@ -5934,7 +6086,7 @@ mod tests {
                     kind: "file".into(),
                     attempt_id: Some(attempt_id.clone()),
                     path: Some("src/lib.rs".into()),
-                    hash: Some("deadbeef".into()),
+                    hash: Some(hash.clone()),
                     commit: None,
                     repository: None,
                     branch: None,
@@ -6011,7 +6163,7 @@ mod tests {
         assert_eq!(store.task(&issuer, &task_id).unwrap().evidence_records.len(), 2);
         let unverifiable = store
             .execute_controller(
-                "/project",
+                project,
                 &ControllerOperation::EvidenceVerify {
                     evidence_id: test_id,
                     verified: true,
@@ -6022,7 +6174,7 @@ mod tests {
         assert_eq!(code(&unverifiable), "invalid_state");
         let unknown = store
             .execute_controller(
-                "/project",
+                project,
                 &ControllerOperation::EvidenceVerify {
                     evidence_id: Uuid::new_v4().to_string(),
                     verified: true,
@@ -6031,9 +6183,18 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&unknown), "scope_denied");
+        std::fs::write(root.join("src/lib.rs"), b"changed").unwrap();
+        let mismatch = store.execute_controller(project, &ControllerOperation::EvidenceVerify {
+            evidence_id: file_id.clone(), verified: true,
+            request_id: Uuid::new_v4().to_string()
+        }).unwrap_err();
+        assert_eq!(code(&mismatch), "invalid_state");
+        assert!(!store.task(&issuer, &task_id).unwrap().evidence_records.iter()
+            .find(|evidence| evidence.id == file_id).unwrap().verified);
+        std::fs::write(root.join("src/lib.rs"), contents).unwrap();
         let verified = store
             .execute_controller(
-                "/project",
+                project,
                 &ControllerOperation::EvidenceVerify {
                     evidence_id: file_id.clone(),
                     verified: true,
