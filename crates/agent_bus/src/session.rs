@@ -24,6 +24,7 @@ use tokio::{io::AsyncWriteExt, process::Command};
 use uuid::Uuid;
 
 pub const LAUNCHES: &str = "WARP_AGENT_LAUNCHES";
+pub const LAUNCH_CATALOG: &str = "native-launches.json";
 const PROXY_TOKEN: &str = "WARP_AGENT_SESSION_TOKEN";
 const SERVER: &str = "warp-lite-communication";
 
@@ -66,6 +67,20 @@ fn without_terminal_binding(command: &mut Command) {
 
 /// No command string or shell evaluation: aliases dispatch to the resolved native executable.
 pub fn native_executable(invocation: &str) -> Option<NativeLaunch> {
+    let catalog = std::env::var_os("WARP_AGENT_LAUNCH_PATH")
+        .map(|directory| PathBuf::from(directory).join(LAUNCH_CATALOG));
+    resolve_native_executable(
+        invocation,
+        catalog.as_deref(),
+        std::env::var(LAUNCHES).ok().as_deref(),
+    )
+}
+
+fn resolve_native_executable(
+    invocation: &str,
+    catalog: Option<&Path>,
+    snapshot: Option<&str>,
+) -> Option<NativeLaunch> {
     let name = Path::new(invocation).file_name()?.to_str()?;
     let normalized = if cfg!(windows) {
         name.to_ascii_lowercase()
@@ -77,8 +92,23 @@ pub fn native_executable(invocation: &str) -> Option<NativeLaunch> {
     } else {
         name
     };
-    let mut launches: BTreeMap<String, NativeLaunch> =
-        serde_json::from_str(&std::env::var(LAUNCHES).ok()?).ok()?;
+    if matches!(name, "warp-agent" | "warp-agent.exe") {
+        return None;
+    }
+    let current: Option<BTreeMap<String, NativeLaunch>> = catalog
+        .and_then(|path| std::fs::read(path).ok())
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    let mut launches = current.unwrap_or_default();
+    let old: BTreeMap<String, NativeLaunch> = snapshot
+        .and_then(|json| serde_json::from_str(json).ok())
+        .unwrap_or_default();
+    for (key, mut launch) in old {
+        // A stale pane snapshot preserves execution, but cannot authorize communication.
+        if catalog.is_some() {
+            launch.program = "custom".into();
+        }
+        launches.entry(key).or_insert(launch);
+    }
     let key = launches
         .keys()
         .find(|key| {
@@ -807,6 +837,54 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_launcher_catalog_supersedes_old_pane_snapshots() {
+        let directory = tempfile::tempdir().unwrap();
+        let catalog = directory.path().join(LAUNCH_CATALOG);
+        let launch = |program: &str| NativeLaunch {
+            executable: PathBuf::from(format!("/native/{program}")),
+            program: program.into(),
+            options: Default::default(),
+        };
+        let snapshot =
+            serde_json::to_string(&BTreeMap::from([("codex", launch("codex"))])).unwrap();
+        let mut current =
+            BTreeMap::from([("codex", launch("codex")), ("qodercn", launch("qoder"))]);
+        std::fs::write(&catalog, serde_json::to_vec(&current).unwrap()).unwrap();
+        assert_eq!(
+            resolve_native_executable("qodercn", Some(&catalog), Some(&snapshot))
+                .unwrap()
+                .program,
+            "qoder"
+        );
+        current.get_mut("codex").unwrap().program = "custom".into();
+        std::fs::write(&catalog, serde_json::to_vec(&current).unwrap()).unwrap();
+        let disabled = resolve_native_executable("codex", Some(&catalog), Some(&snapshot)).unwrap();
+        assert_eq!(disabled.program, "custom");
+        assert_eq!(disabled.executable, Path::new("/native/codex"));
+        assert!(resolve_native_executable("warp-agent", Some(&catalog), Some(&snapshot)).is_none());
+        #[cfg(windows)]
+        assert_eq!(
+            resolve_native_executable("QODERCN.EXE", Some(&catalog), Some(&snapshot))
+                .unwrap()
+                .program,
+            "qoder"
+        );
+        std::fs::write(&catalog, b"invalid").unwrap();
+        assert_eq!(
+            resolve_native_executable("codex", Some(&catalog), Some(&snapshot))
+                .unwrap()
+                .program,
+            "custom"
+        );
+        assert_eq!(
+            resolve_native_executable("codex", None, Some(&snapshot))
+                .unwrap()
+                .program,
+            "codex"
+        );
+    }
+
     #[test]
     fn codex_launch_preserves_argument_values_and_native_modes() {
         let options = crate::launch::LaunchOptions::from_help("codex", "  --no-daemon  Embedded\n  -m, --model <MODEL>  Model\n  -p, --profile <PROFILE>  Profile\n  -c, --config <KEY>  Config\n  --enable <FEATURE>  Enable\n  --disable <FEATURE>  Disable\n  --last  Last\n  --all  All\n  --add-dir <DIR>  Directory\n  -i, --image <FILE>...  Images");

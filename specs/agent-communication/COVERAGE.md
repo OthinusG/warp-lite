@@ -67,6 +67,8 @@ The common Warp broker and per-launch relay have simulated isolation coverage fo
 | Other managed native stdio clients | Existing documented adapters and terminal binding through the common Warp broker | Common protocol/setup coverage; authenticated native acceptance pending |
 | Arbitrary vendor external daemon or explicit remote attachment | No general per-terminal binding guarantee | Requires a verified vendor session context API; not implemented by environment passthrough |
 
+Codex loaded-thread resume can ignore overrides when another client is subscribed or a turn is running, as shown in the [native thread processor](https://github.com/openai/codex/blob/rust-v0.159.2/codex-rs/app-server/src/request_processors/thread_processor.rs). Concurrent attachments to the same already-loaded conversation are not established as isolated participants.
+
 Codex explicit remote endpoints, unknown launch syntax and server-feature compatibility overrides retain native behavior; they are not claimed as transparently bound shared transports. No shared daemon is restarted to acquire a pane's environment.
 
 OpenCode's documented [server API](https://opencode.ai/docs/server/) exposes instance configuration and dynamic MCP addition separately from session creation. Its [native MCP implementation](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/mcp/index.ts) stores MCP clients by instance. This indicates that replacing one shared MCP entry cannot isolate multiple attached terminals in the same instance; no global replacement is performed. Copilot's [ACP server](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server) permits per-session MCP configuration, but ACP server mode is not an interactive terminal frontend and has no implemented Warpai attachment adapter.
@@ -86,3 +88,5 @@ Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --hel
 ## Receiver feedback repair (2026-10-01)
 
 All types use the same broker readiness lease and guarded PTY path. Listener existence and stale InProgress presentation no longer block explicit final-action MCP readiness. Opaque OSC notifications cannot establish readiness; only structured lifecycle events or the explicit tool can. Queued work shows a native receiver notification, even before readiness. Send/assign report `delivery: queued`; listing exposes `ready` and `pending_count`. Queued delivery never means acknowledgement or completed work. The application regression installs each available native listener and checks draft/permission protection for every enum type.
+
+Private native launch aliases read the current shared runtime catalog after settings changes. Retired aliases preserve native execution; initial feature activation requires a new pane to inherit launch PATH. The catalog contains no terminal credentials.

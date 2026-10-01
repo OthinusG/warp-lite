@@ -147,10 +147,41 @@ impl AgentCommunication {
         model.configure(None, None, ctx);
         model
     }
-    fn policy(&self) {
+    fn native_launches(&self) -> std::collections::BTreeMap<String, warp_agent_bus::session::NativeLaunch> {
+        self.preferences.selected.iter().filter(|(_, entry)| self.preferences.enabled && entry.active)
+            .map(|(command, entry)| (command.clone(), warp_agent_bus::session::NativeLaunch {
+                executable: entry.executable.clone(), program: entry.program.clone(),
+                options: if entry.program == "codex" { entry.launch_options.clone() } else { Default::default() },
+            })).collect()
+    }
+    fn policy(&mut self) {
         if let Some(broker) = BROKER.get() {
             let programs = self.preferences.programs();
             broker.set_programs(Some(programs));
+        }
+        if let Some(server) = &self._server {
+            let path = server.launcher_directory().join(warp_agent_bus::session::LAUNCH_CATALOG);
+            let result = (|| -> anyhow::Result<()> {
+                let mut launches: std::collections::BTreeMap<String, warp_agent_bus::session::NativeLaunch> = match std::fs::read(&path) {
+                    Ok(bytes) => serde_json::from_slice(&bytes)?,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => Default::default(),
+                    Err(error) => return Err(error.into()),
+                };
+                // Retired aliases still exist in older panes' PATH; keep their native executable.
+                for launch in launches.values_mut() { launch.program = "custom".into(); }
+                for (command, entry) in &self.preferences.selected {
+                    launches.insert(command.clone(), warp_agent_bus::session::NativeLaunch {
+                        executable: entry.executable.clone(), program: "custom".into(), options: Default::default(),
+                    });
+                }
+                launches.extend(self.native_launches());
+                setup::atomic_write(&path, &serde_json::to_vec(&launches)?)
+            })();
+            if result.is_err() {
+                if let Some(broker) = BROKER.get() { broker.set_programs(Some(Default::default())); }
+                self.status = "Could not update native launchers; communication remains disabled. Retry setup.".into();
+                log::warn!("Could not publish native agent launch settings");
+            }
         }
     }
     pub(crate) fn configure(
@@ -338,7 +369,7 @@ impl AgentCommunication {
                         if matches!(preferences.selected[&row.command].adapter, setup::Adapter::Vibe(_)) {
                             "Configured — open a new terminal pane, then start Vibe to load its native MCP environment"
                         } else {
-                            "Configured — restart this agent to load the bridge"
+                            "Configured — open a new terminal pane, then start this agent"
                         }
                     } else {
                         "Disabled — cleanup pending; uncheck or retry cleanup"
@@ -359,7 +390,7 @@ impl AgentCommunication {
                 } else if preferences.selected.is_empty() {
                     "Select installed agents to configure communication.".into()
                 } else {
-                    "Restart running agents to reload MCP configuration. Agents in the same project communicate automatically.".into()
+                    "Open a new terminal pane and start the selected agents. Agents in the same project communicate automatically.".into()
                 }
             } else {
                 errors.join("\n")
@@ -468,13 +499,7 @@ pub(crate) fn prepare(
         });
         env.insert("WARP_AGENT_BIN".into(), companion.clone().into_os_string());
         if settings.preferences.enabled {
-            let launches: std::collections::BTreeMap<_, _> = settings.preferences.selected.iter()
-                .filter(|(_, entry)| entry.active)
-                .map(|(command, entry)| (command.clone(), warp_agent_bus::session::NativeLaunch {
-                    executable: entry.executable.clone(), program: entry.program.clone(),
-                    options: if entry.program == "codex" { entry.launch_options.clone() } else { Default::default() },
-                }))
-                .collect();
+            let launches = settings.native_launches();
             if let Some(server) = &settings._server {
                 let directory = server.launcher_directory();
                 if !launches.is_empty() && warp_agent_bus::session::install_launchers(&directory, &companion, &launches).is_ok() {
