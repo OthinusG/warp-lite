@@ -37,7 +37,7 @@ Native UI/device/model gates remain unchanged.
 | M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
 | M4.1 | Space/workspace metadata controller tests | Functional shared-space routing and checkout-qualified agents not implemented |
 | M4.2 | Controller join/leave metadata operations | Scope preview, new-session routing and UI not implemented |
-| M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner reservation tests | Local checkout backend verified; distinct-worktree logical warnings pending |
+| M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner tests; explicit-scope overlap/migration regressions in `bfbc585` | Local physical leases verified; overlap warning Rust tests pending, SQL privacy/migration check passed; UI pending |
 | M4.4 | MCP reserve/renew/release and abandoned-owner metadata | UI conflicts, renewal and release pending |
 | M5.1 | Thread participants, literal search, reply/task/subject validation tests | Backend verified |
 | M5.2 | Attempt-scoped evidence, opened-file SHA-256 and local Git-object tests | Backend verified; file-view integration and remote-unavailable labels pending |

@@ -136,11 +136,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         })
         .with_step(TestStep::new("wait for workspace").add_named_assertion(
             "workspace exists",
-            Box::new(|app, window| {
+            |app, window| {
                 warpui::async_assert!(app.root_view::<RootView>(window).is_some_and(|root| {
                     root.read(app, |root, _| root.workspace_view().is_some())
                 }))
-            }),
+            },
         ))
         .with_step(
             TestStep::new("open tools panel").with_action(|app, window, _| {
@@ -165,9 +165,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(TestStep::new("wait for tools panel").add_named_assertion(
             "tools panel exists",
-            Box::new(|app, window| {
+            |app, window| {
                 warpui::async_assert!(app.views_of_type::<LeftPanelView>(window).is_some())
-            }),
+            },
         ))
         .with_step(
             TestStep::new("select collaboration").with_action(|app, window, _| {
@@ -183,9 +183,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(TestStep::new("wait for fixture panel").add_named_assertion(
             "fixture panel exists",
-            Box::new(|app, window| {
+            |app, window| {
                 warpui::async_assert!(app.views_of_type::<CollaborationPanel>(window).is_some())
-            }),
+            },
         ));
     let mut filenames = Vec::new();
     for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {

@@ -19,6 +19,9 @@
   system accessibility permission, removed integration crate or HOME override
   is needed. Missing PNGs fail the harness. Compilation/render review is pending;
   live controller wiring remains gated by UI-CHECKPOINT.
+  Source `e515973`, run `36940946118` caught ambiguous closure inference caused
+  by unnecessary `Box` wrappers around three generic assertion callbacks. Removed
+  the wrappers to use the driver's direct closure API; render is still pending.
 
 - Latest inherited source: `fb298cb`; working tree contained only an untracked
   local `.codegraph/` index. Existing engineering progress is recorded below.
