@@ -188,8 +188,8 @@ impl Store {
                 let project = legacy
                     .agents
                     .get(&message.from)
-                    .or_else(|| legacy.agents.get(&message.to))
-                    .map(|agent| agent.project.clone())
+                    .zip(legacy.agents.get(&message.to))
+                    .map(|(sender, _)| sender.project.clone())
                     .ok_or_else(|| {
                         anyhow!("Message references an unknown agent; refusing to migrate")
                     })?;
@@ -2373,7 +2373,7 @@ mod tests {
                     if row > 0 {
                         statement.push(',');
                     }
-                    let index = chunk * 200 + row;
+                    let index = chunk * 200 + row + 1;
                     statement.push_str(&format!("('m{index}', '/project', '{}', '{}', '', NULL, NULL, NULL, NULL, NULL, 'message', 0, {index})", a.id, b.id));
                 }
                 connection.batch_execute(&statement).unwrap();

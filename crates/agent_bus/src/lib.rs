@@ -318,14 +318,13 @@ pub(crate) fn subject(value: &str) -> Result<()> {
 }
 
 fn limited(value: &str, max: usize, message: &str) -> Result<()> {
-    ensure!(
-        !value.trim().is_empty()
-            && value.len() <= max
-            && !value
-                .chars()
-                .any(|c| c.is_control() && !matches!(c, '\n' | '\t')),
-        "{}",
-        message
-    );
+    if value.trim().is_empty()
+        || value.len() > max
+        || value
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\n' | '\t'))
+    {
+        return Err(invalid_input(message));
+    }
     Ok(())
 }
