@@ -226,6 +226,7 @@ pub fn tools() -> Vec<Tool> {
             "agent_wait" => "Wait up to 20 seconds for available work. On timeout, poll all outstanding task states, then wait again until all are reviewed or the user stops collaboration.",
             "task_assign" => "Assign a task with acceptance criteria. Reviewer defaults to the assigner; self-review is refused. By default, keep polling every delegated task and wait for actual results; queue admission is not completion.",
             "task_get" => "Read a task visible to its issuer, assignee, or reviewer.",
+            "task_history" => "Read ordered task events, including prior submitted results and reviews, visible only to this task's participants. Page with cursor; task detail contains recent history only.",
             "task_list" => "List tasks visible to you in creation order, filtered by state or assignee; page with cursor.",
             "task_start" => "Start a queued revision. Unknown previous execution requires operator recovery before retry; another run cannot silently take ownership.",
             "task_submit" => "Submit a running revision with its result and verification evidence. This does not accept the task.",

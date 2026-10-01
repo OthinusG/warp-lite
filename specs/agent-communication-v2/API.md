@@ -90,6 +90,7 @@ All mutating rows require `request_id`; existing-resource changes require `expec
 | Proposed tool | Main arguments | Caller and result |
 | --- | --- | --- |
 | `warp_task_list` | state/assignee filters, cursor, limit, include_archived | Authorized visible tasks only |
+| `warp_task_history` | task ID, cursor, limit | Task participant; ordered durable events including prior submitted results/reviews |
 | `warp_task_create_pool` | description, acceptance, eligible agent IDs, reviewer, dependencies, optional deadlines | Issuer; create an explicitly scoped unassigned task |
 | `warp_task_claim` | task ID, expected version | Eligible agent; atomically obtain assignment |
 | `warp_task_progress` | task ID, attempt ID, revision, expected version, note, optional waiting reason/evidence IDs | Active assignee; append attributed progress without changing ownership |
@@ -110,6 +111,13 @@ All mutating rows require `request_id`; existing-resource changes require `expec
 Initial bounds: 100 dependency edges per task, 100 eligible agents per pool, 100 paths per reservation request and 32 evidence descriptors per submission. Reservation TTL defaults to 600 seconds with a maximum 3600 seconds. Bound names/subjects at 256 UTF-8 bytes and reference metadata at 8192 bytes each; total frames remain bounded. Test these as boundary constraints, not as inferred agent capabilities.
 
 The panel can expose the corresponding operations to the human operator. Separate private controller APIs cover space create/join/leave, enrollment/grants, device revocation, event subscription, history archive/export/purge, observed process exit and uncertain-execution override. These operations are not registered as agent MCP tools.
+
+Task detail includes recent attempts/review feedback and `history_truncated`;
+older work remains accessible through `warp_task_history`. New submissions retain
+result/evidence in their atomic attempt-attributed event before a rework clears the
+current result. Old events that never recorded those values remain historical
+metadata; missing prior text is not fabricated. Read pages may return fewer rows
+than their requested limit to stay within the negotiated frame bound.
 
 ## Evidence descriptor
 

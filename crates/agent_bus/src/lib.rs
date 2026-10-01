@@ -244,6 +244,13 @@ pub enum Operation {
     TaskGet {
         task_id: String,
     },
+    TaskHistory {
+        task_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     TaskStart {
         task_id: String,
         revision: u32,
@@ -625,6 +632,8 @@ pub struct Task {
     pub result: Option<String>,
     pub evidence: Option<String>,
     pub feedback: Vec<String>,
+    #[serde(default)]
+    pub history_truncated: bool,
     pub attempts: Vec<Attempt>,
     pub evidence_records: Vec<Evidence>,
     pub created_seq: u64,

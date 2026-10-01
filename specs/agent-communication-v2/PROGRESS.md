@@ -105,6 +105,19 @@ complete. No plan checkbox has been promoted solely from source inspection.
   10k archived completed tasks), a 150 ms indexed task-page p95 check, search and
   export pagination, and purge preservation of live task/message/dedup records.
   The fixture SQL passed local syntax/count checks; Rust measurements await CI.
+- Source `2cccc64`, run `36912281466`: both OS protocol and C10-scale checks
+  passed. Indexed task-page p95 was 1.799 ms on macOS and 2.863 ms on Windows,
+  measured on GitHub runners, below the 150 ms target. Search/export pagination
+  and live-work/dedup preservation through purge passed. Full-disk injection and
+  eight-hour soak are separate outstanding gates.
+- History audit found that prior result/evidence text disappeared on rework once
+  response-cache retention ended. New submission/review events now retain that
+  text durably. Task detail bounds recent attempts/feedback and signals truncation;
+  a new participant-scoped `warp_task_history` exposes the ordered full event
+  record. Inbox/thread/search/event/export pagination shares a serialized-byte
+  budget, and evidence descriptors enforce a combined metadata limit. New
+  regressions exercise 20 reworks, expired response cache, unauthorized history
+  reads and maximum-length escaped messages. CI validation is pending.
 
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)

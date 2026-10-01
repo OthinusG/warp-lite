@@ -49,6 +49,7 @@ CREATE INDEX IF NOT EXISTS tasks_project_seq ON tasks(project, created_seq);
 CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL, owner TEXT NOT NULL, run TEXT NOT NULL, certainty TEXT NOT NULL, outcome TEXT, started_at INTEGER, finished_at INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_task ON attempts(task_id);
 CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, revision INTEGER, author TEXT, body TEXT NOT NULL, accepted INTEGER, created_at INTEGER);
+CREATE INDEX IF NOT EXISTS feedback_task ON feedback(task_id, id);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, project TEXT NOT NULL, sender TEXT NOT NULL, recipient TEXT NOT NULL, body TEXT NOT NULL, subject TEXT, thread_id TEXT, reply_to TEXT, task_id TEXT, revision INTEGER, kind TEXT NOT NULL, acknowledged INTEGER NOT NULL, sequence INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS messages_recipient ON messages(recipient, acknowledged, sequence);
 CREATE INDEX IF NOT EXISTS messages_project ON messages(project, sequence);
@@ -56,6 +57,7 @@ CREATE INDEX IF NOT EXISTS messages_thread ON messages(project, thread_id, seque
 CREATE INDEX IF NOT EXISTS messages_task ON messages(task_id);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, resource TEXT, attempt TEXT, observed_at INTEGER, imported INTEGER NOT NULL, payload TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS events_project_seq ON events(project, sequence);
+CREATE INDEX IF NOT EXISTS events_resource_seq ON events(project, resource, sequence);
 CREATE TABLE IF NOT EXISTS sequences (project TEXT PRIMARY KEY, value INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS requests (actor TEXT NOT NULL, request_id TEXT NOT NULL, epoch TEXT NOT NULL, fingerprint TEXT NOT NULL, response TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(actor, request_id));
 CREATE INDEX IF NOT EXISTS requests_created ON requests(created_at);
@@ -242,6 +244,7 @@ impl Store {
                     result: task.result.clone(),
                     evidence: task.evidence.clone(),
                     feedback: task.feedback.clone(),
+                    history_truncated: false,
                     attempts: vec![],
                     evidence_records: vec![],
                     created_seq: *created_seq,
@@ -899,18 +902,22 @@ impl Store {
     }
 
     fn assemble(&self, mut task: Task) -> Result<Task> {
-        task.attempts = diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? ORDER BY rowid")
+        task.attempts = diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? ORDER BY rowid DESC LIMIT 16")
             .bind::<Text, _>(&task.id)
             .load::<AttemptRow>(&mut *self.connection.borrow_mut())?
             .into_iter()
             .map(AttemptRow::attempt)
             .collect();
-        task.feedback = diesel::sql_query("SELECT body FROM feedback WHERE task_id = ? ORDER BY id")
+        task.attempts.reverse();
+        task.feedback = diesel::sql_query("SELECT body FROM feedback WHERE task_id = ? ORDER BY id DESC LIMIT 8")
             .bind::<Text, _>(&task.id)
             .load::<FeedbackRow>(&mut *self.connection.borrow_mut())?
             .into_iter()
             .map(|row| row.body)
             .collect();
+        task.feedback.reverse();
+        task.history_truncated = self.count("SELECT COUNT(*) AS count FROM attempts WHERE task_id = ?", &[task.id.as_str()])? > 16
+            || self.count("SELECT COUNT(*) AS count FROM feedback WHERE task_id = ?", &[task.id.as_str()])? > 8;
         task.dependencies = self.task_dependencies(&task.id)?;
         task.eligible = self.task_eligibles(&task.id)?;
         task.evidence_records = self.task_evidence(&task.id)?;
@@ -1012,12 +1019,8 @@ impl Store {
             .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<MessageRow>(&mut *self.connection.borrow_mut())?;
-        let messages: Vec<Message> = rows
-            .into_iter()
-            .take(limit as usize)
-            .map(MessageRow::message)
-            .collect();
-        let cursor = messages.last().map(|message| message.sequence);
+        let (messages, cursor) = bounded_items(rows.into_iter().map(MessageRow::message)
+            .map(|message| (message.sequence, message)), limit)?;
         Ok(json!({"messages": messages, "cursor": cursor}))
     }
 
@@ -1083,12 +1086,20 @@ impl Store {
             .bind::<BigInt, _>(after.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<EventRow>(&mut *self.connection.borrow_mut())?;
-        let events: Vec<Event> = rows
-            .into_iter()
-            .take(limit as usize)
-            .map(EventRow::event)
-            .collect();
-        let cursor = events.last().map(|event| event.sequence);
+        let (events, cursor) = bounded_items(rows.into_iter().map(EventRow::event)
+            .map(|event| (event.sequence, event)), limit)?;
+        Ok(json!({"events": events, "cursor": cursor}))
+    }
+
+    fn task_history(&self, actor: &Agent, task_id: &str, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
+        self.actor_task(actor, task_id)?;
+        let limit = Self::page_limit(limit)?;
+        let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND resource = ? AND sequence > ? ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(&actor.project).bind::<Text, _>(task_id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<BigInt, _>(limit as i64 + 1)
+            .load::<EventRow>(&mut *self.connection.borrow_mut())?;
+        let (events, cursor) = bounded_items(rows.into_iter().map(EventRow::event)
+            .map(|event| (event.sequence, event)), limit)?;
         Ok(json!({"events": events, "cursor": cursor}))
     }
 
@@ -1156,6 +1167,7 @@ impl Store {
                 );
             }
             Operation::TaskGet { task_id } => return Ok(json!(self.actor_task(actor, task_id)?)),
+            Operation::TaskHistory { task_id, cursor, limit } => return self.task_history(actor, task_id, *cursor, *limit),
             Operation::ThreadGet {
                 thread_id,
                 cursor,
@@ -1512,6 +1524,7 @@ impl Store {
                     result: None,
                     evidence: None,
                     feedback: vec![],
+                    history_truncated: false,
                     attempts: vec![],
                     evidence_records: vec![],
                     created_seq: self.next_sequence(&actor.project)?,
@@ -1712,7 +1725,7 @@ impl Store {
                     &actor.id,
                     Some(&task.id),
                     Some(&attempt.id),
-                    json!({"revision": task.revision}),
+                    json!({"revision": task.revision, "result": result, "evidence": evidence, "evidence_ids": evidence_ids}),
                 )?;
                 self.queue(
                     &task.project,
@@ -1785,7 +1798,7 @@ impl Store {
                     &actor.id,
                     Some(&task.id),
                     None,
-                    json!({"accepted": accepted, "revision": task.revision}),
+                    json!({"accepted": accepted, "revision": task.revision, "reviewed_revision": revision, "feedback": feedback}),
                 )?;
                 if *accepted {
                     self.unblock_dependents(&task.project, &task.id, &actor.id)?;
@@ -1862,6 +1875,7 @@ impl Store {
                     result: None,
                     evidence: None,
                     feedback: vec![],
+                    history_truncated: false,
                     attempts: vec![],
                     evidence_records: vec![],
                     created_seq: self.next_sequence(&actor.project)?,
@@ -2494,6 +2508,10 @@ impl Store {
                 {
                     text(value)?;
                 }
+                ensure!(serde_json::to_vec(&json!({"kind":kind,"path":path,"hash":hash,"commit":commit,
+                    "repository":repository,"branch":branch,"base":base,"head":head,"command":command,
+                    "outcome":outcome,"exit_code":exit_code,"summary":summary}))?.len() <= crate::MAX_TEXT,
+                    invalid_input("Combined evidence metadata must be at most 8192 bytes"));
                 ensure!(
                     matches!(kind.as_str(), "file" | "commit" | "diff" | "test"),
                     invalid_input("Evidence kind must be file, commit, diff or test")
@@ -3551,12 +3569,8 @@ impl Store {
             records.push((sequence, "event", serde_json::to_value(event)?));
         }
         records.sort_by_key(|(sequence, kind, _)| (*sequence, *kind));
-        records.truncate(limit as usize);
-        let cursor = records.last().map(|(sequence, _, _)| *sequence);
-        let records: Vec<Value> = records
-            .into_iter()
-            .map(|(sequence, kind, data)| json!({"type": kind, "sequence": sequence, "data": data}))
-            .collect();
+        let (records, cursor) = bounded_items(records.into_iter()
+            .map(|(sequence, kind, data)| (sequence, json!({"type": kind, "sequence": sequence, "data": data}))), limit)?;
         Ok(json!({"records": records, "cursor": cursor}))
     }
 
@@ -3591,12 +3605,8 @@ impl Store {
             .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<MessageRow>(&mut *self.connection.borrow_mut())?;
-        let messages: Vec<Message> = rows
-            .into_iter()
-            .take(limit as usize)
-            .map(MessageRow::message)
-            .collect();
-        let cursor = messages.last().map(|message| message.sequence);
+        let (messages, cursor) = bounded_items(rows.into_iter().map(MessageRow::message)
+            .map(|message| (message.sequence, message)), limit)?;
         Ok(json!({"messages": messages, "cursor": cursor}))
     }
 
@@ -3631,12 +3641,8 @@ impl Store {
             .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<MessageRow>(&mut *self.connection.borrow_mut())?;
-        let messages: Vec<Message> = rows
-            .into_iter()
-            .take(limit as usize)
-            .map(MessageRow::message)
-            .collect();
-        let cursor = messages.last().map(|message| message.sequence);
+        let (messages, cursor) = bounded_items(rows.into_iter().map(MessageRow::message)
+            .map(|message| (message.sequence, message)), limit)?;
         Ok(json!({"messages": messages, "cursor": cursor}))
     }
 
@@ -3831,6 +3837,23 @@ fn verify_commit(project: &str, commit: Option<&str>) -> Result<()> {
             }
         }
     }
+}
+
+/// Reserve space for the outer MCP string envelope as well as the local IPC envelope.
+fn bounded_items<T: serde::Serialize>(items: impl Iterator<Item = (u64, T)>, limit: u32) -> Result<(Vec<T>, Option<u64>)> {
+    let mut page = Vec::new();
+    let mut cursor = None;
+    let mut bytes = 0;
+    let budget = crate::MAX_FRAME / 2 - 4096;
+    for (sequence, item) in items.take(limit as usize) {
+        let size = serde_json::to_vec(&item)?.len() + 1;
+        ensure!(size <= budget, crate::domain("frame_too_large", "A history record exceeds the readable frame budget; use a local export/restore procedure", false, None));
+        if bytes + size > budget { break; }
+        bytes += size;
+        cursor = Some(sequence);
+        page.push(item);
+    }
+    Ok((page, cursor))
 }
 
 fn now() -> u64 {
@@ -4066,6 +4089,7 @@ impl TaskRow {
             result: self.result,
             evidence: self.evidence,
             feedback: vec![],
+            history_truncated: false,
             attempts: vec![],
             evidence_records: vec![],
             created_seq: self.created_seq as u64,
@@ -5391,6 +5415,63 @@ mod tests {
             "reason": "Stopped", "request_id": "stopped"
         }))).unwrap();
         assert!(store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, &Uuid::new_v4().to_string())).is_ok());
+    }
+
+    #[test]
+    fn long_rework_history_preserves_results_and_pages_within_wire_bounds() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let stranger = actor(&store, "stranger");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        for revision in 1..=20 {
+            store.execute(&worker, "worker-run", &transition(id, revision, &Uuid::new_v4().to_string())).unwrap();
+            let submitted: Operation = serde_json::from_value(json!({"op":"task_submit", "task_id":id,
+                "revision":revision, "result":format!("result for generation {revision}"),
+                "evidence":format!("checked {revision}"), "request_id":Uuid::new_v4().to_string()})).unwrap();
+            store.execute(&worker, "worker-run", &submitted).unwrap();
+            let rework: Operation = serde_json::from_value(json!({"op":"task_review", "task_id":id,
+                "revision":revision, "accepted":false, "feedback":format!("Check again {revision}"),
+                "request_id":Uuid::new_v4().to_string()})).unwrap();
+            store.execute(&issuer, "issuer-run", &rework).unwrap();
+        }
+        let detail = store.task(&issuer, id).unwrap();
+        assert!(detail.result.is_none());
+        assert!(detail.history_truncated);
+        assert_eq!(detail.attempts.len(), 16);
+        assert_eq!(detail.feedback.len(), 8);
+        assert_eq!(detail.feedback.last().unwrap(), "Check again 20");
+        assert_eq!(code(&store.task_history(&stranger, id, None, None).unwrap_err()), "scope_denied");
+        // History must survive expiry of the response cache.
+        diesel::sql_query("DELETE FROM requests").execute(&mut *store.connection.borrow_mut()).unwrap();
+        let mut cursor = None;
+        let mut submissions = Vec::new();
+        loop {
+            let page = store.task_history(&issuer, id, cursor, Some(3)).unwrap();
+            let events = page["events"].as_array().unwrap();
+            if events.is_empty() { break; }
+            cursor = page["cursor"].as_u64();
+            submissions.extend(events.iter().filter(|event| event["kind"] == "task_submitted").cloned());
+        }
+        assert_eq!(submissions.len(), 20);
+        assert_eq!(submissions[0]["payload"]["result"], "result for generation 1");
+        assert_eq!(submissions[19]["payload"]["evidence"], "checked 20");
+        for _ in 0..100 {
+            store.execute(&issuer, "issuer-run", &send(&issuer, "worker", &"\"".repeat(crate::MAX_TEXT), &Uuid::new_v4().to_string())).unwrap();
+        }
+        let mut cursor = None;
+        let mut messages = 0;
+        loop {
+            let page = store.inbox(&worker, cursor, Some(200)).unwrap();
+            let envelope = json!({"content":[{"type":"text","text":page.to_string()}]});
+            assert!(serde_json::to_vec(&envelope).unwrap().len() < crate::MAX_FRAME);
+            let items = page["messages"].as_array().unwrap();
+            if items.is_empty() { break; }
+            messages += items.len();
+            cursor = page["cursor"].as_u64();
+        }
+        assert_eq!(messages, 101, "Current assignment plus all ordinary messages remain readable");
     }
 
     #[test]

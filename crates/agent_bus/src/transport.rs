@@ -30,7 +30,7 @@ pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
 pub const TERMINAL: &str = "WARP_TERMINAL_SESSION_UUID";
 pub const PROTOCOL_MAJOR: u16 = 2;
 pub const LOCAL_FEATURES: &[&str] = &[
-    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume",
+    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history",
 ];
 const WAIT: Duration = Duration::from_secs(20);
 #[derive(Clone, Serialize, Deserialize)]
