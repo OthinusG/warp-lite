@@ -19,6 +19,13 @@
 
 ## Native Agent Communication Design
 
+- Pool availability and execution ownership are distinct. Broadcast notices may
+  remain visible in inboxes, but automatic wake must choose one eligible idle
+  receiver in durable notification order. Once submitted, an unclaimed notice
+  must suppress another automatic prompt; recheck at claim time so cached wake
+  candidates cannot fan out. An unavailable run or failed submission allows
+  reevaluation; atomic TaskClaim remains the execution-assignment authority.
+
 - Native debug review startup on 2026-10-02 exposed a Lite boundary mismatch:
   `ReferAFriend` is registered only under `warp_platform`, but the macOS app menu
   still constructed it. Its missing description panicked at startup in debug and

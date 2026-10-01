@@ -487,7 +487,10 @@ impl Broker {
         let Ok(state) = self.shared.state.lock() else {
             return Vec::new();
         };
-        state
+        // Pool notices are broadcast for visibility, but only one eligible terminal is woken.
+        // A submitted notice stays outstanding until claim; do not paste it into a second model.
+        let dispatched_pools = dispatched_pools(&state);
+        let mut candidates: Vec<_> = state
             .terminals
             .iter()
             .filter_map(|(terminal, binding)| {
@@ -509,14 +512,24 @@ impl Broker {
                 if live.delivered.contains(&message.id) {
                     return None;
                 }
-                Some(Wake {
+                let pool = (message.kind == "available").then_some(message.task_id.clone()).flatten();
+                if pool.as_ref().is_some_and(|task| dispatched_pools.contains(task)) {
+                    return None;
+                }
+                Some((live.project.clone(), message.sequence, pool, Wake {
                     terminal: terminal.clone(),
                     run: live.run.clone(),
                     message_id: message.id,
                     generation: live.generation,
-                })
+                }))
             })
-            .collect()
+            .collect();
+        candidates.sort_by(|left, right| (&left.0, left.1, &left.3.terminal)
+            .cmp(&(&right.0, right.1, &right.3.terminal)));
+        let mut pools = HashSet::new();
+        candidates.into_iter().filter_map(|(_, _, pool, wake)| {
+            if pool.is_some_and(|task| !pools.insert(task)) { None } else { Some(wake) }
+        }).collect()
     }
     /// Surface queued work even when the receiver is busy or has not announced readiness.
     pub fn pending_work(&self) -> Vec<Wake> {
@@ -568,10 +581,13 @@ impl Broker {
         let Some(actor) = live.agent.as_ref() else {
             return false;
         };
-        let Ok(pending) = state.store.pending(actor) else {
+        let Ok(Some(message)) = state.store.next_work(actor, &live.run) else {
             return false;
         };
-        if !pending.iter().any(|message| message.id == wake.message_id) {
+        if message.id != wake.message_id
+            || (message.kind == "available" && message.task_id.as_ref()
+                .is_some_and(|task| dispatched_pools(&state).contains(task)))
+        {
             return false;
         }
         let live = state
@@ -1033,6 +1049,16 @@ impl Broker {
 fn registration_result(agent: &Agent, run: &str) -> Value {
     json!({"agent": agent, "run": run, "protocol_major": PROTOCOL_MAJOR,
         "protocol_minor": 0, "features": LOCAL_FEATURES})
+}
+fn dispatched_pools(state: &State) -> HashSet<String> {
+    state.terminals.values()
+        .filter_map(|binding| binding.live.as_ref())
+        .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
+        .filter_map(|live| {
+            let message = state.store.first_pending(live.agent.as_ref()?, false).ok()??;
+            (message.kind == "available" && live.delivered.contains(&message.id))
+                .then_some(message.task_id).flatten()
+        }).collect()
 }
 fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
     let live = state

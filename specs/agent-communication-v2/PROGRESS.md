@@ -33,6 +33,12 @@
 - User supplied no Windows SSH machine or native model-call budget. C01/C13 and
   native Windows acceptance remain unverified. `ACCEPTANCE.md` records every
   PLAN item individually; metadata APIs are not functional shared-space routing.
+- Pool wake audit found that broadcasting availability woke every idle candidate,
+  even though the atomic claim granted just one owner. The broker now selects one
+  eligible candidate by durable notification order, prevents fan-out after a
+  submitted notice, and checks stale candidates again under the claim mutex.
+  Draft/busy states exclude candidates; failed delivery and a removed run permit
+  reevaluation. A focused IPC regression covers those transitions; CI pending.
 
 The user authorized completing the plan, pushing source and GitHub builds, and
 subsequently confirmed that necessary actions require no further permission questions.

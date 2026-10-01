@@ -847,6 +847,55 @@ fn concurrent_pool_claims_over_authenticated_ipc_have_one_winner() {
 }
 
 #[test]
+fn pool_wake_selects_one_idle_candidate_and_fences_stale_candidates() {
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let broker = &server.broker;
+    let mut issuer = register(broker, "issuer", "claude");
+    let mut left = register(broker, "left", "codex");
+    let mut right = register(broker, "right", "qodercn");
+    issuer.operation = serde_json::from_value(serde_json::json!({
+        "op":"task_create_pool", "description":"Wake one eligible model", "acceptance":"One claim",
+        "eligible":["left","right"], "request_id":request_id()
+    })).unwrap();
+    let task = transport::call(&broker.endpoint, &issuer).unwrap();
+    left.operation = Operation::AgentReady;
+    right.operation = Operation::AgentReady;
+    transport::call(&broker.endpoint, &left).unwrap();
+    transport::call(&broker.endpoint, &right).unwrap();
+    thread::sleep(Duration::from_millis(850));
+    let candidates = broker.wakeups();
+    assert_eq!(candidates.len(), 1);
+    let earlier = candidates[0].clone();
+    assert_eq!(earlier.terminal, "left", "Use durable notification order, not HashMap order");
+    broker.user_input("left", false);
+    let fallback = broker.wakeups().pop().unwrap();
+    assert_eq!(fallback.terminal, "right", "Protected input must not block another eligible idle candidate");
+    broker.user_input("left", true);
+    transport::call(&broker.endpoint, &left).unwrap();
+    thread::sleep(Duration::from_millis(850));
+    let chosen = broker.wakeups().pop().unwrap();
+    assert_eq!(chosen.terminal, "left");
+    assert!(broker.claim_wake(&chosen));
+    assert!(!broker.claim_wake(&fallback), "An older candidate cannot wake a second model");
+    broker.finish_wake(&chosen, false);
+    thread::sleep(Duration::from_millis(850));
+    assert_eq!(broker.wakeups().len(), 1, "Failed submission stays eligible");
+    let chosen = broker.wakeups().pop().unwrap();
+    assert!(broker.claim_wake(&chosen));
+    broker.finish_wake(&chosen, true);
+    assert!(broker.wakeups().is_empty(), "Unacknowledged successful submission must not fan out");
+    broker.end("left");
+    assert_eq!(broker.wakeups()[0].terminal, "right", "An unavailable run releases pool delivery eligibility");
+    right.operation = serde_json::from_value(serde_json::json!({
+        "op":"task_claim", "task_id":task["id"], "expected_version":task["version"], "request_id":request_id()
+    })).unwrap();
+    transport::call(&broker.endpoint, &right).unwrap();
+    let wake = broker.wakeups().pop().unwrap();
+    assert_eq!(wake.terminal, "right");
+    assert!(broker.claim_wake(&wake), "Claimed assignment replaces the retired pool notices");
+}
+
+#[test]
 fn competing_task_controls_preserve_versions_in_both_orders() {
     use serde_json::json;
     for scenario in ["start_cancel", "submit_cancel", "review_retry"] {

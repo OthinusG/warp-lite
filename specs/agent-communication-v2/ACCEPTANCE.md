@@ -27,7 +27,7 @@ this checkpoint. New control-order and 20-claim checks require the next source r
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Native interrupt unsupported/unsupported-state UI and clock-jump acceptance pending |
 | M3.2 | Stale run/attempt and explicit operator recovery tests | Retry/reassignment backend verified; panel pending |
 | M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
-| M3.4 | Pool eligibility tests and authenticated IPC concurrent claims | New 20-way claim check pending; deterministic candidate wake/presence acceptance incomplete |
+| M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks | New wake/claim checks pending on both OSes; native presence acceptance remains distinct |
 | M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
 | M4.1 | Space/workspace metadata controller tests | Functional shared-space routing and checkout-qualified agents not implemented |
 | M4.2 | Controller join/leave metadata operations | Scope preview, new-session routing and UI not implemented |
