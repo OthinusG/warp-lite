@@ -726,6 +726,7 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
                 *command != "vibe-acp",
                 "Incorrect stdin contract for {command}"
             );
+            assert_eq!(agent.starts_at_empty_prompt(command), *command != "vibe-acp");
             assert!(!agent.accepts_peer_prompt(&format!("{command} --print")));
         }
     }
@@ -749,4 +750,23 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
     );
     assert!(CLIAgent::Codex.accepts_peer_prompt("codex -- '--print'"));
     assert!(!CLIAgent::Codex.accepts_peer_prompt("codex 'unfinished"));
+    assert!(CLIAgent::Codex.starts_at_empty_prompt("codex --no-daemon"));
+    assert!(CLIAgent::Codex.starts_at_empty_prompt("  codex   --no-daemon  "));
+    for command in [
+        "codex --no-daemon 'task'",
+        "codex --no-daemon exec 'task'",
+        "codex --no-daemon review",
+        "codex --no-daemon --remote unix://",
+        "codex --no-daemon -- 'task'",
+        "codex -p profile",
+        "codex --no-daemon; other-command",
+        "codex 'unfinished",
+        "other-agent --no-daemon",
+    ] {
+        assert!(
+            !CLIAgent::Codex.starts_at_empty_prompt(command),
+            "Do not infer an empty input prompt: {command}"
+        );
+    }
+    assert!(!CLIAgent::Claude.starts_at_empty_prompt("claude --no-daemon"));
 }

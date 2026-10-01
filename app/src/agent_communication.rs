@@ -84,12 +84,14 @@ impl AgentCommunication {
                                 let command = terminal_model.block_list().active_block().command_to_string();
                                 let command = command.trim();
                                 let view = view.as_ref(ctx);
-                                let unshadowed = view.active_block_session_id()
-                                    .and_then(|session| view.sessions_model().as_ref(ctx).get(session))
-                                    .is_some_and(|shell| shell.alias_value(command).is_none()
-                                        && shell.abbreviation_value(command).is_none()
-                                        && !shell.function_names().any(|name| name == command));
-                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (agent.command_prefixes().contains(&command)
+                                let unshadowed = shlex::split(command)
+                                    .and_then(|words| words.first().cloned())
+                                    .is_some_and(|program| view.active_block_session_id()
+                                        .and_then(|session| view.sessions_model().as_ref(ctx).get(session))
+                                        .is_some_and(|shell| shell.alias_value(&program).is_none()
+                                            && shell.abbreviation_value(&program).is_none()
+                                            && !shell.function_names().any(|name| name == program.as_str())));
+                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (agent.starts_at_empty_prompt(command)
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
                                             .is_some_and(|entry| entry.active)));

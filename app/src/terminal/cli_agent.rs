@@ -178,6 +178,23 @@ pub enum CLIAgent {
 }
 
 impl CLIAgent {
+    /// Only known empty launches can receive work before their first model turn.
+    pub(crate) fn starts_at_empty_prompt(&self, command: &str) -> bool {
+        let Some(words) = shlex::split(command) else {
+            return false;
+        };
+        match words.as_slice() {
+            [program] => {
+                self.command_prefixes().contains(&program.as_str())
+                    && self.accepts_peer_prompt(command)
+            }
+            [program, flag] => {
+                *self == CLIAgent::Codex && program == "codex" && flag == "--no-daemon"
+            }
+            _ => false,
+        }
+    }
+
     /// Batch and protocol clients can use MCP, but their stdin is not a terminal prompt.
     pub(crate) fn accepts_peer_prompt(&self, command: &str) -> bool {
         let Some(words) = shlex::split(command) else {

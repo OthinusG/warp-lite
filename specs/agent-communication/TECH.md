@@ -47,6 +47,7 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 
 ## Fresh receiver and default orchestration repair (2026-10-01)
 
+- Codex `--no-daemon` startup repair: treat exactly `codex --no-daemon` as an empty interactive launch eligible for the one-time discovery readiness lease. Resolve alias/function shadowing against the parsed executable name, not the full command with arguments. Keep positional prompts, subcommands, other flags, malformed shell commands and shadowed launches ineligible. Extend the existing peer prompt regression; validate on GitHub without local builds. Acceptance requires the queued weekday request to wake a fresh receiver in the patched app; source tests alone do not establish live delivery.
 - Reproduce the reported case: a newly launched Codex with no prior prompt registers MCP but never calls final-action readiness, so peer work remains queued.
 - Seed a single initial readiness lease only for a bare recognized CLI command, after native discovery. Launches with arguments, user input, blocked/busy events, replaced runs and absent native discovery must not receive this lease. Subsequent turns keep the existing readiness contract and guarded PTY submission.
 - Resolve agents using both shell startup PATH and updated session PATH. Add the confirmed Qoder/QoderCN installation entry directories as narrow fallbacks; preserve vendor alias deduplication. Carry resolved search paths into native CLI probes and setup subprocesses so interpreter-based launchers work from GUI launches.
