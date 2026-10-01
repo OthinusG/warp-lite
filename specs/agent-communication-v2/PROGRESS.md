@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Added an opt-in debug native static capture harness using the retained warpui
+  driver and GPU frames, with 72 fixture/width/theme/zoom combinations, a unique
+  profile/output directory and a 300-second startup-inclusive watchdog. No
+  system accessibility permission, removed integration crate or HOME override
+  is needed. Missing PNGs fail the harness. Compilation/render review is pending;
+  live controller wiring remains gated by UI-CHECKPOINT.
+
 - Latest inherited source: `fb298cb`; working tree contained only an untracked
   local `.codegraph/` index. Existing engineering progress is recorded below.
 - Run `36915402177` failed on both platforms in

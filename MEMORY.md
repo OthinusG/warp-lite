@@ -19,6 +19,13 @@
 
 ## Native Agent Communication Design
 
+- Native static UI capture can reuse the retained warpui integration driver and
+  GPU window-frame interface without the removed integration crate or OS
+  accessibility permission. The debug-only `WARP_COLLABORATION_CAPTURE` entry
+  uses a unique data profile and keeps HOME unchanged; worker subprocesses
+  retain their normal entrypoint. Missing captures must fail the check, and
+  image generation alone is never visual or keyboard acceptance.
+
 - Comparing a task response's state/version to its current row does not establish
   a new mutation: cached submission results can match after a later ordinary user
   turn starts. Check committed request identity while holding the broker mutex;

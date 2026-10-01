@@ -645,6 +645,11 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
+    #[cfg(debug_assertions)]
+    if let Some(directory) = std::env::var_os("WARP_COLLABORATION_CAPTURE") {
+        return agent_communication::panel::capture_checkpoint(directory.into());
+    }
+
     let api_key = args.api_key().cloned();
     run_internal(LaunchMode::App {
         args: args.into_app_args(),

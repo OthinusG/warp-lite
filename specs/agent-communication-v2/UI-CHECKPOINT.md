@@ -35,3 +35,22 @@ state. Ordinary app launches do not enable the preview.
 | Truthful states | PRODUCT B02/B04/B06 | Explicit sample-data banner and next-action guidance | Fixture coverage check added; render pending |
 
 No screenshot gate or live behavior is claimed by this source checkpoint.
+
+## Native capture harness
+
+The debug review application exposes an opt-in `WARP_COLLABORATION_CAPTURE`
+output directory. It reuses the retained native integration driver and GPU frame
+capture rather than the removed integration package or OS accessibility automation.
+It must use a separate data profile, leave the user's home and daily application
+untouched, enforce a bounded runtime, and fail if any requested image is missing.
+Capture all nine fixture states at both widths, both themes and normal/increased
+UI zoom. Capturing images is not screenshot review or keyboard acceptance.
+
+Run a GitHub-built debug review executable directly with
+`WARP_COLLABORATION_CAPTURE=/tmp/warp-collaboration-captures`. The harness creates
+a fresh `capture-<pid>/collaboration-static/<timestamp>/` under that directory and
+requires all 72 nonempty PNGs. Existing output cannot satisfy a later run. A
+300-second watchdog covers application startup as well as capture. The temporary
+preferences profile is named `collaboration-capture-<pid>`; no home override or
+daily-profile modification is performed. Source compilation and native render
+verification for this harness remain pending.
