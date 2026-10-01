@@ -216,6 +216,7 @@ fn register(broker: &Broker, terminal: &str, program: &str) -> Request {
         .activate(terminal, program, "/project", false)
         .unwrap();
     let mut request = Request {
+        protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
         terminal: terminal.into(),
         capability,
         run: None,
@@ -227,6 +228,8 @@ fn register(broker: &Broker, terminal: &str, program: &str) -> Request {
         },
     };
     let result = transport::call(&broker.endpoint, &request).unwrap();
+    assert_eq!(result["protocol_major"], transport::PROTOCOL_MAJOR);
+    assert_eq!(result["features"], serde_json::json!(transport::LOCAL_FEATURES));
     request.run = result["run"].as_str().map(str::to_owned);
     request
 }
@@ -257,6 +260,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
             _ => {}
         }
         let mut receiver = Request {
+            protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
             terminal: state.into(),
             capability,
             run: None,
@@ -276,6 +280,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
                 .activate("native-issuer", "codex", &project, false)
                 .unwrap();
             let mut native_issuer = Request {
+                protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
                 terminal: "native-issuer".into(),
                 capability,
                 run: None,
@@ -328,6 +333,9 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
     assert_eq!(wakes[0].terminal, "empty");
     let legacy = serde_json::json!({"terminal":"legacy","capability":"placeholder","run":null,"operation":{"op":"agent_register","name":""}});
     let legacy: Request = serde_json::from_value(legacy).unwrap();
+    assert_eq!(legacy.protocol_major, 0);
+    let error = transport::call(&server.broker.endpoint, &legacy).unwrap_err();
+    assert_eq!(warp_agent_bus::DomainError::from_error(error).code, "protocol_incompatible");
     assert!(!legacy.defer_initial_ready);
     assert!(legacy.directory.is_none());
     assert!(!serde_json::to_value(legacy)
@@ -372,6 +380,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
         .activate("claimant", "claude", "/project", false)
         .unwrap();
     let claim = Request {
+        protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
         terminal: "claimant".into(),
         capability: claim_capability,
         run: None,
@@ -726,6 +735,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         .activate("outside", "codex", "/other-project", false)
         .unwrap();
     let mut outside = Request {
+        protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
         terminal: "outside".into(),
         capability,
         run: None,
@@ -877,6 +887,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 _ => {}
             }
             let mut worker = Request {
+                protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
                 terminal: name.clone(),
                 capability,
                 run: None,

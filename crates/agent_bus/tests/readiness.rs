@@ -50,6 +50,7 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         .activate("observer", "codex", "/project", true)
         .unwrap();
     let mut observer = Request {
+        protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
         terminal: "observer".into(),
         capability,
         run: None,
@@ -81,6 +82,7 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
         client.list_tools(None).await.unwrap();
         let mut worker = Request {
+            protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
             terminal: terminal.clone(),
             capability,
             run: None,
@@ -256,6 +258,7 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
             .activate(terminal, "qodercn", "/project", true)
             .unwrap();
         let mut request = Request {
+            protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
             terminal: terminal.into(),
             capability,
             run: None,
@@ -347,6 +350,7 @@ fn native_clients_complete_two_turns() {
         String::from_utf8_lossy(&version.stdout).lines().next().unwrap_or("unknown"));
     let server = RunningBroker::start(Path::new(":memory:")).unwrap();
     let mut observer = Request {
+        protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
         terminal: "observer".into(),
         capability: server.broker.prepare("observer").unwrap(),
         run: None,
@@ -386,11 +390,12 @@ fn native_clients_complete_two_turns() {
     )
     .unwrap();
     let driver = r#"
-import fcntl,json,os,pty,select,struct,subprocess,sys,termios,time
+import fcntl,json,os,pty,re,select,signal,struct,subprocess,sys,termios,time
 markers=set()
 def record():
  with open(sys.argv[3],'w') as output: json.dump(sorted(markers),output)
 master,slave=pty.openpty()
+os.set_blocking(master,False)
 fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',40,160,0,0))
 def attach_terminal():
  os.setsid()
@@ -399,6 +404,7 @@ args=[sys.argv[1]]
 if os.path.basename(sys.argv[1])=='codex' and os.environ.get('WARP_READINESS_EMBEDDED')=='1': args.append('--no-daemon')
 child=subprocess.Popen(args,stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
 os.close(slave)
+recent=b''
 try:
  while child.poll() is None:
   readable,_,_=select.select([master,sys.stdin],[],[],.1)
@@ -413,7 +419,8 @@ try:
    try: data=os.read(master,65536)
    except OSError: break
    markers.add('terminal_output')
-   lower=data.lower()
+   recent=(recent+data)[-65536:]
+   lower=re.sub(rb'\x1b\[[0-?]*[ -/]*[@-~]',b'',recent).lower()
    for indicator in [b'trust',b'login required',b'not logged in',b'not authenticated',b'please log in',b'sign in',b'not permitted',b'permission denied',b'handshake not finished',b'error',b'failed',b'network',b'missing',b'connection',b'native session connection timed out',b'native session connection closed',b'connection refused',b'connection reset',b'terminal',b'initializ',b'device',b'closed before',b'cursor position']:
     if indicator in lower: markers.add(indicator.decode())
    record()
@@ -421,12 +428,15 @@ try:
     if query in data: os.write(master,reply)
 finally:
  markers.add('native_exit_'+str(child.poll())); record()
- try:
-  os.write(master,b'/exit\r'); child.wait(timeout=3)
- except (OSError,subprocess.TimeoutExpired):
-  child.terminate()
-  try: child.wait(timeout=3)
-  except subprocess.TimeoutExpired: child.kill(); child.wait()
+ # The new session belongs only to this probe, including its native grandchildren.
+ for sig in [signal.SIGCONT,signal.SIGTERM]:
+  try: os.killpg(child.pid,sig)
+  except ProcessLookupError: pass
+ try: child.wait(timeout=3)
+ except subprocess.TimeoutExpired:
+  try: os.killpg(child.pid,signal.SIGKILL)
+  except ProcessLookupError: pass
+  child.wait(timeout=3)
  os.close(master)
 "#;
     let diagnostic = temporary.path().join("diagnostic.json");
@@ -490,6 +500,13 @@ finally:
         }
     }));
     drop(child.stdin.take());
+    let cleanup_deadline = Instant::now() + Duration::from_secs(10);
+    while child.try_wait().unwrap().is_none() && Instant::now() < cleanup_deadline {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    if child.try_wait().unwrap().is_none() {
+        child.kill().unwrap();
+    }
     child.wait().unwrap();
     if let Err(panic) = outcome {
         std::panic::resume_unwind(panic);

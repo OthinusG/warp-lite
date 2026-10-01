@@ -103,6 +103,18 @@ jobs:
           cargo test -p warp --lib opaque_approval_and_question_notifications_never_announce_idle --locked
           cargo test -p warp --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
           cargo test -p warp --lib test_detect_qoder --locked
+      - name: Build isolated native UI review artifact
+        run: |
+          cargo build -p warp --bin warp-oss --features release_bundle --locked
+          script/build-warp-lite-app.sh --debug
+          codesign --verify --deep --strict WarpaiReview.app
+          ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
+      - name: Upload isolated native UI review artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-collaboration-UI-review-macos
+          path: WarpaiReview.app.zip
+          retention-days: 7
       - name: Build and package review artifacts
         run: |
           cargo build --release --bin warp-oss --locked

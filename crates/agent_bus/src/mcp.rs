@@ -132,6 +132,7 @@ impl Bridge {
             .is_some();
         if registered {
             let request = Request {
+                protocol_major: crate::transport::PROTOCOL_MAJOR,
                 terminal: self.terminal.clone(),
                 capability: self.capability.clone(),
                 run: self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))?.clone(),
@@ -158,6 +159,7 @@ impl Bridge {
             return self.execute(operation);
         }
         let request = Request {
+            protocol_major: crate::transport::PROTOCOL_MAJOR,
             terminal: self.terminal.clone(),
             capability: self.capability.clone(),
             run: run.clone(),
@@ -189,11 +191,21 @@ impl Bridge {
             }
         };
         if registration {
+            validate_registration(&result)?;
             *self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))? =
                 result["run"].as_str().map(str::to_owned);
         }
         Ok(result)
     }
+}
+fn validate_registration(result: &Value) -> Result<()> {
+    anyhow::ensure!(result["protocol_major"].as_u64() == Some(transport::PROTOCOL_MAJOR.into()),
+        crate::domain("protocol_incompatible", "Install the matching Warpai application and communication companion", false, None));
+    let features = result["features"].as_array();
+    anyhow::ensure!(transport::LOCAL_FEATURES.iter().all(|feature|
+        features.is_some_and(|features| features.iter().any(|value| value.as_str() == Some(*feature)))),
+        crate::domain("feature_unavailable", "The application does not support the communication companion's required features", false, None));
+    Ok(())
 }
 /// Derive tool schemas from the exact serde operation contract rather than a second argument model.
 pub fn tools() -> Vec<Tool> {
@@ -214,7 +226,7 @@ pub fn tools() -> Vec<Tool> {
             "agent_wait" => "Wait up to 20 seconds for available work. On timeout, poll all outstanding task states, then wait again until all are reviewed or the user stops collaboration.",
             "task_assign" => "Assign a task with acceptance criteria. Reviewer defaults to the assigner; self-review is refused. By default, keep polling every delegated task and wait for actual results; queue admission is not completion.",
             "task_get" => "Read a task visible to its issuer, assignee, or reviewer.",
-            "task_list" => "List tasks visible to you, newest first, filtered by state or assignee; page with cursor.",
+            "task_list" => "List tasks visible to you in creation order, filtered by state or assignee; page with cursor.",
             "task_start" => "Start a queued revision or explicitly recover interrupted work in this run.",
             "task_submit" => "Submit a running revision with its result and verification evidence. This does not accept the task.",
             "task_review" => "As the designated reviewer, accept a submitted revision or request changes with feedback.",
@@ -318,6 +330,14 @@ impl ServerHandler for Bridge {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn registration_rejects_unnegotiated_protocols_and_features() {
+        use super::*;
+        assert!(validate_registration(&json!({"run": "old"})).is_err());
+        assert!(validate_registration(&json!({"protocol_major": 99, "features": transport::LOCAL_FEATURES})).is_err());
+        assert!(validate_registration(&json!({"protocol_major": 2, "features": []})).is_err());
+        assert!(validate_registration(&json!({"protocol_major": 2, "features": transport::LOCAL_FEATURES})).is_ok());
+    }
     #[tokio::test]
     async fn discovery_prelude_rejects_oversized_frames() {
         use tokio::io::AsyncWriteExt;

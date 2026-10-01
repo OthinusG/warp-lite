@@ -823,7 +823,7 @@ impl Store {
     }
 
     pub fn task_states(&self, actor: &Agent, assignee: &str) -> Result<Vec<Value>> {
-        Ok(diesel::sql_query("SELECT id, state, revision, version FROM tasks WHERE project = ? AND assignee = ? AND (issuer = ? OR reviewer = ? OR assignee = ?) ORDER BY created_seq")
+        Ok(diesel::sql_query("SELECT id, state, revision, version FROM tasks WHERE project = ? AND assignee = ? AND archived = 0 AND (issuer = ? OR reviewer = ? OR assignee = ?) ORDER BY created_seq")
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(assignee)
             .bind::<Text, _>(&actor.id)
@@ -2082,12 +2082,12 @@ impl Store {
                             stale_attempt("No active execution attempt with that ID", task.version)
                         })?;
                     ensure!(
-                        attempt.owner == actor.id && attempt.revision == task.revision,
+                        attempt.owner == actor.id && attempt.run == run && attempt.revision == task.revision,
                         stale_attempt("Execution attempt does not belong to this session", task.version)
                     );
                 }
                 let owned = active.iter().find(|attempt| {
-                    attempt.owner == actor.id && attempt.revision == task.revision
+                    attempt.owner == actor.id && attempt.run == run && attempt.revision == task.revision
                 });
                 match owned {
                     Some(attempt) => {
@@ -2110,10 +2110,7 @@ impl Store {
                             json!({"revision": task.revision, "reason": reason}),
                         )?;
                     }
-                    None => ensure!(
-                        active.is_empty(),
-                        execution_unknown("Execution is owned by another live session; only the owning session can confirm the stop")
-                    ),
+                    None => return Err(stale_attempt("Only the owning execution run can confirm stop", task.version)),
                 }
                 Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
             }
@@ -5152,6 +5149,8 @@ mod tests {
         }).unwrap();
         assert_eq!(store.active_task_count("/project").unwrap(), 0);
         assert_eq!(store.task_count("/project").unwrap(), 1);
+        assert!(store.task_states(&issuer, &worker.id).unwrap().is_empty());
+        assert_eq!(store.task(&issuer, id).unwrap().state, "cancelled");
         let cancellation_notice = store.pending(&worker).unwrap().into_iter().find(|message| message.kind == "cancelled").unwrap();
         store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: cancellation_notice.id }).unwrap();
         store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: "full-0".into() }).unwrap();
@@ -5180,6 +5179,11 @@ mod tests {
             "op": "task_cancel", "task_id": first["id"], "reason": "Stop work", "request_id": "cancel"
         }))).unwrap();
         assert_eq!(cancelled["state"], "cancel_requested");
+        let forged_stop = store.execute(&worker, "replacement-run", &operation(json!({
+            "op": "task_finish_cancel", "task_id": first["id"], "revision": 1,
+            "reason": "Unproven stop", "request_id": "forged-stop"
+        }))).unwrap_err();
+        assert_eq!(code(&forged_stop), "stale_attempt");
         let blocked_start = store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, &Uuid::new_v4().to_string())).unwrap_err();
         assert_eq!(code(&blocked_start), "invalid_state");
         let blocked_claim = store.execute(&worker, "worker-run", &operation(json!({

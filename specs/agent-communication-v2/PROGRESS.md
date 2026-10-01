@@ -57,6 +57,27 @@ complete. No plan checkbox has been promoted solely from source inspection.
   Reusable free SQLite pages are excluded from occupied-page quota accounting.
   Added a focused archival/full-inbox stop regression; CI validation pending.
 
+### Source `882bd2e` and next validation
+
+- Run `36905359670`: both OS protocol suites passed; Windows default/platform
+  application checks passed; macOS default/platform checks passed and focused
+  application tests are running. Packaging is not yet verified.
+- The matching GitHub-built Codex 0.159.2 embedded-mode lifecycle probe also
+  failed to register within 60 seconds. Its cleanup stalled; only its own child
+  session was terminated. The harness now uses nonblocking PTY I/O, process-group
+  cleanup and a bounded parent cleanup wait, and matches safe diagnostic markers
+  across output chunks without retaining terminal transcripts.
+- Added run-identity fencing to cancellation confirmation and a regression for
+  a replacement run. Archived tasks are omitted from routine peer summaries,
+  with direct/history reads retained. These changes await GitHub tests.
+- Local IPC declares major 2, registration includes explicit local features,
+  and the MCP bridge checks protocol/features before tool discovery. This does
+  not advertise shared spaces or remote support. Legacy IPC fails closed with
+  an actionable matching-companion error.
+- Added GitHub packaging of a debug native review bundle with its own identifier
+  so visual acceptance can use the existing debug-only data-profile isolation.
+  UI screenshot acceptance remains pending.
+
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)
 checkboxes change only when their exit gates actually pass.

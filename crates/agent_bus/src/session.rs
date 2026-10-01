@@ -1094,6 +1094,7 @@ mod tests {
             .activate("issuer", "codex", "/project", false)
             .unwrap();
         let mut issuer = Request {
+            protocol_major: crate::transport::PROTOCOL_MAJOR,
             terminal: "issuer".into(),
             capability: issuer_capability,
             run: None,

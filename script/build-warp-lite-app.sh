@@ -6,6 +6,7 @@
 #
 # Usage:
 #   script/build-warp-lite-app.sh
+#   script/build-warp-lite-app.sh --debug  (isolated UI review build)
 #
 # Output:
 #   ./Warpai.app   (drag into /Applications)
@@ -22,6 +23,17 @@ APP_VERSION="0.5.7"
 APP_SHORT_VERSION="0.5.7-lite"
 APP_IDENTIFIER="dev.warp-lite.WarpLite"
 SRC_PNG="app/DockTilePlugin/Resources/mono.png"
+
+case "${1:-}" in
+    "") ;;
+    --debug)
+        BIN="target/debug/warp-oss"
+        AGENT_BIN="target/debug/warp-agent"
+        APP="WarpaiReview.app"
+        APP_IDENTIFIER="dev.warp-lite.WarpLiteReview"
+        ;;
+    *) echo "Usage: $0 [--debug]" >&2; exit 1 ;;
+esac
 
 if [[ ! -f "$BIN" ]]; then
     echo "Error: $BIN not found. Run: cargo build --release --bin warp-oss" >&2
@@ -46,6 +58,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Warpai"
 cp "$AGENT_BIN" "$APP/Contents/MacOS/warp-agent"
 chmod +x "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
+if [[ "${1:-}" == --debug ]]; then
+    # Keep debug assertions/profile isolation without shipping bulky debug symbols.
+    strip -S "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
+fi
 
 # 2) Generate AppIcon.icns from the 512×512 source via iconset
 ICONSET="$(mktemp -d)/AppIcon.iconset"

@@ -10,6 +10,11 @@ Status: proposed API, 2026-10-01. This is the contract source for the future imp
 - Every new domain mutation carries a stable `request_id`; mutations of an existing task also carry `expected_version`. Repeating the same actor/epoch/request ID and payload returns its committed result. A changed payload is `request_conflict`.
 - The bridge/controller supplies the server-issued mutation epoch internally and persists it with pending requests. Agents do not choose a fresh epoch to recover an uncertain operation. An expired epoch is rejected before a lookup can fall through to execution.
 - Existing twelve MCP tool names and required arguments are preserved. New `expected_version` and `attempt_id` fields on existing tools are optional during compatibility rollout; omission is resolved only through the authenticated current run and supplied revision, with all original state/revision checks. New control tools require explicit versions. Internal IPC clients that cannot negotiate the v2 contract are rejected, not silently trusted.
+- Local IPC requests declare `protocol_major: 2`. Registration returns the matching
+  major, minor and explicit local feature list; the bridge checks them before
+  advertising tools. This handshake does not advertise remote connectivity or
+  functional shared-space routing. Missing/unsupported majors fail closed; install
+  the matching application and companion together.
 - Text fields remain at most 8192 UTF-8 bytes. Lists and reference metadata have explicit schema bounds; a frame cannot exceed 1 MiB. Unknown fields are rejected at trust boundaries. Pagination defaults to 50 items and caps at 200.
 - Domain errors contain a stable code, safe human message, `retryable` flag and optional current resource version. No request payload, credential or environment dump is included. A retryable transport failure is not proof that a mutation was uncommitted.
 - Deadline inputs are an optional RFC 3339 UTC `start_deadline`, `execution_timeout_seconds` measured from each attempt's committed start, and `review_timeout_seconds` measured from submission. Timeout durations are 1–604800 seconds. Retry/reassignment starts a fresh execution timeout; an expired start deadline must be explicitly replaced or cleared by the issuer, otherwise retry is rejected. The coordinator records the resulting absolute deadlines.

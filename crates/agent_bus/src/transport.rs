@@ -28,10 +28,16 @@ use crate::readiness::{Activity, Draft};
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
 pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
 pub const TERMINAL: &str = "WARP_TERMINAL_SESSION_UUID";
+pub const PROTOCOL_MAJOR: u16 = 2;
+pub const LOCAL_FEATURES: &[&str] = &[
+    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume",
+];
 const WAIT: Duration = Duration::from_secs(20);
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
+    #[serde(default)]
+    pub protocol_major: u16,
     pub terminal: String,
     pub capability: String,
     pub run: Option<String>,
@@ -697,7 +703,7 @@ impl Broker {
             };
             if let Some(agent) = &live.agent {
                 if automatic || agent.name == name {
-                    return Ok(json!({"agent": agent, "run": run}));
+                    return Ok(registration_result(agent, &run));
                 }
                 ensure!(
                     !state.store.has_work(agent)?,
@@ -740,9 +746,9 @@ impl Broker {
             }
             live.initial_prompt = false;
             self.shared.changed.notify_all();
-            return Ok(
-                json!({"agent": agent, "run": run, "capacity": state.store.capacity(&project)?}),
-            );
+            let mut result = registration_result(&agent, &run);
+            result["capacity"] = state.store.capacity(&project)?;
+            return Ok(result);
         }
         let actor = live
             .agent
@@ -1020,6 +1026,10 @@ impl Broker {
         state.store.events(project, after, limit)
     }
 }
+fn registration_result(agent: &Agent, run: &str) -> Value {
+    json!({"agent": agent, "run": run, "protocol_major": PROTOCOL_MAJOR,
+        "protocol_minor": 0, "features": LOCAL_FEATURES})
+}
 fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
     let live = state
         .terminals
@@ -1037,6 +1047,8 @@ fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
     )
 }
 fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> Result<&'a Live> {
+    ensure!(request.protocol_major == PROTOCOL_MAJOR,
+        crate::domain("protocol_incompatible", "Install the matching Warpai application and communication companion", false, None));
     let binding = state
         .terminals
         .get(&request.terminal)

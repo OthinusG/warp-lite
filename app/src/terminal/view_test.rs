@@ -4842,6 +4842,7 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
         let capability = broker.prepare("issuer").unwrap();
         broker.activate("issuer", "codex", "/project", false).unwrap();
         let mut issuer = Request {
+            protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
             terminal: "issuer".into(),
             capability,
             run: None,
@@ -4901,6 +4902,7 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             };
             broker.activate(&name, program, "/project", true).unwrap();
             let mut request = Request {
+                protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
                 terminal: name.clone(),
                 capability,
                 run: None,
