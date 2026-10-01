@@ -37,6 +37,26 @@ The original handover below describes its historical checkpoint. M2 live operati
 M4 functional shared-space routing, M6 remote coordination and M7 acceptance are not
 complete. No plan checkbox has been promoted solely from source inspection.
 
+### Source `b58db4c` and runtime checkpoint
+
+- GitHub run `36903982569` passed protocol, migration, real-MCP process, readiness
+  and setup suites on both macOS and Windows, then entered application checks.
+- Downloaded the matching macOS bridge and readiness acceptance executable;
+  no local Rust compilation. Native lifecycle probes did not pass: Codex 0.159.2
+  shared mode timed out before frontend connection/registration; QoderCN 1.1.65
+  registered but did not restore readiness after the first submitted question
+  within 60 seconds. These are failures, not execution or UI acceptance. A
+  no-daemon Codex probe option was added for subsequent isolation checks.
+- Downloaded the successful `e08b2ed` review app from run `36877709716` into
+  `/tmp/warp-v2-baseline-e08b2ed/review`, verified its bundle display name and
+  deep/strict code signature. This is the separate baseline app, not a replacement
+  of `/Applications/Warpai.app` or a build of current source.
+- Storage continuation replaces lifetime task/message ceilings with an active
+  queue limit and per-recipient backpressure, preserves reserved cancellation
+  notification/request capacity, and permits purge at the database budget.
+  Reusable free SQLite pages are excluded from occupied-page quota accounting.
+  Added a focused archival/full-inbox stop regression; CI validation pending.
+
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)
 checkboxes change only when their exit gates actually pass.

@@ -395,7 +395,9 @@ fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',40,160,0,0))
 def attach_terminal():
  os.setsid()
  fcntl.ioctl(slave,termios.TIOCSCTTY,0)
-child=subprocess.Popen([sys.argv[1]],stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
+args=[sys.argv[1]]
+if os.path.basename(sys.argv[1])=='codex' and os.environ.get('WARP_READINESS_EMBEDDED')=='1': args.append('--no-daemon')
+child=subprocess.Popen(args,stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
 os.close(slave)
 try:
  while child.poll() is None:

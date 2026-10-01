@@ -3,7 +3,7 @@ use crate::appearance::Appearance;
 use serde::Deserialize;
 use warpui::{
     elements::{ClippedScrollStateHandle, ClippedScrollable, Container, Element, Fill, Flex,
-        MouseStateHandle, ParentElement, ScrollbarWidth},
+        MouseStateHandle, Padding, ParentElement, ScrollbarWidth},
     ui_components::{button::ButtonVariant, components::UiComponent},
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext,
 };
@@ -86,7 +86,7 @@ impl View for CollaborationPanel {
         Container::new(ClippedScrollable::vertical(self.scroll.clone(), body.finish(),
             ScrollbarWidth::Auto, theme.nonactive_ui_detail().into(),
             theme.active_ui_detail().into(), Fill::None).with_overlayed_scrollbar().finish())
-            .with_padding(12.).finish()
+            .with_padding(Padding::uniform(12.)).finish()
     }
 }
 

@@ -32,9 +32,9 @@ pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
 /// Must exceed the maximum mutation epoch so cleanup can never make an old request execute again.
 pub(crate) const REQUEST_RETENTION: Duration = Duration::from_secs(8 * 24 * 60 * 60);
 const MAX_AGENTS: i64 = 1000;
-const MAX_TASKS_PER_PROJECT: i64 = 10_000;
-const MAX_PENDING_PER_PROJECT: i64 = 1000;
-const MAX_MESSAGES_PER_PROJECT: i64 = 100_000;
+const MAX_ACTIVE_TASKS_PER_PROJECT: i64 = 1000;
+const MAX_PENDING_PER_AGENT: i64 = 1000;
+const CONTROL_MESSAGE_RESERVE: i64 = 100;
 const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
@@ -530,13 +530,11 @@ impl Store {
     }
 
     fn queue(&self, project: &str, mut message: Message) -> Result<Message> {
+        let control = !matches!(message.kind.as_str(), "message" | "assignment" | "available");
+        let limit = MAX_PENDING_PER_AGENT + if control { CONTROL_MESSAGE_RESERVE } else { 0 };
         ensure!(
-            self.pending_count(project)? < MAX_PENDING_PER_PROJECT,
-            capacity_exceeded("Pending message capacity reached")
-        );
-        ensure!(
-            self.message_count(project)? < MAX_MESSAGES_PER_PROJECT,
-            capacity_exceeded("Message history capacity reached")
+            self.count("SELECT COUNT(*) AS count FROM messages WHERE recipient = ? AND acknowledged = 0", &[&message.to])? < limit,
+            capacity_exceeded("Recipient inbox is full; acknowledge pending messages before sending more work")
         );
         message.id = Uuid::new_v4().to_string();
         message.sequence = self.next_sequence(project)?;
@@ -604,6 +602,10 @@ impl Store {
         )
     }
 
+    fn active_task_count(&self, project: &str) -> Result<i64> {
+        self.count("SELECT COUNT(*) AS count FROM tasks WHERE project = ? AND archived = 0", &[project])
+    }
+
     fn pending_count(&self, project: &str) -> Result<i64> {
         self.count(
             "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND acknowledged = 0",
@@ -626,15 +628,15 @@ impl Store {
         let bytes = self.database_size()?;
         Ok(json!({
             "agents": {"used": self.agent_count()?, "limit": MAX_AGENTS},
-            "tasks": {"used": self.task_count(project)?, "limit": MAX_TASKS_PER_PROJECT},
-            "pending_messages": {"used": self.pending_count(project)?, "limit": MAX_PENDING_PER_PROJECT},
-            "messages": {"used": self.message_count(project)?, "limit": MAX_MESSAGES_PER_PROJECT},
+            "tasks": {"used": self.active_task_count(project)?, "total": self.task_count(project)?, "limit": MAX_ACTIVE_TASKS_PER_PROJECT},
+            "pending_messages": {"used": self.pending_count(project)?, "per_agent_limit": MAX_PENDING_PER_AGENT, "control_reserve": CONTROL_MESSAGE_RESERVE},
+            "messages": {"used": self.message_count(project)?},
             "database": {"used_bytes": bytes, "soft_limit": DATABASE_SOFT_LIMIT, "hard_limit": crate::DATABASE_HARD_LIMIT},
         }))
     }
 
     fn database_size(&self) -> Result<u64> {
-        let row = diesel::sql_query("SELECT (SELECT page_count FROM pragma_page_count()) * (SELECT page_size FROM pragma_page_size()) AS value")
+        let row = diesel::sql_query("SELECT ((SELECT page_count FROM pragma_page_count()) - (SELECT freelist_count FROM pragma_freelist_count())) * (SELECT page_size FROM pragma_page_size()) AS value")
             .get_result::<BytesRow>(&mut *self.connection.borrow_mut())?;
         Ok(row.value.max(0) as u64)
     }
@@ -1196,7 +1198,8 @@ impl Store {
         if Uuid::parse_str(request_id).is_err() {
             return Err(invalid_input("request_id must be a UUID"));
         }
-        self.execute_mutation(&actor.id, run, request_id, &serialized, || {
+        let control = !matches!(operation, Operation::AgentSend { .. } | Operation::TaskAssign { .. } | Operation::TaskCreatePool { .. } | Operation::FileReserve { .. } | Operation::EvidenceAdd { .. });
+        self.execute_mutation(&actor.id, run, request_id, &serialized, control, || {
             self.mutate(actor, run, operation)
         })
     }
@@ -1240,7 +1243,7 @@ impl Store {
         if Uuid::parse_str(request_id).is_err() {
             return Err(invalid_input("request_id must be a UUID"));
         }
-        self.execute_mutation(&actor.id, OPERATOR_EPOCH, request_id, &serialized, || {
+        self.execute_mutation(&actor.id, OPERATOR_EPOCH, request_id, &serialized, true, || {
             self.mutate_controller(project, &actor, operation)
         })
     }
@@ -1252,6 +1255,7 @@ impl Store {
         run: &str,
         request_id: &str,
         serialized: &str,
+        control: bool,
         mutate: impl FnOnce() -> Result<Value>,
     ) -> Result<Value> {
         let mut result = None;
@@ -1269,7 +1273,7 @@ impl Store {
                 return Ok(());
             }
             ensure!(
-                self.request_count()? < MAX_REQUESTS,
+                self.request_count()? < MAX_REQUESTS + if control { 1000 } else { 0 },
                 capacity_exceeded("Request capacity reached")
             );
             let value = mutate()?;
@@ -1470,8 +1474,8 @@ impl Store {
                 text(acceptance)?;
                 self.budget_available()?;
                 ensure!(
-                    self.task_count(&actor.project)? < MAX_TASKS_PER_PROJECT,
-                    capacity_exceeded("Task capacity reached")
+                    self.active_task_count(&actor.project)? < MAX_ACTIVE_TASKS_PER_PROJECT,
+                    capacity_exceeded("Active task queue is full; archive eligible completed work")
                 );
                 let assignee = self.resolve(actor, to)?;
                 let reviewer = match reviewer {
@@ -1822,8 +1826,8 @@ impl Store {
                 text(acceptance)?;
                 self.budget_available()?;
                 ensure!(
-                    self.task_count(&actor.project)? < MAX_TASKS_PER_PROJECT,
-                    capacity_exceeded("Task capacity reached")
+                    self.active_task_count(&actor.project)? < MAX_ACTIVE_TASKS_PER_PROJECT,
+                    capacity_exceeded("Active task queue is full; archive eligible completed work")
                 );
                 ensure!(
                     !eligible.is_empty() && eligible.len() <= MAX_ELIGIBLES,
@@ -3465,7 +3469,6 @@ impl Store {
             archived_tasks || acknowledged_messages,
             invalid_input("Select archived tasks, acknowledged messages, or both")
         );
-        self.budget_available()?;
         let mut purged_tasks = Vec::new();
         if archived_tasks {
             let rows = diesel::sql_query(format!(
@@ -5113,6 +5116,48 @@ mod tests {
             records.extend(items.iter().cloned());
         }
         records
+    }
+
+    #[test]
+    fn archival_recovers_capacity_and_full_inboxes_preserve_stop_requests() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let request_id = || Uuid::new_v4().to_string();
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &request_id())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        store.execute(&worker, "worker-run", &transition(id, 1, &request_id())).unwrap();
+        {
+            let mut connection = store.connection.borrow_mut();
+            for index in 0..MAX_PENDING_PER_AGENT {
+                diesel::sql_query("INSERT INTO messages(id, project, sender, recipient, body, kind, acknowledged, sequence) VALUES (?, '/project', ?, ?, 'unread', 'message', 0, ?)")
+                    .bind::<Text, _>(format!("full-{index}"))
+                    .bind::<Text, _>(&issuer.id).bind::<Text, _>(&worker.id)
+                    .bind::<BigInt, _>(index + 100).execute(&mut *connection).unwrap();
+            }
+        }
+        let overflow = store.execute(&issuer, "issuer-run", &send(&issuer, "worker", "more", &request_id())).unwrap_err();
+        assert_eq!(code(&overflow), "capacity_exceeded");
+        let cancel: Operation = serde_json::from_value(json!({
+            "op": "task_cancel", "task_id": id, "reason": "Stop", "request_id": request_id()
+        })).unwrap();
+        assert_eq!(store.execute(&issuer, "issuer-run", &cancel).unwrap()["state"], "cancel_requested");
+        let stopped: Operation = serde_json::from_value(json!({
+            "op": "task_finish_cancel", "task_id": id, "revision": 1,
+            "reason": "Stopped", "request_id": request_id()
+        })).unwrap();
+        store.execute(&worker, "worker-run", &stopped).unwrap();
+        store.execute_controller("/project", &ControllerOperation::TaskArchive {
+            task_id: id.into(), request_id: request_id()
+        }).unwrap();
+        assert_eq!(store.active_task_count("/project").unwrap(), 0);
+        assert_eq!(store.task_count("/project").unwrap(), 1);
+        let cancellation_notice = store.pending(&worker).unwrap().into_iter().find(|message| message.kind == "cancelled").unwrap();
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: cancellation_notice.id }).unwrap();
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: "full-0".into() }).unwrap();
+        assert!(store.execute(&issuer, "issuer-run", &send(&issuer, "worker", "more", &request_id())).is_ok());
+        assert!(store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &request_id())).is_err(),
+            "Full receiver inbox must still refuse fresh assignments");
     }
 
     #[test]
