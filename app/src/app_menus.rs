@@ -1198,29 +1198,28 @@ mod tests {
 
     #[test]
     fn lite_app_menu_builds_without_platform_bindings() {
-        App::test((), |app| async move {
+        App::test((), |mut app| async move {
             app.update(|ctx| {
-            // Match the Lite startup boundary: the referral action is deliberately unregistered.
-            for (name, action) in [
-                ("test:about", CustomAction::ShowAboutWarp),
-                ("test:resources", CustomAction::ToggleResourceCenter),
-                ("test:settings", CustomAction::ShowSettings),
-                ("test:keybindings", CustomAction::ToggleKeybindingsPage),
-                ("test:configure", CustomAction::ConfigureKeybindings),
-                ("test:appearance", CustomAction::ShowAppearance),
-                ("test:changelog", CustomAction::ViewChangelog),
-            ] {
-                ctx.register_editable_bindings([
-                    EditableBinding::new(
+                // Match the Lite startup boundary: the referral action is deliberately unregistered.
+                for (name, action) in [
+                    ("test:about", CustomAction::ShowAboutWarp),
+                    ("test:resources", CustomAction::ToggleResourceCenter),
+                    ("test:settings", CustomAction::ShowSettings),
+                    ("test:keybindings", CustomAction::ToggleKeybindingsPage),
+                    ("test:configure", CustomAction::ConfigureKeybindings),
+                    ("test:appearance", CustomAction::ShowAppearance),
+                    ("test:changelog", CustomAction::ViewChangelog),
+                ] {
+                    ctx.register_editable_bindings([EditableBinding::new(
                         name,
                         "Terminal menu action",
                         crate::workspace::WorkspaceAction::ToggleLeftPanel,
-                    ).with_custom_action(action),
-                ]);
-            }
-            let menu = make_new_app_menu(ctx);
-            assert_eq!(menu.title, "Warpai");
-            assert!(!menu.menu_items.is_empty());
+                    )
+                    .with_custom_action(action)]);
+                }
+                let menu = make_new_app_menu(ctx);
+                assert_eq!(menu.title, "Warpai");
+                assert!(!menu.menu_items.is_empty());
             });
         });
     }

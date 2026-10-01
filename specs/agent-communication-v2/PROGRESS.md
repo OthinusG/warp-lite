@@ -47,6 +47,11 @@
   identity under the same mutex before allowing any lifecycle side effect. A
   regression submits new user input then replays the old unchanged task result.
   Replay returns durable data without rewriting live readiness. CI pending.
+- Source `e2c90a1`, run `36936534033`: both OS protocol/migration/scale suites
+  and default/platform application checks passed. macOS application test
+  compilation failed in the new menu fixture because `App::update` needs a mutable
+  `App`; corrected the fixture closure to `mut app`. Windows packaging is running;
+  neither the failed app-test stage nor incomplete packaging is counted passed.
 
 The user authorized completing the plan, pushing source and GitHub builds, and
 subsequently confirmed that necessary actions require no further permission questions.

@@ -8,8 +8,11 @@ Baseline repair: `bde9043`, run [36934356183](https://github.com/OthinusG/warp-l
 Both OS protocol suites passed; full application/package results were pending at
 this checkpoint. Source `17da1f0`, run [36935931793](https://github.com/OthinusG/warp-lite/actions/runs/36935931793),
 passed both OS protocol suites including control-order, 20-claim and single-receiver
-pool wake checks. The subsequent cached-result/later-user-turn repair requires its
-own source run. Native UI/device/model gates remain unchanged.
+pool wake checks. Source `e2c90a1`, run [36936534033](https://github.com/OthinusG/warp-lite/actions/runs/36936534033),
+passed both OS protocol/scale suites and default/platform app checks. The new
+menu test initially failed to compile because its App binding was immutable;
+the one-line fixture repair awaits its source run. Packaging was still running.
+Native UI/device/model gates remain unchanged.
 
 | PLAN item | Smallest available check / evidence | Remaining verification or implementation |
 | --- | --- | --- |
