@@ -4917,6 +4917,10 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             sender.operation = Operation::AgentSend {
                 to: requests[index].terminal.clone(),
                 body: "Inspect pending work".into(),
+                subject: None,
+                thread_id: None,
+                reply_to: None,
+                task_id: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
             };
             transport::call(&broker.endpoint, &sender).unwrap();

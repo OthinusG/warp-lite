@@ -1,7 +1,7 @@
 //! The pinned MCP SDK owns framing, negotiation, and cancellation.
 use crate::{
     transport::{self, Request, CAPABILITY, ENDPOINT, TERMINAL},
-    Operation,
+    DomainError, Operation,
 };
 use anyhow::{anyhow, Result};
 use rmcp::{
@@ -180,7 +180,9 @@ impl Bridge {
                 Err(error)
                     if registration
                         && run.is_none()
-                        && error.to_string() == "No managed agent owns this terminal"
+                        && error
+                            .downcast_ref::<DomainError>()
+                            .is_some_and(|error| error.code == "binding_inactive")
                         && Instant::now() < deadline =>
                 {
                     std::thread::sleep(Duration::from_millis(50));
@@ -214,6 +216,7 @@ pub fn tools() -> Vec<Tool> {
             "agent_wait" => "Wait up to 20 seconds for available work. On timeout, poll all outstanding task states, then wait again until all are reviewed or the user stops collaboration.",
             "task_assign" => "Assign a task with acceptance criteria. Reviewer defaults to the assigner; self-review is refused. By default, keep polling every delegated task and wait for actual results; queue admission is not completion.",
             "task_get" => "Read a task visible to its issuer, assignee, or reviewer.",
+            "task_list" => "List tasks visible to you, newest first, filtered by state or assignee; page with cursor.",
             "task_start" => "Start a queued revision or explicitly recover interrupted work in this run.",
             "task_submit" => "Submit a running revision with its result and verification evidence. This does not accept the task.",
             "task_review" => "As the designated reviewer, accept a submitted revision or request changes with feedback.",
@@ -296,9 +299,12 @@ impl ServerHandler for Bridge {
             Ok(Ok(value)) => Ok(CallToolResult::success(vec![Content::text(
                 value.to_string(),
             )])),
-            Ok(Err(error)) => Ok(CallToolResult::error(vec![Content::text(
-                error.to_string(),
-            )])),
+            Ok(Err(error)) => {
+                let domain = DomainError::from_error(error);
+                let message = serde_json::to_string(&domain)
+                    .unwrap_or_else(|_| format!("{}: {}", domain.code, domain.message));
+                Ok(CallToolResult::error(vec![Content::text(message)]))
+            }
             Err(_) => Err(ErrorData::internal_error("Bridge unavailable", None)),
         }
     }

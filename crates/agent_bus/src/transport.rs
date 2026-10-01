@@ -1,5 +1,9 @@
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
-use crate::{Agent, Operation, Store, Task, MAX_FRAME};
+use crate::{
+    binding_inactive, capacity_exceeded, coordinator_unavailable, epoch_expired, invalid_input,
+    invalid_state, scope_denied, unauthorized, Agent, DomainError, Operation, Store, Task, MAX_FRAME,
+    MUTATION_EPOCH,
+};
 use anyhow::{anyhow, ensure, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -39,7 +43,8 @@ pub struct Request {
 #[derive(Serialize, Deserialize)]
 pub struct Response {
     pub result: Option<Value>,
-    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<DomainError>,
 }
 struct Terminal {
     capability: String,
@@ -58,6 +63,8 @@ struct Live {
     wake: Option<Wake>,
     delivered: HashSet<String>,
     initial_prompt: bool,
+    started: Instant,
+    expired: bool,
 }
 /// A run-scoped delivery claim. PTY submission never acknowledges the underlying message.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -283,7 +290,10 @@ impl Broker {
             .state
             .lock()
             .map_err(|_| anyhow!("Broker unavailable"))?;
-        ensure!(state.terminals.len() < 1000, "Terminal capacity reached");
+        ensure!(
+            state.terminals.len() < 1000,
+            capacity_exceeded("Terminal capacity reached")
+        );
         state.terminals.insert(
             terminal.into(),
             Terminal {
@@ -310,12 +320,12 @@ impl Broker {
                 .programs
                 .as_ref()
                 .is_none_or(|programs| programs.contains(program)),
-            "Agent communication is disabled for this program"
+            scope_denied("Agent communication is disabled for this program")
         );
         let binding = state
             .terminals
             .get_mut(terminal)
-            .ok_or_else(|| anyhow!("Terminal is not bound"))?;
+            .ok_or_else(|| unauthorized("Terminal is not bound"))?;
         binding.live = Some(Live {
             program: program.into(),
             project: project.into(),
@@ -329,6 +339,8 @@ impl Broker {
             wake: None,
             delivered: HashSet::new(),
             initial_prompt,
+            started: Instant::now(),
+            expired: false,
         });
         self.shared.changed.notify_all();
         Ok(())
@@ -337,6 +349,20 @@ impl Broker {
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(binding) = state.terminals.get_mut(terminal) {
                 binding.live = None;
+            }
+        }
+        self.shared.changed.notify_all();
+    }
+    /// Fences every pending request of this terminal's current run without ending the session.
+    #[doc(hidden)]
+    pub fn expire_epoch(&self, terminal: &str) {
+        if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state
+                .terminals
+                .get_mut(terminal)
+                .and_then(|binding| binding.live.as_mut())
+            {
+                live.expired = true;
             }
         }
         self.shared.changed.notify_all();
@@ -407,7 +433,7 @@ impl Broker {
                     return None;
                 }
                 let actor = live.agent.as_ref()?;
-                let message = state.store.next_work(actor, &live.run)?;
+                let message = state.store.next_work(actor, &live.run).ok()??;
                 if live.delivered.contains(&message.id) {
                     return None;
                 }
@@ -433,6 +459,7 @@ impl Broker {
                 let message = state
                     .store
                     .pending(live.agent.as_ref()?)
+                    .ok()?
                     .into_iter()
                     .next()?;
                 Some(Wake {
@@ -468,12 +495,10 @@ impl Broker {
         let Some(actor) = live.agent.as_ref() else {
             return false;
         };
-        if !state
-            .store
-            .pending(actor)
-            .iter()
-            .any(|message| message.id == wake.message_id)
-        {
+        let Ok(pending) = state.store.pending(actor) else {
+            return false;
+        };
+        if !pending.iter().any(|message| message.id == wake.message_id) {
             return false;
         }
         let live = state
@@ -520,13 +545,13 @@ impl Broker {
     fn execute(&self, request: &Request) -> Result<Value> {
         ensure!(
             !self.shared.stopped.load(Ordering::Acquire),
-            "Broker stopped"
+            coordinator_unavailable("Broker stopped")
         );
         let mut state = self
             .shared
             .state
             .lock()
-            .map_err(|_| anyhow!("Broker unavailable"))?;
+            .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
         authenticate(
             &state,
             request,
@@ -535,7 +560,7 @@ impl Broker {
         if let Some(directory) = &request.directory {
             ensure!(
                 Path::new(directory).is_absolute(),
-                "Native workspace must be absolute"
+                invalid_input("Native workspace must be absolute")
             );
             let project = crate::project_root(Path::new(directory))?;
             let live = state
@@ -548,7 +573,7 @@ impl Broker {
             if live.agent.is_some() {
                 ensure!(
                     live.project == project,
-                    "Native workspace changed; start a fresh managed CLI session"
+                    invalid_state("Native workspace changed; start a fresh managed CLI session")
                 );
             } else {
                 live.project = project;
@@ -591,8 +616,8 @@ impl Broker {
                     return Ok(json!({"agent": agent, "run": run}));
                 }
                 ensure!(
-                    !state.store.has_work(agent),
-                    "This identity already has work; preserve it instead of rebinding"
+                    !state.store.has_work(agent)?,
+                    invalid_state("This identity already has work; preserve it instead of rebinding")
                 );
             }
             let program = live.program.clone();
@@ -607,7 +632,7 @@ impl Broker {
                             .as_ref()
                             .and_then(|live| live.agent.as_ref())
                             .is_some_and(|agent| agent.project == project && agent.name == name)),
-                "Agent name is owned by another live terminal"
+                invalid_state("Agent name is owned by another live terminal")
             );
             // An offline name is reclaimed explicitly, preserving its pending work across new panes.
             let agent = state
@@ -629,12 +654,14 @@ impl Broker {
             }
             live.initial_prompt = false;
             self.shared.changed.notify_all();
-            return Ok(json!({"agent": agent, "run": run}));
+            return Ok(
+                json!({"agent": agent, "run": run, "capacity": state.store.capacity(&project)?}),
+            );
         }
         let actor = live
             .agent
             .clone()
-            .ok_or_else(|| anyhow!("Register before using communication tools"))?;
+            .ok_or_else(|| invalid_state("Register before using communication tools"))?;
         let recipients: Vec<&str> = match &request.operation {
             Operation::AgentSend { to, .. } => vec![to.as_str()],
             Operation::TaskAssign { to, reviewer, .. } => {
@@ -662,7 +689,7 @@ impl Broker {
             }
             ensure!(
                 target.is_some(),
-                "Recipient is not a live enabled agent in this project"
+                scope_denied("Recipient is not a live enabled agent in this project")
             );
         }
         if matches!(request.operation, Operation::AgentReady) {
@@ -698,10 +725,10 @@ impl Broker {
             loop {
                 ensure!(
                     !self.shared.stopped.load(Ordering::Acquire),
-                    "Broker stopped"
+                    coordinator_unavailable("Broker stopped")
                 );
                 authenticate(&state, request, false)?;
-                if let Some(message) = state.store.next_work(&actor, &run) {
+                if let Some(message) = state.store.next_work(&actor, &run)? {
                     state
                         .terminals
                         .get_mut(&request.terminal)
@@ -737,7 +764,7 @@ impl Broker {
                     .shared
                     .changed
                     .wait_timeout(state, deadline.saturating_duration_since(Instant::now()))
-                    .map_err(|_| anyhow!("Broker unavailable"))?;
+                    .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
                 state = next;
             }
         }
@@ -771,12 +798,14 @@ impl Broker {
                 agent["waiting"] = json!(online.is_some_and(|live| live.waiting));
                 agent["ready"] =
                     json!(online.is_some_and(|live| live.ready.is_some() && !live.manual_draft));
-                agent["pending_count"] = json!(online
-                    .and_then(|live| live.agent.as_ref())
-                    .map_or(0, |agent| state.store.pending(agent).len()));
+                let mut pending = 0;
+                if let Some(peer) = online.and_then(|live| live.agent.as_ref()) {
+                    pending = state.store.pending(peer)?.len();
+                }
+                agent["pending_count"] = json!(pending);
                 let mut tasks = state
                     .store
-                    .task_states(&actor, agent["id"].as_str().unwrap());
+                    .task_states(&actor, agent["id"].as_str().unwrap())?;
                 for task in &mut tasks {
                     let stored = state.store.task(&actor, task["id"].as_str().unwrap())?;
                     task["interrupted"] = json!(task_runtime(&state, stored).1);
@@ -821,19 +850,26 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
     let binding = state
         .terminals
         .get(&request.terminal)
-        .ok_or_else(|| anyhow!("Invalid terminal binding"))?;
+        .ok_or_else(|| unauthorized("Invalid terminal binding"))?;
     ensure!(
         binding.capability == request.capability,
-        "Invalid terminal capability"
+        unauthorized("Invalid terminal capability")
     );
     let live = binding
         .live
         .as_ref()
-        .ok_or_else(|| anyhow!("No managed agent owns this terminal"))?;
+        .ok_or_else(|| binding_inactive("No managed agent owns this terminal"))?;
     if !registration || request.run.is_some() {
         ensure!(
             request.run.as_deref() == Some(&live.run),
-            "Expired agent run; register again"
+            unauthorized("Expired agent run; register again")
+        );
+    }
+    // Reads stay available; a fencing epoch rejects every stale mutation before it can commit.
+    if request.operation.request_id().is_some() {
+        ensure!(
+            !live.expired && live.started.elapsed() < MUTATION_EPOCH,
+            epoch_expired("Terminal mutation epoch expired; start a fresh managed CLI session")
         );
     }
     Ok(live)
@@ -896,7 +932,7 @@ async fn handle(mut stream: impl AsyncRead + AsyncWrite + Unpin, broker: Broker)
         },
         Err(error) => Response {
             result: None,
-            error: Some(error.to_string()),
+            error: Some(DomainError::from_error(error)),
         },
     };
     send(
@@ -952,7 +988,7 @@ pub fn call(endpoint: &str, request: &Request) -> Result<Value> {
             .await
             .map_err(|_| anyhow!("Local IPC acknowledgement deadline exceeded"))??;
             if let Some(error) = response.error {
-                return Err(anyhow!(error));
+                return Err(anyhow::Error::from(error));
             }
             response
                 .result

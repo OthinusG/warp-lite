@@ -24,7 +24,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
     let path: PathBuf =
         std::env::temp_dir().join(format!("warp-agent-test-{}.sqlite", request_id()));
     {
-        let mut store = Store::open(path.to_str().unwrap()).unwrap();
+        let store = Store::open(path.to_str().unwrap()).unwrap();
         let reviewer = store
             .register("reviewer", "claude", "/project", "reviewer")
             .unwrap();
@@ -64,7 +64,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     }
                 )
                 .is_err());
-            assert!(store.next_work(&worker, "worker-run").is_some());
+            assert!(store.next_work(&worker, "worker-run").unwrap().is_some());
             store
                 .execute(
                     &worker,
@@ -72,12 +72,13 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 1,
+                        expected_version: None,
                         request_id: request_id(),
                     },
                 )
                 .unwrap();
             store.recover(&worker, "replacement-run").unwrap();
-            assert!(store.next_work(&worker, "replacement-run").is_some());
+            assert!(store.next_work(&worker, "replacement-run").unwrap().is_some());
             store
                 .execute(
                     &worker,
@@ -85,6 +86,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 1,
+                        expected_version: None,
                         request_id: request_id(),
                     },
                 )
@@ -94,6 +96,8 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 revision: 1,
                 result: "Implemented".into(),
                 evidence: "Focused test passed".into(),
+                expected_version: None,
+                attempt_id: None,
                 request_id: request_id(),
             };
             assert!(store.execute(&worker, "worker-run", &submission).is_err());
@@ -105,6 +109,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 revision: 1,
                 accepted: false,
                 feedback: "Cover the failure case".into(),
+                expected_version: None,
                 request_id: request_id(),
             };
             assert!(store.execute(&worker, "replacement-run", &review).is_err());
@@ -123,6 +128,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 1,
+                        expected_version: None,
                         request_id: request_id()
                     }
                 )
@@ -134,6 +140,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 2,
+                        expected_version: None,
                         request_id: request_id(),
                     },
                 )
@@ -147,6 +154,8 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                         revision: 2,
                         result: "Failure case covered".into(),
                         evidence: "Failure simulation passed".into(),
+                        expected_version: None,
+                        attempt_id: None,
                         request_id: request_id(),
                     },
                 )
@@ -161,6 +170,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                             revision: 2,
                             accepted: true,
                             feedback: "Verified".into(),
+                            expected_version: None,
                             request_id: request_id()
                         }
                     )
@@ -172,13 +182,13 @@ fn every_managed_type_delegates_reviews_and_recovers() {
         let moved = store
             .register("terminal-0", &programs[0], "/elsewhere", "moved")
             .unwrap();
-        assert!(store.pending(&moved).is_empty());
+        assert!(store.pending(&moved).unwrap().is_empty());
         let inbox = store
             .execute(&reviewer, "review-run", &Operation::AgentList)
             .unwrap();
         assert_eq!(inbox.as_array().unwrap().len(), programs.len() + 1);
     }
-    let mut reopened = Store::open(path.to_str().unwrap()).unwrap();
+    let reopened = Store::open(path.to_str().unwrap()).unwrap();
     let reviewer = reopened
         .register("replacement-reviewer", "claude", "/project", "reviewer")
         .unwrap();
@@ -272,6 +282,10 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
             native_issuer.operation = Operation::AgentSend {
                 to: state.into(),
                 body: "weekday".into(),
+                subject: None,
+                thread_id: None,
+                reply_to: None,
+                task_id: None,
                 request_id: request_id(),
             };
             transport::call(&server.broker.endpoint, &native_issuer).unwrap();
@@ -291,6 +305,10 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
         issuer.operation = Operation::AgentSend {
             to: state.into(),
             body: "weekday".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
             request_id: request_id(),
         };
         transport::call(&server.broker.endpoint, &issuer).unwrap();
@@ -368,7 +386,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     };
     assert!(transport::call(&server.broker.endpoint, &worker).is_err());
     let schema = warp_agent_bus::mcp::tools();
-    assert_eq!(schema.len(), 12);
+    assert_eq!(schema.len(), 13);
     for tool in schema {
         assert_eq!(
             tool.input_schema.get("additionalProperties"),
@@ -406,7 +424,7 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
             .env(CAPABILITY, capability)
             .env(TERMINAL, &terminal);
         let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
-        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 12);
+        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 13);
         let native = server
             .broker
             .peers("live-reviewer")
@@ -493,7 +511,7 @@ async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization
             } else if expected_id == 2 {
                 assert!(response["result"]["protocolVersion"].is_string());
             } else {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 12);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 13);
             }
         }
         assert_eq!(server.broker.peers("probe-reviewer").len(), 1);
@@ -544,10 +562,13 @@ fn dormant_agents_wake_without_an_open_wait_call() {
     }
     assert!(server.broker.wakeups().is_empty());
     for worker in &mut workers {
-        worker.operation = Operation::AgentInbox;
+        worker.operation = Operation::AgentInbox {
+            cursor: None,
+            limit: None,
+        };
         let inbox = transport::call(&server.broker.endpoint, worker).unwrap();
         assert_eq!(
-            inbox.as_array().unwrap().len(),
+            inbox["messages"].as_array().unwrap().len(),
             1,
             "PTY submission must not acknowledge or discard work"
         );
@@ -567,17 +588,28 @@ fn dormant_agents_wake_without_an_open_wait_call() {
         transport::call(&server.broker.endpoint, &worker).is_err(),
         "Acknowledging a task must not silently discard it"
     );
-    worker.operation = Operation::AgentInbox;
+    worker.operation = Operation::AgentInbox {
+        cursor: None,
+        limit: None,
+    };
     let inbox = transport::call(&server.broker.endpoint, &worker).unwrap();
     worker.operation = Operation::TaskStart {
-        task_id: inbox[0]["task_id"].as_str().unwrap().to_owned(),
+        task_id: inbox["messages"][0]["task_id"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
         revision: 1,
+        expected_version: None,
         request_id: request_id(),
     };
     transport::call(&server.broker.endpoint, &worker).unwrap();
     issuer.operation = Operation::AgentSend {
         to: worker.terminal.clone(),
         body: "Review follow-up".into(),
+        subject: None,
+        thread_id: None,
+        reply_to: None,
+        task_id: None,
         request_id: request_id(),
     };
     transport::call(&server.broker.endpoint, &issuer).unwrap();
@@ -639,23 +671,33 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         left.operation = Operation::AgentSend {
             to: recipient.into(),
             body: "No pairing required".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
             request_id: request_id(),
         };
         transport::call(&broker.endpoint, &left).unwrap();
     }
-    right.operation = Operation::AgentInbox;
+    right.operation = Operation::AgentInbox {
+        cursor: None,
+        limit: None,
+    };
     assert_eq!(
         transport::call(&broker.endpoint, &right)
-            .unwrap()
+            .unwrap()["messages"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
-    third.operation = Operation::AgentInbox;
+    third.operation = Operation::AgentInbox {
+        cursor: None,
+        limit: None,
+    };
     assert_eq!(
         transport::call(&broker.endpoint, &third)
-            .unwrap()
+            .unwrap()["messages"]
             .as_array()
             .unwrap()
             .len(),
@@ -681,6 +723,10 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         left.operation = Operation::AgentSend {
             to: to.into(),
             body: "Must stay isolated".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
             request_id: request_id(),
         };
         assert!(transport::call(&broker.endpoint, &left).is_err());
@@ -688,6 +734,10 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     outside.operation = Operation::AgentSend {
         to: "left".into(),
         body: "Must stay isolated".into(),
+        subject: None,
+        thread_id: None,
+        reply_to: None,
+        task_id: None,
         request_id: request_id(),
     };
     assert!(transport::call(&broker.endpoint, &outside).is_err());
@@ -790,6 +840,10 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
             issuer.operation = Operation::AgentSend {
                 to: name.clone(),
                 body: "Execute in your existing terminal and reply".into(),
+                subject: None,
+                thread_id: None,
+                reply_to: None,
+                task_id: None,
                 request_id: request_id(),
             };
             assert_eq!(
@@ -813,10 +867,13 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
     }
     assert!(broker.wakeups().is_empty());
     for worker in &mut workers {
-        worker.operation = Operation::AgentInbox;
+        worker.operation = Operation::AgentInbox {
+            cursor: None,
+            limit: None,
+        };
         let inbox = transport::call(&broker.endpoint, worker).unwrap();
         assert_eq!(
-            inbox.as_array().unwrap().len(),
+            inbox["messages"].as_array().unwrap().len(),
             1,
             "Blocked or submitted work must remain unacknowledged"
         );
@@ -827,6 +884,10 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
     issuer.operation = Operation::AgentSend {
         to: name.into(),
         body: "Cannot bypass discovery".into(),
+        subject: None,
+        thread_id: None,
+        reply_to: None,
+        task_id: None,
         request_id: request_id(),
     };
     assert!(transport::call(&broker.endpoint, &issuer).is_err());
@@ -863,6 +924,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         worker.operation = Operation::TaskStart {
             task_id: task_id.clone(),
             revision: 1,
+            expected_version: None,
             request_id: request_id(),
         };
         transport::call(&broker.endpoint, worker).unwrap();
@@ -877,6 +939,8 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
             revision: 1,
             result: "Normal terminal report".into(),
             evidence: "Representative check passed".into(),
+            expected_version: None,
+            attempt_id: None,
             request_id: request_id(),
         };
         transport::call(&broker.endpoint, worker).unwrap();
@@ -888,6 +952,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
             revision: 1,
             accepted: true,
             feedback: "Verified".into(),
+            expected_version: None,
             request_id: request_id(),
         };
         transport::call(&broker.endpoint, &issuer).unwrap();
@@ -905,6 +970,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     original.operation = Operation::TaskStart {
         task_id: id.clone(),
         revision: 1,
+        expected_version: None,
         request_id: request_id(),
     };
     transport::call(&broker.endpoint, &original).unwrap();
@@ -925,12 +991,15 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         revision: 1,
         result: "Must not silently complete".into(),
         evidence: "Not recovered".into(),
+        expected_version: None,
+        attempt_id: None,
         request_id: request_id(),
     };
     assert!(transport::call(&broker.endpoint, &replacement).is_err());
     replacement.operation = Operation::TaskStart {
         task_id: id.clone(),
         revision: 1,
+        expected_version: None,
         request_id: request_id(),
     };
     transport::call(&broker.endpoint, &replacement).unwrap();
@@ -967,7 +1036,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
             .activate("starting", "codex", "/project", true)
             .unwrap();
     });
-    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 12);
+    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 13);
     activation.await.unwrap();
     server.broker.end("starting");
     server
