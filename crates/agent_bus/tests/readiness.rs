@@ -251,7 +251,7 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
 async fn assigned_task_completion_restores_readiness_without_another_turn() {
     let server = RunningBroker::start(Path::new(":memory:")).unwrap();
     let mut peers = Vec::new();
-    for terminal in ["issuer", "worker"] {
+    for terminal in ["issuer", "worker", "observer"] {
         let capability = server.broker.prepare(terminal).unwrap();
         server
             .broker
@@ -281,6 +281,17 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
         let start_request = peers[1].clone();
         call(&server, &peers[1]).await;
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
+        peers[1].operation = Operation::AgentReady;
+        assert_eq!(call(&server, &peers[1]).await["ready"], false,
+            "A model cannot announce idle during its active delegated execution");
+        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
+        server.broker.readiness("worker", true);
+        tokio::time::sleep(Duration::from_millis(850)).await;
+        let hidden = status(&server, &peers[2], "worker").await;
+        assert!(hidden["tasks"].as_array().unwrap().is_empty());
+        assert_eq!(hidden["can_auto_submit"], true);
+        assert_eq!(hidden["can_start_task"], false,
+            "Private task content must stay hidden without advertising another execution grant");
         peers[1].operation = serde_json::from_value(json!({"op":"task_submit","task_id":task["id"],"revision":1,"result":"Friday","evidence":"Calendar checked","request_id":Uuid::new_v4().to_string()})).unwrap();
         let result = call(&server, &peers[1]).await;
         assert!(result["instruction"]

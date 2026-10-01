@@ -530,10 +530,8 @@ impl Broker {
                 let live = binding.live.as_ref()?;
                 let message = state
                     .store
-                    .pending(live.agent.as_ref()?)
-                    .ok()?
-                    .into_iter()
-                    .next()?;
+                    .first_pending(live.agent.as_ref()?, false)
+                    .ok()??;
                 Some(Wake {
                     terminal: terminal.clone(),
                     run: live.run.clone(),
@@ -796,6 +794,7 @@ impl Broker {
             );
         }
         if matches!(request.operation, Operation::AgentReady) {
+            let executing = state.store.execution_in_run(&actor.id, &run)?;
             let live = state
                 .terminals
                 .get_mut(&request.terminal)
@@ -803,6 +802,11 @@ impl Broker {
                 .live
                 .as_mut()
                 .unwrap();
+            if executing {
+                live.ready = None;
+                return Ok(json!({"ready":false, "activity":live.activity,
+                    "instruction":"Resolve the task you started: submit its result, report failure or confirm requested cancellation before announcing readiness."}));
+            }
             if live.native_activity.is_some_and(|activity| !activity.is_idle()) || live.blocked {
                 return Ok(json!({"ready": false, "activity": live.activity, "instruction": "Finish this turn now. Native session completion will establish readiness after work and approval dialogs end."}));
             }
@@ -943,7 +947,7 @@ impl Broker {
                 }
                 let mut pending = 0;
                 if let Some(peer) = online.and_then(|live| live.agent.as_ref()) {
-                    pending = state.store.pending(peer)?.len();
+                    pending = state.store.inbox_count(&peer.id)? as usize;
                 }
                 agent["pending_count"] = json!(pending);
                 let mut tasks = state
@@ -953,7 +957,7 @@ impl Broker {
                     let stored = state.store.task(&actor, task["id"].as_str().unwrap())?;
                     task["interrupted"] = json!(task_runtime(&state, &stored).1);
                 }
-                agent["can_start_task"] = json!(agent["can_auto_submit"] == true && !tasks.iter().any(|task| matches!(task["state"].as_str(), Some("running" | "cancel_requested"))));
+                agent["can_start_task"] = json!(agent["can_auto_submit"] == true && !state.store.running_task(agent["id"].as_str().unwrap())?);
                 agent["tasks"] = json!(tasks);
             }
         }

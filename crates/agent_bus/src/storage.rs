@@ -46,8 +46,10 @@ CREATE TABLE IF NOT EXISTS agent_bus_v1 (id INTEGER PRIMARY KEY CHECK(id=1), pay
 CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, terminal TEXT NOT NULL, name TEXT NOT NULL, program TEXT NOT NULL, project TEXT NOT NULL, UNIQUE(project, name));
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, project TEXT NOT NULL, issuer TEXT NOT NULL, assignee TEXT NOT NULL, reviewer TEXT NOT NULL, description TEXT NOT NULL, acceptance TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, version INTEGER NOT NULL, result TEXT, evidence TEXT, created_seq INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, start_deadline INTEGER, execution_timeout INTEGER, review_timeout INTEGER, execution_deadline INTEGER, review_deadline INTEGER, updated_at INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS tasks_project_seq ON tasks(project, created_seq);
+CREATE INDEX IF NOT EXISTS tasks_assignee_state ON tasks(assignee, state, id);
 CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL, owner TEXT NOT NULL, run TEXT NOT NULL, certainty TEXT NOT NULL, outcome TEXT, started_at INTEGER, finished_at INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_task ON attempts(task_id);
+CREATE INDEX IF NOT EXISTS attempts_run_task ON attempts(run, certainty, task_id);
 CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, revision INTEGER, author TEXT, body TEXT NOT NULL, accepted INTEGER, created_at INTEGER);
 CREATE INDEX IF NOT EXISTS feedback_task ON feedback(task_id, id);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, project TEXT NOT NULL, sender TEXT NOT NULL, recipient TEXT NOT NULL, body TEXT NOT NULL, subject TEXT, thread_id TEXT, reply_to TEXT, task_id TEXT, revision INTEGER, kind TEXT NOT NULL, acknowledged INTEGER NOT NULL, sequence INTEGER NOT NULL);
@@ -187,7 +189,12 @@ impl Store {
         if path == ":memory:" {
             return Ok(());
         }
-        let backup = format!("{path}.pre-upgrade");
+        // Preserve the v1 backup when a later normalized store is upgraded again.
+        let backup = if expected == Some(SENTINEL_V2) {
+            format!("{path}.pre-upgrade-v2")
+        } else {
+            format!("{path}.pre-upgrade")
+        };
         if std::path::Path::new(&backup).exists() {
             if let Some(expected) = expected {
                 let stored = read_legacy_payload(&backup)?;
@@ -360,8 +367,15 @@ impl Store {
         self.connection.borrow_mut().batch_execute("BEGIN IMMEDIATE")?;
         match f() {
             Ok(value) => {
-                self.connection.borrow_mut().batch_execute("COMMIT")?;
-                Ok(value)
+                let committed = self.connection.borrow_mut().batch_execute("COMMIT");
+                match committed {
+                    Ok(()) => Ok(value),
+                    Err(error) => {
+                        // SQLite can leave a transaction open after a failed commit.
+                        let _ = self.connection.borrow_mut().batch_execute("ROLLBACK");
+                        Err(error.into())
+                    }
+                }
             }
             Err(error) => {
                 let _ = self.connection.borrow_mut().batch_execute("ROLLBACK");
@@ -536,7 +550,7 @@ impl Store {
         let control = !matches!(message.kind.as_str(), "message" | "assignment" | "available");
         let limit = MAX_PENDING_PER_AGENT + if control { CONTROL_MESSAGE_RESERVE } else { 0 };
         ensure!(
-            self.count("SELECT COUNT(*) AS count FROM messages WHERE recipient = ? AND acknowledged = 0", &[&message.to])? < limit,
+            self.inbox_count(&message.to)? < limit,
             capacity_exceeded("Recipient inbox is full; acknowledge pending messages before sending more work")
         );
         message.id = Uuid::new_v4().to_string();
@@ -807,14 +821,29 @@ impl Store {
     }
 
     pub fn next_work(&self, actor: &Agent, run: &str) -> Result<Option<Message>> {
-        let executing = self.count(
+        let executing = self.execution_in_run(&actor.id, run)?;
+        self.first_pending(actor, executing)
+    }
+
+    pub(crate) fn first_pending(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
+        Ok(diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 AND (? = 0 OR kind NOT IN ('assignment','available')) ORDER BY sequence LIMIT 1")
+            .bind::<Text, _>(&actor.id).bind::<Integer, _>(i32::from(skip_delegation))
+            .get_result::<MessageRow>(&mut *self.connection.borrow_mut()).optional()?.map(MessageRow::message))
+    }
+
+    pub(crate) fn inbox_count(&self, agent: &str) -> Result<i64> {
+        self.count("SELECT COUNT(*) AS count FROM messages WHERE recipient = ? AND acknowledged = 0", &[agent])
+    }
+
+    pub(crate) fn running_task(&self, agent: &str) -> Result<bool> {
+        Ok(self.count("SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')", &[agent])? > 0)
+    }
+
+    pub(crate) fn execution_in_run(&self, agent: &str, run: &str) -> Result<bool> {
+        Ok(self.count(
             "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested') AND id IN (SELECT task_id FROM attempts WHERE run = ? AND certainty = 'active')",
-            &[actor.id.as_str(), run],
-        )? > 0;
-        Ok(self
-            .pending(actor)?
-            .into_iter()
-            .find(|message| !executing || !matches!(message.kind.as_str(), "assignment" | "available")))
+            &[agent, run],
+        )? > 0)
     }
 
     pub fn has_work(&self, actor: &Agent) -> Result<bool> {
@@ -928,6 +957,8 @@ impl Store {
             .map(|attempt| attempt.run.clone());
         let blocking = self.blocking_dependencies(&task.id)?;
         task.wait_reason = match task.state.as_str() {
+            "running" if task.executing_run.is_none() => Some("Execution is interrupted; the previous process is not confirmed stopped. Request operator recovery.".into()),
+            "cancel_requested" => Some("Cancellation requested; the owning execution must confirm it stopped, or an operator must explicitly override unknown execution.".into()),
             "blocked" if !blocking.is_empty() => Some(format!(
                 "Waiting for prerequisites: {}",
                 blocking.join(", ")
@@ -1311,7 +1342,7 @@ impl Store {
             .bind::<BigInt, _>(now as i64)
             .execute(&mut *self.connection.borrow_mut())?;
         let expired = diesel::sql_query(format!(
-            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND state IN ('queued','blocked') AND start_deadline IS NOT NULL AND start_deadline <= ? AND NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.task_id = tasks.id)"
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND state IN ('queued','blocked') AND start_deadline IS NOT NULL AND start_deadline <= ? AND NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.task_id = tasks.id AND attempts.revision = tasks.revision)"
         ))
         .bind::<Text, _>(project)
         .bind::<BigInt, _>(now as i64)
@@ -5475,6 +5506,44 @@ mod tests {
     }
 
     #[test]
+    fn sqlite_full_rolls_back_new_work_and_preserves_existing_records() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("full.sqlite");
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let existing = store.execute(&issuer, "issuer-run", &send(&issuer, "worker", "Existing message", &Uuid::new_v4().to_string())).unwrap();
+        store.connection.borrow_mut().batch_execute("PRAGMA max_page_count = 1").unwrap();
+        let full = store.execute(&issuer, "issuer-run", &send(&issuer, "worker", &"x".repeat(crate::MAX_TEXT), &Uuid::new_v4().to_string())).unwrap_err();
+        assert_eq!(code(&full), "storage_full");
+        let pending = store.pending(&worker).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].id, existing["id"].as_str().unwrap());
+        assert_eq!(pending[0].body, "Existing message");
+        assert_eq!(store.request_count().unwrap(), 1, "A failed write cannot leave a dedup success row");
+    }
+
+    #[test]
+    fn failed_commit_releases_transaction_before_the_identical_retry() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("commit.sqlite");
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        store.connection.borrow_mut().batch_execute("PRAGMA busy_timeout=0").unwrap();
+        let mut reader = SqliteConnection::establish(database.to_str().unwrap()).unwrap();
+        reader.batch_execute("BEGIN; SELECT COUNT(*) FROM messages;").unwrap();
+        let send = send(&issuer, "worker", "Committed once", &Uuid::new_v4().to_string());
+        assert!(store.execute(&issuer, "issuer-run", &send).is_err());
+        assert!(store.pending(&worker).unwrap().is_empty());
+        assert_eq!(store.request_count().unwrap(), 0);
+        reader.batch_execute("ROLLBACK").unwrap();
+        let sent = store.execute(&issuer, "issuer-run", &send).unwrap();
+        assert_eq!(store.execute(&issuer, "issuer-run", &send).unwrap(), sent);
+        assert_eq!(store.pending(&worker).unwrap().len(), 1);
+    }
+
+    #[test]
     fn dependencies_gate_starts_until_prerequisites_accept() {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
@@ -5908,6 +5977,15 @@ mod tests {
         assert_eq!(finished["state"], "cancelled");
         let stopped = store.task(&issuer, &task_id).unwrap();
         assert_eq!(stopped.attempts[0].outcome.as_deref(), Some("cancelled"));
+        let retry: Operation = serde_json::from_value(json!({"op":"task_retry", "task_id":task_id,
+            "reason":"Try again", "start_deadline":future(60), "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&issuer, "run-issuer", &retry).unwrap();
+        diesel::sql_query("UPDATE tasks SET start_deadline = 0 WHERE id = ?")
+            .bind::<Text, _>(&task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        store.execute(&issuer, "run-issuer", &Operation::AgentList).unwrap();
+        let expired_retry = store.task(&issuer, &task_id).unwrap();
+        assert_eq!(expired_retry.revision, 3);
+        assert_eq!(expired_retry.state, "expired", "An old revision's attempt must not suppress a new start deadline");
     }
 
     #[test]
@@ -6992,10 +7070,14 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("bus.sqlite");
         let path = path.to_str().unwrap();
+        let v1_backup = format!("{path}.pre-upgrade");
+        let v1_payload = legacy_payload();
+        legacy_database(&v1_backup, &v1_payload);
         v2_database(path);
         let store = Store::open(path).unwrap();
-        let backup = format!("{path}.pre-upgrade");
+        let backup = format!("{path}.pre-upgrade-v2");
         assert!(std::path::Path::new(&backup).exists());
+        assert_eq!(read_legacy_payload(&v1_backup).unwrap().as_deref(), Some(v1_payload.as_str()));
         assert_eq!(read_legacy_payload(path).unwrap().as_deref(), Some(SENTINEL));
         assert_eq!(
             read_legacy_payload(&backup).unwrap().as_deref(),

@@ -80,6 +80,11 @@ Migration sequence:
 
 Rollback after new work exists requires exporting v2 history and explicitly restoring the pre-upgrade backup. Feature disablement only revokes participation and is not a database rollback. Test restore on both platforms and retain a clear schema/app compatibility record.
 
+Backup files are version-specific: the original v1 snapshot remains in
+`<database>.pre-upgrade`; a normalized v2→v3 upgrade writes
+`<database>.pre-upgrade-v2`. Never overwrite the original backup to make a later
+upgrade proceed. Select the matching schema backup deliberately when restoring.
+
 ### 3. Events, delivery and diagnostics
 
 Commit task/message mutation and its domain event in the same SQLite transaction. Use coordinator-assigned per-space sequences, stable event UUIDs and resource IDs. Transient UI states such as typing are read-model updates; persist meaningful delivery transitions and errors, not every terminal byte or poll.

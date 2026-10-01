@@ -118,6 +118,16 @@ complete. No plan checkbox has been promoted solely from source inspection.
   budget, and evidence descriptors enforce a combined metadata limit. New
   regressions exercise 20 reworks, expired response cache, unauthorized history
   reads and maximum-length escaped messages. CI validation is pending.
+- Source `94bc32d`, run `36913294715`: both OS protocol suites and scale benchmark
+  passed with the new 30-tool contract, bounded history and durable result events.
+- Additional storage fixes preserve version-specific upgrade backups, roll back
+  a failed COMMIT before retry, and scope start deadlines to the current revision.
+  Added real SQLite page-full and competing-reader commit-failure fixtures. SQL
+  fixture checks passed locally; Rust verification of these changes is pending.
+- Wake inspection now fetches one eligible pending row instead of loading an
+  entire inbox; peer unread counts use the existing index. Explicit model readiness
+  cannot override an active delegated attempt, and task-start eligibility accounts
+  for work invisible to the requesting issuer. New readiness regression pending.
 
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)
