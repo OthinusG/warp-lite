@@ -11,6 +11,9 @@
 
 ## Native Agent Communication Design
 
+- Verification for source commit 632bd1c: macOS and Windows GitHub protocol suites passed. Downloaded the macOS CI bridge and repeated native handshake/registration with Claude, QoderCN, Cursor, Antigravity, the repaired ordinary dsh-tui profile and Codex. All six passed; Antigravity used the compiled prelude directly, and Codex passed with inherited network proxies while both loopback exclusion variables were deliberately absent before launch. These checks did not replace the installed app or request model turns. Application/platform/package CI is a separate verification stage.
+
+
 - Antigravity 1.2.14 probes `server/discover` as a request (numeric ID), then falls back to legacy initialization after MethodNotFound. The pinned rmcp unknown-method decoder loses that request ID by interpreting it as a custom notification and closes before initialize. A bounded shared stdio/relay prelude must reject the probe using its original ID and retain unread buffered input for rmcp; do not advertise stateless MCP support. Native temporary-HOME setup completed initialize, all twelve tools and broker registration with this fallback, even before login. Official fallback rules: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/draft/basic/transports/stdio.mdx.
 
 

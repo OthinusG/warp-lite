@@ -30,7 +30,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 
 ## Installed-client handshake verification (2026-10-01)
 
-These probes launched real installed vendor clients against the installed Warpai bridge and a synthetic authenticated local broker. They verify native MCP initialization and tool discovery, without model turns or cross-pane wake acceptance. Temporary homes/workspaces preserved personal server configurations and credentials.
+Initial probes launched real installed vendor clients against the installed Warpai bridge and a synthetic authenticated local broker. Follow-up probes used the macOS GitHub-built bridge from source commit 632bd1c after both OS protocol suites passed; all six installed frontends passed again. They verify native MCP initialization and tool discovery, without model turns or cross-pane wake acceptance. Temporary homes/workspaces preserved personal server configurations and credentials.
 
 | Installed frontend | Native handshake | Conditions |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ These probes launched real installed vendor clients against the installed Warpai
 | DeepSeek Harness dsh-tui | Passed; initialize, 12 tools, registration | Both clean temporary and repaired ordinary profiles passed; retain the global journal hook and remove its identical profile-level insertion |
 | Qoder | Not installed | Existing entry wrapper reports missing Qoder CLI; do not count it as QoderCN |
 
-The Antigravity probe used a temporary protocol prelude around the installed binary to validate the fix before GitHub compilation. Source regressions verify the same fallback, buffered input retention and frame bounds. The installed app is not updated by source edits. Existing Cursor settings require unchecking/re-enabling its managed entry after upgrading to regenerate the environment references. The DeepSeek personal-profile hook conflict was repaired locally at the user's request by removing only its redundant profile-level insertion; the original was backed up and the ordinary profile passed the native handshake with a temporary MCP overlay.
+The initial Antigravity probe used a temporary protocol prelude around the installed binary to validate the fix before GitHub compilation; the follow-up passed directly through the compiled source fix with no external compatibility filter. Codex also passed with inherited network proxies and both loopback exclusion variables absent before launch. Source regressions verify the same fallback, buffered input retention and frame bounds. The installed app is not updated by source edits. Existing Cursor settings require unchecking/re-enabling its managed entry after upgrading to regenerate the environment references. The DeepSeek personal-profile hook conflict was repaired locally at the user's request by removing only its redundant profile-level insertion; the original was backed up and the ordinary profile passed the native handshake with a temporary MCP overlay.
 
 ## Excluded or unverified
 
