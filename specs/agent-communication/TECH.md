@@ -14,7 +14,7 @@ See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end ev
 - Store a versioned snapshot in a dedicated SQLite database, transactionally committing task mutations and their messages together. Bound records and input sizes. `ponytail`: snapshot writes are O(n); normalize tables when the explicit first-release capacity becomes limiting.
 - Use bounded JSON frames over Unix sockets/Windows named pipes rather than exposing a TCP listener. Limit connections, frame size, and IO deadlines. Keep server errors free of payloads and capabilities.
 - MCP schemas and operation parsing share one contract. Requests use idempotency IDs for mutations and revisions for task transitions. Results contain stable task/message IDs and explicit states.
-- Package the companion beside Warp Lite. Setup uses native vendor commands or narrowly edits the documented MCP section of the vendor configuration, preserving unrelated values. Credentials, credential files, and capability values are never copied into Warp metadata or diagnostics.
+- Package the companion beside Warpai. Setup uses native vendor commands or narrowly edits the documented MCP section of the vendor configuration, preserving unrelated values. Credentials, credential files, and capability values are never copied into Warp metadata or diagnostics.
 
 ## API contract
 

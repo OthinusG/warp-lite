@@ -2193,15 +2193,40 @@ index b186a71..2841d8c 100644
                      cloud_conversation_storage={}",
                      self.is_telemetry_enabled,
 diff --git a/app/src/settings_view/about_page.rs b/app/src/settings_view/about_page.rs
-index b5c03b6..5821c2f 100644
+index b5c03b6..f8dd25b 100644
 --- a/app/src/settings_view/about_page.rs
 +++ b/app/src/settings_view/about_page.rs
-@@ -118,7 +118,7 @@ impl SettingsWidget for AboutPageWidget {
+@@ -54,7 +54,7 @@ impl SettingsWidget for AboutPageWidget {
+     type View = AboutPageView;
+ 
+     fn search_terms(&self) -> &str {
+-        "about warp version"
++        "about warpai warp version"
+     }
+ 
+     fn render(
+@@ -67,9 +67,9 @@ impl SettingsWidget for AboutPageWidget {
+         let ui_builder = appearance.ui_builder();
+ 
+         let image_path = if theme.inferred_color_scheme() == ColorScheme::LightOnDark {
+-            "bundled/svg/warp-logo-with-light-title.svg"
++            "bundled/svg/warp-logo-light.svg"
+         } else {
+-            "bundled/svg/warp-logo-with-dark-title.svg"
++            "bundled/svg/warp-logo-dark.svg"
+         };
+ 
+         let version = ChannelState::app_version().unwrap_or("v#.##.###");
+@@ -115,10 +115,11 @@ impl SettingsWidget for AboutPageWidget {
+                     .with_max_width(350.)
+                     .finish(),
+                 )
++                .with_child(ui_builder.span("Warpai").build().with_margin_top(16.).finish())
                  .with_child(version_row.finish())
                  .with_child(
                      ui_builder
 -                        .span("Copyright 2026 Warp")
-+                        .span("Copyright 2026 Warpai")
++                        .span("Warpai by OthinusG · Based on Warp")
                          .build()
                          .with_margin_top(16.)
                          .finish(),
