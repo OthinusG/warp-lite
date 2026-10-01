@@ -39,10 +39,10 @@ These probes launched real installed vendor clients against the installed Warpai
 | QoderCN 1.1.65 | Passed; initialize, 12 tools, registration | Separate QoderCN executable and native inline config |
 | Cursor 2026.09.18-9a7762b | Passed; initialize, 12 tools, registration | Runtime environment references and native approval in temporary HOME/workspace |
 | Antigravity 1.2.14 | Passed; initialize, 12 tools, registration | Temporary native configuration; probe prelude returns MethodNotFound before SDK initialization |
-| DeepSeek Harness dsh-tui | Passed; initialize, 12 tools, registration | Clean temporary profile reuses installed dependencies; ordinary personal profile has duplicate journal hook loader IDs |
+| DeepSeek Harness dsh-tui | Passed; initialize, 12 tools, registration | Both clean temporary and repaired ordinary profiles passed; retain the global journal hook and remove its identical profile-level insertion |
 | Qoder | Not installed | Existing entry wrapper reports missing Qoder CLI; do not count it as QoderCN |
 
-The Antigravity probe used a temporary protocol prelude around the installed binary to validate the fix before GitHub compilation. Source regressions verify the same fallback, buffered input retention and frame bounds. The installed app is not updated by source edits. Existing Cursor settings require unchecking/re-enabling its managed entry after upgrading to regenerate the environment references. The DeepSeek personal-profile hook conflict is outside the repository repair and remains unresolved.
+The Antigravity probe used a temporary protocol prelude around the installed binary to validate the fix before GitHub compilation. Source regressions verify the same fallback, buffered input retention and frame bounds. The installed app is not updated by source edits. Existing Cursor settings require unchecking/re-enabling its managed entry after upgrading to regenerate the environment references. The DeepSeek personal-profile hook conflict was repaired locally at the user's request by removing only its redundant profile-level insertion; the original was backed up and the ordinary profile passed the native handshake with a temporary MCP overlay.
 
 ## Excluded or unverified
 
