@@ -400,7 +400,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     };
     assert!(transport::call(&server.broker.endpoint, &worker).is_err());
     let schema = warp_agent_bus::mcp::tools();
-    assert_eq!(schema.len(), 13);
+    assert_eq!(schema.len(), 29);
     for tool in schema {
         assert_eq!(
             tool.input_schema.get("additionalProperties"),
@@ -438,7 +438,7 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
             .env(CAPABILITY, capability)
             .env(TERMINAL, &terminal);
         let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
-        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 13);
+        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 29);
         let native = server
             .broker
             .peers("live-reviewer")
@@ -525,7 +525,7 @@ async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization
             } else if expected_id == 2 {
                 assert!(response["result"]["protocolVersion"].is_string());
             } else {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 13);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 29);
             }
         }
         assert_eq!(server.broker.peers("probe-reviewer").len(), 1);
@@ -798,6 +798,40 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
 }
 
 #[test]
+fn concurrent_pool_claims_over_authenticated_ipc_have_one_winner() {
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let broker = &server.broker;
+    let mut issuer = register(broker, "issuer", "claude");
+    let left = register(broker, "left", "codex");
+    let right = register(broker, "right", "qodercn");
+    issuer.operation = serde_json::from_value(serde_json::json!({
+        "op": "task_create_pool", "description": "Claim once", "acceptance": "Single owner",
+        "eligible": ["left", "right"], "request_id": request_id()
+    })).unwrap();
+    let task = transport::call(&broker.endpoint, &issuer).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let children: Vec<_> = [left, right].into_iter().map(|mut worker| {
+        worker.operation = serde_json::from_value(serde_json::json!({
+            "op": "task_claim", "task_id": task["id"], "expected_version": task["version"],
+            "request_id": request_id()
+        })).unwrap();
+        let endpoint = broker.endpoint.clone();
+        let barrier = barrier.clone();
+        thread::spawn(move || {
+            barrier.wait();
+            transport::call(&endpoint, &worker)
+        })
+    }).collect();
+    barrier.wait();
+    let outcomes: Vec<_> = children.into_iter().map(|child| child.join().unwrap()).collect();
+    assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+    issuer.operation = Operation::TaskGet { task_id: task["id"].as_str().unwrap().into() };
+    let committed = transport::call(&broker.endpoint, &issuer).unwrap();
+    assert_eq!(committed["version"], 2);
+    assert!(!committed["assignee"].as_str().unwrap().is_empty());
+}
+
+#[test]
 fn project_roots_share_subdirectories_but_isolate_worktrees() {
     let root = std::env::temp_dir().join(format!("warp-project-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(root.join("repo/.git")).unwrap();
@@ -874,7 +908,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 transport::call(&broker.endpoint, &issuer).unwrap()["delivery"],
                 "queued"
             );
-            if state == "fresh" {
+            if matches!(state, "fresh" | "active" | "rediscovered") {
                 expected.push(name);
             }
             workers.push(worker);
@@ -1070,7 +1104,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
             .activate("starting", "codex", "/project", true)
             .unwrap();
     });
-    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 13);
+    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 29);
     activation.await.unwrap();
     server.broker.end("starting");
     server

@@ -860,7 +860,19 @@ impl Broker {
             }
         }
         let mut result = state.store.execute(&actor, &run, &request.operation)?;
-        if matches!(request.operation, Operation::TaskStart { .. }) {
+        // A replay returns its historical response; it must not rewrite current lifecycle state.
+        let current_transition = match &request.operation {
+            Operation::TaskStart { task_id, .. }
+            | Operation::TaskSubmit { task_id, .. }
+            | Operation::TaskFinishCancel { task_id, .. }
+            | Operation::TaskFail { task_id, .. } => {
+                let current = state.store.task(&actor, task_id)?;
+                result["version"].as_u64() == Some(current.version)
+                    && result["state"].as_str() == Some(current.state.as_str())
+            }
+            _ => false,
+        };
+        if current_transition && matches!(request.operation, Operation::TaskStart { .. }) {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
             live.activity = Activity::Working;
             live.readiness_source = "task_start";
@@ -868,7 +880,7 @@ impl Broker {
             live.generation += 1;
             if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
         }
-        if matches!(request.operation, Operation::TaskSubmit { .. } | Operation::TaskFinishCancel { .. } | Operation::TaskFail { .. }) {
+        if current_transition && matches!(request.operation, Operation::TaskSubmit { .. } | Operation::TaskFinishCancel { .. } | Operation::TaskFail { .. }) {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
             live.activity = Activity::Idle;
             live.readiness_source = "task_finished";

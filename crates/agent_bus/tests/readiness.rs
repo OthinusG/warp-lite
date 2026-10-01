@@ -275,6 +275,7 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
         peers[0].operation = serde_json::from_value(json!({"op":"task_assign","to":"worker","description":"Inspect weekday","acceptance":"Return weekday","request_id":Uuid::new_v4().to_string()})).unwrap();
         let task = call(&server, &peers[0]).await;
         peers[1].operation = serde_json::from_value(json!({"op":"task_start","task_id":task["id"],"revision":1,"request_id":Uuid::new_v4().to_string()})).unwrap();
+        let start_request = peers[1].clone();
         call(&server, &peers[1]).await;
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
         peers[1].operation = serde_json::from_value(json!({"op":"task_submit","task_id":task["id"],"revision":1,"result":"Friday","evidence":"Calendar checked","request_id":Uuid::new_v4().to_string()})).unwrap();
@@ -284,7 +285,20 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
             .unwrap()
             .contains("warp_agent_ready"));
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], true);
-        peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":1,"accepted":true,"feedback":"Verified","request_id":Uuid::new_v4().to_string()})).unwrap();
+        call(&server, &start_request).await;
+        assert_eq!(status(&server, &peers[0], "worker").await["ready"], true,
+            "Replaying an old start must not revoke readiness after submission");
+        let submission_request = peers[1].clone();
+        peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":1,"accepted":false,"feedback":"Repeat the check","request_id":Uuid::new_v4().to_string()})).unwrap();
+        call(&server, &peers[0]).await;
+        peers[1].operation = serde_json::from_value(json!({"op":"task_start","task_id":task["id"],"revision":2,"request_id":Uuid::new_v4().to_string()})).unwrap();
+        call(&server, &peers[1]).await;
+        call(&server, &submission_request).await;
+        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false,
+            "Replaying an old submission must not announce idle during a newer attempt");
+        peers[1].operation = serde_json::from_value(json!({"op":"task_submit","task_id":task["id"],"revision":2,"result":"Friday","evidence":"Calendar checked again","request_id":Uuid::new_v4().to_string()})).unwrap();
+        call(&server, &peers[1]).await;
+        peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":2,"accepted":true,"feedback":"Verified","request_id":Uuid::new_v4().to_string()})).unwrap();
         call(&server, &peers[0]).await;
     }
     peers[0].operation = serde_json::from_value(json!({"op":"task_create_pool","description":"Inspect weekday","acceptance":"Return weekday","eligible":["worker"],"request_id":Uuid::new_v4().to_string()})).unwrap();

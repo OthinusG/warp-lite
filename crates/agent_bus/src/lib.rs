@@ -787,3 +787,103 @@ pub(crate) fn normalize_relative_path(value: &str) -> Result<String> {
     }
     Ok(segments.join("/"))
 }
+
+/// Resolve aliases and the nearest existing parent before granting a physical reservation.
+pub(crate) fn normalize_workspace_path(workspace: &str, value: &str) -> Result<String> {
+    #[cfg(windows)]
+    ensure!(!value.ends_with(['.', ' ']), invalid_input("Path is not a normal Windows file or subtree"));
+    let relative = normalize_relative_path(value)?;
+    #[cfg(windows)]
+    for segment in relative.split('/') {
+        let stem = segment.split('.').next().unwrap_or_default().to_ascii_uppercase();
+        ensure!(
+            !segment.ends_with(['.', ' '])
+                && !segment.contains(['<', '>', '"', '|', '?', '*'])
+                && !matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+                && !(stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT"))
+                    && matches!(stem.as_bytes()[3], b'1'..=b'9')),
+            invalid_input("Path is not a normal Windows file or subtree")
+        );
+    }
+    let root = Path::new(workspace).canonicalize()
+        .map_err(|_| invalid_input("Workspace root is unavailable"))?;
+    let mut existing = root.join(&relative);
+    let mut suffix = Vec::new();
+    loop {
+        match std::fs::symlink_metadata(&existing) {
+            Ok(_) => break,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let name = existing.file_name().ok_or_else(|| invalid_input("Path is unavailable"))?;
+                suffix.push(name.to_owned());
+                ensure!(existing.pop(), invalid_input("Path is unavailable"));
+            }
+            Err(_) => return Err(invalid_input("Path cannot be inspected")),
+        }
+    }
+    let mut resolved = existing.canonicalize()
+        .map_err(|_| invalid_input("Path alias cannot be resolved"))?;
+    ensure!(resolved.starts_with(&root), invalid_input("Path escapes the workspace root"));
+    ensure!(suffix.is_empty() || resolved.is_dir(), invalid_input("Path parent must be a directory"));
+    for segment in suffix.into_iter().rev() {
+        resolved.push(segment);
+    }
+    let path = resolved.strip_prefix(&root)
+        .map_err(|_| invalid_input("Path escapes the workspace root"))?
+        .to_str().ok_or_else(|| invalid_input("Path must be UTF-8"))?.replace('\\', "/");
+    ensure!(!path.is_empty(), invalid_input("Path must name a file or subtree"));
+    // Probe an existing directory alias; do not assume every macOS volume ignores case.
+    let insensitive = root.ancestors().find_map(|directory| {
+        let name = directory.file_name()?.to_str()?;
+        let index = name.bytes().position(|byte| byte.is_ascii_alphabetic())?;
+        let mut alternate = name.as_bytes().to_vec();
+        alternate[index] ^= 0x20;
+        let alternate = directory.with_file_name(String::from_utf8(alternate).ok()?);
+        let original = directory.metadata().ok()?;
+        let other = alternate.metadata();
+        #[cfg(target_os = "macos")]
+        {
+            use std::os::unix::fs::MetadataExt;
+            Some(other.is_ok_and(|other| original.dev() == other.dev() && original.ino() == other.ino()))
+        }
+        #[cfg(windows)]
+        {
+            let _ = (original, other);
+            Some(alternate.canonicalize().ok().as_deref() == Some(directory))
+        }
+        #[cfg(not(any(target_os = "macos", windows)))]
+        {
+            let _ = (original, other);
+            Some(false)
+        }
+    }).unwrap_or(false);
+    Ok(if insensitive { path.to_lowercase() } else { path })
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+    #[test]
+    fn reservation_paths_resolve_aliases_and_reject_workspace_escapes() {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = directory.path().join("Checkout");
+        let outside = directory.path().join("Outside");
+        std::fs::create_dir_all(workspace.join("src")).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        let root = workspace.to_str().unwrap();
+        let target = normalize_workspace_path(root, "src/new/file.rs").unwrap();
+        assert!(target.eq_ignore_ascii_case("src/new/file.rs"));
+        assert!(normalize_workspace_path(root, "../Outside/file.rs").is_err());
+        assert!(normalize_workspace_path(root, "C:\\Outside\\file.rs").is_err());
+        #[cfg(target_os = "macos")]
+        {
+            std::os::unix::fs::symlink(workspace.join("src"), workspace.join("alias")).unwrap();
+            std::os::unix::fs::symlink(&outside, workspace.join("escape")).unwrap();
+            assert_eq!(normalize_workspace_path(root, "alias/new/file.rs").unwrap(), target);
+            assert!(normalize_workspace_path(root, "escape/new/file.rs").is_err());
+        }
+        #[cfg(windows)]
+        for path in ["NUL", "con.txt", "src/file.", "src/file ", "LPT1.txt"] {
+            assert!(normalize_workspace_path(root, path).is_err());
+        }
+    }
+}

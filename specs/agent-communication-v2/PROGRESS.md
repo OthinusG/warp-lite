@@ -16,6 +16,15 @@ This supersedes the earlier no-upload instruction for the readiness repair.
   native toolchain diagnostics were added, without changing pinned dependencies.
 - Cancellation-pending work retains exclusive ownership: another start/claim is
   rejected until stop confirmation; assignment/pool wake notices do not bypass it.
+- Second run `36903064933`: all 32 storage/session unit tests passed on both OSes.
+  Integration failures exposed obsolete 13-tool assertions (the schema now has 29)
+  and obsolete expectations that queries revoke idle readiness. These expectations
+  were corrected. Added a real authenticated IPC concurrent-claim test and guards
+  preventing old deduplicated start/submit responses from changing current readiness.
+- Physical reservations now resolve symlink aliases and nearest existing parents,
+  reject workspace escapes and Windows device/path aliases, and require the current
+  authenticated run when reserving/renewing attempt-owned paths. Existing mock-only
+  reservation tests now use a real disposable checkout.
 - Added a native, explicitly gated static Tools Panel preview and fixtures for all
   B02/B04/B06 states. See `UI-CHECKPOINT.md`. Screenshot acceptance and live wiring
   remain pending; sample data is never represented as live agent activity.

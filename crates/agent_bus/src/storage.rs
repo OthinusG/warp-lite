@@ -2591,7 +2591,7 @@ impl Store {
                 let mut normalized = Vec::new();
                 let mut seen = HashSet::new();
                 for path in paths {
-                    let path = normalize_relative_path(path)?;
+                    let path = crate::normalize_workspace_path(&actor.project, path)?;
                     if seen.insert(path.clone()) {
                         normalized.push(path);
                     }
@@ -2604,7 +2604,7 @@ impl Store {
                 let mut attempt_link = attempt_id.clone();
                 if let Some(linked) = &attempt_link {
                     ensure!(
-                        self.attempt_certainty(linked, &actor.id)?.as_deref() == Some("active"),
+                        self.active_attempt_owned_by_run(linked, &actor.id, run)?,
                         invalid_state("Reservation attempt is not active")
                     );
                 }
@@ -2713,8 +2713,7 @@ impl Store {
                     );
                     if let Some(attempt) = &row.attempt_id {
                         ensure!(
-                            self.attempt_certainty(attempt, &actor.id)?.as_deref()
-                                == Some("active"),
+                            self.active_attempt_owned_by_run(attempt, &actor.id, run)?,
                             invalid_state("Reservation attempt is no longer active")
                         );
                     }
@@ -3056,6 +3055,13 @@ impl Store {
             .get_result::<ValueRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(|row| row.value))
+    }
+
+    fn active_attempt_owned_by_run(&self, attempt_id: &str, owner: &str, run: &str) -> Result<bool> {
+        Ok(self.count(
+            "SELECT COUNT(*) AS count FROM attempts WHERE id = ? AND owner = ? AND run = ? AND certainty = 'active'",
+            &[attempt_id, owner, run],
+        )? > 0)
     }
 }
 
@@ -3641,7 +3647,7 @@ impl Store {
         include_expired: bool,
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
-        let filter = path.map(normalize_relative_path).transpose()?;
+        let filter = path.map(|path| crate::normalize_workspace_path(&actor.project, path)).transpose()?;
         let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? ORDER BY created_seq")
             .bind::<Text, _>(&actor.project)
             .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
@@ -5582,8 +5588,10 @@ mod tests {
     #[test]
     fn reservations_are_exclusive_expiring_and_releasable() {
         let store = Store::open(":memory:").unwrap();
-        let worker = actor(&store, "worker");
-        let other = actor(&store, "other");
+        let workspace = tempfile::tempdir().unwrap();
+        let root = workspace.path().to_str().unwrap();
+        let worker = store.register("worker", "codex", root, "worker").unwrap();
+        let other = store.register("other", "codex", root, "other").unwrap();
         let exclusive = store
             .execute(
                 &worker,
