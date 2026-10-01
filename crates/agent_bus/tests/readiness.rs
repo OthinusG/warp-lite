@@ -317,12 +317,20 @@ fn native_clients_complete_two_turns() {
         .to_str()
         .unwrap();
     assert!(matches!(program, "codex" | "qodercn"));
-    let project = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .unwrap();
-    let project = warp_agent_bus::project_root(&project).unwrap();
     let temporary = tempfile::tempdir().unwrap();
+    let repository = temporary.path().join("fixture repository");
+    std::fs::create_dir(&repository).unwrap();
+    assert!(Command::new("git").args(["init", "--quiet"]).arg(&repository).status().unwrap().success());
+    let project = warp_agent_bus::project_root(&repository).unwrap();
+    let bridge = std::env::var_os("WARP_ACCEPTANCE_BRIDGE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_warp-agent").into());
+    assert!(Path::new(&executable).is_absolute() && bridge.is_absolute());
+    assert!(bridge.is_file());
+    let version = Command::new(&executable).arg("--version").output().unwrap();
+    assert!(version.status.success(), "Native version probe failed");
+    println!("Native acceptance: {program}; OS: {}; CLI version: {}", std::env::consts::OS,
+        String::from_utf8_lossy(&version.stdout).lines().next().unwrap_or("unknown"));
     let server = RunningBroker::start(Path::new(":memory:")).unwrap();
     let mut observer = Request {
         terminal: "observer".into(),
@@ -359,7 +367,7 @@ fn native_clients_complete_two_turns() {
     )]);
     session::install_launchers(
         temporary.path(),
-        Path::new(env!("CARGO_BIN_EXE_warp-agent")),
+        &bridge,
         &launches,
     )
     .unwrap();
@@ -414,7 +422,7 @@ finally:
         .env(ENDPOINT, &server.broker.endpoint)
         .env(CAPABILITY, capability)
         .env(TERMINAL, "native")
-        .env("WARP_AGENT_BIN", env!("CARGO_BIN_EXE_warp-agent"))
+        .env("WARP_AGENT_BIN", &bridge)
         .env(session::LAUNCHES, serde_json::to_string(&launches).unwrap())
         .env_remove("WARP_AGENT_LAUNCH_PATH")
         .env("TERM", "xterm-256color")

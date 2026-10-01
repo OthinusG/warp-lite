@@ -67,10 +67,12 @@ struct MouseStateHandles {
     global_search_button: MouseStateHandle,
     warp_drive_button: MouseStateHandle,
     conversation_list_view_button: MouseStateHandle,
+    collaboration_button: MouseStateHandle,
 }
 
 #[derive(Clone, Debug)]
 pub enum LeftPanelAction {
+    Collaboration,
     ProjectExplorer,
     GlobalSearch { entry_focus: GlobalSearchEntryFocus },
     WarpDrive,
@@ -97,6 +99,7 @@ pub enum LeftPanelEvent {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolPanelView {
+    Collaboration,
     ProjectExplorer,
     GlobalSearch { entry_focus: GlobalSearchEntryFocus },
     WarpDrive,
@@ -167,6 +170,7 @@ pub struct LeftPanelView {
     close_button_mouse_state: MouseStateHandle,
     warp_drive_view: ViewHandle<DrivePanel>,
     conversation_list_view: ViewHandle<ConversationListView>,
+    collaboration_view: ViewHandle<crate::agent_communication::panel::CollaborationPanel>,
     active_view: active_view_state::ActiveViewState,
     toolbelt_buttons: Vec<ToolbeltButtonConfig>,
     active_pane_group: Option<WeakViewHandle<PaneGroup>>,
@@ -211,6 +215,7 @@ impl LeftPanelView {
         };
         let warp_drive_view = ctx.add_typed_action_view(DrivePanel::new);
         let conversation_list_view = ctx.add_typed_action_view(ConversationListView::new);
+        let collaboration_view = ctx.add_typed_action_view(crate::agent_communication::panel::CollaborationPanel::new);
 
         ctx.subscribe_to_view(&warp_drive_view, |_me, _, event, ctx| {
             ctx.emit(LeftPanelEvent::WarpDrive(event.clone()));
@@ -308,6 +313,7 @@ impl LeftPanelView {
             close_button_mouse_state: Default::default(),
             warp_drive_view,
             conversation_list_view,
+            collaboration_view,
             active_view: active_view_state::new(active_view),
             toolbelt_buttons,
             active_pane_group: None,
@@ -374,6 +380,15 @@ impl LeftPanelView {
         ctx: &ViewContext<Self>,
     ) -> ToolbeltButtonConfig {
         match view {
+            ToolPanelView::Collaboration => ToolbeltButtonConfig {
+                icon: Icon::MessageChatSquare,
+                active_icon: None,
+                tooltip_text: "Agent collaboration".to_owned(),
+                action: LeftPanelAction::Collaboration,
+                render_with_active_state: false,
+                tooltip_keybinding_names: vec![],
+                tooltip_keybinding: None,
+            },
             ToolPanelView::ProjectExplorer => {
                 let tooltip_keybinding_names = vec![
                     LEFT_PANEL_PROJECT_EXPLORER_BINDING_NAME,
@@ -648,6 +663,7 @@ impl LeftPanelView {
 
     pub fn focus_active_view_on_entry(&mut self, ctx: &mut ViewContext<Self>) {
         match self.active_view.get() {
+            ToolPanelView::Collaboration => {},
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(ctx) {
                     file_tree_view.update(ctx, |view, ctx| {
@@ -816,6 +832,7 @@ impl LeftPanelView {
     fn update_button_active_states(&mut self) {
         for button in &mut self.toolbelt_buttons {
             button.render_with_active_state = match &button.action {
+                LeftPanelAction::Collaboration => self.active_view.get() == ToolPanelView::Collaboration,
                 LeftPanelAction::ProjectExplorer => {
                     self.active_view.get() == ToolPanelView::ProjectExplorer
                 }
@@ -905,6 +922,9 @@ impl LeftPanelView {
         ctx: &mut ViewContext<Self>,
     ) {
         match action {
+            LeftPanelAction::Collaboration => {
+                active_view_state::set(self, ToolPanelView::Collaboration, ctx);
+            }
             LeftPanelAction::ProjectExplorer => {
                 active_view_state::set(self, ToolPanelView::ProjectExplorer, ctx);
                 if force_open {
@@ -1021,6 +1041,7 @@ impl View for LeftPanelView {
         // Focus the active tool panel view on-left-panel-focus.
         if focus_ctx.is_self_focused() {
             match self.active_view.get() {
+                ToolPanelView::Collaboration => {},
                 ToolPanelView::ProjectExplorer => {
                     if let Some(view) = self.active_file_tree_view(ctx) {
                         ctx.focus(&view);
@@ -1040,15 +1061,6 @@ impl View for LeftPanelView {
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
 
-        let mouse_state_handles = vec![
-            self.mouse_state_handles.project_explorer_button.clone(),
-            self.mouse_state_handles.global_search_button.clone(),
-            self.mouse_state_handles.warp_drive_button.clone(),
-            self.mouse_state_handles
-                .conversation_list_view_button
-                .clone(),
-        ];
-
         // If there is only one button in the toolbelt row,
         // there is no need to show it as it's a bit redundant.
         let toolbelt_button_row = if self.toolbelt_buttons.len() > 1 {
@@ -1056,8 +1068,15 @@ impl View for LeftPanelView {
                 Flex::row()
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_spacing(4.0)
-                    .with_children(self.toolbelt_buttons.iter().zip(&mouse_state_handles).map(
-                        |(button_config, mouse_state)| {
+                    .with_children(self.toolbelt_buttons.iter().map(
+                        |button_config| {
+                            let mouse_state = match &button_config.action {
+                                LeftPanelAction::ProjectExplorer => &self.mouse_state_handles.project_explorer_button,
+                                LeftPanelAction::GlobalSearch { .. } => &self.mouse_state_handles.global_search_button,
+                                LeftPanelAction::WarpDrive => &self.mouse_state_handles.warp_drive_button,
+                                LeftPanelAction::ConversationListView => &self.mouse_state_handles.conversation_list_view_button,
+                                LeftPanelAction::Collaboration => &self.mouse_state_handles.collaboration_button,
+                            };
                             Self::render_button(button_config, mouse_state.clone(), appearance)
                         },
                     ))
@@ -1069,6 +1088,7 @@ impl View for LeftPanelView {
         };
 
         let content_area: Box<dyn Element> = match self.active_view.get() {
+            ToolPanelView::Collaboration => Shrinkable::new(1.0, ChildView::new(&self.collaboration_view).finish()).finish(),
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(app) {
                     Shrinkable::new(

@@ -4044,6 +4044,7 @@ impl Workspace {
             // Restore which panel tab was active
             let active_view = match left_panel_snapshot.left_panel_displayed_tab {
                 LeftPanelDisplayedTab::FileTree => ToolPanelView::ProjectExplorer,
+                LeftPanelDisplayedTab::Collaboration => ToolPanelView::Collaboration,
                 LeftPanelDisplayedTab::GlobalSearch => ToolPanelView::GlobalSearch {
                     entry_focus: GlobalSearchEntryFocus::Results,
                 },
@@ -18617,6 +18618,7 @@ impl Workspace {
                         .unwrap_or(ToolPanelView::WarpDrive)
                     {
                         ToolPanelView::ProjectExplorer => "Project explorer",
+                        ToolPanelView::Collaboration => "Agent collaboration",
                         ToolPanelView::GlobalSearch { .. } => "Global search",
                         ToolPanelView::WarpDrive => "Warpai Drive",
                         ToolPanelView::ConversationListView => "Agent conversations",
@@ -18671,6 +18673,7 @@ impl Workspace {
                 .unwrap_or(ToolPanelView::WarpDrive)
             {
                 ToolPanelView::ProjectExplorer => "Project explorer",
+                ToolPanelView::Collaboration => "Agent collaboration",
                 ToolPanelView::GlobalSearch { .. } => "Global search",
                 ToolPanelView::WarpDrive => "Warpai Drive",
                 ToolPanelView::ConversationListView => "Agent conversations",
@@ -21683,6 +21686,10 @@ impl Workspace {
     /// Computes the list of available left panel views based on current AI settings and feature flags.
     fn compute_left_panel_views(ctx: &AppContext) -> Vec<ToolPanelView> {
         let mut views = vec![];
+        // The preview is explicit so fixture data cannot be mistaken for live collaboration.
+        if std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
+            views.push(ToolPanelView::Collaboration);
+        }
         if FeatureFlag::AgentViewConversationListView.is_enabled()
             && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
             && *AISettings::as_ref(ctx).show_conversation_history

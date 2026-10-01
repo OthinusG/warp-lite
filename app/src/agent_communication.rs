@@ -1,5 +1,6 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 pub(crate) mod setup;
+pub(crate) mod panel;
 use crate::terminal::{
     cli_agent_sessions::{
         CLIAgentSessionStatus, CLIAgentSessionsModel, CLIAgentSessionsModelEvent,

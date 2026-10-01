@@ -34,6 +34,13 @@ jobs:
           path: target/debug/warp-agent.exe
           if-no-files-found: error
           retention-days: 7
+      - name: Upload Windows readiness acceptance executable
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-readiness-Windows
+          path: target/debug/deps/readiness-*.exe
+          if-no-files-found: error
+          retention-days: 7
       - name: Prepare Windows application build
         shell: pwsh
         run: choco install protoc -y
@@ -58,11 +65,28 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test protocol and reversible native setup
         run: cargo test -p warp-agent-bus --locked
+      - name: Diagnose native build tools on failure
+        if: failure()
+        run: |
+          uname -m
+          rustc -vV
+          find target/debug/build -name build-script-build -exec file {} \; | head -30
       - name: Upload tested native bridge
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Warpai-agent-bridge-macOS-debug
           path: target/debug/warp-agent
+          if-no-files-found: error
+          retention-days: 7
+      - name: Collect readiness acceptance executable
+        run: |
+          mkdir -p acceptance
+          find target/debug/deps -type f -name 'readiness-*' -perm -111 -exec cp {} acceptance/ \;
+      - name: Upload macOS readiness acceptance executable
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-readiness-macOS
+          path: acceptance/readiness-*
           if-no-files-found: error
           retention-days: 7
       - name: Check default Lite application
@@ -71,6 +95,7 @@ jobs:
         run: cargo check -p warp --bin warp-oss --features warp_platform --locked
       - name: Test dormant wake and settings configuration
         run: |
+          cargo test -p warp --lib collaboration_fixtures_cover_required_states_and_long_content --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked

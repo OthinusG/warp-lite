@@ -405,7 +405,9 @@ impl Store {
     }
 
     fn update_task_state(&self, task: &Task) -> Result<()> {
-        diesel::sql_query("UPDATE tasks SET state=?, revision=?, version=?, result=?, evidence=?, archived=?, start_deadline=?, execution_timeout=?, review_timeout=?, execution_deadline=?, review_deadline=?, updated_at=? WHERE id=?")
+        diesel::sql_query("UPDATE tasks SET assignee=?, reviewer=?, state=?, revision=?, version=?, result=?, evidence=?, archived=?, start_deadline=?, execution_timeout=?, review_timeout=?, execution_deadline=?, review_deadline=?, updated_at=? WHERE id=?")
+            .bind::<Text, _>(&task.assignee)
+            .bind::<Text, _>(&task.reviewer)
             .bind::<Text, _>(&task.state)
             .bind::<Integer, _>(task.revision as i32)
             .bind::<BigInt, _>(task.version as i64)
@@ -3214,9 +3216,9 @@ impl Store {
             "private": true,
             "members": Vec::<String>::new(),
         })];
-        for space in diesel::sql_query("SELECT id, name, device FROM spaces ORDER BY created_at, name")
-            .load::<SpaceRow>(&mut *self.connection.borrow_mut())?
-        {
+        let rows = diesel::sql_query("SELECT id, name, device FROM spaces ORDER BY created_at, name")
+            .load::<SpaceRow>(&mut *self.connection.borrow_mut())?;
+        for space in rows {
             let members: Vec<String> = diesel::sql_query("SELECT member.name AS name FROM space_members AS membership JOIN agents AS member ON member.id = membership.agent WHERE membership.space_id = ? ORDER BY membership.position")
                 .bind::<Text, _>(&space.id)
                 .load::<MemberRow>(&mut *self.connection.borrow_mut())?
@@ -3507,16 +3509,14 @@ impl Store {
         let after = after.unwrap_or(0) as i64;
         let fetch = limit as i64 + 1;
         let mut records: Vec<(u64, &'static str, Value)> = Vec::new();
-        for task in diesel::sql_query(format!(
+        let tasks = diesel::sql_query(format!(
             "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND created_seq > ? ORDER BY created_seq LIMIT ?"
         ))
         .bind::<Text, _>(project)
         .bind::<BigInt, _>(after)
         .bind::<BigInt, _>(fetch)
-        .load::<TaskRow>(&mut *self.connection.borrow_mut())?
-        .into_iter()
-        .map(TaskRow::task)
-        {
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        for task in tasks.into_iter().map(TaskRow::task) {
             let sequence = task.created_seq;
             records.push((sequence, "task", serde_json::to_value(self.assemble(task)?)?));
         }
@@ -5114,19 +5114,22 @@ mod tests {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
         let worker = actor(&store, "worker");
-        let operation = |value| serde_json::from_value::<Operation>(value).unwrap();
-        let first = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, "first")).unwrap();
-        let second = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, "second")).unwrap();
+        let operation = |mut value: Value| {
+            value["request_id"] = json!(Uuid::new_v4().to_string());
+            serde_json::from_value::<Operation>(value).unwrap()
+        };
+        let first = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let second = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
         let pool = store.execute(&issuer, "issuer-run", &operation(json!({
             "op": "task_create_pool", "description": "pool", "acceptance": "checked",
             "eligible": ["worker"], "request_id": "pool"
         }))).unwrap();
-        store.execute(&worker, "worker-run", &transition(first["id"].as_str().unwrap(), 1, "start")).unwrap();
+        store.execute(&worker, "worker-run", &transition(first["id"].as_str().unwrap(), 1, &Uuid::new_v4().to_string())).unwrap();
         let cancelled = store.execute(&issuer, "issuer-run", &operation(json!({
             "op": "task_cancel", "task_id": first["id"], "reason": "Stop work", "request_id": "cancel"
         }))).unwrap();
         assert_eq!(cancelled["state"], "cancel_requested");
-        let blocked_start = store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, "start-second")).unwrap_err();
+        let blocked_start = store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, &Uuid::new_v4().to_string())).unwrap_err();
         assert_eq!(code(&blocked_start), "invalid_state");
         let blocked_claim = store.execute(&worker, "worker-run", &operation(json!({
             "op": "task_claim", "task_id": pool["id"], "request_id": "claim"
@@ -5137,7 +5140,7 @@ mod tests {
             "op": "task_finish_cancel", "task_id": first["id"], "revision": 1,
             "reason": "Stopped", "request_id": "stopped"
         }))).unwrap();
-        assert!(store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, "start-after-stop")).is_ok());
+        assert!(store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, &Uuid::new_v4().to_string())).is_ok());
     }
 
     #[test]

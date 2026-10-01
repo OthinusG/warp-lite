@@ -1,5 +1,33 @@
 # Agent Collaboration v2 Implementation Progress
 
+## Active continuation — 2026-10-02
+
+The user authorized completing the plan, pushing source and GitHub builds, and
+subsequently confirmed that necessary actions require no further permission questions.
+This supersedes the earlier no-upload instruction for the readiness repair.
+
+- Committed the inherited readiness fixes, reservation sequence fix and real-MCP
+  regression harness as `4d5b859`; preserved all previous worktree changes.
+- GitHub run `36901907456` compiled the Windows protocol package and ran 32 unit
+  tests: 28 passed, 4 failed. It uncovered unpersisted task assignee/reviewer changes
+  and nested SQLite connection borrows in space listing/history export. The new
+  cancellation regression also used invalid request IDs. Fixes are being validated
+  in the next run. The macOS runner failed executing dependency build scripts;
+  native toolchain diagnostics were added, without changing pinned dependencies.
+- Cancellation-pending work retains exclusive ownership: another start/claim is
+  rejected until stop confirmation; assignment/pool wake notices do not bypass it.
+- Added a native, explicitly gated static Tools Panel preview and fixtures for all
+  B02/B04/B06 states. See `UI-CHECKPOINT.md`. Screenshot acceptance and live wiring
+  remain pending; sample data is never represented as live agent activity.
+- The ignored native two-turn harness now uses a disposable Git repository and a
+  runtime bridge-path override. GitHub uploads the acceptance executable so it can
+  run locally without Rust compilation. It remains a native lifecycle probe, not
+  real task-edit/rework or actual app-UI acceptance.
+
+The original handover below describes its historical checkpoint. M2 live operation,
+M4 functional shared-space routing, M6 remote coordination and M7 acceptance are not
+complete. No plan checkbox has been promoted solely from source inspection.
+
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)
 checkboxes change only when their exit gates actually pass.
