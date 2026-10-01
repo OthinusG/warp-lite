@@ -393,7 +393,7 @@ async fn codex_proxy(
         let _ = proxy.kill().await;
     });
     let result = async {
-        let (mut upstream, _) = tokio::time::timeout(Duration::from_secs(5), client_async_with_config("ws://localhost/rpc", socket, Some(ws_config)))
+        let (mut upstream, _) = tokio::time::timeout(Duration::from_secs(5), client_async_with_config("ws://localhost/", socket, Some(ws_config)))
             .await.map_err(|_| anyhow!("Native daemon handshake timed out"))??;
         let mut downstream = downstream;
         let mut binding = ThreadBinding::default();
@@ -675,7 +675,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
             "Native daemon could not start; existing processes were preserved"
         );
         let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?;
-        let endpoint = format!("ws://{}/rpc", listener.local_addr()?);
+        let endpoint = format!("ws://{}", listener.local_addr()?);
         let token = Uuid::new_v4().to_string();
         command.env(PROXY_TOKEN, &token);
         let mut config = relay.as_ref().unwrap().config(companion.as_ref().unwrap());
