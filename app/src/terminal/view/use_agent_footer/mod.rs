@@ -754,6 +754,7 @@ impl TerminalView {
             return false;
         };
         if session.is_remote()
+            || !session.agent.accepts_peer_prompt(&self.model.lock().block_list().active_block().command_to_string())
             || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
             || session
                 .draft_text

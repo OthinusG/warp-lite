@@ -14,6 +14,7 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | Configured but MCP not loaded | Restart guidance; cannot be addressed as a live participant | Native discovery and recipient authentication checks |
 | Fresh bare interactive launch | Native discovery grants one initial readiness lease; no first human/model prompt needed | Every-program startup matrix and app PTY regression |
 | Startup with task arguments | No inferred idle lease; require native idle event or final-action readiness | Every-program startup matrix |
+| Batch/print or ACP/server mode | Refuse automatic prompt paste into noninteractive/protocol stdin even if MCP is present | Managed alias and native batch-mode regression |
 | Startup busy, draft or cancellation before discovery | Registration cannot overwrite input/lifecycle invalidation | Every-program startup matrix |
 | Busy model turn | Queue work; regular MCP operations/user submissions invalidate readiness | Every-program startup matrix and dormant queue regression |
 | Native structured idle prompt | Establish readiness without changing presentation status | Listener forwards IdlePrompt to broker |
@@ -24,6 +25,7 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | Rich input draft, saved draft or image attachment | Preserve user input; do not submit | Shared view guard and rich draft regression |
 | Native input editing or cancellation | Revoke lease; readiness cannot override a draft; resume requires user submit | Dormant queue and stale Enter regression |
 | Repeated native discovery | Reuse identity; never re-arm a busy run | Every-program rediscovery matrix |
+| Shell alias, abbreviation or function hiding launch arguments | Do not infer initial idle from a displayed bare alias | Shared startup guard |
 | Cooperative wait | Return queued work directly; do not also paste into PTY | Socket wait handoff regression |
 | Already executing a delegated task | Another assignment waits; messages/review requests remain available | Task state machine and next-work filtering |
 | Several queued tasks | Start/submit/review each revision; task notifications cannot be discarded by ordinary ACK | Every-program lifecycle and task ACK regression |

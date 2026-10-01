@@ -717,3 +717,36 @@ fn test_detect_aifx_agent_run_claude_wrong_team() {
         });
     });
 }
+#[test]
+fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
+    for agent in enum_iterator::all::<CLIAgent>() {
+        for command in agent.command_prefixes() {
+            assert_eq!(
+                agent.accepts_peer_prompt(command),
+                *command != "vibe-acp",
+                "Incorrect stdin contract for {command}"
+            );
+            assert!(!agent.accepts_peer_prompt(&format!("{command} --print")));
+        }
+    }
+    for (agent, command) in [
+        (CLIAgent::Codex, "codex exec 'task'"),
+        (CLIAgent::Codex, "codex review"),
+        (CLIAgent::Codex, "codex app-server"),
+        (CLIAgent::Claude, "claude -p 'task'"),
+        (CLIAgent::Qoder, "qodercn --print 'task'"),
+        (CLIAgent::Antigravity, "agy -p 'task'"),
+        (CLIAgent::Vibe, "vibe-acp"),
+    ] {
+        assert!(
+            !agent.accepts_peer_prompt(command),
+            "Do not paste into batch/protocol stdin: {command}"
+        );
+    }
+    assert!(
+        CLIAgent::Codex.accepts_peer_prompt("codex -p profile"),
+        "Codex -p selects a profile, not print mode"
+    );
+    assert!(CLIAgent::Codex.accepts_peer_prompt("codex -- '--print'"));
+    assert!(!CLIAgent::Codex.accepts_peer_prompt("codex 'unfinished"));
+}

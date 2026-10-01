@@ -89,7 +89,7 @@ impl AgentCommunication {
                                     .is_some_and(|shell| shell.alias_value(command).is_none()
                                         && shell.abbreviation_value(command).is_none()
                                         && !shell.function_names().any(|name| name == command));
-                                let initial_prompt = unshadowed && (agent.command_prefixes().contains(&command)
+                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (agent.command_prefixes().contains(&command)
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
                                             .is_some_and(|entry| entry.active)));

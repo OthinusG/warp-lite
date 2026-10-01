@@ -178,6 +178,42 @@ pub enum CLIAgent {
 }
 
 impl CLIAgent {
+    /// Batch and protocol clients can use MCP, but their stdin is not a terminal prompt.
+    pub(crate) fn accepts_peer_prompt(&self, command: &str) -> bool {
+        let Some(words) = shlex::split(command) else {
+            return false;
+        };
+        let Some(program) = words.first() else {
+            return false;
+        };
+        if program == "vibe-acp" {
+            return false;
+        }
+        let args = words.iter().skip(1).take_while(|arg| *arg != "--");
+        if args
+            .clone()
+            .any(|arg| arg.as_str() == "--print" || arg.starts_with("--print="))
+        {
+            return false;
+        }
+        if matches!(
+            self,
+            CLIAgent::Claude | CLIAgent::Antigravity | CLIAgent::Qoder
+        ) && args
+            .clone()
+            .any(|arg| arg.starts_with("-p") && !arg.starts_with("--"))
+        {
+            return false;
+        }
+        !(*self == CLIAgent::Codex
+            && args.clone().next().is_some_and(|arg| {
+                matches!(
+                    arg.as_str(),
+                    "exec" | "e" | "review" | "app-server" | "exec-server" | "mcp"
+                )
+            }))
+    }
+
     /// Command prefixes that identify this CLI agent.
     pub(crate) fn command_prefixes(&self) -> &'static [&'static str] {
         match self {
