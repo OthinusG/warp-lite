@@ -11,14 +11,15 @@ concurrency:
 jobs:
   protocol:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Keep patch inputs in LF on Windows
-        if: runner.os == 'Windows'
+        with:
+          lfs: true
+      - name: Keep source inputs in LF on Windows
         run: |
           git config core.autocrlf false
           git checkout-index --force --all
@@ -26,6 +27,13 @@ jobs:
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
+      - name: Prepare Windows application build
+        shell: pwsh
+        run: choco install protoc -y
+      - name: Check Windows default and platform application
+        run: |
+          cargo check -p warp --bin warp-oss --locked
+          cargo check -p warp --bin warp-oss --features warp_platform --locked
   macos:
     runs-on: macos-15
     timeout-minutes: 180

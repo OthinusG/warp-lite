@@ -83,10 +83,16 @@ impl AgentCommunication {
                             if let Ok(project) = project_root(Path::new(directory)) {
                                 let command = terminal_model.block_list().active_block().command_to_string();
                                 let command = command.trim();
-                                let initial_prompt = agent.command_prefixes().contains(&command)
+                                let view = view.as_ref(ctx);
+                                let unshadowed = view.active_block_session_id()
+                                    .and_then(|session| view.sessions_model().as_ref(ctx).get(session))
+                                    .is_some_and(|shell| shell.alias_value(command).is_none()
+                                        && shell.abbreviation_value(command).is_none()
+                                        && !shell.function_names().any(|name| name == command));
+                                let initial_prompt = unshadowed && (agent.command_prefixes().contains(&command)
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
-                                            .is_some_and(|entry| entry.active));
+                                            .is_some_and(|entry| entry.active)));
                                 if broker.activate(terminal, program, &project, initial_prompt).is_err() {
                                     log::warn!("Could not activate local agent communication");
                                 }
