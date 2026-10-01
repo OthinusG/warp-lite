@@ -91,7 +91,10 @@ impl AgentCommunication {
                                         .is_some_and(|shell| shell.alias_value(&program).is_none()
                                             && shell.abbreviation_value(&program).is_none()
                                             && !shell.function_names().any(|name| name == program.as_str())));
-                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (agent.starts_at_empty_prompt(command)
+                                let launch_options = model.preferences.selected.values()
+                                    .find(|entry| entry.active && entry.program == program)
+                                    .map(|entry| &entry.launch_options);
+                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (launch_options.is_some_and(|options| agent.starts_at_empty_prompt(command, options))
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
                                             .is_some_and(|entry| entry.active)));
@@ -323,6 +326,11 @@ impl AgentCommunication {
                 }
             }
             for row in &mut available {
+                if let (Some(selected), Some(discovered)) = (
+                    preferences.selected.get_mut(&row.command), row.installed.as_ref(),
+                ) {
+                    selected.launch_options = discovered.launch_options.clone();
+                }
                 if preferences.selected.contains_key(&row.command) {
                     row.status = if preferences.selected[&row.command].active {
                         if matches!(preferences.selected[&row.command].adapter, setup::Adapter::Vibe(_)) {

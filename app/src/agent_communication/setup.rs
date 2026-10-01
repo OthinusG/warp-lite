@@ -40,6 +40,8 @@ pub struct Installed {
     pub bridge: PathBuf,
     #[serde(default)]
     pub search_paths: Vec<PathBuf>,
+    #[serde(default)]
+    pub launch_options: warp_agent_bus::launch::LaunchOptions,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Adapter {
@@ -195,6 +197,9 @@ pub fn discover(
                 return None;
             }
             let adapter = adapter(&home, &command, &executable, bridge, &search_paths);
+            let help = output(&executable, &["--help".into()], &search_paths)
+                .ok().flatten().unwrap_or_default();
+            let launch_options = warp_agent_bus::launch::LaunchOptions::from_help(&program, &help);
             let status = if adapter.is_some() {
                 "Available"
             } else {
@@ -212,6 +217,7 @@ pub fn discover(
                     adapter,
                     bridge: bridge.to_owned(),
                     search_paths: search_paths.clone(),
+                    launch_options,
                 }),
             })
         })
@@ -718,6 +724,11 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             let current = if *get_all {
                 ensure!(success, "Could not inspect native MCP configuration");
                 listed_entry(&text)
+            } else if text.lines().any(|line| {
+                line.trim() == format!("Server \"{SERVER}\" not found in user settings.")
+            }) {
+                // QoderCN reports this successful lookup of an absent user-scope entry with status zero.
+                None
             } else if success {
                 Some(text)
             } else {
@@ -872,6 +883,7 @@ mod tests {
             adapter: Adapter::Vibe(path.clone()),
             bridge: PathBuf::from("/bridge"),
             search_paths: vec![],
+            launch_options: Default::default(),
         };
         configure(&installed, true, false).unwrap();
         let mut env = std::collections::HashMap::from([
@@ -943,6 +955,7 @@ mod tests {
                 adapter: adapter.clone(),
                 bridge: PathBuf::from("/bridge"),
                 search_paths: vec![],
+                launch_options: Default::default(),
             };
             configure(&installed, true, false).unwrap();
             configure(&installed, true, true).unwrap();
@@ -1028,6 +1041,7 @@ esac
             adapter,
             bridge: PathBuf::from("/bridge"),
             search_paths: vec![],
+            launch_options: Default::default(),
         };
         configure(&installed, true, false).unwrap();
         configure(&installed, true, true).unwrap();
@@ -1035,6 +1049,19 @@ esac
         std::fs::write(directory.path().join("entry"), "/user-command mcp").unwrap();
         assert!(configure(&installed, false, true).is_err());
         std::fs::write(directory.path().join("entry"), "/bridge mcp").unwrap();
+        configure(&installed, false, true).unwrap();
+        assert!(!directory.path().join("entry").exists());
+        let source = std::fs::read_to_string(&installed.executable).unwrap();
+        std::fs::write(
+            &installed.executable,
+            source.replace(
+                "echo 'server not found' >&2; exit 1",
+                "echo 'Server \"warp-lite-communication\" not found in user settings.'; exit 0",
+            ),
+        ).unwrap();
+        configure(&installed, false, false).unwrap();
+        configure(&installed, true, false).unwrap();
+        assert!(configure(&installed, true, false).is_err());
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
     }

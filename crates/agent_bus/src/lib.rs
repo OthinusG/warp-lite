@@ -1,5 +1,6 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod mcp;
+pub mod launch;
 pub mod transport;
 
 use std::{collections::BTreeMap, path::Path};

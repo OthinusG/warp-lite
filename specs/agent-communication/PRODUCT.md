@@ -33,6 +33,15 @@ All CLI agent sessions managed by Warpai running in Warpai can exchange messages
 
 ## Delivery
 
+## Parameterized launches and shared services (2026-10-01)
+
+- Ordinary launches, including Codex `--yolo`, model/profile/directory options and vendor aliases, retain native communication. Derive option arity from the installed CLI's help contract rather than treating every argument as work or accepting every flag as idle.
+- Distinguish an empty interactive launch from a supplied prompt, batch invocation, server command, resume picker or permission prompt. Unrecognized syntax must preserve agent detection and defer readiness to native lifecycle events or the final-action MCP readiness contract.
+- Shared background services must retain per-terminal/run identity. Never attach the daemon globally to one pane, restart it to change bindings, or persist terminal capabilities in vendor configuration. Codex shared-server support must use its native session RPC and preserve caller arguments, user permissions and the existing daemon.
+- Apply the common launch and lifecycle contract to every eligible managed agent. Verify vendor-specific background transports where available; do not claim unsupported or untested transports work.
+- QoderCN setup must handle its confirmed `mcp get` behavior: a missing user-scope server can return exit status zero with a not-found message. Absence is not an ownership collision; existing user-owned or edited entries remain protected.
+- Acceptance: focused launch/setup regressions, two terminals sharing one Codex daemon with isolated identities and projects, busy/draft/approval/exit/replacement queue protection, and actual QoderCN native discovery. Run Rust compilation and regression tests on GitHub only.
+
 ## Receiver feedback and complete adapter coverage (2026-10-01)
 
 - Every live receiver shows a native notification when peer work is queued, including while busy or awaiting a readiness signal. Once ready, every managed agent uses the same guarded automatic PTY submission path and visibly processes its inbox.

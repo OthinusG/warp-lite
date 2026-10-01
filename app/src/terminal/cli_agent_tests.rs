@@ -719,6 +719,7 @@ fn test_detect_aifx_agent_run_claude_wrong_team() {
 }
 #[test]
 fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
+    let options = warp_agent_bus::launch::LaunchOptions::from_help("codex", "  --no-daemon  Embedded mode\n  -m, --model <MODEL>  Model");
     for agent in enum_iterator::all::<CLIAgent>() {
         for command in agent.command_prefixes() {
             assert_eq!(
@@ -726,7 +727,7 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
                 *command != "vibe-acp",
                 "Incorrect stdin contract for {command}"
             );
-            assert_eq!(agent.starts_at_empty_prompt(command), *command != "vibe-acp");
+            assert_eq!(agent.starts_at_empty_prompt(command, &options), *command != "vibe-acp");
             assert!(!agent.accepts_peer_prompt(&format!("{command} --print")));
         }
     }
@@ -750,8 +751,9 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
     );
     assert!(CLIAgent::Codex.accepts_peer_prompt("codex -- '--print'"));
     assert!(!CLIAgent::Codex.accepts_peer_prompt("codex 'unfinished"));
-    assert!(CLIAgent::Codex.starts_at_empty_prompt("codex --no-daemon"));
-    assert!(CLIAgent::Codex.starts_at_empty_prompt("  codex   --no-daemon  "));
+    assert!(CLIAgent::Codex.starts_at_empty_prompt("codex --no-daemon", &options));
+    assert!(CLIAgent::Codex.starts_at_empty_prompt("  codex   --no-daemon  ", &options));
+    assert!(CLIAgent::Codex.starts_at_empty_prompt("codex --yolo --model model", &options));
     for command in [
         "codex --no-daemon 'task'",
         "codex --no-daemon exec 'task'",
@@ -764,9 +766,9 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
         "other-agent --no-daemon",
     ] {
         assert!(
-            !CLIAgent::Codex.starts_at_empty_prompt(command),
+            !CLIAgent::Codex.starts_at_empty_prompt(command, &options),
             "Do not infer an empty input prompt: {command}"
         );
     }
-    assert!(!CLIAgent::Claude.starts_at_empty_prompt("claude --no-daemon"));
+    assert!(!CLIAgent::Claude.starts_at_empty_prompt("claude --no-daemon", &Default::default()));
 }
