@@ -19,7 +19,9 @@ impl SingletonEntity for KeepAwake {}
 
 impl KeepAwake {
     pub(crate) fn new(ctx: &mut ModelContext<Self>) -> Self {
-        ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |me, _, ctx| me.sync(ctx));
+        ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |me, _, ctx| {
+            me.sync(ctx)
+        });
         Self {
             enabled: false,
             guard: None,
