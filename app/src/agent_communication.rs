@@ -216,6 +216,7 @@ impl AgentCommunication {
                 }
             }
         }
+        let launcher_directory = self._server.as_ref().map(|server| server.launcher_directory());
         let search_paths: Vec<PathBuf> = VIEWS
             .get()
             .and_then(|views| views.lock().ok())
@@ -238,6 +239,7 @@ impl AgentCommunication {
                             .into_iter()
                             .chain(shell.as_ref().and_then(|session| session.path().as_deref()))
                             .flat_map(|path| std::env::split_paths(std::ffi::OsStr::new(path)))
+                            .filter(|path| launcher_directory.as_ref() != Some(path))
                             .collect::<Vec<_>>()
                     })
                     .collect()
@@ -464,7 +466,29 @@ pub(crate) fn prepare(
         } else {
             "warp-agent"
         });
-        env.insert("WARP_AGENT_BIN".into(), companion.into_os_string());
+        env.insert("WARP_AGENT_BIN".into(), companion.clone().into_os_string());
+        if settings.preferences.enabled {
+            let launches: std::collections::BTreeMap<_, _> = settings.preferences.selected.iter()
+                .filter(|(_, entry)| entry.active)
+                .map(|(command, entry)| (command.clone(), warp_agent_bus::session::NativeLaunch {
+                    executable: entry.executable.clone(), program: entry.program.clone(), options: entry.launch_options.clone(),
+                }))
+                .collect();
+            if let Some(server) = &settings._server {
+                let directory = server.launcher_directory();
+                if !launches.is_empty() && warp_agent_bus::session::install_launchers(&directory, &companion, &launches).is_ok() {
+                        let inherited = env.get(&OsString::from("PATH")).cloned().or_else(|| std::env::var_os("PATH")).unwrap_or_default();
+                        let paths = std::iter::once(directory.clone()).chain(std::env::split_paths(&inherited));
+                        if let Ok(path) = std::env::join_paths(paths) {
+                            env.insert("WARP_AGENT_LAUNCH_PATH".into(), directory.clone().into_os_string());
+                            env.insert("PATH".into(), path);
+                            if let Ok(launches) = serde_json::to_string(&launches) {
+                                env.insert(warp_agent_bus::session::LAUNCHES.into(), launches.into());
+                            }
+                        }
+                }
+            }
+        }
     }
     Some(terminal)
 }

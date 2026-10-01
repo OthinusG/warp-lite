@@ -1232,6 +1232,11 @@ esac
     fi
 ## ----- Warp initialization -----
     
+    # Keep per-terminal native launch bindings after user RC files update PATH.
+    if [[ -n "${WARP_AGENT_LAUNCH_PATH:-}" ]]; then
+        export PATH="$WARP_AGENT_LAUNCH_PATH:$PATH"
+    fi
+
     # Append additional PATH entries if provided via WARP_PATH_APPEND. This is after the user's RC
     # files are sourced in case they reset PATH (/etc/profile on Debian does this, for example).
     if [[ ! -z "$WARP_PATH_APPEND" ]]; then

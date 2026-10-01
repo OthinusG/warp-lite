@@ -977,6 +977,11 @@ $null = New-Module -Name Warp-Module -ScriptBlock {
         }
     }
 
+    # Keep per-terminal native launch bindings after profiles update PATH.
+    if (-not [String]::IsNullOrEmpty($env:WARP_AGENT_LAUNCH_PATH)) {
+        $env:PATH = '{0}{1}{2}' -f $env:WARP_AGENT_LAUNCH_PATH, [IO.Path]::PathSeparator, $env:PATH
+    }
+
     # Append additional PATH entries if provided via WARP_PATH_APPEND.
     # This happens after we source RC files in case they reset PATH.
     if (-not [String]::IsNullOrEmpty($env:WARP_PATH_APPEND)) {

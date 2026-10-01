@@ -199,7 +199,14 @@ pub fn discover(
             let adapter = adapter(&home, &command, &executable, bridge, &search_paths);
             let help = output(&executable, &["--help".into()], &search_paths)
                 .ok().flatten().unwrap_or_default();
-            let launch_options = warp_agent_bus::launch::LaunchOptions::from_help(&program, &help);
+            let mut launch_options = warp_agent_bus::launch::LaunchOptions::from_help(&program, &help);
+            if program == "codex" {
+                for command in ["resume", "fork"] {
+                    if let Ok(Some(help)) = output(&executable, &[command.into(), "--help".into()], &search_paths) {
+                        launch_options.0.extend(warp_agent_bus::launch::LaunchOptions::from_help(&program, &help).0);
+                    }
+                }
+            }
             let status = if adapter.is_some() {
                 "Available"
             } else {
@@ -724,9 +731,7 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             let current = if *get_all {
                 ensure!(success, "Could not inspect native MCP configuration");
                 listed_entry(&text)
-            } else if text.lines().any(|line| {
-                line.trim() == format!("Server \"{SERVER}\" not found in user settings.")
-            }) {
+            } else if text.trim() == format!("Server \"{SERVER}\" not found in user settings.") {
                 // QoderCN reports this successful lookup of an absent user-scope entry with status zero.
                 None
             } else if success {
@@ -1064,5 +1069,9 @@ esac
         assert!(configure(&installed, true, false).is_err());
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
+        let foreign = "Server \"warp-lite-communication\" not found in user settings.\n/user-command mcp";
+        std::fs::write(directory.path().join("entry"), foreign).unwrap();
+        assert!(configure(&installed, true, false).is_err());
+        assert_eq!(std::fs::read_to_string(directory.path().join("entry")).unwrap(), foreign);
     }
 }

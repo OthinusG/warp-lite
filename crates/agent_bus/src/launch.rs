@@ -5,6 +5,9 @@ use std::collections::BTreeMap;
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Arity {
     Blocked,
+    BlockedValue,
+    BlockedOptionalValue,
+    BlockedValues,
     Flag,
     Value,
     OptionalValue,
@@ -32,7 +35,7 @@ impl LaunchOptions {
                         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
                 })
                 .collect();
-            let arity = if names.iter().any(|name| {
+            let blocked = names.iter().any(|name| {
                 matches!(
                     *name,
                     "--print"
@@ -63,9 +66,8 @@ impl LaunchOptions {
                         | "--input-format"
                         | "--output-format"
                 )
-            }) {
-                Arity::Blocked
-            } else if syntax.contains("...") {
+            });
+            let arity = if syntax.contains("...") {
                 Arity::Values
             } else if syntax.contains('<') {
                 Arity::Value
@@ -73,6 +75,16 @@ impl LaunchOptions {
                 Arity::OptionalValue
             } else {
                 Arity::Flag
+            };
+            let arity = if blocked {
+                match arity {
+                    Arity::Value => Arity::BlockedValue,
+                    Arity::OptionalValue => Arity::BlockedOptionalValue,
+                    Arity::Values => Arity::BlockedValues,
+                    _ => Arity::Blocked,
+                }
+            } else {
+                arity
             };
             for name in names {
                 options.insert(name.to_owned(), arity);
@@ -137,7 +149,13 @@ impl LaunchOptions {
                 return false;
             };
             match (arity, inline) {
-                (Arity::Blocked, _) => return false,
+                (
+                    Arity::Blocked
+                    | Arity::BlockedValue
+                    | Arity::BlockedOptionalValue
+                    | Arity::BlockedValues,
+                    _,
+                ) => return false,
                 (Arity::Flag, Some(_)) => return false,
                 (_, Some("")) => return false,
                 (Arity::Flag, None) | (_, Some(_)) => {}

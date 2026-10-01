@@ -13785,8 +13785,10 @@ name = "warp-agent-bus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-tungstenite",
  "diesel",
  "dirs 6.0.0",
+ "futures-util",
  "libsqlite3-sys",
  "rmcp",
  "schemars 1.0.4",

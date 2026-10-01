@@ -7,13 +7,15 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-tungstenite = { version = "0.28.2", features = ["tokio-runtime"] }
+futures-util = { workspace = true, features = ["sink"] }
 diesel = { workspace = true, features = ["sqlite"] }
 libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
 rmcp = { workspace = true, features = ["server", "transport-io"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 schemars.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util", "io-std", "process"] }
 uuid.workspace = true
 
 [[bin]]

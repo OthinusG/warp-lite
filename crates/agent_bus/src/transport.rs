@@ -94,6 +94,10 @@ pub struct RunningBroker {
     directory: std::path::PathBuf,
 }
 impl RunningBroker {
+    /// Executable aliases live beside the private broker socket and disappear with the app.
+    pub fn launcher_directory(&self) -> std::path::PathBuf {
+        self.directory.join("launchers")
+    }
     pub fn start(database: &Path) -> Result<Self> {
         let store = Store::open(
             database
@@ -860,11 +864,11 @@ async fn handle(mut stream: impl AsyncRead + AsyncWrite + Unpin, broker: Broker)
     Ok(())
 }
 #[cfg(unix)]
-async fn connect(endpoint: &str) -> std::io::Result<UnixStream> {
+pub(crate) async fn connect(endpoint: &str) -> std::io::Result<UnixStream> {
     UnixStream::connect(endpoint).await
 }
 #[cfg(windows)]
-async fn connect(
+pub(crate) async fn connect(
     endpoint: &str,
 ) -> std::io::Result<tokio::net::windows::named_pipe::NamedPipeClient> {
     loop {

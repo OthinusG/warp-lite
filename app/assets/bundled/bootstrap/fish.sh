@@ -39,6 +39,11 @@ if test -n "$WARP_INITIAL_WORKING_DIR"
     set -e WARP_INITIAL_WORKING_DIR
 end
 
+# Keep per-terminal native launch bindings after user config updates PATH.
+if test -n "$WARP_AGENT_LAUNCH_PATH"
+    set -gx PATH "$WARP_AGENT_LAUNCH_PATH" $PATH
+end
+
 # Append additional PATH entries if provided via WARP_PATH_APPEND.
 if test -n "$WARP_PATH_APPEND"
     set -gx --path PATH "$PATH:$WARP_PATH_APPEND"

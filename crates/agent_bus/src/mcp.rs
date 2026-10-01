@@ -11,7 +11,7 @@ use rmcp::{
 };
 use serde_json::{json, Value};
 use std::{
-    sync::{Arc, Mutex},
+    sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -22,8 +22,14 @@ pub struct Bridge {
     terminal: String,
     capability: String,
     run: Arc<Mutex<Option<String>>>,
+    native_ready: Arc<Mutex<Option<bool>>>,
+    discovered: Arc<AtomicBool>,
 }
 impl Bridge {
+    #[cfg(test)]
+    pub(crate) fn test_binding(endpoint: String, terminal: String, capability: String) -> Self {
+        Self { endpoint, terminal, capability, run: Arc::new(Mutex::new(None)), native_ready: Arc::new(Mutex::new(None)), discovered: Arc::new(AtomicBool::new(false)) }
+    }
     pub fn from_env() -> Result<Self> {
         fn variable(name: &str) -> Result<String> {
             std::env::var(name).map_err(|_| anyhow!("Missing Warp terminal binding: {name}"))
@@ -33,7 +39,27 @@ impl Bridge {
             terminal: variable(TERMINAL)?,
             capability: variable(CAPABILITY)?,
             run: Arc::new(Mutex::new(None)),
+            native_ready: Arc::new(Mutex::new(None)),
+            discovered: Arc::new(AtomicBool::new(false)),
         })
+    }
+    /// Native session notifications cannot register a peer before actual MCP discovery.
+    pub(crate) fn native_activity(&self, ready: bool) -> Result<()> {
+        let mut activity = self.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;
+        *activity = Some(ready);
+        let registered = self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))?.is_some();
+        if registered {
+            self.apply_native_activity(ready)
+        } else {
+            Ok(())
+        }
+    }
+    fn apply_native_activity(&self, ready: bool) -> Result<()> {
+        let registered = self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))?.is_some();
+        if registered {
+            self.execute(if ready { Operation::AgentReady } else { Operation::AgentList })?;
+        }
+        Ok(())
     }
     fn execute(&self, operation: Operation) -> Result<Value> {
         let registration = matches!(operation, Operation::AgentRegister { .. });
@@ -127,7 +153,12 @@ impl ServerHandler for Bridge {
         tokio::task::spawn_blocking(move || {
             bridge.execute(Operation::AgentRegister {
                 name: String::new(),
-            })
+            })?;
+            let activity = bridge.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;
+            if !bridge.discovered.swap(true, Ordering::AcqRel) {
+                if let Some(ready) = *activity { bridge.apply_native_activity(ready)?; }
+            }
+            Ok::<_, anyhow::Error>(())
         })
         .await
         .map_err(|_| ErrorData::internal_error("Bridge unavailable", None))?
@@ -154,7 +185,17 @@ impl ServerHandler for Bridge {
         let operation: Operation = serde_json::from_value(Value::Object(arguments))
             .map_err(|_| ErrorData::invalid_params("Invalid tool arguments", None))?;
         let bridge = self.clone();
-        match tokio::task::spawn_blocking(move || bridge.execute(operation)).await {
+        match tokio::task::spawn_blocking(move || {
+            if matches!(operation, Operation::AgentReady) {
+                let activity = bridge.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;
+                if *activity == Some(false) {
+                    bridge.execute(Operation::AgentList)?;
+                    return Ok(json!({"ready": false, "instruction": "Finish this turn now. Native session completion will establish readiness after work and approval dialogs end."}));
+                }
+                return bridge.execute(operation);
+            }
+            bridge.execute(operation)
+        }).await {
             Ok(Ok(value)) => Ok(CallToolResult::success(vec![Content::text(
                 value.to_string(),
             )])),
