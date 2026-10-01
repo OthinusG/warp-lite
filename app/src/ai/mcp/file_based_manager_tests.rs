@@ -276,7 +276,7 @@ fn test_global_warp_server_always_spawns() {
             assert_eq!(
                 e.spawned_uuids.len(),
                 1,
-                "Global Warp server should auto-spawn regardless of toggle"
+                "Global Warpai server should auto-spawn regardless of toggle"
             );
         });
 
@@ -287,7 +287,7 @@ fn test_global_warp_server_always_spawns() {
         events.update(&mut app, |e, _| {
             assert!(
                 e.despawned_uuids.is_empty(),
-                "Global Warp server should never be despawned by toggle changes, got: {:?}",
+                "Global Warpai server should never be despawned by toggle changes, got: {:?}",
                 e.despawned_uuids
             );
         });
@@ -316,7 +316,7 @@ fn test_global_non_warp_server_respects_toggle() {
         events.update(&mut app, |e, _| {
             assert!(
                 e.spawned_uuids.is_empty(),
-                "Global non-Warp server must not auto-spawn while toggle is off, got: {:?}",
+                "Global non-Warpai server must not auto-spawn while toggle is off, got: {:?}",
                 e.spawned_uuids
             );
         });
@@ -333,7 +333,7 @@ fn test_global_non_warp_server_respects_toggle() {
             assert_eq!(
                 e.spawned_uuids,
                 vec![installation_uuid],
-                "Global non-Warp server should spawn when toggle flips on"
+                "Global non-Warpai server should spawn when toggle flips on"
             );
         });
 
@@ -343,7 +343,7 @@ fn test_global_non_warp_server_respects_toggle() {
             assert_eq!(
                 e.despawned_uuids,
                 vec![installation_uuid],
-                "Global non-Warp server should despawn when toggle flips off"
+                "Global non-Warpai server should despawn when toggle flips off"
             );
         });
     });

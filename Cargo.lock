@@ -13639,6 +13639,7 @@ dependencies = [
  "warp-workflows",
  "warp_cli",
  "warp_completer",
+ "warp-agent-bus",
  "warp_core",
  "warp_editor",
  "warp_files",
@@ -13777,6 +13778,25 @@ dependencies = [
  "warp_core",
  "warp_util",
  "warpui",
+]
+
+[[package]]
+name = "warp-agent-bus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "diesel",
+ "dirs 6.0.0",
+ "libsqlite3-sys",
+ "rmcp",
+ "schemars 1.0.4",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "uuid",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 # warpai
 
-**Application name: Warpai.** This development version renames the app, menus, settings, notifications, and installer assets. Existing settings remain compatible. Published `v0.5.7-lite` packages still use their historical WarpLite names; renamed review packages come from the [validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
+**Application name: Warpai.** This development version renames the app, menus, settings, notifications, and installer assets. Existing settings remain compatible. Published `v0.5.7-lite` packages still use their historical WarpLite names; current review packages come from the [validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
 **A local-first block terminal for macOS and Windows, with project browsing and native communication between your own CLI agents. No bundled cloud AI, telemetry, account login, or billing.**
 
@@ -10,7 +10,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-x64-blue.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
-This repository is [OthinusG's fork](https://github.com/OthinusG/warp-lite) of [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite), which is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warpai account login, no bundled Warpai AI agents, no cloud onboarding, and no telemetry as a product requirement. Warpai keeps the upstream terminal experience and removes the hosted AI platform.
+Warpai is independently maintained in [this repository](https://github.com/OthinusG/warp-lite), derived from [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite) and [Warp Terminal](https://github.com/warpdotdev/warp). It is a local-first, GPU-accelerated block terminal for macOS and Windows with no Warpai account login, no bundled cloud AI, no cloud onboarding, and no telemetry as a product requirement. Source changes are committed directly; no upstream synchronization or patch replay is required. The inherited licenses, attribution and terminal core remain preserved.
 
 > Status: alpha, with published macOS and Windows x64 packages. The current build is **v0.5.7-lite**, a privacy-vetted August upstream sync with 193 integration commits covering terminal security, reliability, editor/Vim, tabs, performance, and platform compatibility. GitHub Releases includes macOS app/DMG downloads and Windows x64 installer/portable ZIP downloads.
 
@@ -36,7 +36,7 @@ The original **warp-lite** keeps the upstream block terminal, GPU rendering, she
 | Native Mono app icon | Uses the upstream Mono artwork for macOS icon assets. | Available on `warp-lite/main` |
 | Broader CLI agent recognition | Added Antigravity (`agy`), DeepSeek Harness TUI, Qoder/QoderCN (`qodercn`), and Trae/TraeCN; improved Hermes and Cursor command aliases. Agent icons appear in the existing terminal UI. | Available on `warp-lite/main` |
 | Windows x64 distribution | Download an installer or portable ZIP, with Windows-specific compilation fixes retained. | Published release assets |
-| Customizations survive upstream updates | Sync scripts restore the project browser, CLI integrations, icons, and platform fixes after an upstream update. Conflicting changes stop the sync for review. | Existing synchronization workflow |
+| Direct source maintenance | Project browsing, CLI integrations, communication, branding and platform fixes live directly in the repository. Builds do not fetch or merge upstream. | Independent maintenance |
 | Local agent-to-agent collaboration | Agents exchange messages, assign work, submit results, accept results, or send them back for revision. Busy agents keep a queue; once idle, Warpai submits the next inbox instruction automatically. | In development; see below |
 
 Third-party CLI agents are installed and authenticated by you. Supporting them does not restore the upstream bundled AI service or require a Warpai account. Their own provider connections remain under their control.
@@ -51,7 +51,7 @@ Agents with a loaded bridge automatically discover other participating agents in
 
 Automatic delivery preserves user drafts and does not answer permission requests. Messages stay pending until the receiving agent actually acknowledges or consumes them. Coordination stays on your machine; it adds no Warpai cloud account or hosted messaging service.
 
-The source is delivered as a replayable patch through the same upstream-sync process. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
+The source is maintained directly in this repository. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [receiver state audit](specs/agent-communication/RECEIVER-STATES.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
 ## Why
 
@@ -61,7 +61,7 @@ Goals, in order:
 
 1. **Local-first.** No Warpai account required. No login gate for opening a terminal.
 2. **Terminal-first.** Preserve the block terminal, GPU renderer, shell integrations, tabs, tab groups, panes, settings, themes, command palette, editor basics, completions, and markdown rendering.
-3. **Stay current.** Regularly pull upstream Warp's terminal, renderer, shell, and bug/perf fixes via vetted `git cherry-pick -x`, while rejecting anything that would reintroduce telemetry, network calls, or AI/cloud/account surfaces.
+3. **Independent maintenance.** Keep source, tests and releases under this repository's control, preserving original provenance when selectively adopting external fixes.
 4. **Lighter over time.** Remove AI/cloud code paths carefully without breaking terminal rendering or input.
 5. **Honest status.** Some source modules are still present while the default build avoids their product paths. This README tracks that split explicitly.
 
@@ -259,11 +259,10 @@ The fork keeps upstream's macOS build prerequisites:
 
 4. Rust toolchain pinned by `rust-toolchain.toml`.
 
-For this development branch, replay the downstream features before building and include the communication companion when packaging. Current development builds and validation run on GitHub. Commands for other contributors:
+Build directly from repository source and include the communication companion when packaging. Current development builds and validation run on GitHub for macOS and Windows. Commands for other contributors:
 
 ```sh
 cargo check -p warp --bin warp-oss
-script/restore-project-explorer.sh
 CARGO_BUILD_JOBS=4 cargo build --release --bin warp-oss
 CARGO_BUILD_JOBS=4 cargo build --release -p warp-agent-bus --bin warp-agent
 script/build-warp-lite-app.sh
@@ -282,21 +281,20 @@ hdiutil verify WarpLite.dmg
 
 Known caveat: full `cargo fmt --check` can currently fail because the repository still references disabled/removed upstream files. Prefer targeted formatting/checks until that cleanup is complete.
 
-## Automated Fork Sync
+## Independent Build and Release
 
-`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer, native Mono icon, CLI agent integrations, and Windows fixes (plus the communication patch on its development branch) with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `Warpai.app.zip` plus `Warpai.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication. The Windows release workflow then builds and attaches the installer and portable ZIP. Custom CLI integrations are tracked separately from Warpai's disabled AI/MCP product runtime.
+`validate-agent-communication.yml` checks committed source on macOS and Windows and uploads a macOS review package. No build replays patches or fetches upstream source. Linux is outside the target scope.
+
+Dispatch `release-macos.yml` with an existing repository version tag. It tests and builds that exact tag, packages `Warpai.app.zip` and `Warpai.dmg`, and creates a release without overwriting older assets. `release-windows-x64.yml` then reads the tag from that successful run's release-target artifact, checks out the same tag, and attaches the Windows installer and portable ZIP. The Windows workflow can also be dispatched for an explicit existing release. Release publishing remains separate from validation.
 
 ## Branch Structure
 
 ```text
 origin/warp-lite/main         default branch; current shipped work
 origin/warp-lite/agent-communication  development branch; upcoming agent collaboration
-origin/warp-lite/sync-2026-08  upstream-sync staging branch (v0.5.7-lite cherry-picks land here first)
-origin/upstream-tracking      read-only mirror/cherry-pick source for upstream Warp changes
-upstream/master               upstream Warp source
 ```
 
-Upstream syncs are staged on a dated `warp-lite/sync-*` branch, verified (build + launch), then merged into `warp-lite/main`.
+Historical upstream-tracking and synchronization branches may remain as provenance; they are not an active maintenance or build mechanism.
 
 Historical phase branches and tags may still exist, but the public state should be read from `warp-lite/main`, the tags, and the GitHub Releases page.
 
@@ -329,7 +327,7 @@ No. There is no login gate, no sign-up prompt, and no Warpai/Firebase account fl
 Telemetry removal is an explicit product goal: historical telemetry call sites have been cleaned up, and upstream changes that would reintroduce telemetry or outbound network calls are rejected during syncs. Auditing continues before claiming perfect network silence — see [Current Shipped State](#current-shipped-state) for the honest status.
 
 **Does warpai work on Linux or Windows?**
-macOS and Windows x64 packages are published by this fork. Linux is not a maintained desktop release target here; Linux protocol tests do not establish Linux app support.
+macOS and Windows x64 are the only target platforms. Linux implementations and tests are outside the maintained product scope.
 
 **Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
 Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.

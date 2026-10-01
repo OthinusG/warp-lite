@@ -129,6 +129,8 @@ pub mod search;
 pub mod settings;
 pub mod settings_view;
 pub mod tab_configs;
+#[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+mod agent_communication;
 pub mod terminal;
 pub mod themes;
 use crate::ai::active_agent_views_model::ActiveAgentViewsModel;
@@ -1578,6 +1580,8 @@ fn initialize_app(
     }
     ctx.add_singleton_model(move |_| RestoredAgentConversations::new(multi_agent_conversations));
     ctx.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    ctx.add_singleton_model(agent_communication::AgentCommunication::new);
     // ActiveAgentViewsModel is used to track active agent conversations and notify listeners when they change.
     ctx.add_singleton_model(|_| ActiveAgentViewsModel::new());
     ctx.add_singleton_model(AgentNotificationsModel::new);

@@ -1,0 +1,29 @@
+[package]
+name = "warp-agent-bus"
+version = "0.1.0"
+edition = "2021"
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+diesel = { workspace = true, features = ["sqlite"] }
+libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
+rmcp = { workspace = true, features = ["server", "transport-io"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+schemars.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
+uuid.workspace = true
+
+[[bin]]
+name = "warp-agent"
+path = "src/main.rs"
+
+[dev-dependencies]
+serde_yaml.workspace = true
+dirs.workspace = true
+tempfile.workspace = true
+toml = "0.8.13"
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
+tokio = { workspace = true, features = ["process"] }

@@ -23,10 +23,9 @@ This fork strips subsystems that the maintainers of warp-lite consider unnecessa
 
 Editor (Zed-fork), LSP, language tree-sitter integrations, Vim mode, and the terminal core (block model, GPU rendering, shell integration) are kept. See [the implementation plan](https://github.com/terzigolu/warp-lite/commits/warp-lite/main) for commit-by-commit removal history.
 
-## Branch model
+## Independent maintenance
 
-- `warp-lite/main` — the divergent line for this fork.
-- `upstream-tracking` — periodic mirror of `warpdotdev/warp@master`. Direct merges from `upstream-tracking` into `warp-lite/main` are **not** performed; targeted fixes are integrated via `git cherry-pick -x <sha>` to preserve attribution.
+Warpai is independently maintained on `warp-lite/main`, with development changes on feature branches. Automatic upstream synchronization and patch replay were retired on 2026-10-01; source, tests and release packaging are maintained directly. Historical commits and branches preserve provenance. Independent maintenance does not change the inherited copyright, licensing or derivative-work obligations, and does not by itself change GitHub's fork-network metadata.
 
 ## AGPL §13 disclosure
 

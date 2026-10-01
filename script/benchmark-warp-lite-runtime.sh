@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Measure native Warp Lite launch proxies and idle resource use on macOS.
+# Measure native Warpai launch proxies and idle resource use on macOS.
 #
 # The harness launches the bundle executable directly so it owns an exact PID.
 # It never uses killall/pkill and never terminates a process it did not start.
@@ -7,7 +7,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_APP_PATH="/Applications/WarpLite.app"
+DEFAULT_APP_PATH="/Applications/Warpai.app"
 APP_PATH=""
 OUTPUT_PATH=""
 FORCE_OUTPUT=false
@@ -26,7 +26,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  --app PATH                 WarpLite.app to launch
+  --app PATH                 Warpai.app to launch
   --output PATH              Persist the key=value report
   --force-output             Replace an existing --output file
   --raw-samples PATH         Persist idle samples (default: target/warp-lite-benchmarks/runtime-samples.tsv)
@@ -38,7 +38,7 @@ Options:
   --dry-run                  Validate inputs without launching the app
   -h, --help                 Show this help
 
-If --app is omitted, /Applications/WarpLite.app is used only when it exists.
+If --app is omitted, /Applications/Warpai.app is used only when it exists.
 EOF
 }
 

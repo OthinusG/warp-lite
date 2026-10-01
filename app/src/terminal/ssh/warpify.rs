@@ -81,7 +81,7 @@ pub fn warpify_description(
 
     let description = FormattedText::new(vec![FormattedTextLine::Line(vec![
         FormattedTextFragment::plain_text(
-            "Bring Warp's features to your remote session. Blocks, full text editing, auto-complete, Oz, and more. "
+            "Bring Warpai's features to your remote session. Blocks, full text editing, auto-complete, Oz, and more. "
         ),
         FormattedTextFragment::hyperlink("Learn more", SSH_DOCS_URL),
     ])]);

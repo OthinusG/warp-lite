@@ -4821,3 +4821,166 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
         });
     })
 }
+
+#[cfg(all(
+    feature = "local_tty",
+    not(feature = "remote_tty"),
+    not(target_family = "wasm")
+))]
+#[test]
+fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
+    use warp_agent_bus::{
+        transport::{self, Request, RunningBroker},
+        Operation,
+    };
+    App::test((), |mut app| async move {
+        initialize_app_for_terminal_view(&mut app);
+        let _agent_view = FeatureFlag::AgentView.override_enabled(true);
+        let _cli_rich = FeatureFlag::CLIAgentRichInput.override_enabled(true);
+        let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+        let broker = &server.broker;
+        let capability = broker.prepare("issuer").unwrap();
+        broker.activate("issuer", "codex", "/project", false).unwrap();
+        let mut issuer = Request {
+            terminal: "issuer".into(),
+            capability,
+            run: None,
+            operation: Operation::AgentRegister { name: "issuer".into() },
+        };
+        let result = transport::call(&broker.endpoint, &issuer).unwrap();
+        issuer.run = result["run"].as_str().map(str::to_owned);
+        let mut requests = Vec::new();
+        let mut terminals = Vec::new();
+        for (index, agent) in enum_iterator::all::<CLIAgent>().enumerate() {
+            let name = format!("peer-{index}");
+            let terminal = open_cli_agent_rich_input_for_agent(&mut app, agent);
+            terminal.update(&mut app, |view, _| {
+                view.model.lock().simulate_long_running_block("cat", "")
+            });
+            terminal.update(&mut app, |view, ctx| {
+                let listener = crate::terminal::cli_agent_sessions::listener::is_agent_supported(&agent).then(|| {
+                    ctx.add_model(|ctx| CLIAgentSessionListener::new(view.view_id, agent, &view.model_events_handle, ctx))
+                });
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
+                    sessions.set_session(
+                        view.view_id,
+                        CLIAgentSession {
+                            agent,
+                            // Presentation status can lag an explicit MCP final-action readiness.
+                            status: CLIAgentSessionStatus::InProgress,
+                            session_context: CLIAgentSessionContext::default(),
+                            input_state: CLIAgentInputState::Closed,
+                            should_auto_toggle_input: false,
+                            listener,
+                            remote_host: None,
+                            plugin_version: None,
+                            draft_text: None,
+                            custom_command_prefix: None,
+                        },
+                        ctx,
+                    );
+                });
+            });
+            let writes = Rc::new(RefCell::new(Vec::<Vec<u8>>::new()));
+            let captured = writes.clone();
+            app.update(|ctx| {
+                ctx.subscribe_to_view(&terminal, move |_, event, _| {
+                    if let Event::WriteBytesToPty { bytes } = event {
+                        captured.borrow_mut().push(bytes.to_vec());
+                    }
+                })
+            });
+            let capability = broker.prepare(&name).unwrap();
+            let program = if agent == CLIAgent::Unknown {
+                "custom"
+            } else {
+                agent.command_prefix()
+            };
+            broker.activate(&name, program, "/project", true).unwrap();
+            let mut request = Request {
+                terminal: name.clone(),
+                capability,
+                run: None,
+                operation: Operation::AgentRegister { name },
+            };
+            let result = transport::call(&broker.endpoint, &request).unwrap();
+            request.run = result["run"].as_str().map(str::to_owned);
+            requests.push(request);
+            terminals.push((terminal, writes, agent));
+        }
+        for index in 0..requests.len() {
+            let mut sender = issuer.clone();
+            sender.operation = Operation::AgentSend {
+                to: requests[index].terminal.clone(),
+                body: "Inspect pending work".into(),
+                request_id: uuid::Uuid::new_v4().to_string(),
+            };
+            transport::call(&broker.endpoint, &sender).unwrap();
+        }
+        warpui::r#async::Timer::after(std::time::Duration::from_millis(850)).await;
+        let candidates = broker.wakeups();
+        assert_eq!(candidates.len(), terminals.len());
+        for wake in candidates {
+            let index = requests
+                .iter()
+                .position(|request| request.terminal == wake.terminal)
+                .unwrap();
+            let (terminal, writes, agent) = &terminals[index];
+            {
+                terminal.update(&mut app, |view, ctx| {
+                    view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
+                    view.input.update(ctx, |input, ctx| {
+                        input.replace_buffer_content("unfinished user draft", ctx)
+                    });
+                    view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
+                    assert_eq!(
+                        view.input.as_ref(ctx).buffer_text(ctx),
+                        "unfinished user draft"
+                    );
+                    view.input.update(ctx, |input, ctx| {
+                        input.clear_buffer_and_reset_undo_stack(ctx)
+                    });
+                });
+                assert!(
+                    writes.borrow().is_empty(),
+                    "Automatic wake must preserve a user draft"
+                );
+            }
+            terminal.update(&mut app, |view, ctx| {
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
+                    let mut session = sessions.session(view.view_id).unwrap().clone();
+                    session.status = CLIAgentSessionStatus::Blocked { message: Some("Permission required".into()) };
+                    sessions.set_session(view.view_id, session, ctx);
+                });
+                view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
+                assert!(writes.borrow().is_empty(), "Automatic wake must preserve permission requests for {agent:?}");
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
+                    let mut session = sessions.session(view.view_id).unwrap().clone();
+                    session.status = CLIAgentSessionStatus::InProgress;
+                    sessions.set_session(view.view_id, session, ctx);
+                });
+                view.wake_for_peer_work(broker.clone(), wake, ctx)
+            });
+            // Invalidate the run between the paste and delayed Enter.
+            if *agent == CLIAgent::Claude {
+                broker.end(&requests[index].terminal);
+            }
+        }
+        warpui::r#async::Timer::after(std::time::Duration::from_millis(450)).await;
+        for (terminal, writes, agent) in &terminals {
+            let written: Vec<u8> = writes.borrow().iter().flatten().copied().collect();
+            assert!(
+                String::from_utf8_lossy(&written).contains("Warpai peer work is waiting"),
+                "No wake text for {agent:?}"
+            );
+            assert_eq!(
+                written.ends_with(b"\r"),
+                *agent != CLIAgent::Claude,
+                "Unexpected Enter behavior for {agent:?}"
+            );
+            terminal.read(&app, |view, ctx| {
+                assert!(view.input.as_ref(ctx).buffer_text(ctx).is_empty())
+            });
+        }
+    });
+}

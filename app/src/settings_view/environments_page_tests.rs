@@ -1219,7 +1219,7 @@ fn test_environment_matches_search_query_empty_query_matches_all() {
 #[test]
 fn test_environment_matches_search_query_name_description_image_repos() {
     let mut environment = make_test_environment(
-        "Warp Env",
+        "Warpai Env",
         "node:20-alpine",
         vec![("warpdotdev".to_string(), "warp-internal".to_string())],
         vec![],

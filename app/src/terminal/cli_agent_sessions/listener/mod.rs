@@ -102,7 +102,8 @@ impl CLIAgentSessionHandler for DefaultSessionListener {
 ///
 /// Codex sends notifications via OSC 9 (`\x1b]9;message\x07`) with
 /// human-readable text. Since there's no way to distinguish notification types
-/// from the raw text, all OSC 9 notifications are treated as `Stop` (success).
+/// from arbitrary text, only recognized approval/question prefixes are blocked;
+/// other bodies remain presentation-only `Stop` notifications and cannot establish readiness.
 /// The notification body becomes the event's `query` so it surfaces as the
 /// notification title in the UI.
 struct Osc9FallbackSessionHandler {
@@ -121,7 +122,15 @@ impl Osc9FallbackSessionHandler {
         Some(CLIAgentEvent {
             v: 1,
             agent,
-            event: CLIAgentEventType::Stop,
+            event: if body.starts_with("Approval requested")
+                || body.starts_with("Codex wants to edit ")
+                || body.starts_with("Plan mode prompt:")
+                || body.starts_with("Question:")
+            {
+                CLIAgentEventType::PermissionRequest
+            } else {
+                CLIAgentEventType::Stop
+            },
             session_id: None,
             cwd: None,
             project: None,
@@ -190,6 +199,10 @@ impl CLIAgentSessionListener {
                     return;
                 };
                 if let Some(event) = me.inner.handle_event(parsed) {
+                    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+                    if event.event == CLIAgentEventType::IdlePrompt && me.inner.supports_rich_status() {
+                        crate::agent_communication::readiness(me.terminal_view_id, true);
+                    }
                     CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions_model, ctx| {
                         sessions_model.update_from_event(me.terminal_view_id, &event, ctx);
                     });
@@ -234,17 +247,28 @@ mod tests {
     }
 
     #[test]
-    fn codex_approval_text_still_becomes_stop() {
+    fn codex_approval_text_blocks_delivery() {
         let event = Osc9FallbackSessionHandler::parse_osc9_text(
             CLIAgent::Codex,
             "Approval requested: rm -rf /tmp/foo",
         )
         .unwrap();
-        assert_eq!(event.event, CLIAgentEventType::Stop);
+        assert_eq!(event.event, CLIAgentEventType::PermissionRequest);
         assert_eq!(
             event.payload.query.as_deref(),
             Some("Approval requested: rm -rf /tmp/foo")
         );
+    }
+
+    #[test]
+    fn opaque_approval_and_question_notifications_never_announce_idle() {
+        for agent in [CLIAgent::Codex, CLIAgent::Grok] {
+            for body in ["Approval requested by server", "Codex wants to edit file", "Plan mode prompt: Review plan", "Question: Choose a target"] {
+                let event = Osc9FallbackSessionHandler::parse_osc9_text(agent, body).unwrap();
+                assert_eq!(event.event, CLIAgentEventType::PermissionRequest);
+                assert!(!agent_supports_rich_status(&agent));
+            }
+        }
     }
 
     #[test]

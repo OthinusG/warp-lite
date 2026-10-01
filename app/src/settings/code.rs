@@ -10,7 +10,7 @@ define_settings_group!(CodeSettings, settings: [
         sync_to_cloud: SyncToCloud::Never,
         private: false,
         toml_path: "code.editor.use_warp_as_default_editor",
-        description: "Whether Warp is used as the default code editor.",
+        description: "Whether Warpai is used as the default code editor.",
     }
     codebase_context_enabled: CodebaseContextEnabled {
         type: bool,
@@ -80,6 +80,6 @@ define_settings_group!(CodeSettings, settings: [
         sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
         private: false,
         toml_path: "code.editor.auto_save",
-        description: "Whether the Warp text editor automatically saves changes as you type and when the editor loses focus.",
+        description: "Whether the Warpai text editor automatically saves changes as you type and when the editor loses focus.",
     },
 ]);

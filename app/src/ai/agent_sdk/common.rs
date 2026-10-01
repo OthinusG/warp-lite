@@ -141,7 +141,7 @@ pub fn refresh_warp_drive(
     UpdateManager::as_ref(ctx)
         .initial_load_complete()
         .with_timeout(WARP_DRIVE_SYNC_TIMEOUT)
-        .map_err(|_| anyhow::anyhow!("Timed out waiting for Warp Drive to sync"))
+        .map_err(|_| anyhow::anyhow!("Timed out waiting for Warpai Drive to sync"))
 }
 
 /// Fetch the conversation's server metadata and validate that its harness matches the caller's
@@ -279,7 +279,7 @@ Without an environment, the agent will not be able to access private repositorie
 
     /// Resolve the environment to use when updating an agent integration. If the user did not
     /// request any changes to the environment, this returns `Ok(None)`.
-    /// Warp Drive *must* have been synced first.
+    /// Warpai Drive *must* have been synced first.
     pub fn resolve_for_update(
         args: EnvironmentUpdateArgs,
         ctx: &AppContext,

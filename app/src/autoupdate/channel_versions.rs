@@ -29,7 +29,7 @@ pub async fn fetch_channel_versions(
     let channel_versions = server_api
         .fetch_channel_versions(include_changelogs, is_daily)
         .await
-        .context("Failed to retrieve channel versions from Warp server");
+        .context("Failed to retrieve channel versions from Warpai server");
     match channel_versions {
         channel_versions @ Ok(_) => channel_versions,
         Err(err) => {
@@ -39,7 +39,7 @@ pub async fn fetch_channel_versions(
                 // our Sentry logs).
                 Channel::Dev | Channel::Preview => report_error!(err),
                 _ => log::warn!(
-                    "Failed to retrieve channel versions from Warp server, falling \
+                    "Failed to retrieve channel versions from Warpai server, falling \
                 back to GCP JSON storage."
                 ),
             }
@@ -48,8 +48,8 @@ pub async fn fetch_channel_versions(
     }
 }
 
-// Synchronously fetches updated Warp [`ChannelVersions`] from GCP JSON storage. This will soon
-// be deprecated in favor of retrieving updated channel versions from the Warp Server.
+// Synchronously fetches updated Warpai [`ChannelVersions`] from GCP JSON storage. This will soon
+// be deprecated in favor of retrieving updated channel versions from the Warpai Server.
 // Note, in order to run against a test file you can use the "channel_versions_test.json" file
 // and update the file using gsutil cp channel_versions_test.json gs://warp-releases/channel_versions_test.json
 async fn fetch_channel_versions_from_json_storage(

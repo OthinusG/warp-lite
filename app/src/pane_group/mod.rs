@@ -2947,7 +2947,7 @@ impl PaneGroup {
             Banner::<PaneGroupAction>::new_permanently_dismissible(
                 BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::plain_text(
-                        "Warp doesn't currently support your default shell, falling back to zsh.  ",
+                        "Warpai doesn't currently support your default shell, falling back to zsh.  ",
                     ),
                     FormattedTextFragment::hyperlink("Learn more", WARP_SHELL_COMPATIBILITY_DOCS),
                 ]),
@@ -5491,6 +5491,8 @@ impl PaneGroup {
         ModelHandle<Box<dyn TerminalManager>>,
     ) {
         add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), ctx);
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "remote_tty")] {
@@ -5538,6 +5540,8 @@ impl PaneGroup {
         }
 
         let terminal_view = terminal_manager.as_ref(ctx).view();
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        crate::agent_communication::bind(&terminal_view, agent_terminal);
         (terminal_view, terminal_manager)
     }
 

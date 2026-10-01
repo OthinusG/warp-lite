@@ -70,7 +70,7 @@ define_settings_group!(InputSettings,
             sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
             private: false,
             toml_path: "terminal.input.case_insensitive_completions",
-            description: "Whether Warp-owned completions and autosuggestions match prefixes case-insensitively.",
+            description: "Whether Warpai-owned completions and autosuggestions match prefixes case-insensitively.",
         },
         error_underlining: ErrorUnderliningEnabled {
             type: bool,

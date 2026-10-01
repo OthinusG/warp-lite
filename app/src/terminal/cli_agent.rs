@@ -197,9 +197,9 @@ impl CLIAgent {
             CLIAgent::Vibe => &["vibe", "vibe-acp"],
             CLIAgent::Antigravity => &["agy"],
             CLIAgent::Grok => &["grok"],
-            CLIAgent::DeepSeekHarness => &["dsh"],
+            CLIAgent::DeepSeekHarness => &["dsh", "dsh-tui"],
             CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli", "qodercn"],
-            CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli"],
+            CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli", "traecli"],
             CLIAgent::Unknown => &[],
         }
     }

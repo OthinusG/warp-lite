@@ -2,7 +2,7 @@ name: Release Windows x64
 
 on:
   workflow_run:
-    workflows: ["Sync Warpai and release"]
+    workflows: ["Release Warpai macOS"]
     types:
       - completed
   workflow_dispatch:
@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: release-windows-x64
@@ -38,13 +39,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
 
           if [[ -n "$INPUT_TAG" ]]; then
             TARGET_TAG="$INPUT_TAG"
           else
-            TARGET_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
+            if [[ -n "$SOURCE_RUN_ID" ]]; then
+              gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-target --dir release-target
+              TARGET_TAG="$(cat release-target/release-tag.txt)"
+            else
+              TARGET_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
+            fi
           fi
 
           if [[ -z "$TARGET_TAG" ]]; then
@@ -52,6 +59,8 @@ jobs:
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          [[ "$TARGET_TAG" == v* ]]
+          git check-ref-format "refs/tags/$TARGET_TAG"
 
           echo "Target release tag: $TARGET_TAG"
           echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
@@ -72,7 +81,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-          ref: warp-lite/main
+          ref: refs/tags/${{ steps.check-release.outputs.release_tag }}
 
       - name: Configure Windows git and environment
         if: steps.check-release.outputs.should_build == 'true'

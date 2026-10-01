@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Print a revision-aware static baseline for Warp Lite.
+# Print a revision-aware static baseline for Warpai.
 #
-# This script never builds or launches Warp Lite. Missing artifacts are reported
+# This script never builds or launches Warpai. Missing artifacts are reported
 # as "missing" so callers can decide whether a release build is required.
 #
 # Usage:
@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BINARY_PATH="$ROOT/target/release/warp-oss"
-APP_PATH="$ROOT/WarpLite.app"
+APP_PATH="$ROOT/Warpai.app"
 OUTPUT_PATH=""
 FORCE_OUTPUT=false
 

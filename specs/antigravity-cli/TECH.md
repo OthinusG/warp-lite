@@ -4,7 +4,7 @@
 
 Mirror the current `warpdotdev/warp` master implementation inside the existing `CLIAgent` enum and exhaustive matches. Add only the telemetry enum variant required by the local type conversion; do not add or restore telemetry transport.
 
-Persist the downstream delta as `.github/patches/antigravity-cli.patch` and apply it through the existing restoration script and sync workflow.
+- Maintain the implementation directly in repository source; no patch replay or restoration script is required.
 
 ## Constraints
 

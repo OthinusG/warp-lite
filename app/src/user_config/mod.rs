@@ -24,7 +24,7 @@ pub use imp::{load_launch_configs, load_theme_configs};
 
 lazy_static! {
     pub static ref LAUNCH_CONFIG_COMMENT: String = format!(
-        "# Warp Launch Configuration
+        "# Warpai Launch Configuration
 #
 #
 # Use this to start a certain configuration of windows, tabs, and panes.

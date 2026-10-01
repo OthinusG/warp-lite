@@ -2,10 +2,12 @@
 
 ## Product Boundary
 
-- warp-lite is an AGPL, local-first fork of Warp Terminal for macOS.
+- User platform decision on 2026-10-01: macOS and Windows are the only target platforms. Linux implementations and tests may be dropped; avoid new Linux compatibility work and Linux CI jobs. This does not require an unrelated wholesale rewrite of inherited platform code.
+
+- Warpai is an independently maintained AGPL local-first terminal derived from warp-lite and Warp, targeting macOS and Windows.
 - The default product excludes AI agents, telemetry, cloud account/login, billing, and related platform surfaces.
 - Project Explorer is a desired terminal-adjacent feature and must be restored without reintroducing excluded product dependencies.
-- User naming decision on 2026-10-01: this version is branded Warpai (application name), with warpai in product prose. Rename menus/settings/notifications, visible package metadata/executables, README, and installer artwork. Preserve existing storage/bundle identifiers and protocol/tool names for compatibility; real upstream URLs and attribution remain accurate. Branding is replayed after the communication patch.
+- User naming decision on 2026-10-01: this version is branded Warpai (application name), with warpai in product prose. Rename menus/settings/notifications, visible package metadata/executables, README, and installer artwork. Preserve existing storage/bundle identifiers and protocol/tool names for compatibility; real upstream URLs and attribution remain accurate. Branding and communication live directly in repository source.
 
 ## Native Agent Communication Design
 
@@ -25,27 +27,26 @@
 ## Maintenance
 
 - Upstream changes are historically selected and applied with provenance rather than merged wholesale.
-- Automating upstream sync must retain privacy/product-boundary checks before merging or publishing.
+- User decision on 2026-10-01: retire automatic upstream synchronization, restoration scripts and replayable patches. Keep changes as direct committed source. Retain independent GitHub compilation, testing and tagged releases; do not remove provenance or licenses. GitHub fork-network metadata is separate from the source maintenance decision.
 - `OthinusG/warp-lite` is a fork of `terzigolu/warp-lite`; both default to `warp-lite/main` and do not use `master`.
-- Project Explorer source remains in the tree. Warp Lite disabled only its `ToolsPanel` entry point; its restoration and the native Mono packaging icon are stored in `.github/patches/project-explorer.patch` and replayed by `script/restore-project-explorer.sh` after every upstream merge.
+- Project Explorer and persisted ToolsPanel migration are maintained directly in source, alongside CLI integrations, platform fixes, branding and native agent communication.
 - Workspace initialization restores the right-side Tools Panel button for older persisted toolbar configurations that omit it.
-- `.github/workflows/sync-upstream-warp-lite.yml` syncs only the latest upstream `v*-lite` release tag, verifies before push, and publishes ad-hoc-signed macOS ZIP/DMG artifacts under the same tag name.
-- macOS packaging uses Warp's native 1024×1024 `app/DockTilePlugin/Resources/mono.png`; manual workflow dispatches create a run-specific release tag and preserve older assets because GitHub's asset endpoint returned 404 when `gh release upload --clobber` tried to replace them.
-- Antigravity CLI (`agy`) support is preserved across upstream syncs by `.github/patches/antigravity-cli.patch`; it uses the standard CLI Agent fallback and does not add telemetry transport or Warp AI/Cloud dependencies.
-- DeepSeek Harness TUI support is preserved across upstream syncs by `.github/patches/deepseek-harness.patch`; only `dsh-tui` and `dsh` TUI profiles enter CLI Agent management, with no listener, plugin, or telemetry upload added.
+- Standalone macOS releases build an existing repository tag. Windows release automation reads that successful run's release-target artifact and builds the same tag rather than the latest branch or release.
+- macOS packaging uses Warp's native 1024×1024 `app/DockTilePlugin/Resources/mono.png`; standalone tagged releases preserve older assets because GitHub's asset endpoint returned 404 when `gh release upload --clobber` tried to replace them.
+- Antigravity (`agy`) uses the standard CLI Agent fallback without Warp AI/cloud dependencies or telemetry transport.
+- DeepSeek Harness accepts only dsh-tui and dsh TUI profiles in managed CLI sessions; do not add telemetry or platform integration.
 - DeepSeek Harness uses a transparent RGBA bundled PNG through the original-color image path for tab/status circles; the standard monochrome icon renderer turned the original RGB PNG's opaque white background into a blank block.
-- Qoder CLI support is preserved across upstream syncs by `.github/patches/qoder-cli.patch`; `qoder`, `qodercli`, `qoder-cli`, and domestic China release `qodercn` commands enter CLI Agent management with no listener, plugin, or telemetry upload added.
+- Qoder aliases qoder, qodercli, qoder-cli and qodercn are managed CLI sessions; native command detection is independent of notification hooks.
 - Qoder CLI uses a transparent RGBA bundled PNG through the original-color image path for tab/status circles, matching DeepSeek Harness.
-- Trae CLI support is preserved across upstream syncs by `.github/patches/trae-cli.patch`; `trae`, `traecn`, `trae-cli`, and `traecn-cli` commands enter CLI Agent management with no listener, plugin, or telemetry upload added. It uses a transparent 60x60 RGBA bundled PNG (`trae.png`) rendered through the original-color image path for tab/status circles.
-- Hermes CLI agent support is enhanced and preserved across upstream syncs by `.github/patches/hermes-agent.patch`; it adds the official `hermes-agent` command alias, one-off shell keyword bypass, and a transparent 60x60 RGBA bundled PNG (`hermes.png`) rendered through the original-color image path for tab/status circles.
-- `script/restore-upstream-cli-agents.sh` reads `warpdotdev/warp` master during sync, restores the vetted third-party CLI Agent patch, and automatically imports newly introduced non-Warp CLI Agent commits only through audited CLI-integration paths. `WarpTui`, product/network additions, and telemetry send calls are rejected; DeepSeek Harness, Qoder CLI, and Trae remain independent downstream patches.
-- Cursor's CLI starts with `cursor-agent`, while upstream Warp currently recognizes only `agent`; `.github/patches/cursor-cli-command.patch` adds the official command without removing the legacy alias and is replayed by the CLI Agent sync script.
+- Trae aliases include traecli as well as trae, traecn, trae-cli and traecn-cli. Native MCP setup uses the documented YAML list; the icon follows the original-color transparent PNG path.
+- Hermes includes the hermes-agent alias and uses a transparent PNG icon through original-color rendering.
+- Keep both Cursor commands cursor-agent and agent in command recognition.
 - The default Lite build does not register Warp MCP file watchers, file-based server management, or MCP gallery; it retains an inert `TemplatableMCPServerManager` singleton only for compiled Warp AI callers. The full MCP runtime remains available in `warp_platform` builds, while third-party CLI agents manage their own MCP configurations.
-- Upstream Warp GitHub Actions workflows (such as internal release pipelines targeting GCS/Sentry/Slack, internal repo-sync, Oz AI agent bots for triage/implementation, and proprietary multi-platform CI) were removed from `.github/workflows/`; only the fork's release and synchronization workflow (`sync-upstream-warp-lite.yml`) is retained.
-- `.github/workflows/release-windows-x64.yml` triggers automatically via `workflow_run` when `Sync Warpai and release` finishes. It inspects the release, skips redundant runs if Windows assets already exist, compiles `warp-oss` for `x86_64-pc-windows-msvc`, builds `WarpaiSetup-x64.exe` (via Inno Setup) and `Warpai-windows-x64.zip`, and attaches them to the GitHub release.
-- Windows compilation fixes are preserved by `.github/patches/windows-compilation-fixes.patch` and replayed by `script/restore-project-explorer.sh`; it replaces dead `crate::();` telemetry removal leftovers in `app/src/autoupdate/windows.rs` with logging and corrects the `&OsStr` argument type to `powershell_read_all_text_command` in `app/src/terminal/model/session.rs`.
+- Do not restore inherited internal upstream workflows, cloud integrations or synchronization. Retain only independent validation and macOS/Windows release workflows.
+- Windows packaging uses the existing PowerShell build script and Inno Setup; installer/portable artifacts include the native communication companion.
+- Preserve Windows autoupdate log replacements for removed telemetry and the OsStr conversion for the PowerShell history read command.
 
-- Agent communication source changes must be delivered as a replayable downstream patch integrated into upstream synchronization. The user explicitly requires GitHub compilation and no local builds.
+- Agent communication is ordinary repository source under app/src/agent_communication and crates/agent_bus. The user still requires GitHub compilation and no local builds.
 - Communication coverage must follow the managed `CLIAgent` enum automatically, not a separate four-vendor allowlist. The user explicitly excludes agents without native MCP support: list them, do not add shell-tool fallbacks. Protocol simulation and real vendor model acceptance are separate verification levels.
 
 - macOS Unix socket endpoints must use a short private directory under `/tmp`; the system `TMPDIR` path plus a UUID can exceed macOS's 104-byte socket path ceiling. Protocol compilation/tests run on GitHub, not locally.
@@ -58,7 +59,7 @@
 
 - User clarification: busy delivery is polling, then automatic submission once idle. Manual cancellation pauses automatic submission until the user resumes with a new input; pruning a closed view must also invalidate its broker run.
 
-- README must distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, replayable sync, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
+- README must distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, independent maintenance, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
 
 - Full application test compilation exposed an inherited cloud-agent-management test referencing a field gated by `agent_management_view`. Gate that test with the same feature rather than restoring the disabled cloud UI or silently skipping native wake verification.
 
@@ -66,8 +67,10 @@
 
 - Superseded by the settings/project-scoped revision below: user originally specified the communication entry: right-click an Agent tab, choose **Select communication peers**, then select an available agent to establish a reciprocal connection. Afterwards ordinary dialogue and agent-initiated task delegation use the same connection. Menu text and related UI messages must be English. Native MCP tool discovery registers identity automatically; connection choices are scoped to current process runs, and selected agents are restricted to their chosen peers. Native MCP setup is still a prerequisite; unloaded clients must never be falsely shown as connected.
 
-- User revision on 2026-09-30: implement Settings-based communication enablement and automatic reversible vendor MCP/environment setup first; then remove all manual peer selection and allow every enabled native-discovered agent within the same project to communicate. Keep source delivery in replayable patches/scripts and perform compilation/packaging on GitHub only.
+- User revision on 2026-09-30: implement Settings-based communication enablement and automatic reversible vendor MCP/environment setup first; then remove all manual peer selection and allow every enabled native-discovered agent within the same project to communicate. Source delivery now uses direct commits; perform compilation/packaging on GitHub only.
 - Settings are machine-local and default off. Track only the dedicated `warp-lite-communication` configuration and non-secret cleanup metadata. Revoke broker authorization before cleanup, retain failed cleanup for retry without restoring permission, preserve unrelated/user-modified configuration, and require vendor reload/restart where native hot-loading is unavailable.
-- Patch files must retain LF on Windows; their blank context lines contain a structural space. `.gitattributes` enforces LF and suppresses only patch-file blank-at-EOL checks, while replayed source still passes `git diff --check`.
+- Maintain LF for Rust/configuration/packaging source across macOS and Windows checkouts. The old patch-specific whitespace exception is retired.
 
 - Hermes filters stdio subprocess environments; configure runtime `${WARP_AGENT_*}` and `${WARP_TERMINAL_SESSION_UUID}` references explicitly. Vibe native stdio support alone does not establish dynamic environment passthrough; automatic setup stays unavailable until a compatible contract is verified, rather than persisting capabilities or pretending a connection exists.
+
+- Receiver audit on 2026-10-01 covers every managed type, not only Codex. A fresh bare interactive launch needs a one-time readiness lease after native discovery, cancelled by user input/busy/blocked events. Regular MCP operations and rediscovery cannot re-arm it. Preserve task notifications until their authorized task transition; ordinary ACK must not discard assignment/review work. Main agents receive default coordination instructions and peer task summaries; TaskGet exposes offline/interrupted receivers. Explicit offline identity reclaim must work after automatic discovery but cannot abandon an identity that already has work. See specs/agent-communication/RECEIVER-STATES.md; simulated states and live vendor acceptance remain separate.

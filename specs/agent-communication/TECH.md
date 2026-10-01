@@ -39,16 +39,24 @@ All tool arguments reject unknown fields. Sender/project/run are authenticated t
 
 1. Implement and test identity/project isolation, assignment, submission, rework, reviewer authorization, stale revisions, idempotent retries, durable reopen, and old-run rejection.
 2. Exercise real local sockets and the rmcp stdio transport; run simulated clients for every managed type. Prove waiting resumes on assignment and review results, without calling it a live model test.
-3. Integrate native terminal bindings and companion packaging through the patch. Test clean application, repeat application, reverse checks, and failure on partially restored files.
-4. GitHub Linux/Windows jobs run focused crate tests. macOS checks default and `warp_platform`, builds the application and companion, and uploads reviewable artifacts. Do not publish a release from the validation workflow.
+3. Integrate native terminal bindings and companion packaging directly in source. Verify clean checkouts compile and package without a restoration step.
+4. GitHub Windows and macOS jobs run focused crate tests. macOS checks default and `warp_platform`, builds the application and companion, and uploads reviewable artifacts. macOS and Windows are the only target platforms; Linux implementations and tests are outside scope. Do not publish a release from the validation workflow.
 5. Live model tests for every managed CLI require their authenticated local environments and a new patched Warp build. GitHub runners have no vendor credentials; record these tests as pending rather than reporting protocol simulations as live acceptance.
 
 ## Risks
 
+## Fresh receiver and default orchestration repair (2026-10-01)
+
+- Reproduce the reported case: a newly launched Codex with no prior prompt registers MCP but never calls final-action readiness, so peer work remains queued.
+- Seed a single initial readiness lease only for a bare recognized CLI command, after native discovery. Launches with arguments, user input, blocked/busy events, replaced runs and absent native discovery must not receive this lease. Subsequent turns keep the existing readiness contract and guarded PTY submission.
+- Resolve agents using both shell startup PATH and updated session PATH. Add the confirmed Qoder/QoderCN installation entry directories as narrow fallbacks; preserve vendor alias deduplication. Carry resolved search paths into native CLI probes and setup subprocesses so interpreter-based launchers work from GUI launches.
+- Make orchestration the default MCP cooperation rule: an issuer tracks every outstanding task via TaskGet and AgentWait until reviewed; a receiver executes work in its existing terminal, reports progress, submits evidence and sends replies to ordinary instructions. Queue admission never means completion.
+- Acceptance: freshly registered receivers wake without a prior model turn or AgentReady; user drafts and launches with task arguments remain protected; repeated discovery cannot re-arm a busy run. Verify QoderCN discovery and its actual user-scope stdio add/get/remove argument contract using temporary fake executables. Extend existing cross-agent protocol and app regressions. Run compilation/tests/packaging on GitHub only.
+
 - Same-user local processes are one trust domain; session capabilities prevent accidental cross-session routing, not compromise of the OS account.
 - Cancellation or transport loss after a mutation can precede its response. Retry the same request ID; never assume failure means no side effect.
 - A disconnected CLI invalidates outstanding waits. Persisted running tasks require explicit recovery after the next live registration.
-- Patch context drift intentionally stops synchronization. Preserve and review provenance instead of silently rewriting unmatched upstream code.
+- Retain historical provenance while maintaining source directly; do not restore automatic upstream synchronization.
 
 ## Coverage constraint
 
@@ -77,14 +85,18 @@ Acceptance: simulate dormant readiness for every managed identity plus custom; d
 1. Remove the redundant listener/status veto from the shared PTY wake guard; keep explicit blocked/draft/session protections and the broker's run-scoped readiness lease. Only structured lifecycle handlers may establish readiness from status changes.
 2. Show each pending message once using the existing terminal notification event; expose pending count/readiness and truthful queued delivery responses through existing MCP tools. Include the final-action readiness rule in each tool description for clients that omit server instructions.
 3. Replace guessed setup for named vendors with documented configuration adapters, retaining probes for genuinely custom versions. Add reversible TOML list, YAML list and Cordis patch support using existing dependencies. Vibe requires runtime environment injection because its Python stdio client filters inherited variables; capabilities stay exclusively in the terminal environment.
-4. Extend the existing application wake and protocol/setup regressions. Regenerate the replayable patch, verify clean/repeated/reverse replay, then run GitHub protocol, application, and packaging checks.
+4. Extend the existing application wake and protocol/setup regressions. Run GitHub protocol, application, and packaging checks against directly committed source.
 
 ## Warpai branding (2026-10-01)
 
-The same version uses Warpai as its application/display name and warpai in product prose. Rename shipped window/menu/settings/notification text, macOS display metadata and executable, Windows executable/installer/portable packages, and the installer sidebar graphic. Documentation/help links target this fork; original licensing and upstream attribution remain accurate. Keep crate/bin identifiers, protocol/tool identifiers, persisted settings paths, bundle ID, and real repository URLs compatible. Deliver UI branding as a separate replayable patch after communication restoration; update release workflow asset paths together. Verify Rust parsing, shell/workflow syntax, clean and repeated patch replay, installer image dimensions/text, GitHub checks, and packaged plist/executable naming. No local compilation.
+The same version uses Warpai as its application/display name and warpai in product prose. Rename shipped window/menu/settings/notification text, macOS display metadata and executable, Windows executable/installer/portable packages, and the installer sidebar graphic. Documentation/help links target this fork; original licensing and upstream attribution remain accurate. Keep crate/bin identifiers, protocol/tool identifiers, persisted settings paths, bundle ID, and real repository URLs compatible. Maintain UI branding directly in source; update release workflow asset paths together. Verify Rust parsing, shell/workflow syntax, clean checkout builds, installer image dimensions/text, GitHub checks, and packaged plist/executable naming. No local compilation.
 
 Replace manual vendor setup with a local settings model and serialized background configuration jobs. Discover installed managed command aliases without reading credentials. Use documented vendor config formats or native setup commands; retain ownership metadata only for the dedicated `warp-lite-communication` entry. Apply atomic file updates, preserve unrelated values, refuse collisions, and retain cleanup failures for retry. Codex explicitly passes the three dynamic environment names through `env_vars`; clients with inherited subprocess environments need no persisted capability. UI observers render per-agent status and restart guidance. Broker policy is default-deny in the app, immediately revokes unchecked programs and all programs on global disable, and requires fresh native discovery after re-enable.
 
 The second implementation phase removes the tab picker, reciprocal run sets, and selected-only routing. Existing authenticated project scope remains the single routing boundary; only live, enabled, native-discovered recipients are eligible. Preserve task review authorization and lifecycle/wake protections.
 
 Ownership metadata is kept in the local secure state directory, independently of cloud-synced settings. Persist cleanup intent before injecting a server, then authorize only after setup succeeds. Pending cleanup is not participation permission. Files are replaced atomically, malformed configuration and symlinks are preserved, and collisions/user-modified managed entries are reported instead of overwritten. CLI probes and configuration commands have bounded execution time and do not pass through a shell. Shared JSON/YAML formats and Codex TOML blocks use existing dependencies.
+
+## Independent maintenance revision (2026-10-01)
+
+Retire upstream synchronization, replay patches and restoration scripts. All feature/branding/platform changes are direct repository source. Keep independent GitHub validation and tagged macOS/Windows release workflows, including the communication companion. Linux is not a target platform. Historical upstream plans above are superseded by this revision. Receiver state acceptance is specified in RECEIVER-STATES.md.

@@ -176,7 +176,7 @@ fn test_remaining_substitutions() {
     Version=1.0
     Type=Application
     Exec=echo %c && echo %i && echo %k && echo %%
-    Name=Warp Test Application
+    Name=Warpai Test Application
     Icon=/foo/bar/icon.png
     "#;
     with_files("test_remaining_substitutions", data, |desktop, content| {
@@ -188,7 +188,7 @@ fn test_remaining_substitutions() {
 
         assert_eq!(
             result.unwrap().get_args().collect::<Vec<_>>(),
-            ["-c", &format!("echo Warp Test Application && echo --icon /foo/bar/icon.png && echo {desktop_file_path} && echo %")]
+            ["-c", &format!("echo Warpai Test Application && echo --icon /foo/bar/icon.png && echo {desktop_file_path} && echo %")]
         );
         Ok(())
     });

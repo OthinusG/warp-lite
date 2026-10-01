@@ -285,6 +285,11 @@ impl Sessions {
         }
     }
 
+    /// Read one shell variable without copying unrelated environment values.
+    pub fn env_var_for_session(&self, session_id: SessionId, name: &str) -> Option<&str> {
+        self.env_vars.get(&session_id)?.get(name).map(String::as_str)
+    }
+
     pub fn get_env_vars_for_session(
         &self,
         session_id: SessionId,

@@ -190,8 +190,8 @@ fn resolve_standard_action(action: StandardAction) -> StandardMenuItemProperties
 
     match action {
         StandardAction::Close => make("Close Window", "performClose:", none, ""),
-        StandardAction::Quit => make("Quit Warp", "terminate:", cmd, "q"),
-        StandardAction::Hide => make("Hide Warp", "hide:", cmd, "h"),
+        StandardAction::Quit => make("Quit Warpai", "terminate:", cmd, "q"),
+        StandardAction::Hide => make("Hide Warpai", "hide:", cmd, "h"),
         StandardAction::HideOtherApps => {
             make("Hide Others", "hideOtherApplications:", cmd | option, "h")
         }

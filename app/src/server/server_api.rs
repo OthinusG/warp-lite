@@ -157,7 +157,7 @@ pub enum AIApiError {
     #[error("Request failed due to lack of AI quota.")]
     QuotaLimit,
 
-    #[error("Warp is currently overloaded. Please try again later.")]
+    #[error("Warpai is currently overloaded. Please try again later.")]
     ServerOverloaded,
 
     #[error("Internal error occurred at transport layer.")]
@@ -327,7 +327,7 @@ pub enum TranscribeError {
     #[error("Request failed due to lack of Voice quota.")]
     QuotaLimit,
 
-    #[error("Warp is currently overloaded. Please try again later.")]
+    #[error("Warpai is currently overloaded. Please try again later.")]
     ServerOverloaded,
 
     #[error("Internal error occurred at transport layer.")]
@@ -1206,7 +1206,7 @@ impl ServerApi {
         }
     }
 
-    /// Fetches updated Warp Channel Versions from Warp Server. If it is the first such request of
+    /// Fetches updated Warpai Channel Versions from Warpai Server. If it is the first such request of
     /// the current calendar day, first attempts to call the '/client_version/daily'. If that call
     /// fails or if it not the first request of the calendar day, returns the result of a call to
     /// `/client_version'. The caller can specify whether or not changelog information should be
@@ -1227,9 +1227,9 @@ impl ServerApi {
             .append_pair("include_changelogs", &include_changelogs.to_string());
 
         if include_changelogs {
-            log::info!("Fetching channel versions and changelogs from Warp server");
+            log::info!("Fetching channel versions and changelogs from Warpai server");
         } else {
-            log::info!("Fetching channel versions (without changelogs) from Warp server");
+            log::info!("Fetching channel versions (without changelogs) from Warpai server");
         }
 
         let mut request_builder = self
@@ -1253,7 +1253,7 @@ impl ServerApi {
 
         let response = request_builder.send().await?;
         let versions: ChannelVersions = response.json().await?;
-        log::info!("Received channel versions from Warp server: {versions}");
+        log::info!("Received channel versions from Warpai server: {versions}");
         Ok(versions)
     }
 }
@@ -1382,7 +1382,7 @@ impl ServerApiProvider {
     }
 
     /// Returns the shared HTTP client. This client is wired into network logging
-    /// and includes standard Warp request headers.
+    /// and includes standard Warpai request headers.
     pub fn get_http_client(&self) -> Arc<http_client::Client> {
         self.server_api.client.clone()
     }

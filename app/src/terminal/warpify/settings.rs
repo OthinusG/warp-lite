@@ -50,7 +50,7 @@ maybe_define_setting!(EnableSshWarpification, group: WarpifySettings, {
     sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
     private: false,
     toml_path: "warpify.ssh.enable_ssh_warpification",
-    description: "Whether to enable Warp features in SSH sessions.",
+    description: "Whether to enable Warpai features in SSH sessions.",
 });
 
 maybe_define_setting!(UseSshTmuxWrapper, group: WarpifySettings, {

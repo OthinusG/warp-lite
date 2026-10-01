@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds a minimal WarpLite.app bundle on macOS for warp-lite.
+# Builds a minimal Warpai.app bundle on macOS for warp-lite.
 #
 # Prerequisites:
 #   - target/release/warp-oss already built (cargo build --release --bin warp-oss)
@@ -8,7 +8,7 @@
 #   script/build-warp-lite-app.sh
 #
 # Output:
-#   ./WarpLite.app   (drag into /Applications)
+#   ./Warpai.app   (drag into /Applications)
 
 set -euo pipefail
 
@@ -16,7 +16,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BIN="target/release/warp-oss"
-APP="WarpLite.app"
+AGENT_BIN="target/release/warp-agent"
+APP="Warpai.app"
 APP_VERSION="0.5.7"
 APP_SHORT_VERSION="0.5.7-lite"
 APP_IDENTIFIER="dev.warp-lite.WarpLite"
@@ -24,6 +25,11 @@ SRC_PNG="app/DockTilePlugin/Resources/mono.png"
 
 if [[ ! -f "$BIN" ]]; then
     echo "Error: $BIN not found. Run: cargo build --release --bin warp-oss" >&2
+    exit 1
+fi
+
+if [[ ! -f "$AGENT_BIN" ]]; then
+    echo "Error: $AGENT_BIN not found. Build warp-agent-bus on GitHub before packaging." >&2
     exit 1
 fi
 
@@ -37,8 +43,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # 1) Copy the binary
-cp "$BIN" "$APP/Contents/MacOS/warp-oss"
-chmod +x "$APP/Contents/MacOS/warp-oss"
+cp "$BIN" "$APP/Contents/MacOS/Warpai"
+cp "$AGENT_BIN" "$APP/Contents/MacOS/warp-agent"
+chmod +x "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
 
 # 2) Generate AppIcon.icns from the 512×512 source via iconset
 ICONSET="$(mktemp -d)/AppIcon.iconset"
@@ -63,9 +70,9 @@ cat > "$APP/Contents/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>WarpLite</string>
+    <string>Warpai</string>
     <key>CFBundleDisplayName</key>
-    <string>warp-lite</string>
+    <string>Warpai</string>
     <key>CFBundleIdentifier</key>
     <string>$APP_IDENTIFIER</string>
     <key>CFBundleVersion</key>
@@ -73,7 +80,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>CFBundleShortVersionString</key>
     <string>$APP_SHORT_VERSION</string>
     <key>CFBundleExecutable</key>
-    <string>warp-oss</string>
+    <string>Warpai</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>

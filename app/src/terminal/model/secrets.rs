@@ -627,7 +627,7 @@ pub mod regexes {
         },
         DefaultRegex {
             pattern: WARP_API_KEY,
-            name: "Warp API Key",
+            name: "Warpai API Key",
         },
     ];
 }

@@ -702,7 +702,79 @@ impl TerminalView {
         }
 
         let strategy = rich_input_submit_strategy(agent);
-        self.write_cli_agent_text_then_submit(text_bytes, strategy, ctx);
+        self.write_cli_agent_text_then_submit(text_bytes, strategy, None, None, ctx);
+    }
+
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
+    pub(crate) fn wake_for_peer_work(
+        &mut self,
+        broker: warp_agent_bus::transport::Broker,
+        wake: warp_agent_bus::transport::Wake,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if !self.peer_input_is_empty(ctx) || !broker.claim_wake(&wake) {
+            return;
+        }
+        let Some(agent) = CLIAgentSessionsModel::as_ref(ctx)
+            .session(self.view_id)
+            .map(|session| session.agent)
+        else {
+            broker.finish_wake(&wake, false);
+            return;
+        };
+        // Peer-controlled text stays in MCP; only a fixed instruction and a broker UUID enter the PTY.
+        let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
+        let guard_broker = broker.clone();
+        let guard_wake = wake.clone();
+        self.write_cli_agent_text_then_submit(
+            text.into_bytes(),
+            rich_input_submit_strategy(agent),
+            Some(Box::new(move |view, ctx| {
+                guard_broker.wake_valid(&guard_wake) && view.peer_input_is_empty(ctx)
+            })),
+            Some(Box::new(move |submitted| {
+                broker.finish_wake(&wake, submitted)
+            })),
+            ctx,
+        );
+    }
+
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
+    fn peer_input_is_empty(&self, ctx: &AppContext) -> bool {
+        use crate::terminal::cli_agent_sessions::CLIAgentSessionStatus;
+        let Some(session) = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id) else {
+            return false;
+        };
+        if session.is_remote()
+            || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
+            || session
+                .draft_text
+                .as_ref()
+                .is_some_and(|draft| !draft.is_empty())
+            || (self.is_cli_agent_rich_input_open(ctx)
+                && !self.input.as_ref(ctx).buffer_text(ctx).is_empty())
+            || !self
+                .ai_context_model
+                .as_ref(ctx)
+                .pending_images()
+                .is_empty()
+            || !self.is_long_running_and_user_controlled()
+        {
+            return false;
+        }
+        !self
+            .model
+            .lock()
+            .shared_session_status()
+            .is_sharer_or_viewer()
     }
 
     /// Simulates clipboard image paste for each pending image attachment by
@@ -727,7 +799,7 @@ impl TerminalView {
         }
 
         if images.is_empty() {
-            self.write_cli_agent_text_then_submit(text_bytes, strategy, ctx);
+            self.write_cli_agent_text_then_submit(text_bytes, strategy, None, None, ctx);
             return;
         }
 
@@ -783,7 +855,7 @@ impl TerminalView {
                 if !ok || !me.has_active_cli_agent_input_session(ctx) {
                     return;
                 }
-                me.write_cli_agent_text_then_submit(text_bytes, strategy, ctx);
+                me.write_cli_agent_text_then_submit(text_bytes, strategy, None, None, ctx);
             },
         );
     }
@@ -797,14 +869,30 @@ impl TerminalView {
         &mut self,
         text_bytes: Vec<u8>,
         strategy: RichInputSubmitStrategy,
+        guard: Option<Box<dyn Fn(&Self, &AppContext) -> bool>>,
+        on_submit: Option<Box<dyn FnOnce(bool)>>,
         ctx: &mut ViewContext<Self>,
     ) {
+        if guard.as_ref().is_some_and(|guard| !guard(self, ctx)) {
+            if let Some(done) = on_submit {
+                done(false);
+            }
+            return;
+        }
+        let automatic = guard.is_some();
         match strategy {
             RichInputSubmitStrategy::Inline => {
                 let mut bytes = text_bytes;
                 bytes.extend_from_slice(b"\r");
-                self.write_user_bytes_to_pty(bytes, ctx);
+                if automatic {
+                    self.write_to_pty(bytes, ctx);
+                } else {
+                    self.write_user_bytes_to_pty(bytes, ctx);
+                }
                 self.maybe_close_rich_input_after_submit(ctx);
+                if let Some(done) = on_submit {
+                    done(true);
+                }
             }
             RichInputSubmitStrategy::BracketedPaste => {
                 let mut bytes = Vec::with_capacity(
@@ -813,17 +901,45 @@ impl TerminalView {
                 bytes.extend_from_slice(BRACKETED_PASTE_START);
                 bytes.extend_from_slice(&text_bytes);
                 bytes.extend_from_slice(BRACKETED_PASTE_END);
-                self.write_user_bytes_to_pty(bytes, ctx);
-                self.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                if automatic {
+                    self.write_to_pty(bytes, ctx);
+                } else {
+                    self.write_user_bytes_to_pty(bytes, ctx);
+                }
+                if automatic {
+                    self.write_to_pty(b"\r".to_vec(), ctx);
+                } else {
+                    self.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                }
                 self.maybe_close_rich_input_after_submit(ctx);
+                if let Some(done) = on_submit {
+                    done(true);
+                }
             }
             RichInputSubmitStrategy::DelayedEnter => {
-                self.write_user_bytes_to_pty(text_bytes, ctx);
+                if automatic {
+                    self.write_to_pty(text_bytes, ctx);
+                } else {
+                    self.write_user_bytes_to_pty(text_bytes, ctx);
+                }
                 ctx.spawn(
                     Timer::after(CLI_AGENT_PTY_WRITE_DELAY),
                     move |me, _, ctx| {
-                        me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                        if guard.as_ref().is_some_and(|guard| !guard(me, ctx)) {
+                            if let Some(done) = on_submit {
+                                done(false);
+                            }
+                            return;
+                        }
+                        if automatic {
+                            me.write_to_pty(b"\r".to_vec(), ctx);
+                        } else {
+                            me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                        }
                         me.maybe_close_rich_input_after_submit(ctx);
+                        if let Some(done) = on_submit {
+                            done(true);
+                        }
                     },
                 );
             }
@@ -834,12 +950,29 @@ impl TerminalView {
                 bytes.extend_from_slice(BRACKETED_PASTE_START);
                 bytes.extend_from_slice(&text_bytes);
                 bytes.extend_from_slice(BRACKETED_PASTE_END);
-                self.write_user_bytes_to_pty(bytes, ctx);
+                if automatic {
+                    self.write_to_pty(bytes, ctx);
+                } else {
+                    self.write_user_bytes_to_pty(bytes, ctx);
+                }
                 ctx.spawn(
                     Timer::after(CLI_AGENT_BRACKETED_PASTE_ENTER_DELAY),
                     move |me, _, ctx| {
-                        me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                        if guard.as_ref().is_some_and(|guard| !guard(me, ctx)) {
+                            if let Some(done) = on_submit {
+                                done(false);
+                            }
+                            return;
+                        }
+                        if automatic {
+                            me.write_to_pty(b"\r".to_vec(), ctx);
+                        } else {
+                            me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
+                        }
                         me.maybe_close_rich_input_after_submit(ctx);
+                        if let Some(done) = on_submit {
+                            done(true);
+                        }
                     },
                 );
             }
@@ -936,7 +1069,7 @@ impl UseAgentToolbar {
             .with_icon(Icon::Oz)
             .with_keybinding(KeystrokeSource::Fixed(USE_AGENT_KEYSTROKE.clone()), ctx)
             .with_size(button_size)
-            .with_tooltip("Ask the Warp agent to assist")
+            .with_tooltip("Ask the Warpai agent to assist")
             .with_tooltip_alignment(TooltipAlignment::Left)
             .on_click(|ctx| {
                 ctx.dispatch_typed_action(TerminalAction::SetInputModeAgent);
@@ -950,7 +1083,7 @@ impl UseAgentToolbar {
             .with_icon(Icon::Oz)
             .with_keybinding(KeystrokeSource::Fixed(USE_AGENT_KEYSTROKE.clone()), ctx)
             .with_size(button_size)
-            .with_tooltip("Ask the Warp agent to resume")
+            .with_tooltip("Ask the Warpai agent to resume")
             .with_tooltip_alignment(TooltipAlignment::Left)
             .on_click(|ctx| {
                 ctx.dispatch_typed_action(TerminalAction::SetInputModeAgent);

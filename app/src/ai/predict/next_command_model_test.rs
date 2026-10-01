@@ -225,7 +225,7 @@ fn test_find_autosuggestion_from_history_with_no_pwd_and_no_working_directory() 
 #[test]
 fn test_find_autosuggestion_from_history_case_insensitive() {
     let history_entries = [
-        HistoryEntry::with_pwd_and_exit_code("cd warp-lite", "/Users/tadej", 0),
+        HistoryEntry::with_pwd_and_exit_code("cd warpai", "/Users/tadej", 0),
         HistoryEntry::with_pwd_and_exit_code("cd Warranty", "/Users/tadej", 0),
     ];
 
@@ -241,7 +241,7 @@ fn test_find_autosuggestion_from_history_case_insensitive() {
 
     assert_eq!(
         autosuggestions,
-        vec!["cd Warranty".to_owned(), "cd warp-lite".to_owned()]
+        vec!["cd Warranty".to_owned(), "cd warpai".to_owned()]
     );
 
     let autosuggestions = find_potential_autosuggestions_from_history(

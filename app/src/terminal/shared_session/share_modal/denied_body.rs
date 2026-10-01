@@ -9,7 +9,7 @@ use warpui::{
 
 use super::style::{self, MODAL_PADDING};
 
-const SESSION_BUILD_FREE_PLAN_SUBHEADER: &str = "Warp's free and pro plans come with a limited number of shared sessions.\n\nFor increased access to session sharing upgrade to the Build plan.";
+const SESSION_BUILD_FREE_PLAN_SUBHEADER: &str = "Warpai's free and pro plans come with a limited number of shared sessions.\n\nFor increased access to session sharing upgrade to the Build plan.";
 const VIEW_PLANS_TEXT: &str = "View plans";
 
 pub struct DeniedBody {

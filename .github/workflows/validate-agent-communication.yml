@@ -2,7 +2,7 @@ name: Validate Warpai communication
 on:
   workflow_dispatch:
   push:
-    branches: ['warp-lite/agent-communication']
+    branches: ['warp-lite/main', 'warp-lite/agent-communication']
 permissions:
   contents: read
 concurrency:
@@ -10,11 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   protocol:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 30
     defaults:
       run:
@@ -26,12 +22,6 @@ jobs:
         run: |
           git config core.autocrlf false
           git checkout-index --force --all
-      - name: Restore and verify replay
-        run: |
-          script/restore-agent-communication.sh --check
-          script/restore-agent-communication.sh
-          script/restore-agent-communication.sh
-          git diff --check
       - name: Install pinned Rust
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Test protocol, persistence, native sockets, and MCP
@@ -43,11 +33,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           lfs: true
-      - name: Restore feature
-        run: |
-          script/restore-agent-communication.sh
-          script/restore-agent-communication.sh --check
-          git diff --check
+      - name: Verify source hygiene
+        run: git diff --check
       - name: Prepare build tools
         run: |
           rustup toolchain install 1.92.0 --profile minimal
@@ -66,6 +53,7 @@ jobs:
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
           cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked
+          cargo test -p warp --lib opaque_approval_and_question_notifications_never_announce_idle --locked
       - name: Build and package review artifacts
         run: |
           cargo build --release --bin warp-oss --locked

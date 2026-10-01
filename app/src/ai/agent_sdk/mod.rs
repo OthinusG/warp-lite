@@ -119,7 +119,7 @@ fn maybe_warn_team_api_key(ctx: &AppContext) {
     );
 }
 
-/// Run a Warp CLI command.
+/// Run a Warpai CLI command.
 pub fn run(
     ctx: &mut AppContext,
     command: CliCommand,
@@ -549,7 +549,7 @@ impl AgentDriverRunner {
         // Ensure we've synced team state before starting the driver.
         Self::refresh_team_metadata(&foreground).await?;
 
-        // Wait for Warp Drive to sync before building the task config, since
+        // Wait for Warpai Drive to sync before building the task config, since
         // prompt resolution (SavedPrompt -> workflow lookup) and environment
         // resolution (CloudAmbientAgentEnvironment lookup) depend on it.
         if foreground
@@ -1352,8 +1352,8 @@ fn launch_command(
     Ok(())
 }
 
-/// Check if we're running within Warp (for example, if this is an invocation of the Warp CLI
-/// within a Warp terminal session).
+/// Check if we're running within Warpai (for example, if this is an invocation of the Warpai CLI
+/// within a Warpai terminal session).
 pub fn is_running_in_warp() -> bool {
     std::env::var("TERM_PROGRAM")
         .map(|v| v == "WarpTerminal")
@@ -1372,7 +1372,7 @@ fn report_fatal_error(err: anyhow::Error, ctx: &mut AppContext) {
         if let Ok(path) = log_file_path() {
             let _ = write!(
                 message,
-                "\n\nFor more information, check Warp logs at {}",
+                "\n\nFor more information, check Warpai logs at {}",
                 path.display()
             );
         }

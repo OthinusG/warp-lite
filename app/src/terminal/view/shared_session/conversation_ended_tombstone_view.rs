@@ -221,8 +221,8 @@ impl ConversationEndedTombstoneView {
         #[cfg(target_family = "wasm")]
         let open_in_warp_button = conversation_id.map(|conv_id| {
             ctx.add_typed_action_view(move |_| {
-                ActionButton::new("Open in Warp", PrimaryTheme)
-                    .with_tooltip("Open this conversation in the Warp desktop app")
+                ActionButton::new("Open in Warpai", PrimaryTheme)
+                    .with_tooltip("Open this conversation in the Warpai desktop app")
                     .on_click(move |ctx| {
                         ctx.dispatch_typed_action(ConversationEndedTombstoneAction::OpenInWarp(
                             conv_id,
@@ -452,7 +452,7 @@ impl ConversationEndedTombstoneView {
         #[cfg(not(target_family = "wasm"))]
         {
             // Hide for non-Oz harnesses (e.g. Claude, Gemini): they can't be
-            // forked into a local Warp conversation. Unknown harness (None) is
+            // forked into a local Warpai conversation. Unknown harness (None) is
             // treated as allowed so plain conversations and pre-load tasks still
             // show the button.
             let harness_allows_continue =

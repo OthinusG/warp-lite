@@ -501,7 +501,7 @@ impl<'a> QuitWarningDialog<'a> {
             QuitScope::Tabs(tabs) if tabs.len() == 1 => "Close tab?",
             QuitScope::Tabs(_) => "Close tabs?",
             QuitScope::Window(_) => "Close window?",
-            QuitScope::App => "Quit Warp?",
+            QuitScope::App => "Quit Warpai?",
             QuitScope::EditorTab { .. } => "Save changes?",
         };
 

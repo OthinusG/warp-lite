@@ -17,7 +17,7 @@ All CLI agent sessions managed by Warpai running in Warpai can exchange messages
 9. An agent already executing an assigned task does not receive another assignment through waiting, but can receive messages and review requests. Messages remain pending until explicitly acknowledged or consumed by the corresponding task transition.
 10. Each supported CLI uses the same protocol. Registration is refused when the CLI no longer owns the terminal. A replacement process cannot reuse an old run's requests.
 11. Communication remains local, adds no cloud/account/telemetry dependency, and does not start Warpai's disabled platform MCP client runtime.
-12. Upstream synchronization replays an auditable downstream patch. Repeated application is harmless; partial application or conflicting upstream changes fail before publication.
+12. Source is maintained directly in this independent repository. Builds and releases do not fetch upstream or replay patches.
 
 ## Settings and project communication acceptance
 
@@ -41,7 +41,7 @@ All CLI agent sessions managed by Warpai running in Warpai can exchange messages
 - Native setup must cover every named managed agent and alias, including Vibe, DeepSeek Harness, Qoder/QoderCN, Antigravity, Grok, and Trae. Custom commands retain capability probing. Preserve unrelated configuration and never persist runtime capabilities.
 - Acceptance includes receivers with actual opaque and structured listeners, native setup add/remove for every vendor format, native pending notifications, busy queueing, and cancellation/replacement protection. Compile and run Rust checks only on GitHub.
 
-The user approved implementation and requested GitHub-only compilation. Source changes ship inside `.github/patches/agent-communication.patch`, with replay integrated into the existing restoration script and remote validation workflows. Personal agent configuration and credentials are not inspected. MCP setup uses verified vendor configuration commands where available. Native MCP client support is required; no shell-tool fallback is included.
+The user approved implementation and requested GitHub-only compilation. Source changes are committed directly under app/src/agent_communication and crates/agent_bus, with independent remote validation workflows. Personal agent configuration and credentials are not inspected. MCP setup uses verified vendor configuration commands where available. Native MCP client support is required; no shell-tool fallback is included.
 
 ## First-release coverage
 
@@ -51,3 +51,7 @@ Every eligible managed type must pass the common registration, messaging, delega
 
 
 An upstream addition to the managed-agent enum must be assessed for native MCP support; eligible types use the native binding's canonical program name. Validation compares coverage against the restored enum rather than maintaining a four-program allowlist.
+
+## Independent maintenance revision (2026-10-01)
+
+Retire upstream synchronization, replay patches and restoration scripts. All feature/branding/platform changes are direct repository source. Keep independent GitHub validation and tagged macOS/Windows release workflows, including the communication companion. Linux is not a target platform. Historical upstream plans above are superseded by this revision. Receiver state acceptance is specified in RECEIVER-STATES.md.

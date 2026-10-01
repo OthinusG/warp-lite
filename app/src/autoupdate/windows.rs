@@ -127,7 +127,7 @@ pub(super) fn check_and_report_update_errors(ctx: &mut AppContext) {
     let has_mutex_timeout =
         memchr::memmem::find(&contents_lowercase, b"warp mutex still held after timeout").is_some();
     if has_mutex_timeout {
-        log::warn!("Warp mutex still held after timeout");
+        log::warn!("Warpai mutex still held after timeout");
     }
 
     // Fired when taskkill returned non-zero after the mutex timeout.

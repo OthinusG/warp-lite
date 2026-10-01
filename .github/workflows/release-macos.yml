@@ -1,0 +1,74 @@
+name: Release Warpai macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing repository tag to build and publish"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-macos
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          lfs: true
+          ref: refs/tags/${{ inputs.release_tag }}
+      - name: Verify release target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" == v* ]]
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to overwrite assets." >&2
+            exit 1
+          fi
+          git diff --check
+      - name: Prepare build tools
+        run: |
+          rustup toolchain install 1.92.0 --profile minimal
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcrun --find metal
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
+      - name: Test and build tagged source
+        run: |
+          cargo test -p warp-agent-bus --locked
+          cargo check -p warp --bin warp-oss --locked
+          cargo check -p warp --bin warp-oss --features warp_platform --locked
+          cargo build --release --bin warp-oss --locked
+          cargo build --release -p warp-agent-bus --bin warp-agent --locked
+      - name: Package macOS artifacts
+        run: |
+          script/build-warp-lite-app.sh
+          codesign --verify --deep --strict Warpai.app
+          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
+          hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
+          hdiutil verify Warpai.dmg
+      - name: Publish tagged release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" Warpai.app.zip Warpai.dmg \
+            --verify-tag --repo "$GITHUB_REPOSITORY" \
+            --title "Warpai $RELEASE_TAG" --generate-notes
+          printf '%s\n' "$RELEASE_TAG" > release-tag.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-target
+          path: release-tag.txt
+          retention-days: 7

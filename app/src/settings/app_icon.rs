@@ -64,7 +64,7 @@ pub enum AppIcon {
     #[schemars(description = "Sticker")]
     Sticker,
     /// Previous default icon with solid blue background.
-    #[schemars(description = "Warp 1")]
+    #[schemars(description = "Warpai 1")]
     WarpOne,
 }
 
@@ -87,7 +87,7 @@ impl std::fmt::Display for AppIcon {
             AppIcon::Original => "Original",
             AppIcon::Starburst => "Starburst",
             AppIcon::Sticker => "Sticker",
-            AppIcon::WarpOne => "Warp 1",
+            AppIcon::WarpOne => "Warpai 1",
         };
         write!(f, "{value}")
     }
@@ -141,6 +141,6 @@ define_settings_group!(AppIconSettings, settings: [
         private: false,
         storage_key: "ShowDockIcon",
         toml_path: "appearance.icon.show_dock_icon",
-        description: "Whether Warp is shown in the macOS Dock and Cmd-Tab switcher.",
+        description: "Whether Warpai is shown in the macOS Dock and Cmd-Tab switcher.",
     },
 ]);

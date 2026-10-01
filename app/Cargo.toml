@@ -263,6 +263,7 @@ winit = { workspace = true }
 wgpu.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+warp-agent-bus = { path = "../crates/agent_bus" }
 async-io.workspace = true
 axum.workspace = true
 comfy-table = "7.1.4"
@@ -277,7 +278,7 @@ http_server.workspace = true
 hyper.workspace = true
 libsqlite3-sys = { version = "0.33.0", features = ["bundled"] }
 mio = { version = "1.1.1", features = ["os-poll", "os-ext"] }
-tokio.workspace = true
+tokio = { workspace = true, features = ["process"] }
 tokio-util.workspace = true
 
 # AWS SDK (loading credentials for BYO LLM)

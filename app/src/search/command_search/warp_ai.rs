@@ -36,8 +36,8 @@ use warpui::{
     AppContext, Element, SingletonEntity,
 };
 
-const OPEN_WARP_AI_ITEM_BODY_TEXT: &str = "Ask Warp AI for command suggestions";
-const TRANSLATE_WITH_WARP_AI_ITEM_BODY_TEXT: &str = "Translate into shell command using Warp AI";
+const OPEN_WARP_AI_ITEM_BODY_TEXT: &str = "Ask Warpai AI for command suggestions";
+const TRANSLATE_WITH_WARP_AI_ITEM_BODY_TEXT: &str = "Translate into shell command using Warpai AI";
 
 #[derive(Clone, Debug)]
 pub enum WarpAISearchItem {
@@ -140,7 +140,7 @@ impl SearchItem for WarpAISearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Warp AI: {}", self.item_body_text())
+        format!("Warpai AI: {}", self.item_body_text())
     }
 }
 

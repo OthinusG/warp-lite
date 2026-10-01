@@ -336,7 +336,7 @@ impl ResourceCenterView {
                 if FeatureFlag::AvatarInTabBar.is_enabled() {
                     String::new()
                 } else {
-                    "Warp Essentials".to_string()
+                    "Warpai Essentials".to_string()
                 }
             }
         };
