@@ -43,6 +43,7 @@ mod global_resource_handles;
 mod gpu_state;
 mod input_classifier;
 mod interval_timer;
+mod keep_awake;
 mod linear;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod login_item;
@@ -1580,6 +1581,7 @@ fn initialize_app(
     }
     ctx.add_singleton_model(move |_| RestoredAgentConversations::new(multi_agent_conversations));
     ctx.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    ctx.add_singleton_model(keep_awake::KeepAwake::new);
     #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
     ctx.add_singleton_model(agent_communication::AgentCommunication::new);
     // ActiveAgentViewsModel is used to track active agent conversations and notify listeners when they change.

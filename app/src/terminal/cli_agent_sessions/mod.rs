@@ -297,6 +297,13 @@ impl CLIAgentSessionsModel {
         self.sessions.get(&terminal_view_id)
     }
 
+    /// Returns `true` if any tracked session has an agent actively working.
+    pub fn any_in_progress(&self) -> bool {
+        self.sessions
+            .values()
+            .any(|session| matches!(session.status, CLIAgentSessionStatus::InProgress))
+    }
+
     /// Returns `true` if the rich input editor is currently open for this terminal.
     pub fn is_input_open(&self, terminal_view_id: EntityId) -> bool {
         self.sessions

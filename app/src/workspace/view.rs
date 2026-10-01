@@ -256,6 +256,7 @@ use crate::drive::{
     CloudObjectTypeAndId, DriveObjectType, DrivePanel, DrivePanelEvent, OpenWarpDriveObjectSettings,
 };
 use crate::experiments::{BlockOnboarding, Experiment};
+use crate::keep_awake::KeepAwake;
 use crate::menu::{
     Event as MenuEvent, Menu, MenuItem, MenuItemFields, MenuSelectionSource, MenuVariant,
     MENU_VERTICAL_PADDING,
@@ -2987,6 +2988,9 @@ impl Workspace {
         ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |me, _, event, ctx| {
             me.handle_cli_agent_sessions_event(event, ctx);
         });
+
+        // Keep the keep-awake toggle in the tab bar in sync across windows.
+        ctx.subscribe_to_model(&KeepAwake::handle(ctx), |_, _, _, ctx| ctx.notify());
 
         ctx.subscribe_to_model(
             &AgentNotificationsModel::handle(ctx),
@@ -19472,6 +19476,33 @@ impl Workspace {
             );
         }
 
+        // warp-lite: keeps the system awake while tracked CLI agents are working.
+        {
+            let keep_awake_enabled = KeepAwake::as_ref(ctx).enabled();
+            let keep_awake_icon = if keep_awake_enabled {
+                icons::Icon::LightbulbFilled
+            } else {
+                icons::Icon::Lightbulb
+            };
+            target.add_child(
+                Container::new(
+                    self.render_tab_bar_icon_button(
+                        appearance,
+                        keep_awake_icon,
+                        &self.mouse_states.keep_awake_icon,
+                        WorkspaceAction::ToggleKeepAwake,
+                        "Keep awake while agents work".to_string(),
+                        None,
+                        keep_awake_enabled,
+                        false,
+                    )
+                    .finish(),
+                )
+                .with_margin_left(TAB_BAR_PADDING_LEFT)
+                .finish(),
+            );
+        }
+
         if FeatureFlag::AvatarInTabBar.is_enabled() {
             target.add_child(
                 Container::new(self.render_avatar_button(appearance, ctx))
@@ -22274,6 +22305,9 @@ impl TypedActionView for Workspace {
             ToggleDebugNetworkStatus => self.toggle_debug_network_status(ctx),
             ToggleShowMemoryStats => self.toggle_show_memory_stats(ctx),
             ToggleResourceCenter => self.toggle_resource_center(ctx),
+            ToggleKeepAwake => KeepAwake::handle(ctx).update(ctx, |keep_awake, ctx| {
+                keep_awake.toggle(ctx);
+            }),
             ToggleUserMenu => self.toggle_user_menu(ctx),
             ToggleKeybindingsPage => self.toggle_keybindings_page(ctx),
             ShowCommandSearch(CommandSearchOptions {

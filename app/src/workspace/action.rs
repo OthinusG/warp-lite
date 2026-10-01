@@ -318,6 +318,7 @@ pub enum WorkspaceAction {
     SelectTabConfig(TabConfig),
     DispatchToSettingsTab(SettingsTabAction),
     ToggleResourceCenter,
+    ToggleKeepAwake,
     ToggleUserMenu,
     ToggleAIAssistant,
     ClickedAIAssistantIcon,
@@ -935,6 +936,7 @@ impl WorkspaceAction {
             | ToggleNotifications
             | DispatchToSettingsTab { .. }
             | ToggleResourceCenter
+            | ToggleKeepAwake
             | ToggleUserMenu
             | ClickedAIAssistantIcon
             | ToggleAIAssistant

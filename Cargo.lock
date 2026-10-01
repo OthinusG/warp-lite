@@ -9222,6 +9222,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "prevent_sleep"
+version = "0.0.0"
+dependencies = [
+ "itertools 0.14.0",
+ "log",
+ "objc2 0.6.3",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13555,6 +13567,7 @@ dependencies = [
  "pin-project",
  "plist",
  "pprof",
+ "prevent_sleep",
  "prost 0.14.3",
  "prost-build",
  "prost-types",
@@ -13635,11 +13648,11 @@ dependencies = [
  "virtual-fs",
  "vte",
  "walkdir",
+ "warp-agent-bus",
  "warp-command-signatures",
  "warp-workflows",
  "warp_cli",
  "warp_completer",
- "warp-agent-bus",
  "warp_core",
  "warp_editor",
  "warp_files",
@@ -13667,6 +13680,27 @@ dependencies = [
  "winreg",
  "x11rb",
  "zbus",
+]
+
+[[package]]
+name = "warp-agent-bus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-tungstenite",
+ "diesel",
+ "dirs 6.0.0",
+ "futures-util",
+ "libsqlite3-sys",
+ "rmcp",
+ "schemars 1.0.4",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "uuid",
 ]
 
 [[package]]
@@ -13778,27 +13812,6 @@ dependencies = [
  "warp_core",
  "warp_util",
  "warpui",
-]
-
-[[package]]
-name = "warp-agent-bus"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-tungstenite",
- "diesel",
- "dirs 6.0.0",
- "futures-util",
- "libsqlite3-sys",
- "rmcp",
- "schemars 1.0.4",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "tokio",
- "toml 0.8.23",
- "uuid",
 ]
 
 [[package]]

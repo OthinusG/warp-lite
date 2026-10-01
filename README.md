@@ -37,6 +37,7 @@ The original **warp-lite** keeps the upstream block terminal, GPU rendering, she
 | Broader CLI agent recognition | Added Antigravity (`agy`), DeepSeek Harness TUI, Qoder/QoderCN (`qodercn`), and Trae/TraeCN; improved Hermes and Cursor command aliases. Agent icons appear in the existing terminal UI. | Available on `warp-lite/main` |
 | Windows x64 distribution | Download an installer or portable ZIP, with Windows-specific compilation fixes retained. | Published release assets |
 | Direct source maintenance | Project browsing, CLI integrations, communication, branding and platform fixes live directly in the repository. Builds do not fetch or merge upstream. | Independent maintenance |
+| Keep-awake toggle | A tab-bar button holds off idle system sleep while tracked CLI agents are working (display may still sleep). Works on macOS and Windows. | Available on `warp-lite/main` |
 | Local agent-to-agent collaboration | Agents exchange messages, assign work, submit results, accept results, or send them back for revision. Busy agents keep a queue; once idle, Warpai submits the next inbox instruction automatically. | In development; see below |
 
 Third-party CLI agents are installed and authenticated by you. Supporting them does not restore the upstream bundled AI service or require a Warpai account. Their own provider connections remain under their control.
@@ -199,7 +200,6 @@ These crates or app modules are no longer present in the current tree:
 | `crates/warp_graphql_schema` | Removed |
 | `crates/command-signatures-v2` | Removed |
 | `crates/serve-wasm` | Removed |
-| `crates/prevent_sleep` | Removed |
 | `crates/managed_secrets_wasm` | Removed |
 | `crates/app-installation-detection` | Removed |
 | `app/src/onboarding` | Removed |
