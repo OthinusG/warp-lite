@@ -19450,11 +19450,14 @@ impl Workspace {
             }
         }
 
-        // Legacy AI assistant button (non-agent-mode only)
+        // Legacy AI assistant button (non-agent-mode only).
+        // warp-lite: gate on AI availability too; otherwise the button renders
+        // in builds/users with no AI surface and opens nothing when clicked.
         if is_online
             && !FeatureFlag::AgentMode.is_enabled()
             && !is_web_anonymous_user
             && !self.current_workspace_state.is_ai_assistant_panel_open
+            && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
         {
             target.add_child(
                 Container::new(
