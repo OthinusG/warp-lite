@@ -19,6 +19,13 @@
 
 ## Native Agent Communication Design
 
+- Cross-checkout reservation warnings require an explicit repository UUID and
+  workspace mapping plus current membership of both owners. Snapshot sharing
+  identities when the lease is created: joining or remapping must not disclose
+  old private reservations. Leave suppresses warning disclosure without deleting
+  physical leases. SQLite v4 adds nullable identities with a v3 backup; no Git
+  remote matching or filesystem lock is inferred.
+
 - Native static UI capture can reuse the retained warpui integration driver and
   GPU window-frame interface without the removed integration crate or OS
   accessibility permission. The debug-only `WARP_COLLABORATION_CAPTURE` entry

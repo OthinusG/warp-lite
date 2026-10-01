@@ -121,6 +121,14 @@ Initially support an exact file or directory subtree, not arbitrary glob express
 
 Shared reservations may coexist. Any overlapping exclusive reservation in the same checkout conflicts and is rejected with owner/task/expiry details. Different checkouts of the same logical repository receive merge-overlap warnings, not false physical locks. Reservations use coordinator time, default ten minutes, renewable while the owning attempt remains valid. Expiry/revocation releases a coordination lease but leaves an abandoned-owner warning if execution is unknown. Agents retain their ordinary OS write permissions; the UI must never call reservations an enforced filesystem sandbox.
 
+The local implementation uses an explicitly supplied opaque repository UUID on
+workspace mappings. A lease snapshots space/repository/workspace at creation;
+legacy and private leases remain unshared. Warning reads require both current
+memberships and matching mappings, return at most 50 metadata rows with a
+truncation flag, and never expose another checkout's absolute path. SQLite v4
+adds nullable identities transactionally and preserves a `.pre-upgrade-v3`
+backup. Defaulting to no grouping avoids inferring membership from Git remotes.
+
 ### 7. Threads, evidence, search and retention
 
 Keep message bodies and existing text fields at 8192 bytes initially; use paginated threads and references for larger work. Each reply preserves a thread and optional task link; visibility is checked before resolving parent references. Index scope, sequence, task, sender and subject. Use SQLite FTS5 if the pinned bundled build supports it on both targets; otherwise ship bounded indexed filtering and label full-text search unavailable until the build capability is verified.

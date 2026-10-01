@@ -21,6 +21,18 @@ Status: proposed API, 2026-10-01. This is the contract source for the future imp
 
 ## Resource shapes
 
+Local workspace mappings may carry an optional opaque UUID `repository_id`,
+chosen explicitly by the operator when grouping checkouts of one logical
+repository. Legacy mappings omit it and remain ungrouped. Neither Git remotes nor
+matching paths grant membership. Cross-checkout reservation warnings disclose
+only mapped workspace IDs and reservation metadata to current members of the
+same space and repository. Reserve responses include bounded `overlap_warnings`
+and `warnings_truncated`; these warnings never reject a physical grant. Both
+owners must still be members, and expired/shared-only leases are excluded.
+Each reservation snapshots this sharing scope at creation. Joining/remapping a
+workspace does not expose preexisting private reservations; leaving stops warning
+disclosure, while existing physical leases retain their normal expiry behavior.
+
 | Resource | Required semantics |
 | --- | --- |
 | Agent | ID, display name, native CLI/version when known, device, space, workspace, presence and observed readiness source; unknown values remain unknown |

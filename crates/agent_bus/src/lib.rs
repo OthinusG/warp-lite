@@ -507,6 +507,8 @@ pub enum ControllerOperation {
     WorkspaceMap {
         space_id: String,
         root: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        repository_id: Option<String>,
         model: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         branch: Option<String>,

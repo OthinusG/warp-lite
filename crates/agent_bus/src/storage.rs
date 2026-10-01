@@ -24,9 +24,10 @@ use std::{
 };
 use uuid::Uuid;
 
-pub(crate) const SCHEMA_VERSION: &str = "3";
+pub(crate) const SCHEMA_VERSION: &str = "4";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":3}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":4}"#;
+pub(crate) const SENTINEL_V3: &str = r#"{"warp_lite_schema_version":3}"#;
 /// The marker of the superseded normalized schema; upgrading from it adds columns and tables.
 pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
 /// Must exceed the maximum mutation epoch so cleanup can never make an old request execute again.
@@ -68,11 +69,12 @@ CREATE INDEX IF NOT EXISTS task_dependencies_prerequisite ON task_dependencies(p
 CREATE TABLE IF NOT EXISTS task_eligibles (task_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(task_id, agent));
 CREATE TABLE IF NOT EXISTS evidence (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, attempt_id TEXT, kind TEXT NOT NULL, path TEXT, hash TEXT, commit_id TEXT, repository TEXT, branch TEXT, base TEXT, head TEXT, command TEXT, outcome TEXT, exit_code INTEGER, summary TEXT, device TEXT, verified INTEGER NOT NULL, created_seq INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS evidence_task ON evidence(task_id);
-CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, path TEXT NOT NULL, mode TEXT NOT NULL, owner TEXT NOT NULL, task_id TEXT, attempt_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, created_seq INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, path TEXT NOT NULL, mode TEXT NOT NULL, owner TEXT NOT NULL, task_id TEXT, attempt_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, created_seq INTEGER NOT NULL, space_id TEXT, repository_id TEXT, workspace_id TEXT);
 CREATE INDEX IF NOT EXISTS reservations_workspace ON reservations(workspace, created_seq);
 CREATE TABLE IF NOT EXISTS spaces (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, device TEXT NOT NULL, created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, space_id TEXT NOT NULL, root TEXT NOT NULL, model TEXT NOT NULL, branch TEXT, base_commit TEXT, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, space_id TEXT NOT NULL, root TEXT NOT NULL, repository_id TEXT, model TEXT NOT NULL, branch TEXT, base_commit TEXT, created_at INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS workspaces_root ON workspaces(root);
+CREATE INDEX IF NOT EXISTS workspaces_repository ON workspaces(space_id, repository_id);
 CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
@@ -112,6 +114,7 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "3" => self.upgrade_v3(path),
             Some(version) if version == "2" => self.upgrade_v2(path),
             Some(version) => bail!("Unsupported agent bus schema version: {version}"),
             None => self.upgrade(path),
@@ -121,6 +124,21 @@ impl Store {
     fn create_schema(&self) -> Result<()> {
         self.connection.borrow_mut().batch_execute(SCHEMA)?;
         Ok(())
+    }
+
+    fn upgrade_v3(&self, path: &str) -> Result<()> {
+        self.backup(path, Some(SENTINEL_V3))?;
+        self.transaction(|| {
+            self.connection.borrow_mut().batch_execute(
+                "ALTER TABLE workspaces ADD COLUMN repository_id TEXT;
+                 ALTER TABLE reservations ADD COLUMN space_id TEXT;
+                 ALTER TABLE reservations ADD COLUMN repository_id TEXT;
+                 ALTER TABLE reservations ADD COLUMN workspace_id TEXT;",
+            )?;
+            self.create_schema()?;
+            self.set_legacy_payload(SENTINEL)?;
+            self.set_meta_version()
+        })
     }
 
     fn meta_version(&self) -> Result<Option<String>> {
@@ -139,7 +157,7 @@ impl Store {
         )
     }
 
-    /// Additive v2→v3 upgrade: new tables and task columns; existing rows are preserved as-is.
+    /// Additive v2 upgrade: new tables and task columns; existing rows are preserved as-is.
     fn upgrade_v2(&self, path: &str) -> Result<()> {
         self.backup(path, Some(SENTINEL_V2))?;
         self.transaction(|| {
@@ -177,7 +195,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -192,6 +210,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V3) {
+            format!("{path}.pre-upgrade-v3")
         } else {
             format!("{path}.pre-upgrade")
         };
@@ -2711,10 +2731,15 @@ impl Store {
                     }
                 }
                 let expires_at = now_ms + ttl * 1000;
+                let scope = diesel::sql_query("SELECT w.id, w.space_id, w.root, w.repository_id, w.model, w.branch, w.base_commit FROM workspaces AS w JOIN space_members AS member ON member.space_id = w.space_id AND member.agent = ? WHERE w.root = ?")
+                    .bind::<Text, _>(&actor.id)
+                    .bind::<Text, _>(&actor.project)
+                    .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())
+                    .optional()?;
                 let mut reservation_ids = Vec::new();
                 for path in &normalized {
                     let reservation_id = Uuid::new_v4().to_string();
-                    diesel::sql_query("INSERT INTO reservations(id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq) VALUES (?,?,?,?,?,?,?,?,?,?)")
+                    diesel::sql_query("INSERT INTO reservations(id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq, space_id, repository_id, workspace_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
                         .bind::<Text, _>(&reservation_id)
                         .bind::<Text, _>(&actor.project)
                         .bind::<Text, _>(path)
@@ -2725,6 +2750,9 @@ impl Store {
                         .bind::<BigInt, _>(now_ms as i64)
                         .bind::<BigInt, _>(expires_at as i64)
                         .bind::<BigInt, _>(self.next_sequence(&actor.project)? as i64)
+                        .bind::<Nullable<Text>, _>(scope.as_ref().map(|scope| scope.space_id.as_str()))
+                        .bind::<Nullable<Text>, _>(scope.as_ref().and_then(|scope| scope.repository_id.as_deref()))
+                        .bind::<Nullable<Text>, _>(scope.as_ref().map(|scope| scope.id.as_str()))
                         .execute(&mut *self.connection.borrow_mut())?;
                     self.record(
                         &actor.project,
@@ -2736,7 +2764,10 @@ impl Store {
                     )?;
                     reservation_ids.push(reservation_id);
                 }
-                Ok(json!({"reservation_ids": reservation_ids, "expires_at": expires_at}))
+                let (overlap_warnings, warnings_truncated) =
+                    self.reservation_overlaps(actor, &normalized, mode, now_ms)?;
+                Ok(json!({"reservation_ids": reservation_ids, "expires_at": expires_at,
+                    "overlap_warnings": overlap_warnings, "warnings_truncated": warnings_truncated}))
             }
             Operation::FileRenew {
                 reservation_ids,
@@ -3134,6 +3165,7 @@ impl Store {
             ControllerOperation::WorkspaceMap {
                 space_id,
                 root,
+                repository_id,
                 model,
                 branch,
                 base_commit,
@@ -3143,6 +3175,7 @@ impl Store {
                 actor,
                 space_id,
                 root,
+                repository_id.as_deref(),
                 model,
                 branch.as_deref(),
                 base_commit.as_deref(),
@@ -3298,12 +3331,17 @@ impl Store {
         actor: &Agent,
         space_id: &str,
         root: &str,
+        repository_id: Option<&str>,
         model: &str,
         branch: Option<&str>,
         base_commit: Option<&str>,
     ) -> Result<Value> {
         self.space(space_id)?
             .ok_or_else(|| scope_denied("Space not found"))?;
+        let repository_id = repository_id
+            .map(|id| Uuid::parse_str(id).map(|id| id.to_string()))
+            .transpose()
+            .map_err(|_| invalid_input("Repository identity must be an opaque UUID"))?;
         validate_subject(model)?;
         if let Some(branch) = branch {
             validate_subject(branch)?;
@@ -3321,16 +3359,17 @@ impl Store {
             .to_str()
             .ok_or_else(|| invalid_input("Workspace root must be valid UTF-8"))?
             .to_owned();
-        diesel::sql_query("INSERT INTO workspaces(id, space_id, root, model, branch, base_commit, created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(root) DO UPDATE SET space_id=excluded.space_id, model=excluded.model, branch=excluded.branch, base_commit=excluded.base_commit")
+        diesel::sql_query("INSERT INTO workspaces(id, space_id, root, repository_id, model, branch, base_commit, created_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(root) DO UPDATE SET space_id=excluded.space_id, repository_id=excluded.repository_id, model=excluded.model, branch=excluded.branch, base_commit=excluded.base_commit")
             .bind::<Text, _>(Uuid::new_v4().to_string())
             .bind::<Text, _>(space_id)
             .bind::<Text, _>(&root)
+            .bind::<Nullable<Text>, _>(&repository_id)
             .bind::<Text, _>(model)
             .bind::<Nullable<Text>, _>(branch)
             .bind::<Nullable<Text>, _>(base_commit)
             .bind::<BigInt, _>(now() as i64)
             .execute(&mut *self.connection.borrow_mut())?;
-        let workspace = diesel::sql_query("SELECT id, space_id, root, model, branch, base_commit FROM workspaces WHERE root = ?")
+        let workspace = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE root = ?")
             .bind::<Text, _>(&root)
             .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())?;
         self.record(
@@ -3339,12 +3378,13 @@ impl Store {
             &actor.id,
             Some(&workspace.id),
             None,
-            json!({"space_id": workspace.space_id, "root": workspace.root, "model": workspace.model}),
+            json!({"space_id": workspace.space_id, "root": workspace.root, "repository_id": workspace.repository_id, "model": workspace.model}),
         )?;
         Ok(json!({
             "workspace_id": workspace.id,
             "space_id": workspace.space_id,
             "root": workspace.root,
+            "repository_id": workspace.repository_id,
             "model": workspace.model,
             "branch": workspace.branch,
             "base_commit": workspace.base_commit,
@@ -3681,6 +3721,55 @@ impl Store {
         let (messages, cursor) = bounded_items(rows.into_iter().map(MessageRow::message)
             .map(|message| (message.sequence, message)), limit)?;
         Ok(json!({"messages": messages, "cursor": cursor}))
+    }
+
+    /// Cross-checkout overlap is advisory and visible only through explicit shared membership.
+    fn reservation_overlaps(
+        &self,
+        actor: &Agent,
+        paths: &[String],
+        mode: &str,
+        now_ms: u64,
+    ) -> Result<(Vec<Value>, bool)> {
+        let mut warnings = Vec::new();
+        let mut seen = HashSet::new();
+        for path in paths {
+            let rows = diesel::sql_query(
+                "SELECT r.id AS reservation_id, other.id AS workspace_id, r.path, r.owner, r.task_id, r.expires_at
+                 FROM workspaces AS source
+                 JOIN space_members AS self_member ON self_member.space_id = source.space_id AND self_member.agent = ?
+                 JOIN workspaces AS other ON other.space_id = source.space_id AND other.repository_id = source.repository_id AND other.root != source.root
+                 JOIN reservations AS r ON r.workspace = other.root AND r.workspace_id = other.id AND r.space_id = source.space_id AND r.repository_id = source.repository_id
+                 JOIN space_members AS owner_member ON owner_member.space_id = source.space_id AND owner_member.agent = r.owner
+                 WHERE source.root = ? AND r.expires_at > ? AND (? = 'exclusive' OR r.mode = 'exclusive')
+                   AND (r.path = ? OR substr(r.path, 1, length(?) + 1) = ? || '/' OR substr(?, 1, length(r.path) + 1) = r.path || '/')
+                 ORDER BY r.workspace, r.created_seq, r.id LIMIT ?",
+            )
+            .bind::<Text, _>(&actor.id)
+            .bind::<Text, _>(&actor.project)
+            .bind::<BigInt, _>(now_ms as i64)
+            .bind::<Text, _>(mode)
+            .bind::<Text, _>(path)
+            .bind::<Text, _>(path)
+            .bind::<Text, _>(path)
+            .bind::<Text, _>(path)
+            .bind::<BigInt, _>((PAGE_DEFAULT + 1) as i64)
+            .load::<ReservationOverlapRow>(&mut *self.connection.borrow_mut())?;
+            for row in rows {
+                if !seen.insert(row.reservation_id.clone()) {
+                    continue;
+                }
+                if warnings.len() == PAGE_DEFAULT as usize {
+                    return Ok((warnings, true));
+                }
+                warnings.push(
+                    json!({"kind": "merge_overlap", "reservation_id": row.reservation_id,
+                    "workspace_id": row.workspace_id, "path": row.path, "owner": row.owner,
+                    "task_id": row.task_id, "expires_at": row.expires_at}),
+                );
+            }
+        }
+        Ok((warnings, false))
     }
 
     fn file_reservations(
@@ -4350,6 +4439,22 @@ struct ReservationRow {
 }
 
 #[derive(QueryableByName)]
+struct ReservationOverlapRow {
+    #[diesel(sql_type = Text)]
+    reservation_id: String,
+    #[diesel(sql_type = Text)]
+    workspace_id: String,
+    #[diesel(sql_type = Text)]
+    path: String,
+    #[diesel(sql_type = Text)]
+    owner: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    task_id: Option<String>,
+    #[diesel(sql_type = BigInt)]
+    expires_at: i64,
+}
+
+#[derive(QueryableByName)]
 struct EvidenceCheckRow {
     #[diesel(sql_type = Text)]
     task_id: String,
@@ -4395,6 +4500,8 @@ struct WorkspaceRow {
     space_id: String,
     #[diesel(sql_type = Text)]
     root: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    repository_id: Option<String>,
     #[diesel(sql_type = Text)]
     model: String,
     #[diesel(sql_type = Nullable<Text>)]
@@ -6898,6 +7005,225 @@ mod tests {
     }
 
     #[test]
+    fn reservation_overlap_requires_explicit_scope_and_current_membership() {
+        let store = Store::open(":memory:").unwrap();
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let first_root = first.path().canonicalize().unwrap();
+        let second_root = second.path().canonicalize().unwrap();
+        let left = store
+            .register("left", "codex", first_root.to_str().unwrap(), "left")
+            .unwrap();
+        let right = store
+            .register("right", "codex", second_root.to_str().unwrap(), "right")
+            .unwrap();
+        let reserve = |agent: &Agent, paths: Vec<String>, mode: &str| {
+            store.execute(
+                agent,
+                "run",
+                &Operation::FileReserve {
+                    paths,
+                    mode: mode.into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+        };
+        reserve(&right, vec!["private.txt".into()], "exclusive").unwrap();
+        let space = store
+            .execute_controller(
+                &left.project,
+                &ControllerOperation::SpaceCreate {
+                    name: "Worktrees".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap()["space_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let repository = Uuid::new_v4().to_string();
+        for agent in [&left, &right] {
+            store
+                .execute_controller(
+                    &agent.project,
+                    &ControllerOperation::WorkspaceMap {
+                        space_id: space.clone(),
+                        root: agent.project.clone(),
+                        repository_id: Some(repository.clone()),
+                        model: agent.program.clone(),
+                        branch: None,
+                        base_commit: None,
+                        request_id: Uuid::new_v4().to_string(),
+                    },
+                )
+                .unwrap();
+        }
+        let membership = |agent: &Agent, join: bool| {
+            let operation = if join {
+                ControllerOperation::SpaceJoin {
+                    space_id: space.clone(),
+                    agent: agent.name.clone(),
+                    request_id: Uuid::new_v4().to_string(),
+                }
+            } else {
+                ControllerOperation::SpaceLeave {
+                    space_id: space.clone(),
+                    agent: agent.name.clone(),
+                    request_id: Uuid::new_v4().to_string(),
+                }
+            };
+            store
+                .execute_controller(&agent.project, &operation)
+                .unwrap();
+        };
+        membership(&left, true);
+        let pre_join = reserve(&right, vec!["src/main.rs".into()], "exclusive").unwrap();
+        assert!(pre_join["overlap_warnings"].as_array().unwrap().is_empty());
+        membership(&right, true);
+        let hidden = reserve(&left, vec!["private.txt".into(), "src".into()], "exclusive").unwrap();
+        assert!(hidden["overlap_warnings"].as_array().unwrap().is_empty());
+        store
+            .execute(
+                &right,
+                "run",
+                &Operation::FileRelease {
+                    reservation_ids: vec![pre_join["reservation_ids"][0].as_str().unwrap().into()],
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let overlapping = reserve(&right, vec!["src/main.rs".into()], "exclusive").unwrap();
+        assert_eq!(overlapping["reservation_ids"].as_array().unwrap().len(), 1);
+        assert_eq!(overlapping["overlap_warnings"].as_array().unwrap().len(), 1);
+        assert_eq!(overlapping["overlap_warnings"][0]["path"], "src");
+        assert_eq!(overlapping["overlap_warnings"][0]["kind"], "merge_overlap");
+        assert_eq!(overlapping["warnings_truncated"], false);
+        let physical = reserve(&left, vec!["src/main.rs".into()], "exclusive").unwrap_err();
+        assert_eq!(code(&physical), "reservation_conflict");
+        for agent in [&left, &right] {
+            let shared = reserve(agent, vec!["readme.txt".into()], "shared").unwrap();
+            assert!(shared["overlap_warnings"].as_array().unwrap().is_empty());
+        }
+        reserve(
+            &right,
+            (0..51).map(|index| format!("bulk/file-{index}")).collect(),
+            "exclusive",
+        )
+        .unwrap();
+        let bounded = reserve(&left, vec!["bulk".into()], "exclusive").unwrap();
+        assert_eq!(
+            bounded["overlap_warnings"].as_array().unwrap().len(),
+            PAGE_DEFAULT as usize
+        );
+        assert_eq!(bounded["warnings_truncated"], true);
+        reserve(&right, vec!["expired.txt".into()], "exclusive").unwrap();
+        diesel::sql_query(
+            "UPDATE reservations SET expires_at = 1 WHERE workspace = ? AND path = 'expired.txt'",
+        )
+        .bind::<Text, _>(&right.project)
+        .execute(&mut *store.connection.borrow_mut())
+        .unwrap();
+        let expired = reserve(&left, vec!["expired.txt".into()], "exclusive").unwrap();
+        assert!(expired["overlap_warnings"].as_array().unwrap().is_empty());
+        membership(&left, false);
+        let departed = reserve(&right, vec!["src/another.rs".into()], "exclusive").unwrap();
+        assert!(departed["overlap_warnings"].as_array().unwrap().is_empty());
+        // Leaving a space does not remove its owner's physical coordination lease.
+        assert_eq!(
+            code(&reserve(&left, vec!["src/another.rs".into()], "exclusive").unwrap_err()),
+            "reservation_conflict"
+        );
+        membership(&left, true);
+        store
+            .execute_controller(
+                &left.project,
+                &ControllerOperation::WorkspaceMap {
+                    space_id: space,
+                    root: left.project.clone(),
+                    repository_id: Some(Uuid::new_v4().to_string()),
+                    model: "codex".into(),
+                    branch: None,
+                    base_commit: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let unrelated = reserve(&right, vec!["src/unrelated.rs".into()], "exclusive").unwrap();
+        assert!(unrelated["overlap_warnings"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn v3_workspace_upgrade_preserves_private_reservations_and_backup() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("bus.sqlite");
+        let path = path.to_str().unwrap();
+        let store = Store::open(path).unwrap();
+        let workspace = tempfile::tempdir().unwrap();
+        let root = workspace.path().canonicalize().unwrap();
+        let worker = store
+            .register("worker", "codex", root.to_str().unwrap(), "worker")
+            .unwrap();
+        store
+            .execute(
+                &worker,
+                "run",
+                &Operation::FileReserve {
+                    paths: vec!["keep.txt".into()],
+                    mode: "exclusive".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store
+            .connection
+            .borrow_mut()
+            .batch_execute(
+                "DROP INDEX workspaces_repository;
+             ALTER TABLE workspaces DROP COLUMN repository_id;
+             ALTER TABLE reservations DROP COLUMN space_id;
+             ALTER TABLE reservations DROP COLUMN repository_id;
+             ALTER TABLE reservations DROP COLUMN workspace_id;
+             UPDATE meta SET value = '3' WHERE key = 'schema_version';",
+            )
+            .unwrap();
+        store.set_legacy_payload(SENTINEL_V3).unwrap();
+        drop(store);
+        let upgraded = Store::open(path).unwrap();
+        assert_eq!(
+            upgraded.meta_version().unwrap().as_deref(),
+            Some(SCHEMA_VERSION)
+        );
+        assert_eq!(
+            read_legacy_payload(&format!("{path}.pre-upgrade-v3"))
+                .unwrap()
+                .as_deref(),
+            Some(SENTINEL_V3)
+        );
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM reservations WHERE space_id IS NULL AND repository_id IS NULL AND workspace_id IS NULL", &[]).unwrap(), 1);
+        let existing = upgraded
+            .execute(
+                &worker,
+                "run",
+                &Operation::FileReservations {
+                    path: None,
+                    cursor: None,
+                    limit: None,
+                    include_expired: false,
+                },
+            )
+            .unwrap();
+        assert_eq!(existing["reservations"][0]["path"], "keep.txt");
+        drop(upgraded);
+        assert!(Store::open(path).is_ok());
+    }
+
+    #[test]
     fn spaces_workspaces_and_devices_are_operator_managed() {
         let store = Store::open(":memory:").unwrap();
         actor(&store, "worker");
@@ -6996,6 +7322,7 @@ mod tests {
                 &ControllerOperation::WorkspaceMap {
                     space_id: space_id.clone(),
                     root: root.clone(),
+                    repository_id: None,
                     model: "claude".into(),
                     branch: Some("main".into()),
                     base_commit: None,
@@ -7015,6 +7342,7 @@ mod tests {
                 &ControllerOperation::WorkspaceMap {
                     space_id: space_id.clone(),
                     root: root.clone(),
+                    repository_id: None,
                     model: "codex".into(),
                     branch: None,
                     base_commit: None,
@@ -7030,6 +7358,7 @@ mod tests {
                 &ControllerOperation::WorkspaceMap {
                     space_id: space_id.clone(),
                     root: "/definitely/not/a/directory".into(),
+                    repository_id: None,
                     model: "claude".into(),
                     branch: None,
                     base_commit: None,

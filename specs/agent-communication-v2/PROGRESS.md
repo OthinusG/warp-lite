@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Implemented the backend cross-checkout reservation warning subset of M4.3:
+  explicit repository UUIDs, current shared membership, immutable lease-sharing
+  snapshots, bounded merge-overlap metadata, unchanged physical rejection and
+  lease expiry. SQLite v4 preserves a v3 backup and legacy private leases. Added
+  privacy/join/leave/remap/shared/expiry/capacity and migration regressions.
+  GitHub verification pending. This does not implement shared task routing or UI.
+  The actual SQL schema/query also passed a local SQLite check for private-row
+  exclusion, membership revocation and additive migration; Rust stays CI-only.
+
 - Added an opt-in debug native static capture harness using the retained warpui
   driver and GPU frames, with 72 fixture/width/theme/zoom combinations, a unique
   profile/output directory and a 300-second startup-inclusive watchdog. No
