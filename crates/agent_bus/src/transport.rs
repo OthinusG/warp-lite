@@ -885,6 +885,13 @@ impl Broker {
                 state = next;
             }
         }
+        let replayed = match &request.operation {
+            Operation::TaskStart { request_id, .. }
+            | Operation::TaskSubmit { request_id, .. }
+            | Operation::TaskFinishCancel { request_id, .. }
+            | Operation::TaskFail { request_id, .. } => state.store.request_seen(&actor.id, request_id)?,
+            _ => false,
+        };
         let mut result = state.store.execute(&actor, &run, &request.operation)?;
         // A replay returns its historical response; it must not rewrite current lifecycle state.
         let current_transition = match &request.operation {
@@ -893,7 +900,7 @@ impl Broker {
             | Operation::TaskFinishCancel { task_id, .. }
             | Operation::TaskFail { task_id, .. } => {
                 let current = state.store.task(&actor, task_id)?;
-                result["version"].as_u64() == Some(current.version)
+                !replayed && result["version"].as_u64() == Some(current.version)
                     && result["state"].as_str() == Some(current.state.as_str())
             }
             _ => false,

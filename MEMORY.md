@@ -19,6 +19,12 @@
 
 ## Native Agent Communication Design
 
+- Comparing a task response's state/version to its current row does not establish
+  a new mutation: cached submission results can match after a later ordinary user
+  turn starts. Check committed request identity while holding the broker mutex;
+  cache replays must never update live readiness, even when the task row has not
+  changed. Keep durable response replay separate from ephemeral lifecycle effects.
+
 - Pool availability and execution ownership are distinct. Broadcast notices may
   remain visible in inboxes, but automatic wake must choose one eligible idle
   receiver in durable notification order. Once submitted, an unclaimed notice

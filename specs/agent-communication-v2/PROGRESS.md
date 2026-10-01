@@ -39,6 +39,14 @@
   submitted notice, and checks stale candidates again under the claim mutex.
   Draft/busy states exclude candidates; failed delivery and a removed run permit
   reevaluation. A focused IPC regression covers those transitions; CI pending.
+- Source `17da1f0`, run `36935931793`: both OS protocol checks passed, including
+  the 20-way claim, both-order controls and single-receiver pool wake regression;
+  application and package checks were still running at this checkpoint.
+- A cached submission with the current task version could still reset readiness
+  during a later ordinary user turn. The broker now checks committed request
+  identity under the same mutex before allowing any lifecycle side effect. A
+  regression submits new user input then replays the old unchanged task result.
+  Replay returns durable data without rewriting live readiness. CI pending.
 
 The user authorized completing the plan, pushing source and GitHub builds, and
 subsequently confirmed that necessary actions require no further permission questions.

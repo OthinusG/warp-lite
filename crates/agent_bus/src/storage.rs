@@ -1142,6 +1142,12 @@ impl Store {
             .optional()?)
     }
 
+    /// The broker holds its mutation mutex while checking this and executing the request.
+    pub(crate) fn request_seen(&self, actor: &str, request_id: &str) -> Result<bool> {
+        Ok(self.count("SELECT COUNT(*) AS count FROM requests WHERE actor = ? AND request_id = ?",
+            &[actor, request_id])? != 0)
+    }
+
     fn store_request(
         &self,
         actor: &str,

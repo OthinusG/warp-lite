@@ -303,6 +303,11 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], true,
             "Replaying an old start must not revoke readiness after submission");
         let submission_request = peers[1].clone();
+        server.broker.input_bytes("worker", b"New user work\r");
+        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
+        call(&server, &submission_request).await;
+        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false,
+            "An identical submission replay must not make a later user turn idle");
         peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":1,"accepted":false,"feedback":"Repeat the check","request_id":Uuid::new_v4().to_string()})).unwrap();
         call(&server, &peers[0]).await;
         peers[1].operation = serde_json::from_value(json!({"op":"task_start","task_id":task["id"],"revision":2,"request_id":Uuid::new_v4().to_string()})).unwrap();

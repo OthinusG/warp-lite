@@ -6,7 +6,10 @@ the associated PLAN package. All Rust compilation and tests run on GitHub.
 
 Baseline repair: `bde9043`, run [36934356183](https://github.com/OthinusG/warp-lite/actions/runs/36934356183).
 Both OS protocol suites passed; full application/package results were pending at
-this checkpoint. New control-order and 20-claim checks require the next source run.
+this checkpoint. Source `17da1f0`, run [36935931793](https://github.com/OthinusG/warp-lite/actions/runs/36935931793),
+passed both OS protocol suites including control-order, 20-claim and single-receiver
+pool wake checks. The subsequent cached-result/later-user-turn repair requires its
+own source run. Native UI/device/model gates remain unchanged.
 
 | PLAN item | Smallest available check / evidence | Remaining verification or implementation |
 | --- | --- | --- |
@@ -27,7 +30,7 @@ this checkpoint. New control-order and 20-claim checks require the next source r
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Native interrupt unsupported/unsupported-state UI and clock-jump acceptance pending |
 | M3.2 | Stale run/attempt and explicit operator recovery tests | Retry/reassignment backend verified; panel pending |
 | M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
-| M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks | New wake/claim checks pending on both OSes; native presence acceptance remains distinct |
+| M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks passed on both OSes | Native presence acceptance remains distinct |
 | M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
 | M4.1 | Space/workspace metadata controller tests | Functional shared-space routing and checkout-qualified agents not implemented |
 | M4.2 | Controller join/leave metadata operations | Scope preview, new-session routing and UI not implemented |
