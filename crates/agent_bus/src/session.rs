@@ -356,6 +356,7 @@ impl ThreadBinding {
         }
         starting_turn.then_some(false)
     }
+    #[cfg(test)]
     fn incoming(&mut self, value: &Value) -> Option<bool> {
         self.incoming_status(value).map(|status| status.is_idle())
     }
@@ -904,6 +905,27 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn owned_turn_completion_recovers_and_interactive_waits_remain_distinct() {
+        use crate::readiness::Activity;
+        let mut binding = ThreadBinding::default();
+        let mut initialize = json!({"method":"initialize","params":{"capabilities":{"optOutNotificationMethods":["thread/status/changed","turn/started","turn/completed","item/started"]}}});
+        assert_eq!(binding.outgoing(&mut initialize, &json!({})), None);
+        assert_eq!(initialize["params"]["capabilities"]["optOutNotificationMethods"], json!(["item/started"]));
+        binding.outgoing(&mut json!({"id":1,"method":"thread/start","params":{}}), &json!({}));
+        assert_eq!(binding.incoming_status(&json!({"id":1,"result":{"thread":{"id":"mine","status":{"type":"idle"}}}})), Some(Activity::Idle));
+        for turn in ["one", "two"] {
+            binding.outgoing(&mut json!({"id":2,"method":"turn/start","params":{"threadId":"mine"}}), &json!({}));
+            assert_eq!(binding.incoming_status(&json!({"method":"turn/completed","params":{"threadId":"mine","turn":{"id":"stale"}}})), None);
+            assert_eq!(binding.incoming_status(&json!({"method":"turn/started","params":{"threadId":"mine","turn":{"id":turn}}})), Some(Activity::Working));
+            assert_eq!(binding.incoming_status(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"active","activeFlags":["waitingOnApproval"]}}})), Some(Activity::WaitingApproval));
+            assert_eq!(binding.incoming_status(&json!({"method":"item/tool/requestUserInput","params":{"threadId":"mine"}})), Some(Activity::WaitingInput));
+            assert_eq!(binding.incoming_status(&json!({"method":"turn/completed","params":{"threadId":"other","turn":{"id":turn}}})), None);
+            assert_eq!(binding.incoming_status(&json!({"method":"turn/completed","params":{"threadId":"mine","turn":{"id":turn,"status":"completed"}}})), Some(Activity::Idle));
+        }
+        assert_eq!(binding.incoming_status(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"systemError"}}})), Some(Activity::Error));
+    }
     #[test]
     fn codex_loopback_bypasses_proxy_without_losing_user_exclusions() {
         for (primary, fallback, expected) in [

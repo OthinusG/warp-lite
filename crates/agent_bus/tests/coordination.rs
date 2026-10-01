@@ -43,6 +43,10 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 )
                 .unwrap();
             let assign = Operation::TaskAssign {
+                dependencies: vec![],
+                start_deadline: None,
+                execution_timeout_seconds: None,
+                review_timeout_seconds: None,
                 to: worker.id.clone(),
                 description: "Implement a focused change".into(),
                 acceptance: "Run a representative check".into(),
@@ -92,6 +96,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 )
                 .unwrap();
             let submission = Operation::TaskSubmit {
+                evidence_ids: vec![],
                 task_id: id.clone(),
                 revision: 1,
                 result: "Implemented".into(),
@@ -150,6 +155,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &worker,
                     "replacement-run",
                     &Operation::TaskSubmit {
+                        evidence_ids: vec![],
                         task_id: id.clone(),
                         revision: 2,
                         result: "Failure case covered".into(),
@@ -342,6 +348,10 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     thread::sleep(Duration::from_millis(80));
     let mut assignment = sender.clone();
     assignment.operation = Operation::TaskAssign {
+        dependencies: vec![],
+        start_deadline: None,
+        execution_timeout_seconds: None,
+        review_timeout_seconds: None,
         to: "worker".into(),
         description: "Inspect code".into(),
         acceptance: "Report evidence".into(),
@@ -534,6 +544,10 @@ fn dormant_agents_wake_without_an_open_wait_call() {
         let terminal = format!("idle-{index}");
         let mut worker = register(&server.broker, &terminal, program);
         issuer.operation = Operation::TaskAssign {
+            dependencies: vec![],
+            start_deadline: None,
+            execution_timeout_seconds: None,
+            review_timeout_seconds: None,
             to: terminal,
             description: "Inspect code".into(),
             acceptance: "Report evidence".into(),
@@ -747,6 +761,10 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     };
     assert!(transport::call(&broker.endpoint, &outside).is_err());
     left.operation = Operation::TaskAssign {
+        dependencies: vec![],
+        start_deadline: None,
+        execution_timeout_seconds: None,
+        review_timeout_seconds: None,
         to: "right".into(),
         description: "Inspect source".into(),
         acceptance: "Evidence".into(),
@@ -908,6 +926,10 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     for (index, program) in managed_programs().iter().enumerate() {
         let worker = register(broker, &format!("child-{index}"), program);
         issuer.operation = Operation::TaskAssign {
+            dependencies: vec![],
+            start_deadline: None,
+            execution_timeout_seconds: None,
+            review_timeout_seconds: None,
             to: worker.terminal.clone(),
             description: "Perform delegated work".into(),
             acceptance: "Submit result and evidence".into(),
@@ -941,6 +963,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         assert_eq!(running["state"], "running");
         assert_eq!(running["interrupted"], false);
         worker.operation = Operation::TaskSubmit {
+            evidence_ids: vec![],
             task_id: task_id.clone(),
             revision: 1,
             result: "Normal terminal report".into(),
@@ -965,6 +988,10 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     }
     let mut original = register(broker, "recoverable", "codex");
     issuer.operation = Operation::TaskAssign {
+        dependencies: vec![],
+        start_deadline: None,
+        execution_timeout_seconds: None,
+        review_timeout_seconds: None,
         to: "recoverable".into(),
         description: "Interrupted work".into(),
         acceptance: "Recover explicitly".into(),
@@ -993,6 +1020,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     };
     transport::call(&broker.endpoint, &replacement).unwrap();
     replacement.operation = Operation::TaskSubmit {
+        evidence_ids: vec![],
         task_id: id.clone(),
         revision: 1,
         result: "Must not silently complete".into(),

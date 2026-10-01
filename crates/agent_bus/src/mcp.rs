@@ -102,6 +102,7 @@ impl Bridge {
         })
     }
     /// Native session notifications cannot register a peer before actual MCP discovery.
+    #[cfg(test)]
     pub(crate) fn native_activity(&self, ready: bool) -> Result<()> {
         self.native_status(if ready { crate::readiness::Activity::Idle } else { crate::readiness::Activity::Working })
     }

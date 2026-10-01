@@ -14,6 +14,37 @@ pub enum Activity {
     Error,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_unicode_edits_preserve_drafts_and_unknown_edits_fail_closed() {
+        for text in ["abc", "几个字", "e\u{301}", "👨‍👩‍👧‍👦"] {
+            let mut draft = Draft::default();
+            assert_eq!(draft.input(text.as_bytes()), None);
+            assert_eq!(draft.state(), "present");
+            let deletes = vec![0x7f; text.graphemes(true).count()];
+            assert_eq!(draft.input(&deletes), None);
+            assert!(draft.is_empty());
+        }
+        let mut draft = Draft::default();
+        assert_eq!(draft.input(b"\x1b[200~first\nsecond\x1b[201~"), None);
+        assert_eq!(draft.state(), "present", "multiline paste is not a submit");
+        assert_eq!(draft.input(b"\r"), Some(Activity::Working));
+        assert!(draft.is_empty());
+        assert_eq!(draft.input(b"\x1b[A"), None);
+        assert_eq!(
+            draft.state(),
+            "unknown",
+            "history can restore text invisible to the broker"
+        );
+        draft.input(b"\x7f\x7f");
+        assert_eq!(draft.state(), "unknown");
+        assert_eq!(draft.input(b"\x03"), Some(Activity::Cancelled));
+    }
+}
+
 impl Activity {
     pub fn is_idle(self) -> bool {
         self == Self::Idle
@@ -29,7 +60,13 @@ pub(crate) struct Draft {
 
 impl Draft {
     pub fn state(&self) -> &'static str {
-        if self.unknown { "unknown" } else if !self.text.is_empty() { "present" } else { "empty" }
+        if self.unknown {
+            "unknown"
+        } else if !self.text.is_empty() {
+            "present"
+        } else {
+            "empty"
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -47,7 +84,10 @@ impl Draft {
     /// Only append/backspace at the known end of the prompt can prove it empty.
     /// ponytail: history/cursor/clipboard edits remain unknown; use native editor snapshots when vendors expose them.
     pub fn input(&mut self, bytes: &[u8]) -> Option<Activity> {
-        if let Some(paste) = bytes.strip_prefix(b"\x1b[200~").and_then(|bytes| bytes.strip_suffix(b"\x1b[201~")) {
+        if let Some(paste) = bytes
+            .strip_prefix(b"\x1b[200~")
+            .and_then(|bytes| bytes.strip_suffix(b"\x1b[201~"))
+        {
             if let Ok(text) = std::str::from_utf8(paste) {
                 self.append(text);
             } else {
@@ -70,7 +110,7 @@ impl Draft {
                     self.clear();
                     return submitted.then_some(Activity::Working);
                 }
-                '\u{3}' | '\u{1b}' => {
+                '\u{3}' => {
                     self.invalidate();
                     return Some(Activity::Cancelled);
                 }

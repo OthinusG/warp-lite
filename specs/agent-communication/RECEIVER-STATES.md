@@ -17,14 +17,20 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | Startup with task arguments | No inferred idle lease; require native idle event or final-action readiness | Every-program startup matrix |
 | Batch/print or ACP/server mode | Refuse automatic prompt paste into noninteractive/protocol stdin even if MCP is present | Managed alias and native batch-mode regression |
 | Startup busy, draft or cancellation before discovery | Registration cannot overwrite input/lifecycle invalidation | Every-program startup matrix |
-| Busy model turn | Queue work; regular MCP operations/user submissions invalidate readiness | Every-program startup matrix and dormant queue regression |
+| Busy model turn | Queue work; actual user/peer submissions and native turn-start events set ready false. Read-only MCP operations do not change it | Every-program real stdio readiness matrix |
 | Native structured idle prompt | Establish readiness without changing presentation status | Listener forwards IdlePrompt to broker |
 | Opaque completion notification | Presentation only; cannot establish readiness | Listener status contract |
 | Opaque approval, edit approval, plan prompt or question | Known native prefixes block delivery; do not treat them as completion | Codex/Grok notification regression |
 | Structured permission request or question | Revoke readiness and preserve the prompt | Native listener and app blocked-state regression |
 | Empty input after completed turn | Poll pending work and submit once after readiness/output settle | Every-program dormant and app PTY regression |
-| Rich input draft, saved draft or image attachment | Preserve user input; do not submit | Shared view guard and rich draft regression |
-| Native input editing or cancellation | Revoke lease; readiness cannot override a draft; resume requires user submit | Dormant queue and stale Enter regression |
+| Rich input draft, saved draft or image attachment | Keep ready true while idle; preserve user input through a separate automatic-submission guard | Shared view guard and rich draft regression |
+| Native input editing | Keep idle readiness unchanged; invalidate a scheduled Enter and protect the draft independently | Every-program real stdio readiness matrix |
+| Native input cancellation | Pause automatic delivery until a new user submission; expose the pause separately from lifecycle readiness | Every-program cancellation regression |
+| Read-only MCP query, inbox read, message send or ACK | Does not start a task and does not revoke readiness | Every-program real stdio readiness matrix |
+| Queued task claimed | Preserve readiness until execution starts | Task execution readiness regression |
+| Assigned task started | Set ready false only after successful transition; failures preserve prior state | Task execution readiness regression |
+| Task submitted, failed or cancellation confirmed | Restore ready and instruct the agent to make `warp_agent_ready` its final tool action; native busy still protects the prompt | Task execution readiness regression |
+| Automatic delivery claimed but not submitted | Preserve ready; expose dispatching and fence delayed Enter. Cancelled delivery cannot leave an idle receiver permanently busy | Shared wake guard |
 | Repeated native discovery | Reuse identity; never re-arm a busy run | Every-program rediscovery matrix |
 | Shell alias, abbreviation or function hiding launch arguments | Do not infer initial idle from a displayed bare alias | Shared startup guard |
 | Cooperative wait | Return queued work directly; do not also paste into PTY | Socket wait handoff regression |
@@ -39,6 +45,8 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | Different repository/worktree or remote/shared terminal | Reject routing/submission | Project isolation and shared view guard |
 
 ## Native adapter coverage
+
+The MCP peer snapshot separates `activity`, `native_activity`, `readiness_source`, `ready`, `has_draft`, `draft_state`, `paused`, `waiting`, `can_auto_submit`, `can_start_task`, and `delivery_blockers`. `ready` reports execution state; drafts, permissions, dispatching, cooperative waiting, settling and expired runs independently gate automatic PTY submission. Offline/revoked runs cannot be queried as live peers and remain visible through task recovery state.
 
 All enum aliases pass the adapter contract checks. QoderCN's actual installed help confirms user-scope stdio add/get/remove syntax. Qoder entry directories, shell startup/current PATH, and interpreter PATH passthrough are included. Configuration ownership, malformed input, idempotency and preservation are checked with temporary files/executables, never personal credentials.
 

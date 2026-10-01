@@ -6,7 +6,7 @@ use crate::{
     subject as validate_subject, text, timeout_seconds, unauthorized, version_conflict, Agent,
     Attempt, ControllerOperation, Event, Evidence, Message, Operation, Reservation, Task,
     ARCHIVE_AFTER_DAYS, DATABASE_SOFT_LIMIT, MAX_DEPENDENCIES, MAX_ELIGIBLES, MAX_PATHS,
-    MAX_SUBJECT, OPERATOR_NAME, OPERATOR_PROGRAM, PAGE_DEFAULT, PAGE_MAX, RESERVATION_TTL_DEFAULT,
+    OPERATOR_NAME, OPERATOR_PROGRAM, PAGE_DEFAULT, PAGE_MAX, RESERVATION_TTL_DEFAULT,
     RESERVATION_TTL_MAX,
 };
 use anyhow::{anyhow, bail, ensure, Result};
@@ -795,13 +795,13 @@ impl Store {
 
     pub fn next_work(&self, actor: &Agent, run: &str) -> Result<Option<Message>> {
         let executing = self.count(
-            "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state = 'running' AND id IN (SELECT task_id FROM attempts WHERE run = ? AND certainty = 'active')",
+            "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested') AND id IN (SELECT task_id FROM attempts WHERE run = ? AND certainty = 'active')",
             &[actor.id.as_str(), run],
         )? > 0;
         Ok(self
             .pending(actor)?
             .into_iter()
-            .find(|message| !executing || message.kind != "assignment"))
+            .find(|message| !executing || !matches!(message.kind.as_str(), "assignment" | "available")))
     }
 
     pub fn has_work(&self, actor: &Agent) -> Result<bool> {
@@ -1552,7 +1552,7 @@ impl Store {
                 ..
             } => {
                 let other_running = self.count(
-                    "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state = 'running' AND id != ?",
+                    "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested') AND id != ?",
                     &[actor.id.as_str(), task_id],
                 )? > 0;
                 ensure!(
@@ -1929,7 +1929,7 @@ impl Store {
                     dependency_blocked("Task prerequisites are not complete")
                 );
                 let other_running = self.count(
-                    "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state = 'running'",
+                    "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')",
                     &[actor.id.as_str()],
                 )? > 0;
                 ensure!(
@@ -3694,6 +3694,7 @@ impl Store {
             task_id: row.task_id,
             attempt_id: row.attempt_id,
             created_at: row.created_at as u64,
+            created_seq: row.created_seq as u64,
             expires_at: row.expires_at as u64,
             expired,
             abandoned,
@@ -5106,6 +5107,37 @@ mod tests {
             records.extend(items.iter().cloned());
         }
         records
+    }
+
+    #[test]
+    fn cancellation_preserves_exclusive_execution_until_stop_is_confirmed() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let operation = |value| serde_json::from_value::<Operation>(value).unwrap();
+        let first = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, "first")).unwrap();
+        let second = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, "second")).unwrap();
+        let pool = store.execute(&issuer, "issuer-run", &operation(json!({
+            "op": "task_create_pool", "description": "pool", "acceptance": "checked",
+            "eligible": ["worker"], "request_id": "pool"
+        }))).unwrap();
+        store.execute(&worker, "worker-run", &transition(first["id"].as_str().unwrap(), 1, "start")).unwrap();
+        let cancelled = store.execute(&issuer, "issuer-run", &operation(json!({
+            "op": "task_cancel", "task_id": first["id"], "reason": "Stop work", "request_id": "cancel"
+        }))).unwrap();
+        assert_eq!(cancelled["state"], "cancel_requested");
+        let blocked_start = store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, "start-second")).unwrap_err();
+        assert_eq!(code(&blocked_start), "invalid_state");
+        let blocked_claim = store.execute(&worker, "worker-run", &operation(json!({
+            "op": "task_claim", "task_id": pool["id"], "request_id": "claim"
+        }))).unwrap_err();
+        assert_eq!(code(&blocked_claim), "invalid_state");
+        assert_eq!(store.next_work(&worker, "worker-run").unwrap().unwrap().kind, "cancel_requested");
+        store.execute(&worker, "worker-run", &operation(json!({
+            "op": "task_finish_cancel", "task_id": first["id"], "revision": 1,
+            "reason": "Stopped", "request_id": "stopped"
+        }))).unwrap();
+        assert!(store.execute(&worker, "worker-run", &transition(second["id"].as_str().unwrap(), 1, "start-after-stop")).is_ok());
     }
 
     #[test]

@@ -679,6 +679,7 @@ pub struct Reservation {
     pub task_id: Option<String>,
     pub attempt_id: Option<String>,
     pub created_at: u64,
+    pub created_seq: u64,
     pub expires_at: u64,
     pub expired: bool,
     /// An expired reservation whose owning attempt had no confirmed outcome.
