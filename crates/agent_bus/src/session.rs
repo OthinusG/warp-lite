@@ -468,17 +468,25 @@ pub fn codex_accepts_peer_prompt(args: &[String], options: &crate::launch::Launc
     codex_launch_mode(
         &args.iter().map(OsString::from).collect::<Vec<_>>(),
         options,
-    ) != CodexMode::Native
+    )
+    .0 != CodexMode::Native
 }
 
-fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) -> CodexMode {
+fn codex_launch_mode(
+    args: &[OsString],
+    options: &crate::launch::LaunchOptions,
+) -> (CodexMode, bool) {
     use crate::launch::Arity;
     let mut args = args.iter().peekable();
     let mut first_positional = true;
     let mut mode = CodexMode::Shared;
+    let mut positional = Vec::new();
+    let mut last = false;
+    let mut initial_work = false;
     while let Some(arg) = args.next() {
         let arg = arg.to_string_lossy();
         if arg == "--" {
+            initial_work |= args.peek().is_some();
             break;
         }
         if !arg.starts_with('-') {
@@ -518,8 +526,9 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
                         | "stdio-to-uds"
                 )
             {
-                return CodexMode::Native;
+                return (CodexMode::Native, false);
             }
+            positional.push(arg.into_owned());
             first_positional = false;
             continue;
         }
@@ -546,7 +555,7 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
             name,
             "--remote" | "--remote-auth-token-env" | "--help" | "-h" | "--version" | "-V"
         ) {
-            return CodexMode::Native;
+            return (CodexMode::Native, false);
         }
         if matches!(
             name,
@@ -562,8 +571,10 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
         ) {
             mode = CodexMode::Embedded;
         }
+        last |= name == "--last";
+        initial_work |= matches!(name, "--image" | "-i");
         let Some(arity) = options.0.get(name) else {
-            return CodexMode::Native;
+            return (CodexMode::Native, false);
         };
         let value = match arity {
             Arity::Value | Arity::Values | Arity::BlockedValue | Arity::BlockedValues => {
@@ -572,7 +583,7 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
                         .map(|value| value.to_string_lossy().into_owned())
                 });
                 let Some(value) = value else {
-                    return CodexMode::Native;
+                    return (CodexMode::Native, false);
                 };
                 if matches!(arity, Arity::Values | Arity::BlockedValues) {
                     while args
@@ -624,15 +635,22 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
                         | "mcp_oauth_refresh_coordination"
                 )
             }) {
-                return CodexMode::Native;
+                return (CodexMode::Native, false);
             }
             mode = CodexMode::Embedded;
         }
         if name == "--disable" && value.as_deref() == Some("daemon_auto_start") {
-            return CodexMode::Native;
+            return (CodexMode::Native, false);
         }
     }
-    mode
+    // Native resume/fork shifts SESSION_ID into PROMPT when --last is set.
+    initial_work |= match positional.first().map(String::as_str) {
+        None => false,
+        Some("agents") => positional.len() > 1,
+        Some("resume" | "fork") => positional.len() > if last { 1 } else { 2 },
+        Some(_) => true,
+    };
+    (mode, initial_work)
 }
 
 pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i32> {
@@ -670,10 +688,10 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     }
     let companion = std::env::var_os("WARP_AGENT_BIN").map(PathBuf::from);
     let bridge = Bridge::from_env().ok();
-    let mut codex_mode = if name == "codex" {
+    let (mut codex_mode, initial_work) = if name == "codex" {
         codex_launch_mode(&args, &options)
     } else {
-        CodexMode::Native
+        (CodexMode::Native, false)
     };
     if codex_mode == CodexMode::Shared && std::env::var_os("CODEX_EXEC_SERVER_URL").is_some() {
         codex_mode = CodexMode::Embedded;
@@ -727,12 +745,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
             executable.to_owned(),
             config,
             bridge.unwrap(),
-            !options.is_empty_interactive(
-                &args
-                    .iter()
-                    .map(|arg| arg.to_string_lossy().into_owned())
-                    .collect::<Vec<_>>(),
-            ),
+            initial_work,
         ));
         // Global options precede both positional prompts and resume/fork subcommands.
         let mut remote = vec![
@@ -797,6 +810,28 @@ mod tests {
     #[test]
     fn codex_launch_preserves_argument_values_and_native_modes() {
         let options = crate::launch::LaunchOptions::from_help("codex", "  --no-daemon  Embedded\n  -m, --model <MODEL>  Model\n  -p, --profile <PROFILE>  Profile\n  -c, --config <KEY>  Config\n  --enable <FEATURE>  Enable\n  --disable <FEATURE>  Disable\n  --last  Last\n  --all  All\n  --add-dir <DIR>  Directory\n  -i, --image <FILE>...  Images");
+        for (args, initial_work) in [
+            ("--yolo -m exec", false),
+            ("task", true),
+            ("-- task", true),
+            ("resume --last", false),
+            ("resume session-id", false),
+            ("resume --last task", true),
+            ("resume session-id task", true),
+            ("fork --all", false),
+            ("fork session-id task", true),
+            ("--image mcp.png", true),
+        ] {
+            let args = args
+                .split_whitespace()
+                .map(OsString::from)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                codex_launch_mode(&args, &options).1,
+                initial_work,
+                "{args:?}"
+            );
+        }
         for args in [
             "",
             "--yolo",
@@ -814,7 +849,7 @@ mod tests {
                 .map(OsString::from)
                 .collect::<Vec<_>>();
             assert_eq!(
-                codex_launch_mode(&args, &options),
+                codex_launch_mode(&args, &options).0,
                 CodexMode::Shared,
                 "{args:?}"
             );
@@ -825,7 +860,7 @@ mod tests {
                 .map(OsString::from)
                 .collect::<Vec<_>>();
             assert_eq!(
-                codex_launch_mode(&args, &options),
+                codex_launch_mode(&args, &options).0,
                 CodexMode::Embedded,
                 "{args:?}"
             );
@@ -850,7 +885,7 @@ mod tests {
                 .map(OsString::from)
                 .collect::<Vec<_>>();
             assert_ne!(
-                codex_launch_mode(&args, &options),
+                codex_launch_mode(&args, &options).0,
                 CodexMode::Shared,
                 "{args:?}"
             );
