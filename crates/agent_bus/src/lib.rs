@@ -324,6 +324,7 @@ fn limited(value: &str, max: usize, message: &str) -> Result<()> {
             && !value
                 .chars()
                 .any(|c| c.is_control() && !matches!(c, '\n' | '\t')),
+        "{}",
         message
     );
     Ok(())

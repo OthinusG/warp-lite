@@ -146,7 +146,13 @@ impl Store {
         self.transaction(|| {
             self.create_schema()?;
             for agent in legacy.agents.values() {
-                self.insert_agent(agent)?;
+                self.insert_agent(&Agent {
+                    id: agent.id.clone(),
+                    terminal: agent.terminal.clone(),
+                    name: agent.name.clone(),
+                    program: agent.program.clone(),
+                    project: agent.project.clone(),
+                })?;
             }
             let mut created: BTreeMap<&str, u64> = BTreeMap::new();
             for task in legacy.tasks.values() {
@@ -400,11 +406,31 @@ impl Store {
     }
 
     fn count(&self, sql: &str, binds: &[&str]) -> Result<i64> {
-        let mut query = diesel::sql_query(sql.to_owned());
-        for bind in binds {
-            query = query.bind::<Text, _>(*bind);
-        }
-        Ok(query.get_result::<CountRow>(&mut *self.connection.borrow_mut())?.count)
+        let mut connection = self.connection.borrow_mut();
+        let query = diesel::sql_query(sql.to_owned());
+        let count = match binds {
+            [] => query.get_result::<CountRow>(&mut *connection)?,
+            [a] => query
+                .bind::<Text, _>(*a)
+                .get_result::<CountRow>(&mut *connection)?,
+            [a, b] => query
+                .bind::<Text, _>(*a)
+                .bind::<Text, _>(*b)
+                .get_result::<CountRow>(&mut *connection)?,
+            [a, b, c] => query
+                .bind::<Text, _>(*a)
+                .bind::<Text, _>(*b)
+                .bind::<Text, _>(*c)
+                .get_result::<CountRow>(&mut *connection)?,
+            [a, b, c, d] => query
+                .bind::<Text, _>(*a)
+                .bind::<Text, _>(*b)
+                .bind::<Text, _>(*c)
+                .bind::<Text, _>(*d)
+                .get_result::<CountRow>(&mut *connection)?,
+            _ => bail!("Too many bind parameters"),
+        };
+        Ok(count.count)
     }
 
     fn agent_count(&self) -> Result<i64> {
@@ -638,16 +664,13 @@ impl Store {
             .collect())
     }
 
-    fn task_row(
-        &self,
-        selector: &str,
-        binds: &[&str],
-    ) -> Result<Option<Task>> {
-        let mut query = diesel::sql_query(selector.to_owned());
-        for bind in binds {
-            query = query.bind::<Text, _>(*bind);
-        }
-        Ok(query
+    fn task_row(&self, selector: &str, binds: &[&str; 5]) -> Result<Option<Task>> {
+        Ok(diesel::sql_query(selector.to_owned())
+            .bind::<Text, _>(binds[0])
+            .bind::<Text, _>(binds[1])
+            .bind::<Text, _>(binds[2])
+            .bind::<Text, _>(binds[3])
+            .bind::<Text, _>(binds[4])
             .get_result::<TaskRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(TaskRow::task))
@@ -958,7 +981,7 @@ impl Store {
                     acknowledged: false,
                     sequence: 0,
                 };
-                json!(self.queue(&actor.project, message)?)
+                Ok(json!(self.queue(&actor.project, message)?))
             }
             Operation::AgentAck { message_id } => {
                 let message = self.visible_message(actor, message_id)?;
@@ -979,7 +1002,7 @@ impl Store {
                     None,
                     json!({}),
                 )?;
-                json!({"acknowledged": message_id})
+                Ok(json!({"acknowledged": message_id}))
             }
             Operation::TaskAssign {
                 to,
@@ -1041,7 +1064,7 @@ impl Store {
                         task.revision,
                     ),
                 )?;
-                json!(task)
+                Ok(json!(task))
             }
             Operation::TaskStart {
                 task_id,
@@ -1136,7 +1159,7 @@ impl Store {
                 let task = self.assemble(task)?;
                 let mut value = serde_json::to_value(&task)?;
                 value["attempt_id"] = json!(attempt.id);
-                value
+                Ok(value)
             }
             Operation::TaskSubmit {
                 task_id,
@@ -1214,7 +1237,7 @@ impl Store {
                 let task = self.assemble(task)?;
                 let mut value = serde_json::to_value(&task)?;
                 value["attempt_id"] = json!(attempt.id);
-                value
+                Ok(value)
             }
             Operation::TaskReview {
                 task_id,
@@ -1288,7 +1311,7 @@ impl Store {
                         task.revision,
                     ),
                 )?;
-                json!(self.assemble(task)?)
+                Ok(json!(self.assemble(task)?))
             }
             _ => Err(invalid_state("Operation requires live session handling")),
         }

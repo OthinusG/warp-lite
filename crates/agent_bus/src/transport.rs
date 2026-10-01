@@ -808,14 +808,14 @@ impl Broker {
                     .task_states(&actor, agent["id"].as_str().unwrap())?;
                 for task in &mut tasks {
                     let stored = state.store.task(&actor, task["id"].as_str().unwrap())?;
-                    task["interrupted"] = json!(task_runtime(&state, stored).1);
+                    task["interrupted"] = json!(task_runtime(&state, &stored).1);
                 }
                 agent["tasks"] = json!(tasks);
             }
         }
         if let Operation::TaskGet { task_id } = &request.operation {
             let task = state.store.task(&actor, task_id)?;
-            let (online, interrupted) = task_runtime(&state, task);
+            let (online, interrupted) = task_runtime(&state, &task);
             result["assignee_online"] = json!(online);
             result["interrupted"] = json!(interrupted);
         }
