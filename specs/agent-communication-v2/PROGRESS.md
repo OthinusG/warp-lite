@@ -77,6 +77,15 @@ complete. No plan checkbox has been promoted solely from source inspection.
 - Added GitHub packaging of a debug native review bundle with its own identifier
   so visual acceptance can use the existing debug-only data-profile isolation.
   UI screenshot acceptance remains pending.
+- Run `36908172790` failed because a newly added integration assertion called a
+  crate-private error conversion. It now inspects the public typed error rather
+  than widening the library API. No tests on that source are recorded as passed.
+- Recovery audit found that a replacement run could start running work without
+  proving the old execution stopped. TaskStart now rejects that path with
+  `execution_unknown`; disconnect records do not manufacture a finished time.
+  Explicit operator fencing records `unknown`/`overridden`, rather than stopped
+  execution, before a new revision can be retried. Migration/recovery fixtures
+  are updated to verify the stricter boundary.
 
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)

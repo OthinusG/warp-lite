@@ -713,11 +713,11 @@ impl Store {
         Ok(agent)
     }
 
-    /// Execution ownership dies with the run; persisted running work requires explicit recovery.
+    /// Losing a run proves disconnection, not process exit or stopped side effects.
     pub fn recover(&self, actor: &Agent, run: &str) -> Result<()> {
         self.transaction(|| {
             let tasks = diesel::sql_query(format!(
-                "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state = 'running'"
+                "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')"
             ))
             .bind::<Text, _>(&actor.id)
             .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
@@ -730,8 +730,7 @@ impl Store {
                     continue;
                 }
                 for attempt in &active {
-                    diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
-                        .bind::<BigInt, _>(now() as i64)
+                    diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=NULL WHERE id=?")
                         .bind::<Text, _>(&attempt.id)
                         .execute(&mut *self.connection.borrow_mut())?;
                     self.record(
@@ -759,8 +758,8 @@ impl Store {
                 let message = task_message(
                     &task.issuer,
                     &actor.id,
-                    "assignment",
-                    "Interrupted task. Read it and explicitly start this revision to recover."
+                    "interrupted",
+                    "Interrupted task. Previous execution is unknown; inspect it and request operator recovery before starting new work."
                         .into(),
                     &task.id,
                     task.revision,
@@ -773,7 +772,7 @@ impl Store {
 
     fn pending_interrupt_notification(&self, actor: &Agent, task: &Task) -> Result<bool> {
         Ok(self.pending(actor)?.iter().any(|message| {
-            message.kind == "assignment"
+            matches!(message.kind.as_str(), "assignment" | "interrupted")
                 && message.task_id.as_deref() == Some(task.id.as_str())
                 && message.revision == Some(task.revision)
         }))
@@ -786,6 +785,13 @@ impl Store {
             .into_iter()
             .map(AttemptRow::attempt)
             .collect())
+    }
+
+    fn unresolved_attempts(&self, task_id: &str) -> Result<Vec<Attempt>> {
+        Ok(diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? AND certainty != 'finished' AND outcome IS NULL ORDER BY rowid")
+            .bind::<Text, _>(task_id)
+            .load::<AttemptRow>(&mut *self.connection.borrow_mut())?
+            .into_iter().map(AttemptRow::attempt).collect())
     }
 
     pub fn pending(&self, actor: &Agent) -> Result<Vec<Message>> {
@@ -1440,7 +1446,7 @@ impl Store {
                 ensure!(
                     !matches!(
                         message.kind.as_str(),
-                        "assignment" | "review" | "available" | "cancel_requested"
+                        "assignment" | "review" | "available" | "cancel_requested" | "interrupted"
                     ),
                     invalid_state(
                         "Task notifications require their task transition, not message acknowledgement"
@@ -1592,20 +1598,7 @@ impl Store {
                         return Err(invalid_state("Task is already running in this session"))
                     }
                     "running" => {
-                        for attempt in &active {
-                            diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
-                                .bind::<BigInt, _>(now() as i64)
-                                .bind::<Text, _>(&attempt.id)
-                                .execute(&mut *self.connection.borrow_mut())?;
-                            self.record(
-                                &task.project,
-                                "task_interrupted",
-                                &actor.id,
-                                Some(&task.id),
-                                Some(&attempt.id),
-                                json!({"revision": task.revision}),
-                            )?;
-                        }
+                        return Err(execution_unknown("Previous execution may still be running; require observed stop or an explicit operator override before retry"));
                     }
                     _ => return Err(invalid_state("Task is not queued or interrupted")),
                 }
@@ -2899,7 +2892,7 @@ impl Store {
             }
             "running" => {
                 let active = self.active_attempts(&task.id)?;
-                if actor.program == OPERATOR_PROGRAM && active.is_empty() {
+                if actor.program == OPERATOR_PROGRAM && active.is_empty() && self.unresolved_attempts(&task.id)?.is_empty() && !task.attempts.is_empty() {
                     return self.mark_cancelled(task, actor, reason, false);
                 }
                 task.state = "cancel_requested".into();
@@ -2937,7 +2930,7 @@ impl Store {
                     )
                 );
                 ensure!(
-                    self.active_attempts(&task.id)?.is_empty(),
+                    self.unresolved_attempts(&task.id)?.is_empty() && !task.attempts.is_empty(),
                     execution_unknown("Execution is still owned by a live attempt; confirm the stop or use the explicit override")
                 );
                 self.mark_cancelled(task, actor, reason, false)
@@ -2954,9 +2947,11 @@ impl Store {
         reason: &str,
         override_uncertain: bool,
     ) -> Result<Task> {
-        for attempt in self.active_attempts(&task.id)? {
-            diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
-                .bind::<BigInt, _>(now() as i64)
+        let unresolved = self.unresolved_attempts(&task.id)?;
+        ensure!(unresolved.is_empty() || override_uncertain,
+            execution_unknown("Confirm stopped execution or use the explicit operator override"));
+        for attempt in unresolved {
+            diesel::sql_query("UPDATE attempts SET certainty='unknown', outcome='overridden', finished_at=NULL WHERE id=?")
                 .bind::<Text, _>(&attempt.id)
                 .execute(&mut *self.connection.borrow_mut())?;
             self.record(
@@ -3010,7 +3005,7 @@ impl Store {
         override_uncertain: bool,
         reason: &str,
     ) -> Result<()> {
-        let active = self.active_attempts(&task.id)?;
+        let active = self.unresolved_attempts(&task.id)?;
         if active.is_empty() {
             return Ok(());
         }
@@ -3019,8 +3014,7 @@ impl Store {
             execution_unknown("Previous execution outcome is unknown; confirm the stop or use the explicit override")
         );
         for attempt in active {
-            diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
-                .bind::<BigInt, _>(now() as i64)
+            diesel::sql_query("UPDATE attempts SET certainty='unknown', outcome='overridden', finished_at=NULL WHERE id=?")
                 .bind::<Text, _>(&attempt.id)
                 .execute(&mut *self.connection.borrow_mut())?;
             self.record(
@@ -3358,7 +3352,7 @@ impl Store {
                 Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
             }
             "running" | "cancel_requested" => {
-                let override_uncertain = !self.active_attempts(&task.id)?.is_empty();
+                let override_uncertain = self.unresolved_attempts(&task.id)?.len() > 0 || task.attempts.is_empty();
                 Ok(json!(self.mark_cancelled(task, actor, reason, override_uncertain)?))
             }
             _ => Err(invalid_state("Task cannot be force-cancelled from its current state")),
@@ -4658,17 +4652,31 @@ mod tests {
         assert_eq!(task.state, "running");
         assert_eq!(task.version, 3);
         assert_eq!(task.attempts[0].certainty, "interrupted");
+        assert!(task.attempts[0].finished_at.is_none());
         let pending = store.pending(&worker).unwrap();
         assert_eq!(pending.len(), 1);
         assert!(pending[0].body.contains("Interrupted task"));
         store.recover(&worker, "run-2").unwrap();
         assert_eq!(store.task(&worker, &task_id).unwrap().version, 3);
         assert_eq!(store.pending(&worker).unwrap().len(), 1);
-        let restarted = store
+        let unsafe_restart = store
             .execute(&worker, "run-2", &transition(&task_id, 1, &Uuid::new_v4().to_string()))
-            .unwrap();
+            .unwrap_err();
+        assert_eq!(code(&unsafe_restart), "execution_unknown");
+        store.execute_controller("/project", &ControllerOperation::TaskForceCancel {
+            task_id: task_id.clone(), reason: "Operator accepts overlap risk".into(),
+            expected_version: Some(3), request_id: Uuid::new_v4().to_string()
+        }).unwrap();
+        let fenced = store.task(&worker, &task_id).unwrap();
+        assert_eq!(fenced.attempts[0].certainty, "unknown");
+        assert_eq!(fenced.attempts[0].outcome.as_deref(), Some("overridden"));
+        assert!(fenced.attempts[0].finished_at.is_none());
+        let retry: Operation = serde_json::from_value(json!({"op":"task_retry", "task_id":task_id,
+            "reason":"Restart after explicit override", "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&issuer, "issuer-run", &retry).unwrap();
+        let restarted = store.execute(&worker, "run-2", &transition(&task_id, 2, &Uuid::new_v4().to_string())).unwrap();
         assert_eq!(restarted["state"], "running");
-        assert_eq!(restarted["version"], 4);
+        assert_eq!(restarted["version"], 6);
         assert_eq!(restarted["attempts"].as_array().unwrap().len(), 2);
         assert_eq!(store.pending(&worker).unwrap().len(), 0);
     }
@@ -4957,13 +4965,13 @@ mod tests {
         assert_eq!(code(&expired), "request_epoch_expired");
         let interrupted = store
             .execute(&b, "run-b", &transition("task-1", 2, &Uuid::new_v4().to_string()))
-            .unwrap();
-        assert_eq!(interrupted["state"], "running");
-        assert_eq!(interrupted["version"], 2);
+            .unwrap_err();
+        assert_eq!(code(&interrupted), "execution_unknown");
+        assert_eq!(store.task(&b, "task-1").unwrap().version, 1);
         drop(store);
         let store = Store::open(path).unwrap();
         assert_eq!(store.task(&b, "task-1").unwrap().state, "running");
-        assert_eq!(store.request_count().unwrap(), 2);
+        assert_eq!(store.request_count().unwrap(), 1);
         drop(store);
         std::fs::copy(&backup, path).unwrap();
         let store = Store::open(path).unwrap();

@@ -81,20 +81,8 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     },
                 )
                 .unwrap();
-            store.recover(&worker, "replacement-run").unwrap();
-            assert!(store.next_work(&worker, "replacement-run").unwrap().is_some());
-            store
-                .execute(
-                    &worker,
-                    "replacement-run",
-                    &Operation::TaskStart {
-                        task_id: id.clone(),
-                        revision: 1,
-                        expected_version: None,
-                        request_id: request_id(),
-                    },
-                )
-                .unwrap();
+            store.recover(&worker, "worker-run").unwrap();
+            assert_eq!(store.task(&worker, &id).unwrap().attempts.len(), 1);
             let submission = Operation::TaskSubmit {
                 evidence_ids: vec![],
                 task_id: id.clone(),
@@ -105,9 +93,9 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 attempt_id: None,
                 request_id: request_id(),
             };
-            assert!(store.execute(&worker, "worker-run", &submission).is_err());
+            assert!(store.execute(&worker, "obsolete-run", &submission).is_err());
             store
-                .execute(&worker, "replacement-run", &submission)
+                .execute(&worker, "worker-run", &submission)
                 .unwrap();
             let review = Operation::TaskReview {
                 task_id: id.clone(),
@@ -117,19 +105,19 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 expected_version: None,
                 request_id: request_id(),
             };
-            assert!(store.execute(&worker, "replacement-run", &review).is_err());
+            assert!(store.execute(&worker, "worker-run", &review).is_err());
             let rework = store.execute(&reviewer, "review-run", &review).unwrap();
             assert_eq!(rework["revision"], 2);
             assert!(
                 store
-                    .execute(&worker, "replacement-run", &submission)
+                    .execute(&worker, "worker-run", &submission)
                     .unwrap()["state"]
                     == "submitted"
             ); // Identical retry returns its original response.
             assert!(store
                 .execute(
                     &worker,
-                    "replacement-run",
+                    "worker-run",
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 1,
@@ -141,7 +129,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
             store
                 .execute(
                     &worker,
-                    "replacement-run",
+                    "worker-run",
                     &Operation::TaskStart {
                         task_id: id.clone(),
                         revision: 2,
@@ -153,7 +141,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
             store
                 .execute(
                     &worker,
-                    "replacement-run",
+                    "worker-run",
                     &Operation::TaskSubmit {
                         evidence_ids: vec![],
                         task_id: id.clone(),
@@ -335,7 +323,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
     let legacy: Request = serde_json::from_value(legacy).unwrap();
     assert_eq!(legacy.protocol_major, 0);
     let error = transport::call(&server.broker.endpoint, &legacy).unwrap_err();
-    assert_eq!(warp_agent_bus::DomainError::from_error(error).code, "protocol_incompatible");
+    assert_eq!(error.downcast_ref::<warp_agent_bus::DomainError>().unwrap().code, "protocol_incompatible");
     assert!(!legacy.defer_initial_ready);
     assert!(legacy.directory.is_none());
     assert!(!serde_json::to_value(legacy)
@@ -1081,7 +1069,20 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         expected_version: None,
         request_id: request_id(),
     };
+    let error = transport::call(&broker.endpoint, &replacement).unwrap_err();
+    assert_eq!(error.downcast_ref::<warp_agent_bus::DomainError>().unwrap().code, "execution_unknown");
+    broker.control("/project", &warp_agent_bus::ControllerOperation::TaskForceCancel {
+        task_id: id.clone(), reason: "Operator accepts unknown execution risk".into(),
+        expected_version: None, request_id: request_id()
+    }).unwrap();
+    issuer.operation = serde_json::from_value(serde_json::json!({"op":"task_retry", "task_id":id,
+        "reason":"Explicit recovery", "request_id":request_id()})).unwrap();
+    transport::call(&broker.endpoint, &issuer).unwrap();
+    replacement.operation = Operation::TaskStart {
+        task_id: id.clone(), revision: 2, expected_version: None, request_id: request_id()
+    };
     transport::call(&broker.endpoint, &replacement).unwrap();
+    issuer.operation = Operation::TaskGet { task_id: id.clone() };
     assert_eq!(
         transport::call(&broker.endpoint, &issuer).unwrap()["interrupted"],
         false
