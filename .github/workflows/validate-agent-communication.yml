@@ -32,6 +32,8 @@ jobs:
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
+      - name: Verify representative history and indexed query budget
+        run: cargo test -p warp-agent-bus --lib representative_history_pages_within_budget_and_preserves_live_work --locked -- --ignored --nocapture
       - name: Upload tested native bridge
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -72,6 +74,8 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test protocol and reversible native setup
         run: cargo test -p warp-agent-bus --locked
+      - name: Verify representative history and indexed query budget
+        run: cargo test -p warp-agent-bus --lib representative_history_pages_within_budget_and_preserves_live_work --locked -- --ignored --nocapture
       - name: Diagnose native build tools on failure
         if: failure()
         run: |

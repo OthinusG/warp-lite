@@ -95,6 +95,16 @@ complete. No plan checkbox has been promoted solely from source inspection.
 - A workflow-dispatch `protocol_only` option supports focused cross-platform
   backend iteration without cancelling an unrelated full application build.
   Its success is protocol acceptance only; skipped app checks are not passed.
+- Source `3aff31e`, protocol-only run `36910516148`: both OS suites passed,
+  including native opened-handle checks, SHA-256 mismatch rejection, local Git
+  object verification and explicit unknown-execution recovery. App checks were
+  intentionally skipped. Downloaded matching native executables; Codex embedded
+  still did not register (60.16 s), QoderCN still did not complete its first turn
+  (62.95 s). The bounded cleanup now completes; neither probe is model acceptance.
+- Added the explicit C10-scale disk-backed benchmark (100k acknowledged messages,
+  10k archived completed tasks), a 150 ms indexed task-page p95 check, search and
+  export pagination, and purge preservation of live task/message/dedup records.
+  The fixture SQL passed local syntax/count checks; Rust measurements await CI.
 
 Date: 2026-10-01. Written by the implementation session that landed commit `2a9da86`.
 This is a status and handover record, not an acceptance claim. [PLAN.md](PLAN.md)

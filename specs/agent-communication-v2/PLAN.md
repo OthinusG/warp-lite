@@ -45,7 +45,7 @@ Each package produces a reviewable commit/PR with updated specifications, focuse
 
 ### M0 — Establish a real execution baseline
 
-- [ ] **M0.1:** Verify the prior repair workflow result and package provenance; install a matching review build into a separate test location. Do not assume a downloaded companion updates the installed app.
+- [x] **M0.1:** Verify the prior repair workflow result and package provenance; install a matching review build into a separate test location. Do not assume a downloaded companion updates the installed app. Verified `e08b2ed` from run `36877709716`; see `PROGRESS.md`.
 - [ ] **M0.2:** Move the useful parts of temporary native probes into a focused, credential-free acceptance harness. Give it a disposable repository, exact executable paths, recorded versions, bounded runtime and cleanup of only its own children. User startup/permission prompts remain observable.
 - [ ] **M0.3:** Run deterministic fixture tasks through the actual Warpai UI: issuer assigns a tiny source edit and test; receiver wakes, calls TaskStart, edits, tests and submits; issuer requests one revision, then accepts. Capture task IDs, states, evidence and receiver screen activity, not raw secrets or unrelated transcripts.
 - [ ] **M0.4:** Exercise busy, draft, approval, manual pause, process replacement, receiver crash and app restart. Classify each failure as bridge, lifecycle, PTY, model compliance or configuration; fix the shared cause before adding feature layers.

@@ -5293,6 +5293,68 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "C10-scale history benchmark; run explicitly on both GitHub target platforms"]
+    fn representative_history_pages_within_budget_and_preserves_live_work() {
+        use std::time::Instant;
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("history.sqlite");
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        store.transaction(|| {
+            diesel::sql_query("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<10000) INSERT INTO tasks(id,project,issuer,assignee,reviewer,description,acceptance,state,revision,version,created_seq,archived) SELECT 'completed-'||x,'/project',?,?,?,'historical task','verified','accepted',1,4,x,1 FROM n")
+                .bind::<Text, _>(&issuer.id).bind::<Text, _>(&worker.id).bind::<Text, _>(&issuer.id)
+                .execute(&mut *store.connection.borrow_mut())?;
+            diesel::sql_query("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000) INSERT INTO messages(id,project,sender,recipient,body,kind,acknowledged,sequence) SELECT 'history-'||x,'/project',?,?,'historical fixture '||x,'message',1,10000+x FROM n")
+                .bind::<Text, _>(&issuer.id).bind::<Text, _>(&worker.id)
+                .execute(&mut *store.connection.borrow_mut())?;
+            diesel::sql_query("INSERT INTO sequences(project,value) VALUES ('/project',110000) ON CONFLICT(project) DO UPDATE SET value=110000")
+                .execute(&mut *store.connection.borrow_mut())?;
+            Ok(())
+        }).unwrap();
+        assert_eq!(store.capacity("/project").unwrap()["tasks"]["total"], 10000);
+        assert_eq!(store.capacity("/project").unwrap()["messages"]["used"], 100000);
+        assert!(store.task_states(&issuer, &worker.id).unwrap().is_empty());
+        let mut timings = Vec::new();
+        let mut cursor = None;
+        let mut count = 0;
+        loop {
+            let start = Instant::now();
+            let page = store.task_list(&issuer, None, None, cursor, Some(200), true).unwrap();
+            timings.push(start.elapsed());
+            let tasks = page["tasks"].as_array().unwrap();
+            if tasks.is_empty() { break; }
+            assert!(tasks.iter().all(|task| task["created_seq"].as_u64().unwrap() > cursor.unwrap_or(0)));
+            count += tasks.len();
+            cursor = page["cursor"].as_u64();
+        }
+        assert_eq!(count, 10000);
+        timings.sort_unstable();
+        let p95 = timings[(timings.len() - 1) * 95 / 100];
+        println!("C10 OS={} history=100000 completed_tasks=10000 indexed_task_page_p95_ms={:.3}", std::env::consts::OS, p95.as_secs_f64()*1000.);
+        assert!(p95 < Duration::from_millis(150), "Indexed task listing exceeded the C10 reference-runner target: {p95:?}");
+        let search = store.message_search(&issuer, "historical fixture 100000", None, None, None, Some(50)).unwrap();
+        assert_eq!(search["messages"].as_array().unwrap().len(), 1);
+        let exported = store.history_export("/project", None, Some(50)).unwrap();
+        assert_eq!(exported["records"].as_array().unwrap().len(), 50);
+        let next = store.history_export("/project", exported["cursor"].as_u64(), Some(50)).unwrap();
+        assert!(next["cursor"].as_u64().unwrap() > exported["cursor"].as_u64().unwrap());
+        let live = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let send = send(&issuer, "worker", "Live message", &Uuid::new_v4().to_string());
+        let sent = store.execute(&issuer, "issuer-run", &send).unwrap();
+        let preview = store.purge_preview("/project").unwrap();
+        assert_eq!(preview["tasks"], 10000);
+        assert_eq!(preview["messages"], 100000);
+        store.execute_controller("/project", &ControllerOperation::HistoryPurge {
+            archived_tasks: true, acknowledged_messages: true, request_id: Uuid::new_v4().to_string()
+        }).unwrap();
+        assert_eq!(store.task(&issuer, live["id"].as_str().unwrap()).unwrap().state, "queued");
+        assert_eq!(store.pending(&worker).unwrap().len(), 2);
+        assert_eq!(store.execute(&issuer, "issuer-run", &send).unwrap(), sent);
+        assert_eq!(store.task_count("/project").unwrap(), 1);
+    }
+
+    #[test]
     fn cancellation_preserves_exclusive_execution_until_stop_is_confirmed() {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
