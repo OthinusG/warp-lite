@@ -268,6 +268,7 @@ pub async fn forward(endpoint: &str) -> Result<()> {
 struct ThreadBinding {
     pending: HashSet<String>,
     thread: Option<String>,
+    awaiting_turn: bool,
 }
 impl ThreadBinding {
     fn outgoing(&mut self, value: &mut Value, config: &Value) -> Option<bool> {
@@ -292,12 +293,15 @@ impl ThreadBinding {
             }
             return Some(false);
         }
-        (value["method"] == "turn/start"
+        let starting_turn = value["method"] == "turn/start"
             && self
                 .thread
                 .as_deref()
-                .is_some_and(|id| value["params"]["threadId"] == id))
-        .then_some(false)
+                .is_some_and(|id| value["params"]["threadId"] == id);
+        if starting_turn {
+            self.awaiting_turn = false;
+        }
+        starting_turn.then_some(false)
     }
     fn incoming(&mut self, value: &Value) -> Option<bool> {
         if value
@@ -307,7 +311,10 @@ impl ThreadBinding {
             let thread = &value["result"]["thread"];
             if let Some(id) = thread["id"].as_str() {
                 self.thread = Some(id.to_owned());
-                return Some(thread["status"]["type"] == "idle");
+                if thread["status"]["type"] == "active" {
+                    self.awaiting_turn = false;
+                }
+                return Some(thread["status"]["type"] == "idle" && !self.awaiting_turn);
             }
         }
         if value["method"] == "thread/status/changed"
@@ -316,7 +323,10 @@ impl ThreadBinding {
                 .as_deref()
                 .is_some_and(|id| value["params"]["threadId"] == id)
         {
-            return Some(value["params"]["status"]["type"] == "idle");
+            if value["params"]["status"]["type"] == "active" {
+                self.awaiting_turn = false;
+            }
+            return Some(value["params"]["status"]["type"] == "idle" && !self.awaiting_turn);
         }
         None
     }
@@ -329,6 +339,7 @@ async fn codex_proxy(
     executable: PathBuf,
     config: Value,
     bridge: Bridge,
+    initial_work: bool,
 ) -> Result<()> {
     // Match Codex's native remote transport limit so existing large transcripts still work.
     let ws_config = WebSocketConfig {
@@ -396,7 +407,7 @@ async fn codex_proxy(
         let (mut upstream, _) = tokio::time::timeout(Duration::from_secs(5), client_async_with_config("ws://localhost/", socket, Some(ws_config)))
             .await.map_err(|_| anyhow!("Native daemon handshake timed out"))??;
         let mut downstream = downstream;
-        let mut binding = ThreadBinding::default();
+        let mut binding = ThreadBinding { awaiting_turn: initial_work, ..Default::default() };
         let context = bridge.clone();
         let (activity, mut updates) = tokio::sync::mpsc::channel(32);
         tasks.spawn(async move {
@@ -686,6 +697,12 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
             executable.to_owned(),
             config,
             bridge.unwrap(),
+            !binding.options.is_empty_interactive(
+                &args
+                    .iter()
+                    .map(|arg| arg.to_string_lossy().into_owned())
+                    .collect::<Vec<_>>(),
+            ),
         ));
         // Global options precede both positional prompts and resume/fork subcommands.
         let mut remote = vec![
@@ -963,6 +980,38 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn initial_task_does_not_become_ready_between_thread_and_turn_start() {
+        let mut binding = ThreadBinding {
+            awaiting_turn: true,
+            ..Default::default()
+        };
+        let config = json!({});
+        assert_eq!(
+            binding.outgoing(
+                &mut json!({"id":1,"method":"thread/start","params":{}}),
+                &config
+            ),
+            Some(false)
+        );
+        assert_eq!(
+            binding.incoming(
+                &json!({"id":1,"result":{"thread":{"id":"mine","status":{"type":"idle"}}}})
+            ),
+            Some(false)
+        );
+        assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"other","status":{"type":"active"}}})), None);
+        assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"idle"}}})), Some(false));
+        assert_eq!(
+            binding.outgoing(
+                &mut json!({"id":2,"method":"turn/start","params":{"threadId":"mine"}}),
+                &config
+            ),
+            Some(false)
+        );
+        assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"idle"}}})), Some(true));
+    }
+
     #[test]
     fn session_overrides_are_thread_local_and_status_is_owned() {
         let mut binding = ThreadBinding::default();
