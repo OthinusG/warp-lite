@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/crates/agent_bus/src/transport.rs:
-
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 use crate::{Agent, Operation, Store, Task, MAX_FRAME};
 use anyhow::{anyhow, ensure, Result};

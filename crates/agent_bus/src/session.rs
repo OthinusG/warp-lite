@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/crates/agent_bus/src/session.rs:
-
 //! Per-launch MCP transport binding, independent of a vendor's shared process environment.
 use crate::mcp::Bridge;
 use anyhow::{anyhow, ensure, Result};

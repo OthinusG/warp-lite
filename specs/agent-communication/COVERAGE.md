@@ -55,6 +55,24 @@ The cooperation instructions require `warp_agent_ready` as the last action befor
 
 Adapter references: [Pi](https://pi.dev/docs/latest/mcp), [OMP](https://github.com/can1357/oh-my-pi/blob/main/docs/mcp-config.md), [Hermes](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp), [Goose](https://github.com/aaif-goose/goose/blob/main/documentation/docs/getting-started/using-extensions.md), [Vibe](https://docs.mistral.ai/vibe/code/cli/mcp-servers), [Auggie](https://docs.augmentcode.com/cli/integrations).
 
+## Shared background service status (2026-10-01)
+
+The common Warp broker and per-launch relay have simulated isolation coverage for every managed type plus custom, with two clients per type in one process. That verifies the shared communication backend, not every vendor's external daemon. Launch recognition remains independent of readiness and supports parameterized commands; installed help supplies option arity.
+
+| Native transport | Implementation | Verification |
+| --- | --- | --- |
+| Codex default shared app-server | Native daemon/proxy; session-local MCP overrides on owned thread creation/resume/fork | GitHub protocol tests and both application configurations; patched native TUI acceptance pending |
+| Codex embedded/profile/config modes | Dedicated native MCP override with the same private relay; preserves native backend selection | Option-mode and isolation regressions; native acceptance pending |
+| Claude and Qoder/QoderCN native interactive clients | Confirmed inline MCP configuration to a per-launch relay | Common relay and reversible setup regressions; native acceptance pending |
+| Other managed native stdio clients | Existing documented adapters and terminal binding through the common Warp broker | Common protocol/setup coverage; authenticated native acceptance pending |
+| Arbitrary vendor external daemon or explicit remote attachment | No general per-terminal binding guarantee | Requires a verified vendor session context API; not implemented by environment passthrough |
+
+Codex explicit remote endpoints, unknown launch syntax and server-feature compatibility overrides retain native behavior; they are not claimed as transparently bound shared transports. No shared daemon is restarted to acquire a pane's environment.
+
+OpenCode's documented [server API](https://opencode.ai/docs/server/) exposes instance configuration and dynamic MCP addition separately from session creation. Its [native MCP implementation](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/mcp/index.ts) stores MCP clients by instance. This indicates that replacing one shared MCP entry cannot isolate multiple attached terminals in the same instance; no global replacement is performed. Copilot's [ACP server](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server) permits per-session MCP configuration, but ACP server mode is not an interactive terminal frontend and has no implemented Warpai attachment adapter.
+
+QoderCN's zero-exit missing-entry response is handled only when it exactly matches the confirmed user-scope not-found sentence. Existing or edited user entries remain protected.
+
 ## Acceptance and status
 
 GitHub tests simulate the restored detector's managed program identities plus a managed custom client, exercise real local sockets, negotiate the pinned MCP SDK over child-process stdio, and verify the shared task state machine. These tests do not launch vendor models.

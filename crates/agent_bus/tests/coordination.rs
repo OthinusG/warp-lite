@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/crates/agent_bus/tests/coordination.rs:
-
 use serde_json::Value;
 use std::{path::PathBuf, thread, time::Duration};
 use uuid::Uuid;

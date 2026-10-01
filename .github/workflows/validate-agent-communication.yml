@@ -27,6 +27,13 @@ jobs:
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
+      - name: Upload tested native bridge
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Warpai-agent-bridge-Windows-debug
+          path: target/debug/warp-agent.exe
+          if-no-files-found: error
+          retention-days: 7
       - name: Prepare Windows application build
         shell: pwsh
         run: choco install protoc -y
@@ -51,6 +58,13 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test protocol and reversible native setup
         run: cargo test -p warp-agent-bus --locked
+      - name: Upload tested native bridge
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Warpai-agent-bridge-macOS-debug
+          path: target/debug/warp-agent
+          if-no-files-found: error
+          retention-days: 7
       - name: Check default Lite application
         run: cargo check -p warp --bin warp-oss --locked
       - name: Check platform application

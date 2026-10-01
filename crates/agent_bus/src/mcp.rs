@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/crates/agent_bus/src/mcp.rs:
-
 //! The pinned MCP SDK owns framing, negotiation, and cancellation.
 use crate::{
     transport::{self, Request, CAPABILITY, ENDPOINT, TERMINAL},
