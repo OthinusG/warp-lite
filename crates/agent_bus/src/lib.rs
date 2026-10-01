@@ -1,6 +1,7 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod launch;
 pub mod mcp;
+pub mod readiness;
 pub mod session;
 pub mod storage;
 pub mod transport;
@@ -18,6 +19,18 @@ pub(crate) const MAX_TEXT: usize = 8192;
 pub(crate) const MAX_SUBJECT: usize = 256;
 pub(crate) const PAGE_DEFAULT: u32 = 50;
 pub(crate) const PAGE_MAX: u32 = 200;
+pub(crate) const MAX_DEPENDENCIES: usize = 100;
+pub(crate) const MAX_ELIGIBLES: usize = 100;
+pub(crate) const MAX_PATHS: usize = 100;
+pub(crate) const RESERVATION_TTL_DEFAULT: u64 = 600;
+pub(crate) const RESERVATION_TTL_MAX: u64 = 3600;
+pub(crate) const DEADLINE_TIMEOUT_MAX: u64 = 604_800;
+pub(crate) const ARCHIVE_AFTER_DAYS: u64 = 30;
+pub(crate) const DATABASE_SOFT_LIMIT: u64 = 1 << 30;
+pub(crate) const DATABASE_HARD_LIMIT: u64 = 2 << 30;
+/// The trusted local UI acts as a human operator under this reserved program identity.
+pub(crate) const OPERATOR_PROGRAM: &str = "warp";
+pub(crate) const OPERATOR_NAME: &str = "operator";
 /// One activated terminal session is one mutation epoch; restart or expiry fences its requests.
 pub(crate) const MUTATION_EPOCH: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
@@ -110,8 +123,44 @@ pub(crate) fn stale_attempt(message: &str, version: u64) -> anyhow::Error {
     domain("stale_attempt", message, false, Some(version))
 }
 
+/// The owning execution's fate is unconfirmed; no cancellation, retry or reassignment is implied.
+pub(crate) fn execution_unknown(message: &str) -> anyhow::Error {
+    domain("execution_unknown", message, false, None)
+}
+
 pub(crate) fn coordinator_unavailable(message: &str) -> anyhow::Error {
     domain("coordinator_unavailable", message, true, None)
+}
+
+pub(crate) fn dependency_cycle(message: &str) -> anyhow::Error {
+    domain("dependency_cycle", message, false, None)
+}
+
+pub(crate) fn dependency_blocked(message: &str) -> anyhow::Error {
+    domain("dependency_blocked", message, false, None)
+}
+
+pub(crate) fn reservation_conflict(message: &str) -> anyhow::Error {
+    domain("reservation_conflict", message, false, None)
+}
+
+pub(crate) fn storage_full(message: &str) -> anyhow::Error {
+    domain("storage_full", message, true, None)
+}
+
+/// SQLite reports exhaustion as an infrastructure error; surface the truthful stable code instead.
+pub(crate) fn classify_storage(error: anyhow::Error) -> anyhow::Error {
+    match error.downcast::<DomainError>() {
+        Ok(domain) => domain.into(),
+        Err(error) => {
+            let message = error.to_string();
+            if message.contains("disk is full") || message.contains("database is full") {
+                storage_full("Local storage is full; free space or export and purge eligible history")
+            } else {
+                error
+            }
+        }
+    }
 }
 
 /// Internal discovery race only; the native bridge may retry while the UI start event is in flight.
@@ -171,6 +220,14 @@ pub enum Operation {
         acceptance: String,
         reviewer: Option<String>,
         request_id: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        dependencies: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        start_deadline: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        execution_timeout_seconds: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        review_timeout_seconds: Option<u64>,
     },
     TaskList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -181,6 +238,8 @@ pub enum Operation {
         cursor: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         limit: Option<u32>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        include_archived: bool,
     },
     TaskGet {
         task_id: String,
@@ -202,6 +261,8 @@ pub enum Operation {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         attempt_id: Option<String>,
         request_id: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        evidence_ids: Vec<String>,
     },
     TaskReview {
         task_id: String,
@@ -212,6 +273,183 @@ pub enum Operation {
         expected_version: Option<u64>,
         request_id: String,
     },
+    TaskCreatePool {
+        description: String,
+        acceptance: String,
+        eligible: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reviewer: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        dependencies: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        start_deadline: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        execution_timeout_seconds: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        review_timeout_seconds: Option<u64>,
+        request_id: String,
+    },
+    TaskClaim {
+        task_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskProgress {
+        task_id: String,
+        revision: u32,
+        note: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        waiting_reason: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskCancel {
+        task_id: String,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskFinishCancel {
+        task_id: String,
+        revision: u32,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskFail {
+        task_id: String,
+        revision: u32,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        evidence_ids: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskRetry {
+        task_id: String,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        start_deadline: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        clear_start_deadline: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        override_uncertain: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskReassign {
+        task_id: String,
+        assignee: String,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reviewer: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        start_deadline: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        clear_start_deadline: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        override_uncertain: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskSetDependencies {
+        task_id: String,
+        dependencies: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    ThreadGet {
+        thread_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
+    MessageSearch {
+        query: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thread_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
+    EvidenceAdd {
+        task_id: String,
+        kind: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        hash: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        commit: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        repository: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        branch: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        base: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        head: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        command: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        outcome: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        exit_code: Option<i64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        summary: Option<String>,
+        request_id: String,
+    },
+    FileReserve {
+        paths: Vec<String>,
+        mode: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ttl_seconds: Option<u64>,
+        request_id: String,
+    },
+    FileRenew {
+        reservation_ids: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ttl_seconds: Option<u64>,
+        request_id: String,
+    },
+    FileRelease {
+        reservation_ids: Vec<String>,
+        request_id: String,
+    },
+    FileReservations {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        include_expired: bool,
+    },
 }
 
 impl Operation {
@@ -221,7 +459,114 @@ impl Operation {
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }
-            | Self::TaskReview { request_id, .. } => Some(request_id),
+            | Self::TaskReview { request_id, .. }
+            | Self::TaskCreatePool { request_id, .. }
+            | Self::TaskClaim { request_id, .. }
+            | Self::TaskProgress { request_id, .. }
+            | Self::TaskCancel { request_id, .. }
+            | Self::TaskFinishCancel { request_id, .. }
+            | Self::TaskFail { request_id, .. }
+            | Self::TaskRetry { request_id, .. }
+            | Self::TaskReassign { request_id, .. }
+            | Self::TaskSetDependencies { request_id, .. }
+            | Self::EvidenceAdd { request_id, .. }
+            | Self::FileReserve { request_id, .. }
+            | Self::FileRenew { request_id, .. }
+            | Self::FileRelease { request_id, .. } => Some(request_id),
+            _ => None,
+        }
+    }
+}
+
+/// Private controller operations for the authenticated local UI; never registered as agent MCP tools.
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ControllerOperation {
+    SpaceList,
+    SpaceCreate {
+        name: String,
+        request_id: String,
+    },
+    SpaceJoin {
+        space_id: String,
+        agent: String,
+        request_id: String,
+    },
+    SpaceLeave {
+        space_id: String,
+        agent: String,
+        request_id: String,
+    },
+    WorkspaceMap {
+        space_id: String,
+        root: String,
+        model: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        branch: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        base_commit: Option<String>,
+        request_id: String,
+    },
+    EvidenceVerify {
+        evidence_id: String,
+        verified: bool,
+        request_id: String,
+    },
+    TaskForceCancel {
+        task_id: String,
+        reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_version: Option<u64>,
+        request_id: String,
+    },
+    TaskArchive {
+        task_id: String,
+        request_id: String,
+    },
+    ArchiveAged {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        older_than_days: Option<u64>,
+        request_id: String,
+    },
+    HistoryExport {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        after: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
+    PurgePreview,
+    HistoryPurge {
+        archived_tasks: bool,
+        acknowledged_messages: bool,
+        request_id: String,
+    },
+    InvitationCreate {
+        space_ids: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ttl_seconds: Option<u64>,
+        request_id: String,
+    },
+    DeviceList,
+    DeviceRevoke {
+        device_id: String,
+        request_id: String,
+    },
+}
+
+impl ControllerOperation {
+    pub(crate) fn request_id(&self) -> Option<&str> {
+        match self {
+            Self::SpaceCreate { request_id, .. }
+            | Self::SpaceJoin { request_id, .. }
+            | Self::SpaceLeave { request_id, .. }
+            | Self::WorkspaceMap { request_id, .. }
+            | Self::EvidenceVerify { request_id, .. }
+            | Self::TaskForceCancel { request_id, .. }
+            | Self::TaskArchive { request_id, .. }
+            | Self::ArchiveAged { request_id, .. }
+            | Self::HistoryPurge { request_id, .. }
+            | Self::InvitationCreate { request_id, .. }
+            | Self::DeviceRevoke { request_id, .. } => Some(request_id),
             _ => None,
         }
     }
@@ -281,10 +626,63 @@ pub struct Task {
     pub evidence: Option<String>,
     pub feedback: Vec<String>,
     pub attempts: Vec<Attempt>,
+    pub evidence_records: Vec<Evidence>,
     pub created_seq: u64,
+    pub archived: bool,
+    pub dependencies: Vec<String>,
+    /// Nonempty only for unassigned pool tasks; the list of explicitly eligible agents.
+    pub eligible: Vec<String>,
+    /// Why a blocked or queued task cannot start, resolved from dependencies and assignee state.
+    pub wait_reason: Option<String>,
+    pub start_deadline: Option<u64>,
+    pub execution_timeout_seconds: Option<u64>,
+    pub review_timeout_seconds: Option<u64>,
+    pub execution_deadline: Option<u64>,
+    pub review_deadline: Option<u64>,
+    pub review_overdue: bool,
     // Runtime ownership expires at restart; persisted running tasks require explicit recovery.
     #[serde(skip)]
     pub executing_run: Option<String>,
+}
+
+/// Result evidence is a bounded descriptor; a path reference is not a file upload.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Evidence {
+    pub id: String,
+    pub task_id: String,
+    pub attempt_id: Option<String>,
+    pub kind: String,
+    pub path: Option<String>,
+    pub hash: Option<String>,
+    pub commit: Option<String>,
+    pub repository: Option<String>,
+    pub branch: Option<String>,
+    pub base: Option<String>,
+    pub head: Option<String>,
+    pub command: Option<String>,
+    pub outcome: Option<String>,
+    pub exit_code: Option<i64>,
+    pub summary: Option<String>,
+    pub device: Option<String>,
+    pub verified: bool,
+    pub created_seq: u64,
+}
+
+/// An advisory coordination lease over exact workspace-relative paths; not a filesystem lock.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Reservation {
+    pub id: String,
+    pub workspace: String,
+    pub path: String,
+    pub mode: String,
+    pub owner: String,
+    pub task_id: Option<String>,
+    pub attempt_id: Option<String>,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub expired: bool,
+    /// An expired reservation whose owning attempt had no confirmed outcome.
+    pub abandoned: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -317,6 +715,14 @@ pub(crate) fn subject(value: &str) -> Result<()> {
     )
 }
 
+pub(crate) fn search_query(value: &str) -> Result<()> {
+    limited(
+        value,
+        MAX_SUBJECT,
+        "Search query must be nonempty, at most 256 bytes, and contain no terminal control characters",
+    )
+}
+
 fn limited(value: &str, max: usize, message: &str) -> Result<()> {
     if value.trim().is_empty()
         || value.len() > max
@@ -327,4 +733,56 @@ fn limited(value: &str, max: usize, message: &str) -> Result<()> {
         return Err(invalid_input(message));
     }
     Ok(())
+}
+
+/// Coordinator UTC deadline from an RFC 3339 string; the caller compares against `Store::now`.
+pub(crate) fn start_deadline(value: &str) -> Result<u64> {
+    let parsed = chrono::DateTime::parse_from_rfc3339(value.trim())
+        .map_err(|_| invalid_input("Deadline must be an RFC 3339 UTC timestamp"))?;
+    u64::try_from(parsed.timestamp_millis())
+        .map_err(|_| invalid_input("Deadline must not predate the Unix epoch"))
+}
+
+pub(crate) fn timeout_seconds(value: u64) -> Result<u64> {
+    if value == 0 || value > DEADLINE_TIMEOUT_MAX {
+        return Err(invalid_input(
+            "Timeout must be between 1 second and 604800 seconds",
+        ));
+    }
+    Ok(value)
+}
+
+/// Logical workspace-relative path for reservations: forward slashes, no escapes.
+pub(crate) fn normalize_relative_path(value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > MAX_SUBJECT {
+        return Err(invalid_input(
+            "Path must be nonempty and at most 256 bytes",
+        ));
+    }
+    if value.starts_with('/') || value.starts_with('\\') {
+        return Err(invalid_input("Path must be relative to the workspace root"));
+    }
+    if value.contains(':') {
+        return Err(invalid_input(
+            "Path must not contain drive or device prefixes",
+        ));
+    }
+    let mut segments = Vec::new();
+    for segment in value.split(['/', '\\']) {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
+        if segment == ".." {
+            return Err(invalid_input("Path must not traverse parent directories"));
+        }
+        if segment.chars().any(char::is_control) {
+            return Err(invalid_input("Path must contain no control characters"));
+        }
+        segments.push(segment);
+    }
+    if segments.is_empty() {
+        return Err(invalid_input("Path must name a file or subtree"));
+    }
+    Ok(segments.join("/"))
 }

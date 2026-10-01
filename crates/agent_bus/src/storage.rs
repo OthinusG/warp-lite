@@ -1,8 +1,13 @@
 //! Versioned, normalized SQLite storage: one write owner, short transactions, events with mutations.
 use crate::{
-    capacity_exceeded, epoch_expired, invalid_input, invalid_state, request_conflict, scope_denied,
-    stale_attempt, stale_revision, subject as validate_subject, text, unauthorized, version_conflict,
-    Agent, Attempt, Event, Message, Operation, Task, PAGE_DEFAULT, PAGE_MAX,
+    capacity_exceeded, dependency_blocked, dependency_cycle, epoch_expired, execution_unknown,
+    invalid_input, invalid_state, normalize_relative_path, request_conflict, reservation_conflict,
+    scope_denied, search_query, stale_attempt, stale_revision, start_deadline as parse_deadline,
+    subject as validate_subject, text, timeout_seconds, unauthorized, version_conflict, Agent,
+    Attempt, ControllerOperation, Event, Evidence, Message, Operation, Reservation, Task,
+    ARCHIVE_AFTER_DAYS, DATABASE_SOFT_LIMIT, MAX_DEPENDENCIES, MAX_ELIGIBLES, MAX_PATHS,
+    MAX_SUBJECT, OPERATOR_NAME, OPERATOR_PROGRAM, PAGE_DEFAULT, PAGE_MAX, RESERVATION_TTL_DEFAULT,
+    RESERVATION_TTL_MAX,
 };
 use anyhow::{anyhow, bail, ensure, Result};
 use diesel::{
@@ -14,14 +19,16 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
     cell::RefCell,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use uuid::Uuid;
 
-pub(crate) const SCHEMA_VERSION: &str = "2";
+pub(crate) const SCHEMA_VERSION: &str = "3";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":2}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":3}"#;
+/// The marker of the superseded normalized schema; upgrading from it adds columns and tables.
+pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
 /// Must exceed the maximum mutation epoch so cleanup can never make an old request execute again.
 pub(crate) const REQUEST_RETENTION: Duration = Duration::from_secs(8 * 24 * 60 * 60);
 const MAX_AGENTS: i64 = 1000;
@@ -29,11 +36,15 @@ const MAX_TASKS_PER_PROJECT: i64 = 10_000;
 const MAX_PENDING_PER_PROJECT: i64 = 1000;
 const MAX_MESSAGES_PER_PROJECT: i64 = 100_000;
 const MAX_REQUESTS: i64 = 10_000;
+const MAX_EVIDENCE_PER_TASK: i64 = 32;
+const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
+/// The operator principal's deterministic identity; it is never stored in the agents table.
+pub(crate) const OPERATOR_EPOCH: &str = "operator";
 
 const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS agent_bus_v1 (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, terminal TEXT NOT NULL, name TEXT NOT NULL, program TEXT NOT NULL, project TEXT NOT NULL, UNIQUE(project, name));
-CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, project TEXT NOT NULL, issuer TEXT NOT NULL, assignee TEXT NOT NULL, reviewer TEXT NOT NULL, description TEXT NOT NULL, acceptance TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, version INTEGER NOT NULL, result TEXT, evidence TEXT, created_seq INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, project TEXT NOT NULL, issuer TEXT NOT NULL, assignee TEXT NOT NULL, reviewer TEXT NOT NULL, description TEXT NOT NULL, acceptance TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, version INTEGER NOT NULL, result TEXT, evidence TEXT, created_seq INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, start_deadline INTEGER, execution_timeout INTEGER, review_timeout INTEGER, execution_deadline INTEGER, review_deadline INTEGER, updated_at INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS tasks_project_seq ON tasks(project, created_seq);
 CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL, owner TEXT NOT NULL, run TEXT NOT NULL, certainty TEXT NOT NULL, outcome TEXT, started_at INTEGER, finished_at INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_task ON attempts(task_id);
@@ -41,11 +52,30 @@ CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, task_
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, project TEXT NOT NULL, sender TEXT NOT NULL, recipient TEXT NOT NULL, body TEXT NOT NULL, subject TEXT, thread_id TEXT, reply_to TEXT, task_id TEXT, revision INTEGER, kind TEXT NOT NULL, acknowledged INTEGER NOT NULL, sequence INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS messages_recipient ON messages(recipient, acknowledged, sequence);
 CREATE INDEX IF NOT EXISTS messages_project ON messages(project, sequence);
+CREATE INDEX IF NOT EXISTS messages_thread ON messages(project, thread_id, sequence);
+CREATE INDEX IF NOT EXISTS messages_task ON messages(task_id);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, resource TEXT, attempt TEXT, observed_at INTEGER, imported INTEGER NOT NULL, payload TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS events_project_seq ON events(project, sequence);
 CREATE TABLE IF NOT EXISTS sequences (project TEXT PRIMARY KEY, value INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS requests (actor TEXT NOT NULL, request_id TEXT NOT NULL, epoch TEXT NOT NULL, fingerprint TEXT NOT NULL, response TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(actor, request_id));
-CREATE INDEX IF NOT EXISTS requests_created ON requests(created_at);";
+CREATE INDEX IF NOT EXISTS requests_created ON requests(created_at);
+CREATE TABLE IF NOT EXISTS task_dependencies (task_id TEXT NOT NULL, prerequisite_id TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(task_id, prerequisite_id));
+CREATE INDEX IF NOT EXISTS task_dependencies_prerequisite ON task_dependencies(prerequisite_id);
+CREATE TABLE IF NOT EXISTS task_eligibles (task_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(task_id, agent));
+CREATE TABLE IF NOT EXISTS evidence (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, attempt_id TEXT, kind TEXT NOT NULL, path TEXT, hash TEXT, commit_id TEXT, repository TEXT, branch TEXT, base TEXT, head TEXT, command TEXT, outcome TEXT, exit_code INTEGER, summary TEXT, device TEXT, verified INTEGER NOT NULL, created_seq INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS evidence_task ON evidence(task_id);
+CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, path TEXT NOT NULL, mode TEXT NOT NULL, owner TEXT NOT NULL, task_id TEXT, attempt_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, created_seq INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS reservations_workspace ON reservations(workspace, created_seq);
+CREATE TABLE IF NOT EXISTS spaces (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, device TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, space_id TEXT NOT NULL, root TEXT NOT NULL, model TEXT NOT NULL, branch TEXT, base_commit TEXT, created_at INTEGER NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS workspaces_root ON workspaces(root);
+CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
+CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
+CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT NULL, space_ids TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS cursors (device_id TEXT NOT NULL, space_id TEXT NOT NULL, sequence INTEGER NOT NULL, PRIMARY KEY(device_id, space_id));";
+
+pub(crate) const TASK_COLUMNS: &str = "id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline";
 
 /// Single-threaded behind the broker mutex; RefCell keeps short diesel borrows from leaking into APIs.
 pub struct Store {
@@ -78,6 +108,7 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "2" => self.upgrade_v2(path),
             Some(version) => bail!("Unsupported agent bus schema version: {version}"),
             None => self.upgrade(path),
         }
@@ -104,7 +135,33 @@ impl Store {
         )
     }
 
-    /// Crash before commit leaves v1 usable; crash after commit reopens v2.
+    /// Additive v2→v3 upgrade: new tables and task columns; existing rows are preserved as-is.
+    fn upgrade_v2(&self, path: &str) -> Result<()> {
+        self.backup(path, Some(SENTINEL_V2))?;
+        self.transaction(|| {
+            self.create_schema()?;
+            for statement in [
+                "ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE tasks ADD COLUMN start_deadline INTEGER",
+                "ALTER TABLE tasks ADD COLUMN execution_timeout INTEGER",
+                "ALTER TABLE tasks ADD COLUMN review_timeout INTEGER",
+                "ALTER TABLE tasks ADD COLUMN execution_deadline INTEGER",
+                "ALTER TABLE tasks ADD COLUMN review_deadline INTEGER",
+                "ALTER TABLE tasks ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0",
+            ] {
+                self.connection.borrow_mut().batch_execute(statement)?;
+            }
+            // Historical age is unknown; anchor it at migration time so aged archiving never fires retroactively.
+            diesel::sql_query("UPDATE tasks SET updated_at = ? WHERE updated_at = 0")
+                .bind::<BigInt, _>(now() as i64)
+                .execute(&mut *self.connection.borrow_mut())?;
+            self.set_legacy_payload(SENTINEL)?;
+            self.set_meta_version()?;
+            Ok(())
+        })
+    }
+
+    /// Crash before commit leaves the old schema usable; crash after commit reopens the new one.
     fn upgrade(&self, path: &str) -> Result<()> {
         match read_legacy_payload(path)? {
             None => self.transaction(|| {
@@ -114,35 +171,47 @@ impl Store {
                 Ok(())
             }),
             Some(payload) if payload == SENTINEL => bail!(
-                "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-v2 backup"
+                "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
+            Some(payload) if payload == SENTINEL_V2 => {
+                bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
+            }
             Some(payload) => self.migrate(path, &payload),
         }
+    }
+
+    /// One consistent copy before any destructive migration; a crash may leave it in place for retry.
+    fn backup(&self, path: &str, expected: Option<&str>) -> Result<()> {
+        if path == ":memory:" {
+            return Ok(());
+        }
+        let backup = format!("{path}.pre-upgrade");
+        if std::path::Path::new(&backup).exists() {
+            if let Some(expected) = expected {
+                let stored = read_legacy_payload(&backup)?;
+                ensure!(
+                    stored.as_deref() == Some(expected),
+                    "Existing migration backup does not match this database; refusing to overwrite"
+                );
+            }
+            return Ok(());
+        }
+        let escaped = backup.replace('\'', "''");
+        self.connection
+            .borrow_mut()
+            .batch_execute(&format!("VACUUM INTO '{escaped}'"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o600))?;
+        }
+        Ok(())
     }
 
     fn migrate(&self, path: &str, payload: &str) -> Result<()> {
         let legacy: LegacySnapshot = serde_json::from_str(payload)
             .map_err(|_| anyhow!("Unrecognized agent bus database content; refusing to migrate"))?;
-        if path != ":memory:" {
-            let backup = format!("{path}.pre-v2");
-            if std::path::Path::new(&backup).exists() {
-                let stored = read_legacy_payload(&backup)?;
-                ensure!(
-                    stored.as_deref() == Some(payload),
-                    "Existing migration backup does not match this database; refusing to overwrite"
-                );
-            } else {
-                let escaped = backup.replace('\'', "''");
-                self.connection
-                    .borrow_mut()
-                    .batch_execute(&format!("VACUUM INTO '{escaped}'"))?;
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o600))?;
-                }
-            }
-        }
+        self.backup(path, Some(payload))?;
         self.transaction(|| {
             self.create_schema()?;
             for agent in legacy.agents.values() {
@@ -154,9 +223,10 @@ impl Store {
                     project: agent.project.clone(),
                 })?;
             }
+            // Migrated tasks take sequence numbers above historical messages so merged export cursors stay unique.
             let mut created: BTreeMap<&str, u64> = BTreeMap::new();
             for task in legacy.tasks.values() {
-                let created_seq = created.entry(&task.project).or_insert(0);
+                let created_seq = created.entry(&task.project).or_insert(legacy.sequence);
                 *created_seq += 1;
                 let task = Task {
                     id: task.id.clone(),
@@ -173,7 +243,18 @@ impl Store {
                     evidence: task.evidence.clone(),
                     feedback: task.feedback.clone(),
                     attempts: vec![],
+                    evidence_records: vec![],
                     created_seq: *created_seq,
+                    archived: false,
+                    dependencies: vec![],
+                    eligible: vec![],
+                    wait_reason: None,
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    execution_deadline: None,
+                    review_deadline: None,
+                    review_overdue: false,
                     executing_run: None,
                 };
                 self.insert_task(&task)?;
@@ -232,6 +313,11 @@ impl Store {
             let mut sequences: BTreeMap<&str, u64> = BTreeMap::new();
             for agent in legacy.agents.values() {
                 sequences.insert(&agent.project, legacy.sequence);
+            }
+            for (project, value) in &created {
+                if let Some(sequence) = sequences.get_mut(*project) {
+                    *sequence = (*sequence).max(*value);
+                }
             }
             for (project, value) in sequences {
                 diesel::sql_query("INSERT INTO sequences(project, value) VALUES (?, ?) ON CONFLICT(project) DO UPDATE SET value=excluded.value")
@@ -293,7 +379,7 @@ impl Store {
     }
 
     fn insert_task(&self, task: &Task) -> Result<()> {
-        diesel::sql_query("INSERT INTO tasks(id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        diesel::sql_query("INSERT INTO tasks(id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind::<Text, _>(&task.id)
             .bind::<Text, _>(&task.project)
             .bind::<Text, _>(&task.issuer)
@@ -307,20 +393,80 @@ impl Store {
             .bind::<Nullable<Text>, _>(&task.result)
             .bind::<Nullable<Text>, _>(&task.evidence)
             .bind::<BigInt, _>(task.created_seq as i64)
+            .bind::<Integer, _>(i32::from(task.archived))
+            .bind::<Nullable<BigInt>, _>(task.start_deadline.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.execution_timeout_seconds.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.review_timeout_seconds.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.execution_deadline.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.review_deadline.map(|value| value as i64))
+            .bind::<BigInt, _>(now() as i64)
             .execute(&mut *self.connection.borrow_mut())?;
         Ok(())
     }
 
     fn update_task_state(&self, task: &Task) -> Result<()> {
-        diesel::sql_query("UPDATE tasks SET state=?, revision=?, version=?, result=?, evidence=? WHERE id=?")
+        diesel::sql_query("UPDATE tasks SET state=?, revision=?, version=?, result=?, evidence=?, archived=?, start_deadline=?, execution_timeout=?, review_timeout=?, execution_deadline=?, review_deadline=?, updated_at=? WHERE id=?")
             .bind::<Text, _>(&task.state)
             .bind::<Integer, _>(task.revision as i32)
             .bind::<BigInt, _>(task.version as i64)
             .bind::<Nullable<Text>, _>(&task.result)
             .bind::<Nullable<Text>, _>(&task.evidence)
+            .bind::<Integer, _>(i32::from(task.archived))
+            .bind::<Nullable<BigInt>, _>(task.start_deadline.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.execution_timeout_seconds.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.review_timeout_seconds.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.execution_deadline.map(|value| value as i64))
+            .bind::<Nullable<BigInt>, _>(task.review_deadline.map(|value| value as i64))
+            .bind::<BigInt, _>(now() as i64)
             .bind::<Text, _>(&task.id)
             .execute(&mut *self.connection.borrow_mut())?;
         Ok(())
+    }
+
+    fn set_task_dependencies(&self, task_id: &str, dependencies: &[String]) -> Result<()> {
+        diesel::sql_query("DELETE FROM task_dependencies WHERE task_id = ?")
+            .bind::<Text, _>(task_id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        for (position, prerequisite) in dependencies.iter().enumerate() {
+            diesel::sql_query("INSERT INTO task_dependencies(task_id, prerequisite_id, position) VALUES (?,?,?)")
+                .bind::<Text, _>(task_id)
+                .bind::<Text, _>(prerequisite)
+                .bind::<Integer, _>(position as i32)
+                .execute(&mut *self.connection.borrow_mut())?;
+        }
+        Ok(())
+    }
+
+    fn task_dependencies(&self, task_id: &str) -> Result<Vec<String>> {
+        Ok(diesel::sql_query("SELECT prerequisite_id AS value FROM task_dependencies WHERE task_id = ? ORDER BY position")
+            .bind::<Text, _>(task_id)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(|row| row.value)
+            .collect())
+    }
+
+    fn set_task_eligibles(&self, task_id: &str, eligible: &[String]) -> Result<()> {
+        diesel::sql_query("DELETE FROM task_eligibles WHERE task_id = ?")
+            .bind::<Text, _>(task_id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        for (position, agent) in eligible.iter().enumerate() {
+            diesel::sql_query("INSERT INTO task_eligibles(task_id, agent, position) VALUES (?,?,?)")
+                .bind::<Text, _>(task_id)
+                .bind::<Text, _>(agent)
+                .bind::<Integer, _>(position as i32)
+                .execute(&mut *self.connection.borrow_mut())?;
+        }
+        Ok(())
+    }
+
+    fn task_eligibles(&self, task_id: &str) -> Result<Vec<String>> {
+        Ok(diesel::sql_query("SELECT agent AS value FROM task_eligibles WHERE task_id = ? ORDER BY position")
+            .bind::<Text, _>(task_id)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(|row| row.value)
+            .collect())
     }
 
     fn insert_message(&self, project: &str, message: &Message) -> Result<()> {
@@ -475,12 +621,29 @@ impl Store {
     }
 
     pub fn capacity(&self, project: &str) -> Result<Value> {
+        let bytes = self.database_size()?;
         Ok(json!({
             "agents": {"used": self.agent_count()?, "limit": MAX_AGENTS},
             "tasks": {"used": self.task_count(project)?, "limit": MAX_TASKS_PER_PROJECT},
             "pending_messages": {"used": self.pending_count(project)?, "limit": MAX_PENDING_PER_PROJECT},
             "messages": {"used": self.message_count(project)?, "limit": MAX_MESSAGES_PER_PROJECT},
+            "database": {"used_bytes": bytes, "soft_limit": DATABASE_SOFT_LIMIT, "hard_limit": crate::DATABASE_HARD_LIMIT},
         }))
+    }
+
+    fn database_size(&self) -> Result<u64> {
+        let row = diesel::sql_query("SELECT (SELECT page_count FROM pragma_page_count()) * (SELECT page_size FROM pragma_page_size()) AS value")
+            .get_result::<BytesRow>(&mut *self.connection.borrow_mut())?;
+        Ok(row.value.max(0) as u64)
+    }
+
+    /// Near the configured budget only new work is refused; acknowledgements and control records still commit.
+    fn budget_available(&self) -> Result<()> {
+        ensure!(
+            self.database_size()? < crate::DATABASE_HARD_LIMIT,
+            capacity_exceeded("Database budget reached; export and purge eligible history")
+        );
+        Ok(())
     }
 
     fn agent_by_name(&self, project: &str, name: &str) -> Result<Option<Agent>> {
@@ -504,7 +667,7 @@ impl Store {
 
     pub fn register(&self, terminal: &str, program: &str, project: &str, name: &str) -> Result<Agent> {
         ensure!(
-            !program.is_empty() && program.len() <= 64,
+            !program.is_empty() && program.len() <= 64 && program != OPERATOR_PROGRAM,
             invalid_input("Invalid managed program")
         );
         ensure!(
@@ -514,6 +677,10 @@ impl Store {
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_')),
             invalid_input("Name must contain 1-64 ASCII letters, numbers, hyphens, or underscores")
+        );
+        ensure!(
+            name != OPERATOR_NAME,
+            invalid_input("Name is reserved for the local operator")
         );
         let id = match self.agent_by_name(project, name)? {
             Some(agent) => agent.id,
@@ -545,9 +712,11 @@ impl Store {
     /// Execution ownership dies with the run; persisted running work requires explicit recovery.
     pub fn recover(&self, actor: &Agent, run: &str) -> Result<()> {
         self.transaction(|| {
-            let tasks = diesel::sql_query("SELECT id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq FROM tasks WHERE assignee = ? AND state = 'running'")
-                .bind::<Text, _>(&actor.id)
-                .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+            let tasks = diesel::sql_query(format!(
+                "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state = 'running'"
+            ))
+            .bind::<Text, _>(&actor.id)
+            .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
             for task in tasks.into_iter().map(TaskRow::task) {
                 let active = self.active_attempts(&task.id)?;
                 if active.iter().any(|attempt| attempt.run == run) {
@@ -664,26 +833,59 @@ impl Store {
             .collect())
     }
 
-    fn task_row(&self, selector: &str, binds: &[&str; 5]) -> Result<Option<Task>> {
+    fn task_row(&self, selector: &str, binds: &[&str; 6]) -> Result<Option<Task>> {
         Ok(diesel::sql_query(selector.to_owned())
             .bind::<Text, _>(binds[0])
             .bind::<Text, _>(binds[1])
             .bind::<Text, _>(binds[2])
             .bind::<Text, _>(binds[3])
             .bind::<Text, _>(binds[4])
+            .bind::<Text, _>(binds[5])
             .get_result::<TaskRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(TaskRow::task))
     }
 
+    /// Shared queue visibility ends for nonparticipants after a successful claim.
     pub fn task(&self, actor: &Agent, id: &str) -> Result<Task> {
         let task = self
             .task_row(
-                "SELECT id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq FROM tasks WHERE id = ? AND project = ? AND (issuer = ? OR assignee = ? OR reviewer = ?)",
-                &[id, actor.project.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str()],
+                &format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?)))"),
+                &[id, actor.project.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str()],
             )?
             .ok_or_else(|| scope_denied("Task not found"))?;
         self.assemble(task)
+    }
+
+    /// The trusted local UI reads and writes any task in its own project without an agent scope.
+    pub(crate) fn operator_task(&self, project: &str, id: &str) -> Result<Task> {
+        let task = diesel::sql_query(format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ?"))
+            .bind::<Text, _>(id)
+            .bind::<Text, _>(project)
+            .get_result::<TaskRow>(&mut *self.connection.borrow_mut())
+            .optional()?
+            .map(TaskRow::task)
+            .ok_or_else(|| scope_denied("Task not found"))?;
+        self.assemble(task)
+    }
+
+    /// Mutation visibility: agents stay scoped; the operator principal reaches every project task.
+    fn actor_task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        if actor.program == OPERATOR_PROGRAM {
+            self.operator_task(&actor.project, id)
+        } else {
+            self.task(actor, id)
+        }
+    }
+
+    pub(crate) fn operator(project: &str) -> Agent {
+        Agent {
+            id: format!("{OPERATOR_PROGRAM}:{project}"),
+            terminal: String::new(),
+            name: OPERATOR_NAME.into(),
+            program: OPERATOR_PROGRAM.into(),
+            project: project.into(),
+        }
     }
 
     fn assemble(&self, mut task: Task) -> Result<Task> {
@@ -699,12 +901,47 @@ impl Store {
             .into_iter()
             .map(|row| row.body)
             .collect();
+        task.dependencies = self.task_dependencies(&task.id)?;
+        task.eligible = self.task_eligibles(&task.id)?;
+        task.evidence_records = self.task_evidence(&task.id)?;
         task.executing_run = task
             .attempts
             .iter()
             .find(|attempt| attempt.certainty == "active" && attempt.revision == task.revision)
             .map(|attempt| attempt.run.clone());
+        let blocking = self.blocking_dependencies(&task.id)?;
+        task.wait_reason = match task.state.as_str() {
+            "blocked" if !blocking.is_empty() => Some(format!(
+                "Waiting for prerequisites: {}",
+                blocking.join(", ")
+            )),
+            "blocked" => Some("Waiting for prerequisites".into()),
+            "queued" if task.assignee.is_empty() => Some("Unclaimed pool task".into()),
+            _ => None,
+        };
+        task.review_overdue = task.state == "submitted"
+            && task
+                .review_deadline
+                .is_some_and(|deadline| deadline <= now());
         Ok(task)
+    }
+
+    fn blocking_dependencies(&self, task_id: &str) -> Result<Vec<String>> {
+        Ok(diesel::sql_query("SELECT dependency.prerequisite_id AS value FROM task_dependencies AS dependency JOIN tasks AS prerequisite ON prerequisite.id = dependency.prerequisite_id WHERE dependency.task_id = ? AND prerequisite.state != 'accepted' ORDER BY dependency.position")
+            .bind::<Text, _>(task_id)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(|row| row.value)
+            .collect())
+    }
+
+    fn task_evidence(&self, task_id: &str) -> Result<Vec<Evidence>> {
+        Ok(diesel::sql_query("SELECT id, task_id, attempt_id, kind, path, hash, commit_id, repository, branch, base, head, command, outcome, exit_code, summary, device, verified, created_seq FROM evidence WHERE task_id = ? ORDER BY created_seq")
+            .bind::<Text, _>(task_id)
+            .load::<EvidenceRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(EvidenceRow::evidence)
+            .collect())
     }
 
     fn visible_message(&self, actor: &Agent, id: &str) -> Result<Message> {
@@ -720,10 +957,15 @@ impl Store {
     }
 
     fn resolve(&self, actor: &Agent, name: &str) -> Result<Agent> {
+        self.agent(&actor.project, name)
+    }
+
+    /// Persisted identity lookup by ID or display name; the transport uses it to admit offline recipients.
+    pub(crate) fn agent(&self, project: &str, id_or_name: &str) -> Result<Agent> {
         Ok(diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE project = ? AND (id = ? OR name = ?)")
-            .bind::<Text, _>(&actor.project)
-            .bind::<Text, _>(name)
-            .bind::<Text, _>(name)
+            .bind::<Text, _>(project)
+            .bind::<Text, _>(id_or_name)
+            .bind::<Text, _>(id_or_name)
             .get_result::<AgentRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(AgentRow::agent)
@@ -776,6 +1018,7 @@ impl Store {
         assignee: Option<&str>,
         cursor: Option<u64>,
         limit: Option<u32>,
+        include_archived: bool,
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
         let assignee = match assignee {
@@ -785,37 +1028,42 @@ impl Store {
             },
             None => None,
         };
-        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ?) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND created_seq > ? ORDER BY created_seq LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?))) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
             .bind::<Nullable<Text>, _>(state)
             .bind::<Nullable<Text>, _>(assignee)
+            .bind::<Integer, _>(i32::from(include_archived))
             .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<TaskSummaryRow>(&mut *self.connection.borrow_mut())?;
-        let tasks: Vec<Value> = rows
-            .into_iter()
-            .take(limit as usize)
-            .map(|row| {
-                json!({
-                    "id": row.id,
-                    "state": row.state,
-                    "revision": row.revision as u32,
-                    "version": row.version as u64,
-                    "assignee": row.assignee,
-                    "reviewer": row.reviewer,
-                    "created_seq": row.created_seq as u64,
-                })
-            })
-            .collect();
-        let cursor = tasks
-            .last()
-            .and_then(|task| task["created_seq"].as_u64())
-            .map(|sequence| json!(sequence))
-            .unwrap_or(Value::Null);
-        Ok(json!({"tasks": tasks, "cursor": cursor}))
+        Ok(task_summaries(rows, limit))
+    }
+
+    /// Panel projection: every task in the project, independent of agent scope.
+    pub(crate) fn operator_tasks(
+        &self,
+        project: &str,
+        state: Option<&str>,
+        assignee: Option<&str>,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+        include_archived: bool,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq FROM tasks WHERE project = ? AND state = COALESCE(?, state) AND (assignee = COALESCE(?, assignee) OR ? = '') AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
+            .bind::<Text, _>(project)
+            .bind::<Nullable<Text>, _>(state)
+            .bind::<Nullable<Text>, _>(assignee)
+            .bind::<Text, _>(assignee.unwrap_or(""))
+            .bind::<Integer, _>(i32::from(include_archived))
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+            .bind::<BigInt, _>(limit as i64 + 1)
+            .load::<TaskSummaryRow>(&mut *self.connection.borrow_mut())?;
+        Ok(task_summaries(rows, limit))
     }
 
     pub fn events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
@@ -862,6 +1110,12 @@ impl Store {
     }
 
     pub fn execute(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
+        self.execute_inner(actor, run, operation)
+            .map_err(crate::classify_storage)
+    }
+
+    fn execute_inner(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
+        self.sweep(&actor.project)?;
         match operation {
             Operation::AgentList => return Ok(json!(self.agents(&actor.project)?)),
             Operation::AgentInbox { cursor, limit } => return self.inbox(actor, *cursor, *limit),
@@ -870,33 +1124,137 @@ impl Store {
                 assignee,
                 cursor,
                 limit,
+                include_archived,
             } => {
+                if actor.program == OPERATOR_PROGRAM {
+                    return self.operator_tasks(
+                        &actor.project,
+                        state.as_deref(),
+                        assignee.as_deref(),
+                        *cursor,
+                        *limit,
+                        *include_archived,
+                    );
+                }
                 return self.task_list(
                     actor,
                     state.as_deref(),
                     assignee.as_deref(),
                     *cursor,
                     *limit,
+                    *include_archived,
+                );
+            }
+            Operation::TaskGet { task_id } => return Ok(json!(self.actor_task(actor, task_id)?)),
+            Operation::ThreadGet {
+                thread_id,
+                cursor,
+                limit,
+            } => return self.thread_get(actor, thread_id, *cursor, *limit),
+            Operation::MessageSearch {
+                query,
+                task_id,
+                thread_id,
+                cursor,
+                limit,
+            } => {
+                return self.message_search(
+                    actor,
+                    query,
+                    task_id.as_deref(),
+                    thread_id.as_deref(),
+                    *cursor,
+                    *limit,
                 )
             }
-            Operation::TaskGet { task_id } => return Ok(json!(self.task(actor, task_id)?)),
+            Operation::FileReservations {
+                path,
+                cursor,
+                limit,
+                include_expired,
+            } => {
+                return self.file_reservations(
+                    actor,
+                    path.as_deref(),
+                    *cursor,
+                    *limit,
+                    *include_expired,
+                )
+            }
             Operation::AgentRegister { .. } | Operation::AgentWait | Operation::AgentReady => {
                 return Err(invalid_state("Operation requires live session handling"))
             }
             _ => {}
         }
+        let serialized = serde_json::to_string(operation)?;
         let Some(request_id) = operation.request_id() else {
             // AgentAck is idempotent by nature and carries no request ID.
             return self.transaction(|| self.mutate(actor, run, operation));
         };
-        let serialized = serde_json::to_string(operation)?;
         if Uuid::parse_str(request_id).is_err() {
             return Err(invalid_input("request_id must be a UUID"));
         }
+        self.execute_mutation(&actor.id, run, request_id, &serialized, || {
+            self.mutate(actor, run, operation)
+        })
+    }
+
+    /// The trusted local UI writes through the same transitions under a deterministic operator principal.
+    pub(crate) fn execute_controller(
+        &self,
+        project: &str,
+        operation: &ControllerOperation,
+    ) -> Result<Value> {
+        self.execute_controller_inner(project, operation)
+            .map_err(crate::classify_storage)
+    }
+
+    fn execute_controller_inner(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
+        self.sweep(project)?;
+        let actor = Self::operator(project);
+        match operation {
+            ControllerOperation::SpaceList => return self.space_list(project),
+            ControllerOperation::DeviceList => {
+                return Err(invalid_state(
+                    "Device enrollment requires remote collaboration support",
+                ))
+            }
+            ControllerOperation::PurgePreview => return self.purge_preview(project),
+            ControllerOperation::HistoryExport { after, limit } => {
+                return self.history_export(project, *after, *limit)
+            }
+            ControllerOperation::InvitationCreate { .. }
+            | ControllerOperation::DeviceRevoke { .. } => {
+                return Err(invalid_state(
+                    "Device enrollment requires remote collaboration support",
+                ))
+            }
+            _ => {}
+        }
+        let serialized = serde_json::to_string(operation)?;
+        let Some(request_id) = operation.request_id() else {
+            return Err(invalid_input("Controller mutation requires a request_id"));
+        };
+        if Uuid::parse_str(request_id).is_err() {
+            return Err(invalid_input("request_id must be a UUID"));
+        }
+        self.execute_mutation(&actor.id, OPERATOR_EPOCH, request_id, &serialized, || {
+            self.mutate_controller(project, &actor, operation)
+        })
+    }
+
+    /// Expired epochs are rejected before a replay can masquerade as the original commit.
+    fn execute_mutation(
+        &self,
+        actor_id: &str,
+        run: &str,
+        request_id: &str,
+        serialized: &str,
+        mutate: impl FnOnce() -> Result<Value>,
+    ) -> Result<Value> {
         let mut result = None;
         self.transaction(|| {
-            if let Some(row) = self.request_row(&actor.id, request_id)? {
-                // Expired epochs are rejected before a replay can masquerade as the original commit.
+            if let Some(row) = self.request_row(actor_id, request_id)? {
                 ensure!(
                     row.epoch == run,
                     epoch_expired("Request belongs to an expired mutation epoch; use a new request_id")
@@ -912,15 +1270,102 @@ impl Store {
                 self.request_count()? < MAX_REQUESTS,
                 capacity_exceeded("Request capacity reached")
             );
-            let value = self.mutate(actor, run, operation)?;
-            self.store_request(&actor.id, request_id, run, &serialized, &value)?;
+            let value = mutate()?;
+            self.store_request(actor_id, request_id, run, serialized, &value)?;
             result = Some(value);
             Ok(())
         })?;
         Ok(result.expect("committed mutation returns its stored response"))
     }
 
-    fn agents(&self, project: &str) -> Result<Vec<Agent>> {
+    /// Deadline expiry is lazy: every mutation checks unstarted past-due work and overdue execution.
+    pub(crate) fn sweep(&self, project: &str) -> Result<()> {
+        let now = now();
+        // Expired leases whose execution already resolved are dropped; unknown owners keep their warning.
+        diesel::sql_query("DELETE FROM reservations WHERE workspace = ? AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty = 'active'))")
+            .bind::<Text, _>(project)
+            .bind::<BigInt, _>(now as i64)
+            .execute(&mut *self.connection.borrow_mut())?;
+        let expired = diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND state IN ('queued','blocked') AND start_deadline IS NOT NULL AND start_deadline <= ? AND NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.task_id = tasks.id)"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<BigInt, _>(now as i64)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        let overdue = diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND state = 'running' AND execution_deadline IS NOT NULL AND execution_deadline <= ?"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<BigInt, _>(now as i64)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        if expired.is_empty() && overdue.is_empty() {
+            return Ok(());
+        }
+        self.transaction(|| {
+            for task in expired.into_iter().map(TaskRow::task) {
+                let mut task = task;
+                let deadline = task.start_deadline;
+                task.state = "expired".into();
+                task.start_deadline = None;
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.retire_available(&task.id)?;
+                self.record(
+                    &task.project,
+                    "task_expired",
+                    OPERATOR_EPOCH,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "start_deadline": deadline}),
+                )?;
+                if !task.assignee.is_empty() {
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &task.issuer,
+                            &task.assignee,
+                            "expired",
+                            "Task start deadline passed before it started. The issuer can retry it with a new deadline."
+                                .into(),
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+            }
+            for task in overdue.into_iter().map(TaskRow::task) {
+                let mut task = task;
+                task.state = "cancel_requested".into();
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_cancel_requested",
+                    OPERATOR_EPOCH,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "reason": "execution deadline passed"}),
+                )?;
+                if !task.assignee.is_empty() {
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &task.issuer,
+                            &task.assignee,
+                            "cancel_requested",
+                            "Execution deadline passed. Stop the current work, report what happened, then confirm the cancellation with warp_task_finish_cancel."
+                                .into(),
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+            }
+            Ok(())
+        })
+    }
+
+    pub(crate) fn agents(&self, project: &str) -> Result<Vec<Agent>> {
         Ok(diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE project = ? ORDER BY name")
             .bind::<Text, _>(project)
             .load::<AgentRow>(&mut *self.connection.borrow_mut())?
@@ -940,13 +1385,14 @@ impl Store {
                 task_id,
                 ..
             } => {
+                self.budget_available()?;
                 text(body)?;
                 if let Some(subject) = subject {
                     validate_subject(subject)?;
                 }
                 let recipient = self.resolve(actor, to)?;
                 if let Some(task_id) = task_id {
-                    self.task(actor, task_id)?;
+                    self.actor_task(actor, task_id)?;
                 }
                 let (thread, reply) = match reply_to {
                     Some(reply_id) => {
@@ -986,7 +1432,10 @@ impl Store {
             Operation::AgentAck { message_id } => {
                 let message = self.visible_message(actor, message_id)?;
                 ensure!(
-                    message.kind != "assignment" && message.kind != "review",
+                    !matches!(
+                        message.kind.as_str(),
+                        "assignment" | "review" | "available" | "cancel_requested"
+                    ),
                     invalid_state(
                         "Task notifications require their task transition, not message acknowledgement"
                     )
@@ -1009,10 +1458,15 @@ impl Store {
                 description,
                 acceptance,
                 reviewer,
+                dependencies,
+                start_deadline,
+                execution_timeout_seconds,
+                review_timeout_seconds,
                 ..
             } => {
                 text(description)?;
                 text(acceptance)?;
+                self.budget_available()?;
                 ensure!(
                     self.task_count(&actor.project)? < MAX_TASKS_PER_PROJECT,
                     capacity_exceeded("Task capacity reached")
@@ -1026,6 +1480,12 @@ impl Store {
                     assignee.id != reviewer.id,
                     invalid_state("Assignee cannot review its own task")
                 );
+                let dependencies =
+                    self.validated_dependencies(&actor.project, dependencies, None)?;
+                let start_deadline = pending_deadline(start_deadline.as_deref())?;
+                let execution_timeout =
+                    execution_timeout_seconds.map(timeout_seconds).transpose()?;
+                let review_timeout = review_timeout_seconds.map(timeout_seconds).transpose()?;
                 let task = Task {
                     id: Uuid::new_v4().to_string(),
                     project: actor.project.clone(),
@@ -1041,30 +1501,49 @@ impl Store {
                     evidence: None,
                     feedback: vec![],
                     attempts: vec![],
+                    evidence_records: vec![],
                     created_seq: self.next_sequence(&actor.project)?,
+                    archived: false,
+                    dependencies: dependencies.clone(),
+                    eligible: vec![],
+                    wait_reason: None,
+                    start_deadline,
+                    execution_timeout_seconds: execution_timeout,
+                    review_timeout_seconds: review_timeout,
+                    execution_deadline: None,
+                    review_deadline: None,
+                    review_overdue: false,
                     executing_run: None,
                 };
                 self.insert_task(&task)?;
+                self.set_task_dependencies(&task.id, &dependencies)?;
+                let mut task = task;
+                if !self.blocking_dependencies(&task.id)?.is_empty() {
+                    task.state = "blocked".into();
+                    self.update_task_state(&task)?;
+                }
                 self.record(
                     &task.project,
                     "task_assigned",
                     &actor.id,
                     Some(&task.id),
                     None,
-                    json!({"assignee": task.assignee, "reviewer": task.reviewer, "revision": task.revision}),
+                    json!({"assignee": task.assignee, "reviewer": task.reviewer, "revision": task.revision, "state": task.state, "dependencies": task.dependencies}),
                 )?;
-                self.queue(
-                    &task.project,
-                    task_message(
-                        &actor.id,
-                        &task.assignee,
-                        "assignment",
-                        "Task assigned. Read the task and explicitly start its revision.".into(),
-                        &task.id,
-                        task.revision,
-                    ),
-                )?;
-                Ok(json!(task))
+                if task.state == "queued" {
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &actor.id,
+                            &task.assignee,
+                            "assignment",
+                            "Task assigned. Read the task and explicitly start its revision.".into(),
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+                Ok(json!(self.assemble(task)?))
             }
             Operation::TaskStart {
                 task_id,
@@ -1095,6 +1574,10 @@ impl Store {
                         version_conflict("Task version does not match", task.version)
                     );
                 }
+                ensure!(
+                    self.blocking_dependencies(&task.id)?.is_empty(),
+                    dependency_blocked("Task prerequisites are not complete")
+                );
                 let mut task = task;
                 let active = self.active_attempts(&task.id)?;
                 match task.state.as_str() {
@@ -1140,14 +1623,16 @@ impl Store {
                     .bind::<Text, _>(&attempt.certainty)
                     .bind::<BigInt, _>(attempt.started_at.unwrap() as i64)
                     .execute(&mut *self.connection.borrow_mut())?;
+                let execution_deadline = task
+                    .execution_timeout_seconds
+                    .map(|seconds| now() + seconds * 1000);
                 task.state = "running".into();
+                task.start_deadline = None;
+                task.execution_deadline = execution_deadline;
                 task.version += 1;
                 self.update_task_state(&task)?;
-                diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND revision = ? AND acknowledged = 0")
-                    .bind::<Text, _>(&actor.id)
-                    .bind::<Text, _>(&task.id)
-                    .bind::<Integer, _>(task.revision as i32)
-                    .execute(&mut *self.connection.borrow_mut())?;
+                self.ack_task_notification(&task.id, &actor.id)?;
+                self.retire_available(&task.id)?;
                 self.record(
                     &task.project,
                     "task_started",
@@ -1168,6 +1653,7 @@ impl Store {
                 evidence,
                 expected_version,
                 attempt_id,
+                evidence_ids,
                 ..
             } => {
                 text(result)?;
@@ -1205,14 +1691,20 @@ impl Store {
                         stale_attempt("Execution attempt was replaced", task.version)
                     );
                 }
+                self.validate_evidence_ids(&task, evidence_ids)?;
                 diesel::sql_query("UPDATE attempts SET certainty='finished', outcome='submitted', finished_at=? WHERE id=?")
                     .bind::<BigInt, _>(now() as i64)
                     .bind::<Text, _>(&attempt.id)
                     .execute(&mut *self.connection.borrow_mut())?;
+                let review_deadline = task
+                    .review_timeout_seconds
+                    .map(|seconds| now() + seconds * 1000);
                 let mut task = task;
                 task.state = "submitted".into();
                 task.result = Some(result.clone());
                 task.evidence = Some(evidence.clone());
+                task.execution_deadline = None;
+                task.review_deadline = review_deadline;
                 task.version += 1;
                 self.update_task_state(&task)?;
                 self.record(
@@ -1248,9 +1740,9 @@ impl Store {
                 ..
             } => {
                 text(feedback)?;
-                let mut task = self.task(actor, task_id)?;
+                let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.reviewer == actor.id,
+                    task.reviewer == actor.id || actor.program == OPERATOR_PROGRAM,
                     unauthorized("Task reviewer does not match")
                 );
                 ensure!(
@@ -1267,11 +1759,7 @@ impl Store {
                     task.state == "submitted",
                     invalid_state("Task is not submitted")
                 );
-                diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND revision = ? AND acknowledged = 0")
-                    .bind::<Text, _>(&actor.id)
-                    .bind::<Text, _>(&task.id)
-                    .bind::<Integer, _>(task.revision as i32)
-                    .execute(&mut *self.connection.borrow_mut())?;
+                self.ack_task_notification(&task.id, &actor.id)?;
                 diesel::sql_query("INSERT INTO feedback(task_id, revision, author, body, accepted, created_at) VALUES (?,?,?,?,?,?)")
                     .bind::<Text, _>(&task.id)
                     .bind::<Integer, _>(task.revision as i32)
@@ -1281,6 +1769,7 @@ impl Store {
                     .bind::<BigInt, _>(now() as i64)
                     .execute(&mut *self.connection.borrow_mut())?;
                 task.state = if *accepted { "accepted" } else { "queued" }.into();
+                task.review_deadline = None;
                 if !accepted {
                     task.revision = task
                         .revision
@@ -1299,6 +1788,9 @@ impl Store {
                     None,
                     json!({"accepted": accepted, "revision": task.revision}),
                 )?;
+                if *accepted {
+                    self.unblock_dependents(&task.project, &task.id, &actor.id)?;
+                }
                 let kind = if *accepted { "accepted" } else { "assignment" };
                 self.queue(
                     &task.project,
@@ -1313,8 +1805,1915 @@ impl Store {
                 )?;
                 Ok(json!(self.assemble(task)?))
             }
+            Operation::TaskCreatePool {
+                description,
+                acceptance,
+                eligible,
+                reviewer,
+                dependencies,
+                start_deadline,
+                execution_timeout_seconds,
+                review_timeout_seconds,
+                ..
+            } => {
+                text(description)?;
+                text(acceptance)?;
+                self.budget_available()?;
+                ensure!(
+                    self.task_count(&actor.project)? < MAX_TASKS_PER_PROJECT,
+                    capacity_exceeded("Task capacity reached")
+                );
+                ensure!(
+                    !eligible.is_empty() && eligible.len() <= MAX_ELIGIBLES,
+                    invalid_input("Eligible list must name between 1 and 100 agents")
+                );
+                let mut eligible_ids = Vec::new();
+                let mut seen = HashSet::new();
+                for name in eligible {
+                    let member = self.resolve(actor, name)?;
+                    if seen.insert(member.id.clone()) {
+                        eligible_ids.push(member.id);
+                    }
+                }
+                let reviewer = match reviewer {
+                    Some(name) => self.resolve(actor, name)?,
+                    None => actor.clone(),
+                };
+                ensure!(
+                    !eligible_ids.contains(&reviewer.id),
+                    invalid_state("Reviewer cannot be an eligible claimant")
+                );
+                let dependencies =
+                    self.validated_dependencies(&actor.project, dependencies, None)?;
+                let start_deadline = pending_deadline(start_deadline.as_deref())?;
+                let execution_timeout =
+                    execution_timeout_seconds.map(timeout_seconds).transpose()?;
+                let review_timeout = review_timeout_seconds.map(timeout_seconds).transpose()?;
+                let task = Task {
+                    id: Uuid::new_v4().to_string(),
+                    project: actor.project.clone(),
+                    issuer: actor.id.clone(),
+                    assignee: String::new(),
+                    reviewer: reviewer.id,
+                    description: description.clone(),
+                    acceptance: acceptance.clone(),
+                    state: "queued".into(),
+                    revision: 1,
+                    version: 1,
+                    result: None,
+                    evidence: None,
+                    feedback: vec![],
+                    attempts: vec![],
+                    evidence_records: vec![],
+                    created_seq: self.next_sequence(&actor.project)?,
+                    archived: false,
+                    dependencies: dependencies.clone(),
+                    eligible: eligible_ids.clone(),
+                    wait_reason: None,
+                    start_deadline,
+                    execution_timeout_seconds: execution_timeout,
+                    review_timeout_seconds: review_timeout,
+                    execution_deadline: None,
+                    review_deadline: None,
+                    review_overdue: false,
+                    executing_run: None,
+                };
+                self.insert_task(&task)?;
+                self.set_task_eligibles(&task.id, &eligible_ids)?;
+                self.set_task_dependencies(&task.id, &dependencies)?;
+                let mut task = task;
+                if !self.blocking_dependencies(&task.id)?.is_empty() {
+                    task.state = "blocked".into();
+                    self.update_task_state(&task)?;
+                }
+                self.record(
+                    &task.project,
+                    "task_pool_created",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "state": task.state, "eligible": task.eligible, "dependencies": task.dependencies}),
+                )?;
+                if task.state == "queued" {
+                    self.notify_available(&task, &actor.id)?;
+                }
+                Ok(json!(self.assemble(task)?))
+            }
+            Operation::TaskClaim {
+                task_id,
+                expected_version,
+                ..
+            } => {
+                self.budget_available()?;
+                let mut task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.assignee.is_empty(),
+                    invalid_state("Task is already assigned")
+                );
+                ensure!(
+                    task.state == "queued",
+                    invalid_state("Task is not open for claiming")
+                );
+                ensure!(
+                    self.task_eligibles(&task.id)?.contains(&actor.id),
+                    unauthorized("Agent is not eligible for this task")
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                ensure!(
+                    self.blocking_dependencies(&task.id)?.is_empty(),
+                    dependency_blocked("Task prerequisites are not complete")
+                );
+                let other_running = self.count(
+                    "SELECT COUNT(*) AS count FROM tasks WHERE assignee = ? AND state = 'running'",
+                    &[actor.id.as_str()],
+                )? > 0;
+                ensure!(
+                    !other_running,
+                    invalid_state("An assigned task is already running")
+                );
+                task.assignee = actor.id.clone();
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.retire_available(&task.id)?;
+                self.record(
+                    &task.project,
+                    "task_claimed",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "assignee": actor.id}),
+                )?;
+                self.queue(
+                    &task.project,
+                    task_message(
+                        &actor.id,
+                        &actor.id,
+                        "assignment",
+                        "Task claimed. Read the task and explicitly start its revision.".into(),
+                        &task.id,
+                        task.revision,
+                    ),
+                )?;
+                Ok(json!(self.assemble(task)?))
+            }
+            Operation::TaskProgress {
+                task_id,
+                revision,
+                note,
+                attempt_id,
+                waiting_reason,
+                expected_version,
+                ..
+            } => {
+                text(note)?;
+                if let Some(reason) = waiting_reason {
+                    text(reason)?;
+                }
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.assignee == actor.id,
+                    unauthorized("Task is not assigned to this agent")
+                );
+                ensure!(
+                    task.revision == *revision,
+                    stale_revision("Task revision is stale", task.version)
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                ensure!(task.state == "running", invalid_state("Task is not running"));
+                let attempt = self
+                    .active_attempts(&task.id)?
+                    .into_iter()
+                    .find(|attempt| {
+                        attempt.owner == actor.id
+                            && attempt.run == run
+                            && attempt.revision == task.revision
+                    })
+                    .ok_or_else(|| {
+                        stale_attempt("No active attempt owned by this session", task.version)
+                    })?;
+                if let Some(expected) = attempt_id {
+                    ensure!(
+                        *expected == attempt.id,
+                        stale_attempt("Execution attempt was replaced", task.version)
+                    );
+                }
+                self.record(
+                    &task.project,
+                    "task_progress",
+                    &actor.id,
+                    Some(&task.id),
+                    Some(&attempt.id),
+                    json!({"revision": task.revision, "note": note, "waiting_reason": waiting_reason}),
+                )?;
+                let mut value = serde_json::to_value(&self.assemble(task)?)?;
+                value["attempt_id"] = json!(attempt.id);
+                Ok(value)
+            }
+            Operation::TaskCancel {
+                task_id,
+                reason,
+                expected_version,
+                ..
+            } => {
+                text(reason)?;
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    unauthorized("Only the issuer or operator can cancel a task")
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                Ok(json!(self.cancel_task(actor, task, reason)?))
+            }
+            Operation::TaskFinishCancel {
+                task_id,
+                revision,
+                reason,
+                attempt_id,
+                expected_version,
+                ..
+            } => {
+                text(reason)?;
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.assignee == actor.id,
+                    unauthorized("Task is not assigned to this agent")
+                );
+                ensure!(
+                    task.revision == *revision,
+                    stale_revision("Task revision is stale", task.version)
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                ensure!(
+                    task.state == "cancel_requested",
+                    invalid_state("Task has no pending cancellation")
+                );
+                let active = self.active_attempts(&task.id)?;
+                if let Some(expected) = attempt_id {
+                    let attempt = active
+                        .iter()
+                        .find(|attempt| attempt.id == *expected)
+                        .ok_or_else(|| {
+                            stale_attempt("No active execution attempt with that ID", task.version)
+                        })?;
+                    ensure!(
+                        attempt.owner == actor.id && attempt.revision == task.revision,
+                        stale_attempt("Execution attempt does not belong to this session", task.version)
+                    );
+                }
+                let owned = active.iter().find(|attempt| {
+                    attempt.owner == actor.id && attempt.revision == task.revision
+                });
+                match owned {
+                    Some(attempt) => {
+                        if let Some(expected) = attempt_id {
+                            ensure!(
+                                *expected == attempt.id,
+                                stale_attempt("The reported stop does not match the owning attempt", task.version)
+                            );
+                        }
+                        diesel::sql_query("UPDATE attempts SET certainty='finished', outcome='cancelled', finished_at=? WHERE id=?")
+                            .bind::<BigInt, _>(now() as i64)
+                            .bind::<Text, _>(&attempt.id)
+                            .execute(&mut *self.connection.borrow_mut())?;
+                        self.record(
+                            &task.project,
+                            "attempt_stopped",
+                            &actor.id,
+                            Some(&task.id),
+                            Some(&attempt.id),
+                            json!({"revision": task.revision, "reason": reason}),
+                        )?;
+                    }
+                    None => ensure!(
+                        active.is_empty(),
+                        execution_unknown("Execution is owned by another live session; only the owning session can confirm the stop")
+                    ),
+                }
+                Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
+            }
+            Operation::TaskFail {
+                task_id,
+                revision,
+                reason,
+                evidence_ids,
+                attempt_id,
+                expected_version,
+                ..
+            } => {
+                text(reason)?;
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.assignee == actor.id,
+                    unauthorized("Task is not assigned to this agent")
+                );
+                ensure!(
+                    task.revision == *revision,
+                    stale_revision("Task revision is stale", task.version)
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                ensure!(task.state == "running", invalid_state("Task is not running"));
+                let attempt = self
+                    .active_attempts(&task.id)?
+                    .into_iter()
+                    .find(|attempt| {
+                        attempt.owner == actor.id
+                            && attempt.run == run
+                            && attempt.revision == task.revision
+                    })
+                    .ok_or_else(|| {
+                        stale_attempt("No active attempt owned by this session", task.version)
+                    })?;
+                if let Some(expected) = attempt_id {
+                    ensure!(
+                        *expected == attempt.id,
+                        stale_attempt("Execution attempt was replaced", task.version)
+                    );
+                }
+                self.validate_evidence_ids(&task, evidence_ids)?;
+                diesel::sql_query("UPDATE attempts SET certainty='finished', outcome='failed', finished_at=? WHERE id=?")
+                    .bind::<BigInt, _>(now() as i64)
+                    .bind::<Text, _>(&attempt.id)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                let mut task = task;
+                task.state = "failed".into();
+                task.execution_deadline = None;
+                task.review_deadline = None;
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_failed",
+                    &actor.id,
+                    Some(&task.id),
+                    Some(&attempt.id),
+                    json!({"revision": task.revision, "reason": reason, "evidence_ids": evidence_ids}),
+                )?;
+                if task.issuer != actor.id {
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &actor.id,
+                            &task.issuer,
+                            "failed",
+                            format!("Task failed: {reason}. Check the evidence, then retry or reassign it."),
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+                let mut value = serde_json::to_value(&self.assemble(task)?)?;
+                value["attempt_id"] = json!(attempt.id);
+                Ok(value)
+            }
+            Operation::TaskRetry {
+                task_id,
+                reason,
+                start_deadline,
+                clear_start_deadline,
+                override_uncertain,
+                expected_version,
+                ..
+            } => {
+                text(reason)?;
+                self.budget_available()?;
+                let mut task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    unauthorized("Only the issuer or operator can retry a task")
+                );
+                ensure!(
+                    matches!(task.state.as_str(), "failed" | "expired" | "cancelled"),
+                    invalid_state("Only failed, expired or cancelled work can be retried")
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                self.release_attempts(&task, actor, *override_uncertain, reason)?;
+                replace_start_deadline(
+                    &mut task,
+                    start_deadline.as_deref(),
+                    *clear_start_deadline,
+                )?;
+                task.revision = task
+                    .revision
+                    .checked_add(1)
+                    .ok_or_else(|| invalid_state("Revision overflow"))?;
+                task.result = None;
+                task.evidence = None;
+                task.execution_deadline = None;
+                task.review_deadline = None;
+                task.state = if self.blocking_dependencies(&task.id)?.is_empty() {
+                    "queued".into()
+                } else {
+                    "blocked".into()
+                };
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_retried",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "state": task.state, "reason": reason}),
+                )?;
+                if task.assignee.is_empty() {
+                    if task.state == "queued" {
+                        self.retire_available(&task.id)?;
+                        self.notify_available(&task, &actor.id)?;
+                    }
+                } else {
+                    self.ack_task_notification(&task.id, &task.assignee)?;
+                    let body = if task.state == "blocked" {
+                        "Task retried but waiting for prerequisites; it will notify when ready.".into()
+                    } else {
+                        "Task retried. Read the new revision and explicitly start it.".into()
+                    };
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &actor.id,
+                            &task.assignee,
+                            "assignment",
+                            body,
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+                Ok(json!(self.assemble(task)?))
+            }
+            Operation::TaskReassign {
+                task_id,
+                assignee,
+                reason,
+                reviewer,
+                start_deadline,
+                clear_start_deadline,
+                override_uncertain,
+                expected_version,
+                ..
+            } => {
+                text(reason)?;
+                self.budget_available()?;
+                let mut task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    unauthorized("Only the issuer or operator can reassign a task")
+                );
+                ensure!(
+                    matches!(
+                        task.state.as_str(),
+                        "queued" | "blocked" | "failed" | "expired" | "cancelled"
+                    ),
+                    invalid_state("Only non-running work can be reassigned")
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                self.release_attempts(&task, actor, *override_uncertain, reason)?;
+                let previous = task.assignee.clone();
+                let new_assignee = self.resolve(actor, assignee)?;
+                let new_reviewer = match reviewer {
+                    Some(name) => self.resolve(actor, name)?,
+                    None => self.agent(&task.project, &task.reviewer.clone())?,
+                };
+                ensure!(
+                    new_assignee.id != new_reviewer.id,
+                    invalid_state("Assignee cannot review its own task")
+                );
+                replace_start_deadline(
+                    &mut task,
+                    start_deadline.as_deref(),
+                    *clear_start_deadline,
+                )?;
+                task.assignee = new_assignee.id;
+                task.reviewer = new_reviewer.id;
+                task.revision = task
+                    .revision
+                    .checked_add(1)
+                    .ok_or_else(|| invalid_state("Revision overflow"))?;
+                task.result = None;
+                task.evidence = None;
+                task.execution_deadline = None;
+                task.review_deadline = None;
+                task.state = if self.blocking_dependencies(&task.id)?.is_empty() {
+                    "queued".into()
+                } else {
+                    "blocked".into()
+                };
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_reassigned",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "state": task.state, "assignee": task.assignee, "reviewer": task.reviewer, "previous": previous, "reason": reason}),
+                )?;
+                if !previous.is_empty() && previous != task.assignee {
+                    self.ack_task_notification(&task.id, &previous)?;
+                }
+                if previous.is_empty() {
+                    self.retire_available(&task.id)?;
+                }
+                self.ack_task_notification(&task.id, &task.assignee)?;
+                let body = if task.state == "blocked" {
+                    "Task reassigned but waiting for prerequisites; it will notify when ready.".into()
+                } else {
+                    "Task reassigned. Read the new revision and explicitly start it.".into()
+                };
+                self.queue(
+                    &task.project,
+                    task_message(
+                        &actor.id,
+                        &task.assignee,
+                        "assignment",
+                        body,
+                        &task.id,
+                        task.revision,
+                    ),
+                )?;
+                Ok(json!(self.assemble(task)?))
+            }
+            Operation::TaskSetDependencies {
+                task_id,
+                dependencies,
+                expected_version,
+                ..
+            } => {
+                let mut task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    unauthorized("Only the issuer or operator can change prerequisites")
+                );
+                ensure!(
+                    matches!(task.state.as_str(), "queued" | "blocked") && task.attempts.is_empty(),
+                    invalid_state("Prerequisites can change only before the first start")
+                );
+                if let Some(expected) = expected_version {
+                    ensure!(
+                        *expected == task.version,
+                        version_conflict("Task version does not match", task.version)
+                    );
+                }
+                let validated =
+                    self.validated_dependencies(&task.project, dependencies, Some(&task.id))?;
+                self.check_dependency_cycles(&task.id, &validated)?;
+                let previous = self.task_dependencies(&task.id)?;
+                self.set_task_dependencies(&task.id, &validated)?;
+                task.dependencies = validated.clone();
+                let changed = previous != validated;
+                task.state = if self.blocking_dependencies(&task.id)?.is_empty() {
+                    "queued".into()
+                } else {
+                    "blocked".into()
+                };
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_dependencies_set",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "state": task.state, "dependencies": validated}),
+                )?;
+                if task.state == "queued" && changed {
+                    if task.assignee.is_empty() {
+                        self.retire_available(&task.id)?;
+                        self.notify_available(&task, &actor.id)?;
+                    } else {
+                        self.ack_task_notification(&task.id, &task.assignee)?;
+                        self.queue(
+                            &task.project,
+                            task_message(
+                                &actor.id,
+                                &task.assignee,
+                                "assignment",
+                                "Prerequisites are clear. Read the revision and explicitly start it."
+                                    .into(),
+                                &task.id,
+                                task.revision,
+                            ),
+                        )?;
+                    }
+                }
+                Ok(json!(self.assemble(task)?))
+            }
+            Operation::EvidenceAdd {
+                task_id,
+                kind,
+                attempt_id,
+                path,
+                hash,
+                commit,
+                repository,
+                branch,
+                base,
+                head,
+                command,
+                outcome,
+                exit_code,
+                summary,
+                ..
+            } => {
+                self.budget_available()?;
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    task.assignee == actor.id,
+                    unauthorized("Task is not assigned to this agent")
+                );
+                ensure!(
+                    task.state == "running",
+                    invalid_state("Evidence can only be added while the task is running")
+                );
+                let attempt = self
+                    .active_attempts(&task.id)?
+                    .into_iter()
+                    .find(|attempt| {
+                        attempt.owner == actor.id
+                            && attempt.run == run
+                            && attempt.revision == task.revision
+                    })
+                    .ok_or_else(|| {
+                        stale_attempt("No active attempt owned by this session", task.version)
+                    })?;
+                if let Some(expected) = attempt_id {
+                    ensure!(
+                        *expected == attempt.id,
+                        stale_attempt("Execution attempt was replaced", task.version)
+                    );
+                }
+                ensure!(
+                    task.evidence_records.len() < MAX_EVIDENCE_PER_TASK as usize,
+                    capacity_exceeded("Evidence capacity reached for this task")
+                );
+                for value in [
+                    path.as_deref(),
+                    hash.as_deref(),
+                    commit.as_deref(),
+                    repository.as_deref(),
+                    branch.as_deref(),
+                    base.as_deref(),
+                    head.as_deref(),
+                    command.as_deref(),
+                    outcome.as_deref(),
+                    summary.as_deref(),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    text(value)?;
+                }
+                ensure!(
+                    matches!(kind.as_str(), "file" | "commit" | "diff" | "test"),
+                    invalid_input("Evidence kind must be file, commit, diff or test")
+                );
+                let path = match kind.as_str() {
+                    "file" => {
+                        let path = path
+                            .as_deref()
+                            .ok_or_else(|| invalid_input("File evidence requires a relative path"))?;
+                        Some(normalize_relative_path(path)?)
+                    }
+                    "diff" => match (path.as_deref(), base.as_deref(), head.as_deref()) {
+                        (Some(path), _, _) => Some(normalize_relative_path(path)?),
+                        (None, Some(_), Some(_)) => None,
+                        _ => {
+                            return Err(invalid_input(
+                                "Diff evidence requires a path or both base and head commits",
+                            ))
+                        }
+                    },
+                    _ => path.as_deref().map(normalize_relative_path).transpose()?,
+                };
+                if kind == "commit" {
+                    ensure!(
+                        commit.is_some() && repository.is_some(),
+                        invalid_input("Commit evidence requires repository and commit IDs")
+                    );
+                }
+                if kind == "test" {
+                    ensure!(
+                        command.is_some(),
+                        invalid_input("Test evidence requires a command label")
+                    );
+                    ensure!(
+                        matches!(outcome.as_deref(), Some("passed" | "failed" | "not_run")),
+                        invalid_input("Test outcome must be passed, failed or not_run")
+                    );
+                }
+                ensure!(
+                    exit_code.is_none() || kind == "test",
+                    invalid_input("Exit codes apply only to test evidence")
+                );
+                let evidence_id = Uuid::new_v4().to_string();
+                diesel::sql_query("INSERT INTO evidence(id, task_id, attempt_id, kind, path, hash, commit_id, repository, branch, base, head, command, outcome, exit_code, summary, device, verified, created_seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,0,?)")
+                    .bind::<Text, _>(&evidence_id)
+                    .bind::<Text, _>(&task.id)
+                    .bind::<Text, _>(&attempt.id)
+                    .bind::<Text, _>(kind)
+                    .bind::<Nullable<Text>, _>(&path)
+                    .bind::<Nullable<Text>, _>(hash)
+                    .bind::<Nullable<Text>, _>(commit)
+                    .bind::<Nullable<Text>, _>(repository)
+                    .bind::<Nullable<Text>, _>(branch)
+                    .bind::<Nullable<Text>, _>(base)
+                    .bind::<Nullable<Text>, _>(head)
+                    .bind::<Nullable<Text>, _>(command)
+                    .bind::<Nullable<Text>, _>(outcome)
+                    .bind::<Nullable<BigInt>, _>(exit_code)
+                    .bind::<Nullable<Text>, _>(summary)
+                    .bind::<BigInt, _>(self.next_sequence(&task.project)? as i64)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                self.record(
+                    &task.project,
+                    "evidence_added",
+                    &actor.id,
+                    Some(&task.id),
+                    Some(&attempt.id),
+                    json!({"revision": task.revision, "evidence_id": evidence_id, "kind": kind}),
+                )?;
+                Ok(json!({"evidence_id": evidence_id, "task_id": task.id, "verified": false}))
+            }
+            Operation::FileReserve {
+                paths,
+                mode,
+                task_id,
+                attempt_id,
+                ttl_seconds,
+                ..
+            } => {
+                self.budget_available()?;
+                ensure!(
+                    matches!(mode.as_str(), "exclusive" | "shared"),
+                    invalid_input("Reservation mode must be exclusive or shared")
+                );
+                ensure!(
+                    !paths.is_empty() && paths.len() <= MAX_PATHS,
+                    invalid_input("Reserve between 1 and 100 paths")
+                );
+                let mut normalized = Vec::new();
+                let mut seen = HashSet::new();
+                for path in paths {
+                    let path = normalize_relative_path(path)?;
+                    if seen.insert(path.clone()) {
+                        normalized.push(path);
+                    }
+                }
+                let ttl = ttl_seconds.unwrap_or(RESERVATION_TTL_DEFAULT);
+                ensure!(
+                    (1..=RESERVATION_TTL_MAX).contains(&ttl),
+                    invalid_input("Reservation TTL must be between 1 and 3600 seconds")
+                );
+                let mut attempt_link = attempt_id.clone();
+                if let Some(linked) = &attempt_link {
+                    ensure!(
+                        self.attempt_certainty(linked, &actor.id)?.as_deref() == Some("active"),
+                        invalid_state("Reservation attempt is not active")
+                    );
+                }
+                let mut task_link = None;
+                if let Some(id) = task_id {
+                    let task = self.actor_task(actor, id)?;
+                    ensure!(
+                        task.assignee == actor.id,
+                        unauthorized("Task is not assigned to this agent")
+                    );
+                    ensure!(task.state == "running", invalid_state("Task is not running"));
+                    let attempt = self
+                        .active_attempts(&task.id)?
+                        .into_iter()
+                        .find(|attempt| {
+                            attempt.owner == actor.id
+                                && attempt.run == run
+                                && attempt.revision == task.revision
+                        })
+                        .ok_or_else(|| {
+                            stale_attempt("No active attempt owned by this session", task.version)
+                        })?;
+                    if let Some(expected) = &attempt_link {
+                        ensure!(
+                            *expected == attempt.id,
+                            stale_attempt("Execution attempt was replaced", task.version)
+                        );
+                    }
+                    attempt_link = Some(attempt.id);
+                    task_link = Some(task.id);
+                }
+                let now_ms = now();
+                let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? ORDER BY created_seq")
+                    .bind::<Text, _>(&actor.project)
+                    .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
+                let live = rows
+                    .iter()
+                    .filter(|row| row.expires_at as u64 > now_ms)
+                    .count();
+                ensure!(
+                    live + normalized.len() <= MAX_RESERVATIONS_PER_WORKSPACE as usize,
+                    capacity_exceeded("Reservation capacity reached for this workspace")
+                );
+                for row in rows.iter().filter(|row| row.expires_at as u64 > now_ms) {
+                    if row.mode == "shared" && mode == "shared" {
+                        continue;
+                    }
+                    for path in &normalized {
+                        if paths_overlap(&row.path, path) {
+                            return Err(reservation_conflict(&format!(
+                                "Path {} is reserved by {} until {}",
+                                row.path, row.owner, row.expires_at
+                            )));
+                        }
+                    }
+                }
+                let expires_at = now_ms + ttl * 1000;
+                let mut reservation_ids = Vec::new();
+                for path in &normalized {
+                    let reservation_id = Uuid::new_v4().to_string();
+                    diesel::sql_query("INSERT INTO reservations(id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq) VALUES (?,?,?,?,?,?,?,?,?,?)")
+                        .bind::<Text, _>(&reservation_id)
+                        .bind::<Text, _>(&actor.project)
+                        .bind::<Text, _>(path)
+                        .bind::<Text, _>(mode)
+                        .bind::<Text, _>(&actor.id)
+                        .bind::<Nullable<Text>, _>(&task_link)
+                        .bind::<Nullable<Text>, _>(&attempt_link)
+                        .bind::<BigInt, _>(now_ms as i64)
+                        .bind::<BigInt, _>(expires_at as i64)
+                        .bind::<BigInt, _>(self.next_sequence(&actor.project)? as i64)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    self.record(
+                        &actor.project,
+                        "reservation_created",
+                        &actor.id,
+                        Some(&reservation_id),
+                        attempt_link.as_deref(),
+                        json!({"path": path, "mode": mode, "task_id": task_link, "expires_at": expires_at}),
+                    )?;
+                    reservation_ids.push(reservation_id);
+                }
+                Ok(json!({"reservation_ids": reservation_ids, "expires_at": expires_at}))
+            }
+            Operation::FileRenew {
+                reservation_ids,
+                ttl_seconds,
+                ..
+            } => {
+                ensure!(
+                    !reservation_ids.is_empty() && reservation_ids.len() <= MAX_PATHS,
+                    invalid_input("Renew between 1 and 100 reservations")
+                );
+                let ttl = ttl_seconds.unwrap_or(RESERVATION_TTL_DEFAULT);
+                ensure!(
+                    (1..=RESERVATION_TTL_MAX).contains(&ttl),
+                    invalid_input("Reservation TTL must be between 1 and 3600 seconds")
+                );
+                let mut renewed = Vec::new();
+                for id in reservation_ids {
+                    let row = self.reservation_row(&actor.project, id)?;
+                    ensure!(row.owner == actor.id, unauthorized("Reservation is owned by another agent"));
+                    ensure!(
+                        row.expires_at as u64 > now(),
+                        invalid_state("Reservation already expired; create a new one")
+                    );
+                    if let Some(attempt) = &row.attempt_id {
+                        ensure!(
+                            self.attempt_certainty(attempt, &actor.id)?.as_deref()
+                                == Some("active"),
+                            invalid_state("Reservation attempt is no longer active")
+                        );
+                    }
+                    let expires_at = now() + ttl * 1000;
+                    diesel::sql_query("UPDATE reservations SET expires_at = ? WHERE id = ?")
+                        .bind::<BigInt, _>(expires_at as i64)
+                        .bind::<Text, _>(id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    self.record(
+                        &actor.project,
+                        "reservation_renewed",
+                        &actor.id,
+                        Some(id),
+                        row.attempt_id.as_deref(),
+                        json!({"path": row.path, "expires_at": expires_at}),
+                    )?;
+                    renewed.push(id.clone());
+                }
+                Ok(json!({"renewed": renewed}))
+            }
+            Operation::FileRelease {
+                reservation_ids, ..
+            } => {
+                ensure!(
+                    !reservation_ids.is_empty() && reservation_ids.len() <= MAX_PATHS,
+                    invalid_input("Release between 1 and 100 reservations")
+                );
+                let mut released = Vec::new();
+                for id in reservation_ids {
+                    let row = self
+                        .reservation_by_id(id)?
+                        .filter(|row| row.workspace == actor.project);
+                    let Some(row) = row else { continue };
+                    ensure!(row.owner == actor.id, unauthorized("Reservation is owned by another agent"));
+                    diesel::sql_query("DELETE FROM reservations WHERE id = ?")
+                        .bind::<Text, _>(id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    self.record(
+                        &actor.project,
+                        "reservation_released",
+                        &actor.id,
+                        Some(id),
+                        row.attempt_id.as_deref(),
+                        json!({"path": row.path}),
+                    )?;
+                    released.push(id.clone());
+                }
+                Ok(json!({"released": released}))
+            }
             _ => Err(invalid_state("Operation requires live session handling")),
         }
+    }
+
+    /// Validated prerequisite list: bounded, deduplicated, project-scoped and never self-referential.
+    fn validated_dependencies(
+        &self,
+        project: &str,
+        dependencies: &[String],
+        exclude: Option<&str>,
+    ) -> Result<Vec<String>> {
+        ensure!(
+            dependencies.len() <= MAX_DEPENDENCIES,
+            invalid_input("At most 100 dependency edges per task")
+        );
+        let mut validated = Vec::new();
+        let mut seen = HashSet::new();
+        for dependency in dependencies {
+            ensure!(
+                Some(dependency.as_str()) != exclude,
+                invalid_input("A task cannot depend on itself")
+            );
+            if !seen.insert(dependency.clone()) {
+                continue;
+            }
+            self.operator_task(project, dependency)?;
+            validated.push(dependency.clone());
+        }
+        Ok(validated)
+    }
+
+    /// A new edge from `task_id` to any prerequisite cycles when the task is reachable from it.
+    fn check_dependency_cycles(&self, task_id: &str, prerequisites: &[String]) -> Result<()> {
+        let mut visited = HashSet::new();
+        let mut pending: Vec<String> = prerequisites.to_vec();
+        while let Some(current) = pending.pop() {
+            if current == task_id {
+                return Err(dependency_cycle("Dependencies must not form a cycle"));
+            }
+            if !visited.insert(current.clone()) {
+                continue;
+            }
+            pending.extend(self.task_dependencies(&current)?);
+        }
+        Ok(())
+    }
+
+    /// Task notifications end through their transition; this clears every outstanding one.
+    fn ack_task_notification(&self, task_id: &str, agent: &str) -> Result<()> {
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND acknowledged = 0")
+            .bind::<Text, _>(agent)
+            .bind::<Text, _>(task_id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        Ok(())
+    }
+
+    /// Pool claim notices end when the queue closes or the task starts.
+    fn retire_available(&self, task_id: &str) -> Result<()> {
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE task_id = ? AND kind = 'available' AND acknowledged = 0")
+            .bind::<Text, _>(task_id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        Ok(())
+    }
+
+    fn notify_available(&self, task: &Task, actor: &str) -> Result<()> {
+        for agent in self.task_eligibles(&task.id)? {
+            self.queue(
+                &task.project,
+                task_message(
+                    actor,
+                    &agent,
+                    "available",
+                    "An eligible task is open in the shared pool; claim it with warp_task_claim."
+                        .into(),
+                    &task.id,
+                    task.revision,
+                ),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Newly satisfied prerequisites notify only the tasks that were waiting on them.
+    fn unblock_dependents(&self, project: &str, prerequisite: &str, actor: &str) -> Result<()> {
+        let rows = diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND state = 'blocked' AND id IN (SELECT task_id FROM task_dependencies WHERE prerequisite_id = ?)"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(prerequisite)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        for task in rows.into_iter().map(TaskRow::task) {
+            if !self.blocking_dependencies(&task.id)?.is_empty() {
+                continue;
+            }
+            let mut task = task;
+            task.state = "queued".into();
+            task.version += 1;
+            self.update_task_state(&task)?;
+            self.record(
+                project,
+                "task_unblocked",
+                actor,
+                Some(&task.id),
+                None,
+                json!({"revision": task.revision}),
+            )?;
+            if task.assignee.is_empty() {
+                self.notify_available(&task, actor)?;
+            } else {
+                self.ack_task_notification(&task.id, &task.assignee)?;
+                self.queue(
+                    project,
+                    task_message(
+                        actor,
+                        &task.assignee,
+                        "assignment",
+                        "Prerequisites are complete. Read the revision and explicitly start it."
+                            .into(),
+                        &task.id,
+                        task.revision,
+                    ),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Issuer cancellation: immediate while unstarted or submitted; a stop request while running.
+    fn cancel_task(&self, actor: &Agent, mut task: Task, reason: &str) -> Result<Task> {
+        match task.state.as_str() {
+            "queued" | "blocked" | "submitted" => {
+                self.mark_cancelled(task, actor, reason, false)
+            }
+            "running" => {
+                let active = self.active_attempts(&task.id)?;
+                if actor.program == OPERATOR_PROGRAM && active.is_empty() {
+                    return self.mark_cancelled(task, actor, reason, false);
+                }
+                task.state = "cancel_requested".into();
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(
+                    &task.project,
+                    "task_cancel_requested",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "reason": reason}),
+                )?;
+                if !task.assignee.is_empty() {
+                    self.queue(
+                        &task.project,
+                        task_message(
+                            &actor.id,
+                            &task.assignee,
+                            "cancel_requested",
+                            "Stop the current work, report what happened, then confirm the cancellation with warp_task_finish_cancel."
+                                .into(),
+                            &task.id,
+                            task.revision,
+                        ),
+                    )?;
+                }
+                Ok(task)
+            }
+            "cancel_requested" => {
+                ensure!(
+                    actor.program == OPERATOR_PROGRAM,
+                    unauthorized(
+                        "Cancellation is awaiting the owning session's confirmation"
+                    )
+                );
+                ensure!(
+                    self.active_attempts(&task.id)?.is_empty(),
+                    execution_unknown("Execution is still owned by a live attempt; confirm the stop or use the explicit override")
+                );
+                self.mark_cancelled(task, actor, reason, false)
+            }
+            _ => Err(invalid_state("Task cannot be cancelled from its current state")),
+        }
+    }
+
+    /// Terminal cancellation: fence every active attempt, then close delivery and notify.
+    fn mark_cancelled(
+        &self,
+        mut task: Task,
+        actor: &Agent,
+        reason: &str,
+        override_uncertain: bool,
+    ) -> Result<Task> {
+        for attempt in self.active_attempts(&task.id)? {
+            diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
+                .bind::<BigInt, _>(now() as i64)
+                .bind::<Text, _>(&attempt.id)
+                .execute(&mut *self.connection.borrow_mut())?;
+            self.record(
+                &task.project,
+                "task_interrupted",
+                &actor.id,
+                Some(&task.id),
+                Some(&attempt.id),
+                json!({"revision": task.revision, "reason": reason, "override": override_uncertain}),
+            )?;
+        }
+        task.state = "cancelled".into();
+        task.start_deadline = None;
+        task.execution_deadline = None;
+        task.review_deadline = None;
+        task.version += 1;
+        self.update_task_state(&task)?;
+        self.retire_available(&task.id)?;
+        if !task.assignee.is_empty() {
+            self.ack_task_notification(&task.id, &task.assignee)?;
+        }
+        self.record(
+            &task.project,
+            "task_cancelled",
+            &actor.id,
+            Some(&task.id),
+            None,
+            json!({"revision": task.revision, "reason": reason, "override": override_uncertain}),
+        )?;
+        if !task.assignee.is_empty() {
+            self.queue(
+                &task.project,
+                task_message(
+                    &actor.id,
+                    &task.assignee,
+                    "cancelled",
+                    format!("Task cancelled: {reason}"),
+                    &task.id,
+                    task.revision,
+                ),
+            )?;
+        }
+        self.assemble(task)
+    }
+
+    /// Retry and reassignment require the previous execution to be known stopped or explicitly overridden.
+    fn release_attempts(
+        &self,
+        task: &Task,
+        actor: &Agent,
+        override_uncertain: bool,
+        reason: &str,
+    ) -> Result<()> {
+        let active = self.active_attempts(&task.id)?;
+        if active.is_empty() {
+            return Ok(());
+        }
+        ensure!(
+            actor.program == OPERATOR_PROGRAM && override_uncertain,
+            execution_unknown("Previous execution outcome is unknown; confirm the stop or use the explicit override")
+        );
+        for attempt in active {
+            diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=? WHERE id=?")
+                .bind::<BigInt, _>(now() as i64)
+                .bind::<Text, _>(&attempt.id)
+                .execute(&mut *self.connection.borrow_mut())?;
+            self.record(
+                &task.project,
+                "task_interrupted",
+                &actor.id,
+                Some(&task.id),
+                Some(&attempt.id),
+                json!({"revision": task.revision, "override": override_uncertain, "reason": reason}),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_evidence_ids(&self, task: &Task, evidence_ids: &[String]) -> Result<()> {
+        for id in evidence_ids {
+            let known = self.count(
+                "SELECT COUNT(*) AS count FROM evidence WHERE id = ? AND task_id = ?",
+                &[id.as_str(), task.id.as_str()],
+            )?;
+            ensure!(
+                known > 0,
+                scope_denied("Evidence reference does not belong to this task")
+            );
+        }
+        Ok(())
+    }
+
+    fn attempt_certainty(&self, attempt_id: &str, owner: &str) -> Result<Option<String>> {
+        Ok(diesel::sql_query("SELECT certainty AS value FROM attempts WHERE id = ? AND owner = ?")
+            .bind::<Text, _>(attempt_id)
+            .bind::<Text, _>(owner)
+            .get_result::<ValueRow>(&mut *self.connection.borrow_mut())
+            .optional()?
+            .map(|row| row.value))
+    }
+}
+
+/// Panel controller mutations and shared-space projections; agent-scoped reads stay in the first block.
+impl Store {
+    fn mutate_controller(
+        &self,
+        project: &str,
+        actor: &Agent,
+        operation: &ControllerOperation,
+    ) -> Result<Value> {
+        match operation {
+            ControllerOperation::SpaceCreate { name, .. } => self.space_create(project, actor, name),
+            ControllerOperation::SpaceJoin { space_id, agent, .. } => {
+                self.space_join(project, actor, space_id, agent)
+            }
+            ControllerOperation::SpaceLeave { space_id, agent, .. } => {
+                self.space_leave(project, actor, space_id, agent)
+            }
+            ControllerOperation::WorkspaceMap {
+                space_id,
+                root,
+                model,
+                branch,
+                base_commit,
+                ..
+            } => self.workspace_map(
+                project,
+                actor,
+                space_id,
+                root,
+                model,
+                branch.as_deref(),
+                base_commit.as_deref(),
+            ),
+            ControllerOperation::EvidenceVerify {
+                evidence_id,
+                verified,
+                ..
+            } => self.evidence_verify(project, actor, evidence_id, *verified),
+            ControllerOperation::TaskForceCancel {
+                task_id,
+                reason,
+                expected_version,
+                ..
+            } => self.force_cancel(project, actor, task_id, reason, *expected_version),
+            ControllerOperation::TaskArchive { task_id, .. } => {
+                self.task_archive(project, actor, task_id)
+            }
+            ControllerOperation::ArchiveAged { older_than_days, .. } => {
+                self.archive_aged(project, actor, *older_than_days)
+            }
+            ControllerOperation::HistoryPurge {
+                archived_tasks,
+                acknowledged_messages,
+                ..
+            } => self.history_purge(project, actor, *archived_tasks, *acknowledged_messages),
+            _ => Err(invalid_state("Controller operation requires read handling")),
+        }
+    }
+
+    fn space_create(&self, project: &str, actor: &Agent, name: &str) -> Result<Value> {
+        validate_subject(name)?;
+        let name = name.trim();
+        ensure!(
+            !name.eq_ignore_ascii_case("private"),
+            invalid_input("The private space is implicit and cannot be created")
+        );
+        ensure!(
+            self.count("SELECT COUNT(*) AS count FROM spaces WHERE name = ?", &[name])? == 0,
+            invalid_input("A space with this name already exists")
+        );
+        let space_id = Uuid::new_v4().to_string();
+        diesel::sql_query("INSERT INTO spaces(id, name, device, created_at) VALUES (?,?, 'local', ?)")
+            .bind::<Text, _>(&space_id)
+            .bind::<Text, _>(name)
+            .bind::<BigInt, _>(now() as i64)
+            .execute(&mut *self.connection.borrow_mut())?;
+        self.record(
+            project,
+            "space_created",
+            &actor.id,
+            Some(&space_id),
+            None,
+            json!({"name": name}),
+        )?;
+        Ok(json!({
+            "space_id": space_id,
+            "name": name,
+            "device": "local",
+            "private": false,
+            "members": Vec::<String>::new(),
+        }))
+    }
+
+    fn space_join(&self, project: &str, actor: &Agent, space_id: &str, agent: &str) -> Result<Value> {
+        self.space(space_id)?
+            .ok_or_else(|| scope_denied("Space not found"))?;
+        let member = self.agent(project, agent)?;
+        let position = self.count(
+            "SELECT COUNT(*) AS count FROM space_members WHERE space_id = ?",
+            &[space_id],
+        )?;
+        let inserted = diesel::sql_query("INSERT INTO space_members(space_id, agent, position) VALUES (?,?,?) ON CONFLICT(space_id, agent) DO NOTHING")
+            .bind::<Text, _>(space_id)
+            .bind::<Text, _>(&member.id)
+            .bind::<BigInt, _>(position)
+            .execute(&mut *self.connection.borrow_mut())?;
+        if inserted > 0 {
+            self.record(
+                project,
+                "space_member_joined",
+                &actor.id,
+                Some(space_id),
+                None,
+                json!({"agent": member.id}),
+            )?;
+        }
+        Ok(json!({"space_id": space_id, "agent": member.id}))
+    }
+
+    fn space_leave(&self, project: &str, actor: &Agent, space_id: &str, agent: &str) -> Result<Value> {
+        self.space(space_id)?
+            .ok_or_else(|| scope_denied("Space not found"))?;
+        let member = self.agent(project, agent)?;
+        let removed = diesel::sql_query("DELETE FROM space_members WHERE space_id = ? AND agent = ?")
+            .bind::<Text, _>(space_id)
+            .bind::<Text, _>(&member.id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        ensure!(
+            removed > 0,
+            invalid_state("Agent is not a member of this space")
+        );
+        self.record(
+            project,
+            "space_member_left",
+            &actor.id,
+            Some(space_id),
+            None,
+            json!({"agent": member.id}),
+        )?;
+        Ok(json!({"space_id": space_id, "agent": member.id}))
+    }
+
+    fn space(&self, space_id: &str) -> Result<Option<SpaceRow>> {
+        Ok(diesel::sql_query("SELECT id, name, device FROM spaces WHERE id = ?")
+            .bind::<Text, _>(space_id)
+            .get_result::<SpaceRow>(&mut *self.connection.borrow_mut())
+            .optional()?)
+    }
+
+    /// The private space is implicit and always listed first; members resolve through live agents.
+    fn space_list(&self, _project: &str) -> Result<Value> {
+        let mut spaces = vec![json!({
+            "id": Value::Null,
+            "name": "Private",
+            "device": "local",
+            "private": true,
+            "members": Vec::<String>::new(),
+        })];
+        for space in diesel::sql_query("SELECT id, name, device FROM spaces ORDER BY created_at, name")
+            .load::<SpaceRow>(&mut *self.connection.borrow_mut())?
+        {
+            let members: Vec<String> = diesel::sql_query("SELECT member.name AS name FROM space_members AS membership JOIN agents AS member ON member.id = membership.agent WHERE membership.space_id = ? ORDER BY membership.position")
+                .bind::<Text, _>(&space.id)
+                .load::<MemberRow>(&mut *self.connection.borrow_mut())?
+                .into_iter()
+                .filter_map(|row| row.name)
+                .collect();
+            spaces.push(json!({
+                "id": space.id,
+                "name": space.name,
+                "device": space.device,
+                "private": false,
+                "members": members,
+            }));
+        }
+        Ok(json!({"spaces": spaces}))
+    }
+
+    fn workspace_map(
+        &self,
+        project: &str,
+        actor: &Agent,
+        space_id: &str,
+        root: &str,
+        model: &str,
+        branch: Option<&str>,
+        base_commit: Option<&str>,
+    ) -> Result<Value> {
+        self.space(space_id)?
+            .ok_or_else(|| scope_denied("Space not found"))?;
+        validate_subject(model)?;
+        if let Some(branch) = branch {
+            validate_subject(branch)?;
+        }
+        if let Some(base_commit) = base_commit {
+            validate_subject(base_commit)?;
+        }
+        let root = std::fs::canonicalize(root.trim())
+            .map_err(|_| invalid_input("Workspace root must be an existing directory"))?;
+        ensure!(
+            root.is_dir(),
+            invalid_input("Workspace root must be an existing directory")
+        );
+        let root = root
+            .to_str()
+            .ok_or_else(|| invalid_input("Workspace root must be valid UTF-8"))?
+            .to_owned();
+        diesel::sql_query("INSERT INTO workspaces(id, space_id, root, model, branch, base_commit, created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(root) DO UPDATE SET space_id=excluded.space_id, model=excluded.model, branch=excluded.branch, base_commit=excluded.base_commit")
+            .bind::<Text, _>(Uuid::new_v4().to_string())
+            .bind::<Text, _>(space_id)
+            .bind::<Text, _>(&root)
+            .bind::<Text, _>(model)
+            .bind::<Nullable<Text>, _>(branch)
+            .bind::<Nullable<Text>, _>(base_commit)
+            .bind::<BigInt, _>(now() as i64)
+            .execute(&mut *self.connection.borrow_mut())?;
+        let workspace = diesel::sql_query("SELECT id, space_id, root, model, branch, base_commit FROM workspaces WHERE root = ?")
+            .bind::<Text, _>(&root)
+            .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())?;
+        self.record(
+            project,
+            "workspace_mapped",
+            &actor.id,
+            Some(&workspace.id),
+            None,
+            json!({"space_id": workspace.space_id, "root": workspace.root, "model": workspace.model}),
+        )?;
+        Ok(json!({
+            "workspace_id": workspace.id,
+            "space_id": workspace.space_id,
+            "root": workspace.root,
+            "model": workspace.model,
+            "branch": workspace.branch,
+            "base_commit": workspace.base_commit,
+        }))
+    }
+
+    /// Locally verified needs a reference to check: a content hash or a commit object.
+    fn evidence_verify(
+        &self,
+        project: &str,
+        actor: &Agent,
+        evidence_id: &str,
+        verified: bool,
+    ) -> Result<Value> {
+        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.hash AS hash, evidence.commit_id AS commit_id, tasks.project AS project FROM evidence JOIN tasks ON tasks.id = evidence.task_id WHERE evidence.id = ?")
+            .bind::<Text, _>(evidence_id)
+            .get_result::<EvidenceCheckRow>(&mut *self.connection.borrow_mut())
+            .optional()?;
+        let row = row
+            .filter(|row| row.project == project)
+            .ok_or_else(|| scope_denied("Evidence not found in this project"))?;
+        ensure!(
+            row.hash.is_some() || row.commit_id.is_some(),
+            invalid_state("Evidence without a hash or commit has nothing locally verifiable")
+        );
+        diesel::sql_query("UPDATE evidence SET verified = ? WHERE id = ?")
+            .bind::<Integer, _>(i32::from(verified))
+            .bind::<Text, _>(evidence_id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        self.record(
+            project,
+            "evidence_verified",
+            &actor.id,
+            Some(evidence_id),
+            None,
+            json!({"task_id": row.task_id, "verified": verified}),
+        )?;
+        Ok(json!({"evidence_id": evidence_id, "task_id": row.task_id, "verified": verified}))
+    }
+
+    /// Operator override: the only path that fences a still-active attempt without its owning session.
+    fn force_cancel(
+        &self,
+        project: &str,
+        actor: &Agent,
+        task_id: &str,
+        reason: &str,
+        expected_version: Option<u64>,
+    ) -> Result<Value> {
+        text(reason)?;
+        let task = self.operator_task(project, task_id)?;
+        if let Some(expected) = expected_version {
+            ensure!(
+                expected == task.version,
+                version_conflict("Task version does not match", task.version)
+            );
+        }
+        match task.state.as_str() {
+            "queued" | "blocked" | "submitted" => {
+                Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
+            }
+            "running" | "cancel_requested" => {
+                let override_uncertain = !self.active_attempts(&task.id)?.is_empty();
+                Ok(json!(self.mark_cancelled(task, actor, reason, override_uncertain)?))
+            }
+            _ => Err(invalid_state("Task cannot be force-cancelled from its current state")),
+        }
+    }
+
+    fn task_archive(&self, project: &str, actor: &Agent, task_id: &str) -> Result<Value> {
+        let mut task = self.operator_task(project, task_id)?;
+        ensure!(
+            matches!(
+                task.state.as_str(),
+                "accepted" | "failed" | "expired" | "cancelled"
+            ),
+            invalid_state("Only terminal tasks can be archived")
+        );
+        ensure!(
+            self.unresolved_dependents(&task.id)?.is_empty(),
+            invalid_state("Other tasks still depend on this one")
+        );
+        task.archived = true;
+        task.version += 1;
+        self.update_task_state(&task)?;
+        self.record(
+            project,
+            "task_archived",
+            &actor.id,
+            Some(&task.id),
+            None,
+            json!({"revision": task.revision, "aged": false}),
+        )?;
+        Ok(json!(self.assemble(task)?))
+    }
+
+    /// Dependent tasks that are not themselves terminal keep the prerequisite unresolved.
+    fn unresolved_dependents(&self, task_id: &str) -> Result<Vec<String>> {
+        Ok(diesel::sql_query("SELECT dependent.id AS value FROM task_dependencies AS dependency JOIN tasks AS dependent ON dependent.id = dependency.task_id WHERE dependency.prerequisite_id = ? AND dependent.state NOT IN ('accepted','failed','expired','cancelled') ORDER BY dependent.created_seq")
+            .bind::<Text, _>(task_id)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(|row| row.value)
+            .collect())
+    }
+
+    fn archive_aged(
+        &self,
+        project: &str,
+        actor: &Agent,
+        older_than_days: Option<u64>,
+    ) -> Result<Value> {
+        let days = older_than_days.unwrap_or(ARCHIVE_AFTER_DAYS);
+        ensure!(
+            (1..=3650).contains(&days),
+            invalid_input("older_than_days must be between 1 and 3650")
+        );
+        let cutoff = now().saturating_sub(days * 24 * 60 * 60 * 1000);
+        let rows = diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND archived = 0 AND state IN ('accepted','failed','expired','cancelled') AND updated_at < ? ORDER BY created_seq"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<BigInt, _>(cutoff as i64)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        let mut archived = Vec::new();
+        for task in rows.into_iter().map(TaskRow::task) {
+            if !self.unresolved_dependents(&task.id)?.is_empty() {
+                continue;
+            }
+            let mut task = task;
+            task.archived = true;
+            task.version += 1;
+            self.update_task_state(&task)?;
+            self.record(
+                project,
+                "task_archived",
+                &actor.id,
+                Some(&task.id),
+                None,
+                json!({"revision": task.revision, "aged": true}),
+            )?;
+            archived.push(task.id);
+        }
+        Ok(json!({"archived": archived}))
+    }
+
+    fn purge_preview(&self, project: &str) -> Result<Value> {
+        let tasks = self.count(
+            "SELECT COUNT(*) AS count FROM tasks WHERE project = ? AND archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0)",
+            &[project],
+        )?;
+        let messages = self.count(
+            "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks))",
+            &[project],
+        )?;
+        Ok(json!({"tasks": tasks, "messages": messages}))
+    }
+
+    /// Only archived, unreferenced work and read messages; active or uncertain records are never deleted.
+    fn history_purge(
+        &self,
+        project: &str,
+        actor: &Agent,
+        archived_tasks: bool,
+        acknowledged_messages: bool,
+    ) -> Result<Value> {
+        ensure!(
+            archived_tasks || acknowledged_messages,
+            invalid_input("Select archived tasks, acknowledged messages, or both")
+        );
+        self.budget_available()?;
+        let mut purged_tasks = Vec::new();
+        if archived_tasks {
+            let rows = diesel::sql_query(format!(
+                "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) ORDER BY created_seq"
+            ))
+            .bind::<Text, _>(project)
+            .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+            for task in rows.into_iter().map(TaskRow::task) {
+                for statement in [
+                    "DELETE FROM messages WHERE task_id = ?",
+                    "DELETE FROM task_dependencies WHERE task_id = ?",
+                    "DELETE FROM task_eligibles WHERE task_id = ?",
+                    "DELETE FROM attempts WHERE task_id = ?",
+                    "DELETE FROM feedback WHERE task_id = ?",
+                    "DELETE FROM evidence WHERE task_id = ?",
+                ] {
+                    diesel::sql_query(statement)
+                        .bind::<Text, _>(&task.id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                }
+                diesel::sql_query("DELETE FROM tasks WHERE id = ?")
+                    .bind::<Text, _>(&task.id)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                self.record(
+                    project,
+                    "task_purged",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision, "state": task.state}),
+                )?;
+                purged_tasks.push(task.id);
+            }
+        }
+        let mut purged_messages = 0;
+        if acknowledged_messages {
+            purged_messages = diesel::sql_query("DELETE FROM messages WHERE project = ? AND acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks))")
+                .bind::<Text, _>(project)
+                .execute(&mut *self.connection.borrow_mut())? as u64;
+        }
+        Ok(json!({"purged_tasks": purged_tasks, "purged_messages": purged_messages}))
+    }
+
+    /// One merged ordered stream: tasks, messages and events share the per-project sequence counter.
+    fn history_export(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let after = after.unwrap_or(0) as i64;
+        let fetch = limit as i64 + 1;
+        let mut records: Vec<(u64, &'static str, Value)> = Vec::new();
+        for task in diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND created_seq > ? ORDER BY created_seq LIMIT ?"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<BigInt, _>(after)
+        .bind::<BigInt, _>(fetch)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?
+        .into_iter()
+        .map(TaskRow::task)
+        {
+            let sequence = task.created_seq;
+            records.push((sequence, "task", serde_json::to_value(self.assemble(task)?)?));
+        }
+        for message in diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project = ? AND sequence > ? ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(project)
+            .bind::<BigInt, _>(after)
+            .bind::<BigInt, _>(fetch)
+            .load::<MessageRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(MessageRow::message)
+        {
+            let sequence = message.sequence;
+            records.push((sequence, "message", serde_json::to_value(message)?));
+        }
+        for event in diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND sequence > ? ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(project)
+            .bind::<BigInt, _>(after)
+            .bind::<BigInt, _>(fetch)
+            .load::<EventRow>(&mut *self.connection.borrow_mut())?
+            .into_iter()
+            .map(EventRow::event)
+        {
+            let sequence = event.sequence;
+            records.push((sequence, "event", serde_json::to_value(event)?));
+        }
+        records.sort_by_key(|(sequence, kind, _)| (*sequence, *kind));
+        records.truncate(limit as usize);
+        let cursor = records.last().map(|(sequence, _, _)| *sequence);
+        let records: Vec<Value> = records
+            .into_iter()
+            .map(|(sequence, kind, data)| json!({"type": kind, "sequence": sequence, "data": data}))
+            .collect();
+        Ok(json!({"records": records, "cursor": cursor}))
+    }
+
+    /// Thread history: the root message plus replies, visible only to thread participants.
+    fn thread_get(
+        &self,
+        actor: &Agent,
+        thread_id: &str,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let total = self.count(
+            "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND (thread_id = ? OR id = ?)",
+            &[actor.project.as_str(), thread_id, thread_id],
+        )?;
+        if total > 0 {
+            let participant = diesel::sql_query("SELECT COUNT(*) AS count FROM messages WHERE project = ? AND (thread_id = ? OR id = ?) AND (sender = ? OR recipient = ?)")
+                .bind::<Text, _>(&actor.project)
+                .bind::<Text, _>(thread_id)
+                .bind::<Text, _>(thread_id)
+                .bind::<Text, _>(&actor.id)
+                .bind::<Text, _>(&actor.id)
+                .get_result::<CountRow>(&mut *self.connection.borrow_mut())?
+                .count;
+            ensure!(participant > 0, scope_denied("Thread not found"));
+        }
+        let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project = ? AND (thread_id = ? OR id = ?) AND sequence > ? ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(thread_id)
+            .bind::<Text, _>(thread_id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+            .bind::<BigInt, _>(limit as i64 + 1)
+            .load::<MessageRow>(&mut *self.connection.borrow_mut())?;
+        let messages: Vec<Message> = rows
+            .into_iter()
+            .take(limit as usize)
+            .map(MessageRow::message)
+            .collect();
+        let cursor = messages.last().map(|message| message.sequence);
+        Ok(json!({"messages": messages, "cursor": cursor}))
+    }
+
+    /// Literal substring search over caller-visible records; LIKE metacharacters are escaped.
+    fn message_search(
+        &self,
+        actor: &Agent,
+        query: &str,
+        task_id: Option<&str>,
+        thread_id: Option<&str>,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let query = query.trim();
+        search_query(query)?;
+        let escaped = query
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let pattern = format!("%{escaped}%");
+        let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project = ? AND (sender = ? OR recipient = ?) AND (body LIKE ? ESCAPE '\\' OR subject LIKE ? ESCAPE '\\') AND (COALESCE(?, '') = '' OR task_id = ?) AND (COALESCE(?, '') = '' OR thread_id = ?) AND sequence > ? ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
+            .bind::<Text, _>(&actor.id)
+            .bind::<Text, _>(&pattern)
+            .bind::<Text, _>(&pattern)
+            .bind::<Text, _>(task_id.unwrap_or(""))
+            .bind::<Nullable<Text>, _>(task_id)
+            .bind::<Text, _>(thread_id.unwrap_or(""))
+            .bind::<Nullable<Text>, _>(thread_id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+            .bind::<BigInt, _>(limit as i64 + 1)
+            .load::<MessageRow>(&mut *self.connection.borrow_mut())?;
+        let messages: Vec<Message> = rows
+            .into_iter()
+            .take(limit as usize)
+            .map(MessageRow::message)
+            .collect();
+        let cursor = messages.last().map(|message| message.sequence);
+        Ok(json!({"messages": messages, "cursor": cursor}))
+    }
+
+    fn file_reservations(
+        &self,
+        actor: &Agent,
+        path: Option<&str>,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+        include_expired: bool,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let filter = path.map(normalize_relative_path).transpose()?;
+        let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? ORDER BY created_seq")
+            .bind::<Text, _>(&actor.project)
+            .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
+        let now_ms = now();
+        let mut reservations = Vec::new();
+        for row in rows {
+            if cursor.is_some_and(|cursor| row.created_seq as u64 <= cursor) {
+                continue;
+            }
+            let reservation = self.reservation(row, now_ms)?;
+            if !include_expired && reservation.expired {
+                continue;
+            }
+            if filter
+                .as_deref()
+                .is_some_and(|filter| !paths_overlap(&reservation.path, filter))
+            {
+                continue;
+            }
+            reservations.push(reservation);
+            if reservations.len() as u32 > limit {
+                break;
+            }
+        }
+        reservations.truncate(limit as usize);
+        let cursor = reservations.last().map(|reservation| reservation.created_seq);
+        Ok(json!({"reservations": reservations, "cursor": cursor}))
+    }
+
+    /// Lease expiry and the abandoned-owner warning resolve at read time.
+    fn reservation(&self, row: ReservationRow, now: u64) -> Result<Reservation> {
+        let expired = row.expires_at as u64 <= now;
+        let abandoned = if !expired {
+            false
+        } else {
+            match &row.attempt_id {
+                Some(attempt_id) => self.attempt_certainty(attempt_id, &row.owner)?.map_or(
+                    true,
+                    |certainty| certainty != "finished" && certainty != "interrupted",
+                ),
+                None => false,
+            }
+        };
+        Ok(Reservation {
+            id: row.id,
+            workspace: row.workspace,
+            path: row.path,
+            mode: row.mode,
+            owner: row.owner,
+            task_id: row.task_id,
+            attempt_id: row.attempt_id,
+            created_at: row.created_at as u64,
+            expires_at: row.expires_at as u64,
+            expired,
+            abandoned,
+        })
+    }
+
+    fn reservation_row(&self, workspace: &str, id: &str) -> Result<ReservationRow> {
+        diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE id = ? AND workspace = ?")
+            .bind::<Text, _>(id)
+            .bind::<Text, _>(workspace)
+            .get_result::<ReservationRow>(&mut *self.connection.borrow_mut())
+            .optional()?
+            .ok_or_else(|| scope_denied("Reservation not found in this workspace"))
+    }
+
+    fn reservation_by_id(&self, id: &str) -> Result<Option<ReservationRow>> {
+        Ok(diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE id = ?")
+            .bind::<Text, _>(id)
+            .get_result::<ReservationRow>(&mut *self.connection.borrow_mut())
+            .optional()?)
     }
 }
 
@@ -1323,6 +3722,30 @@ fn now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
+}
+
+fn task_summaries(rows: Vec<TaskSummaryRow>, limit: u32) -> Value {
+    let tasks: Vec<Value> = rows
+        .into_iter()
+        .take(limit as usize)
+        .map(|row| {
+            json!({
+                "id": row.id,
+                "state": row.state,
+                "revision": row.revision as u32,
+                "version": row.version as u64,
+                "assignee": row.assignee,
+                "reviewer": row.reviewer,
+                "created_seq": row.created_seq as u64,
+            })
+        })
+        .collect();
+    let cursor = tasks
+        .last()
+        .and_then(|task| task["created_seq"].as_u64())
+        .map(|sequence| json!(sequence))
+        .unwrap_or(Value::Null);
+    json!({"tasks": tasks, "cursor": cursor})
 }
 
 fn task_message(
@@ -1347,6 +3770,49 @@ fn task_message(
         acknowledged: false,
         sequence: 0,
     }
+}
+
+/// Two normalized workspace-relative paths overlap when equal or one is an ancestor of the other.
+fn paths_overlap(a: &str, b: &str) -> bool {
+    a == b
+        || a.strip_prefix(b).is_some_and(|rest| rest.starts_with('/'))
+        || b.strip_prefix(a).is_some_and(|rest| rest.starts_with('/'))
+}
+
+fn pending_deadline(value: Option<&str>) -> Result<Option<u64>> {
+    value.map(future_deadline).transpose()
+}
+
+fn future_deadline(value: &str) -> Result<u64> {
+    let deadline = parse_deadline(value)?;
+    ensure!(
+        deadline > now(),
+        invalid_input("Start deadline must be in the future")
+    );
+    Ok(deadline)
+}
+
+/// Retry/reassign deadline policy: explicit replacement, explicit clear, or only an unmatured deadline is reused.
+fn replace_start_deadline(task: &mut Task, replacement: Option<&str>, clear: bool) -> Result<()> {
+    ensure!(
+        !(clear && replacement.is_some()),
+        invalid_input("Choose either a new start deadline or an explicit clear")
+    );
+    if let Some(value) = replacement {
+        task.start_deadline = Some(future_deadline(value)?);
+        return Ok(());
+    }
+    if clear {
+        task.start_deadline = None;
+        return Ok(());
+    }
+    ensure!(
+        !task
+            .start_deadline
+            .is_some_and(|deadline| deadline <= now()),
+        invalid_input("The start deadline has passed; replace or clear it to retry")
+    );
+    Ok(())
 }
 
 fn read_legacy_payload(path: &str) -> Result<Option<String>> {
@@ -1386,6 +3852,12 @@ struct ValueRow {
 struct CountRow {
     #[diesel(sql_type = BigInt)]
     count: i64,
+}
+
+#[derive(QueryableByName)]
+struct BytesRow {
+    #[diesel(sql_type = BigInt)]
+    value: i64,
 }
 
 #[derive(QueryableByName)]
@@ -1448,6 +3920,18 @@ struct TaskRow {
     evidence: Option<String>,
     #[diesel(sql_type = BigInt)]
     created_seq: i64,
+    #[diesel(sql_type = Integer)]
+    archived: i32,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    start_deadline: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    execution_timeout: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    review_timeout: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    execution_deadline: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    review_deadline: Option<i64>,
 }
 
 impl TaskRow {
@@ -1467,7 +3951,18 @@ impl TaskRow {
             evidence: self.evidence,
             feedback: vec![],
             attempts: vec![],
+            evidence_records: vec![],
             created_seq: self.created_seq as u64,
+            archived: self.archived != 0,
+            dependencies: vec![],
+            eligible: vec![],
+            wait_reason: None,
+            start_deadline: self.start_deadline.map(|value| value as u64),
+            execution_timeout_seconds: self.execution_timeout.map(|value| value as u64),
+            review_timeout_seconds: self.review_timeout.map(|value| value as u64),
+            execution_deadline: self.execution_deadline.map(|value| value as u64),
+            review_deadline: self.review_deadline.map(|value| value as u64),
+            review_overdue: false,
             executing_run: None,
         }
     }
@@ -1586,6 +4081,139 @@ impl AttemptRow {
             finished_at: self.finished_at.map(|at| at as u64),
         }
     }
+}
+
+#[derive(QueryableByName)]
+struct EvidenceRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Text)]
+    task_id: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    attempt_id: Option<String>,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    path: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    hash: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    commit_id: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    repository: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    branch: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    base: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    head: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    command: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    outcome: Option<String>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    exit_code: Option<i64>,
+    #[diesel(sql_type = Nullable<Text>)]
+    summary: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    device: Option<String>,
+    #[diesel(sql_type = Integer)]
+    verified: i32,
+    #[diesel(sql_type = BigInt)]
+    created_seq: i64,
+}
+
+impl EvidenceRow {
+    fn evidence(self) -> Evidence {
+        Evidence {
+            id: self.id,
+            task_id: self.task_id,
+            attempt_id: self.attempt_id,
+            kind: self.kind,
+            path: self.path,
+            hash: self.hash,
+            commit: self.commit_id,
+            repository: self.repository,
+            branch: self.branch,
+            base: self.base,
+            head: self.head,
+            command: self.command,
+            outcome: self.outcome,
+            exit_code: self.exit_code,
+            summary: self.summary,
+            device: self.device,
+            verified: self.verified != 0,
+            created_seq: self.created_seq as u64,
+        }
+    }
+}
+
+#[derive(QueryableByName)]
+struct ReservationRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Text)]
+    workspace: String,
+    #[diesel(sql_type = Text)]
+    path: String,
+    #[diesel(sql_type = Text)]
+    mode: String,
+    #[diesel(sql_type = Text)]
+    owner: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    task_id: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    attempt_id: Option<String>,
+    #[diesel(sql_type = BigInt)]
+    created_at: i64,
+    #[diesel(sql_type = BigInt)]
+    expires_at: i64,
+    #[diesel(sql_type = BigInt)]
+    created_seq: i64,
+}
+
+#[derive(QueryableByName)]
+struct EvidenceCheckRow {
+    #[diesel(sql_type = Text)]
+    task_id: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    hash: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    commit_id: Option<String>,
+    #[diesel(sql_type = Text)]
+    project: String,
+}
+
+#[derive(QueryableByName)]
+struct SpaceRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Text)]
+    name: String,
+    #[diesel(sql_type = Text)]
+    device: String,
+}
+
+#[derive(QueryableByName)]
+struct MemberRow {
+    #[diesel(sql_type = Nullable<Text>)]
+    name: Option<String>,
+}
+
+#[derive(QueryableByName)]
+struct WorkspaceRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Text)]
+    space_id: String,
+    #[diesel(sql_type = Text)]
+    root: String,
+    #[diesel(sql_type = Text)]
+    model: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    branch: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    base_commit: Option<String>,
 }
 
 #[derive(QueryableByName)]
@@ -1736,6 +4364,10 @@ mod tests {
             description: "work".into(),
             acceptance: "evidence".into(),
             reviewer: reviewer.map(str::to_owned),
+            dependencies: vec![],
+            start_deadline: None,
+            execution_timeout_seconds: None,
+            review_timeout_seconds: None,
             request_id: request_id.into(),
         }
     }
@@ -1758,6 +4390,7 @@ mod tests {
             expected_version: None,
             attempt_id: attempt_id.map(str::to_owned),
             request_id: request_id.into(),
+            evidence_ids: vec![],
         }
     }
 
@@ -2203,6 +4836,10 @@ mod tests {
                             description: format!("task {index}"),
                             acceptance: "done".into(),
                             reviewer: None,
+                            dependencies: vec![],
+                            start_deadline: None,
+                            execution_timeout_seconds: None,
+                            review_timeout_seconds: None,
                             request_id: Uuid::new_v4().to_string(),
                         },
                     )
@@ -2221,6 +4858,7 @@ mod tests {
                     assignee: Some("bob".into()),
                     cursor: None,
                     limit: Some(3),
+                    include_archived: false,
                 },
             )
             .unwrap();
@@ -2235,6 +4873,7 @@ mod tests {
                     assignee: None,
                     cursor: Some(cursor),
                     limit: None,
+                    include_archived: false,
                 },
             )
             .unwrap();
@@ -2284,7 +4923,7 @@ mod tests {
         legacy_database(path, &payload);
         let store = Store::open(path).unwrap();
         assert_eq!(read_legacy_payload(path).unwrap().as_deref(), Some(SENTINEL));
-        let backup = format!("{path}.pre-v2");
+        let backup = format!("{path}.pre-upgrade");
         assert!(std::path::Path::new(&backup).exists());
         let a = store.register("t1", "claude", "/p", "a").unwrap();
         let b = store.register("t2", "claude", "/p", "b").unwrap();
@@ -2336,7 +4975,7 @@ mod tests {
         legacy_database(malformed, "{not json");
         assert!(Store::open(malformed).is_err());
         assert_eq!(read_legacy_payload(malformed).unwrap().as_deref(), Some("{not json"));
-        assert!(!std::path::Path::new(&format!("{malformed}.pre-v2")).exists());
+        assert!(!std::path::Path::new(&format!("{malformed}.pre-upgrade")).exists());
         let orphan = directory.path().join("orphan.sqlite");
         let orphan = orphan.to_str().unwrap();
         let payload = json!({
@@ -2350,7 +4989,7 @@ mod tests {
         legacy_database(orphan, &payload);
         assert!(Store::open(orphan).is_err());
         assert_eq!(read_legacy_payload(orphan).unwrap().as_deref(), Some(payload.as_str()));
-        assert!(std::path::Path::new(&format!("{orphan}.pre-v2")).exists());
+        assert!(std::path::Path::new(&format!("{orphan}.pre-upgrade")).exists());
     }
 
     #[test]
@@ -2420,6 +5059,7 @@ mod tests {
                         assignee: None,
                         cursor,
                         limit: Some(200),
+                        include_archived: false,
                     },
                 )
                 .unwrap();
@@ -2439,5 +5079,1552 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&full), "capacity_exceeded");
+    }
+
+    fn future(seconds: i64) -> String {
+        (chrono::Utc::now() + chrono::Duration::seconds(seconds)).to_rfc3339()
+    }
+
+    fn export_all(store: &Store) -> Vec<Value> {
+        let mut records = Vec::new();
+        let mut after = None;
+        loop {
+            let page = store
+                .execute_controller(
+                    "/project",
+                    &ControllerOperation::HistoryExport {
+                        after,
+                        limit: Some(50),
+                    },
+                )
+                .unwrap();
+            let items = page["records"].as_array().unwrap();
+            if items.is_empty() {
+                break;
+            }
+            after = page["cursor"].as_u64();
+            records.extend(items.iter().cloned());
+        }
+        records
+    }
+
+    #[test]
+    fn dependencies_gate_starts_until_prerequisites_accept() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let prerequisite = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let prerequisite_id = prerequisite["id"].as_str().unwrap().to_owned();
+        let dependent = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskAssign {
+                    to: "worker".into(),
+                    description: "dependent".into(),
+                    acceptance: "evidence".into(),
+                    reviewer: None,
+                    dependencies: vec![prerequisite_id.clone()],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(dependent["state"], "blocked");
+        assert_eq!(dependent["version"], 1);
+        assert_eq!(dependent["dependencies"][0], prerequisite_id.as_str());
+        assert!(dependent["wait_reason"].is_string());
+        let dependent_id = dependent["id"].as_str().unwrap().to_owned();
+        let blocked = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&dependent_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap_err();
+        assert_eq!(code(&blocked), "dependency_blocked");
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&prerequisite_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &submit(&prerequisite_id, 1, Some(&attempt_id), &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &review(&prerequisite_id, 1, true, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let unblocked = store.task(&issuer, &dependent_id).unwrap();
+        assert_eq!(unblocked.state, "queued");
+        assert_eq!(unblocked.version, 2);
+        assert!(unblocked.wait_reason.is_none());
+        let running = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&dependent_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        assert_eq!(running["state"], "running");
+    }
+
+    #[test]
+    fn dependency_cycles_and_foreign_edges_are_refused() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        actor(&store, "worker");
+        let first = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let first_id = first["id"].as_str().unwrap().to_owned();
+        let second = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let second_id = second["id"].as_str().unwrap().to_owned();
+        let self_edge = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskSetDependencies {
+                    task_id: first_id.clone(),
+                    dependencies: vec![first_id.clone()],
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&self_edge), "invalid_input");
+        let blocked = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskSetDependencies {
+                    task_id: first_id.clone(),
+                    dependencies: vec![second_id.clone()],
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(blocked["state"], "blocked");
+        assert_eq!(blocked["version"], 2);
+        let cycle = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskSetDependencies {
+                    task_id: second_id.clone(),
+                    dependencies: vec![first_id.clone()],
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&cycle), "dependency_cycle");
+        assert!(store.task(&issuer, &second_id).unwrap().dependencies.is_empty());
+        let far = store.register("terminal-far", "claude", "/other", "far").unwrap();
+        let peer = store.register("terminal-peer", "claude", "/other", "peer").unwrap();
+        let foreign = store
+            .execute(
+                &far,
+                "run-far",
+                &assign(&far, "peer", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let foreign_id = foreign["id"].as_str().unwrap().to_owned();
+        assert_ne!(foreign["project"], "/project");
+        assert_eq!(peer.project, "/other");
+        let cross = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskSetDependencies {
+                    task_id: first_id.clone(),
+                    dependencies: vec![foreign_id],
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&cross), "scope_denied");
+        let preserved = store.task(&issuer, &first_id).unwrap();
+        assert_eq!(preserved.dependencies, vec![second_id]);
+        assert_eq!(preserved.version, 2);
+    }
+
+    #[test]
+    fn pool_claims_admit_one_winner_and_only_eligible_agents() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let other = actor(&store, "other");
+        let pool = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskCreatePool {
+                    description: "shared work".into(),
+                    acceptance: "tests".into(),
+                    eligible: vec!["worker".into(), "other".into()],
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(pool["state"], "queued");
+        assert_eq!(pool["assignee"], "");
+        assert_eq!(pool["eligible"].as_array().unwrap().len(), 2);
+        assert_eq!(pool["wait_reason"], "Unclaimed pool task");
+        let pool_id = pool["id"].as_str().unwrap().to_owned();
+        let issuer_claim = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskClaim {
+                    task_id: pool_id.clone(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&issuer_claim), "unauthorized");
+        let stale = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskClaim {
+                    task_id: pool_id.clone(),
+                    expected_version: Some(99),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&stale), "version_conflict");
+        let claimed = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskClaim {
+                    task_id: pool_id.clone(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(claimed["assignee"], worker.id.as_str());
+        assert_eq!(claimed["version"], 2);
+        let loser = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::TaskClaim {
+                    task_id: pool_id.clone(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&loser), "scope_denied");
+        let second_pool = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskCreatePool {
+                    description: "only other".into(),
+                    acceptance: "tests".into(),
+                    eligible: vec!["other".into()],
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let second_id = second_pool["id"].as_str().unwrap().to_owned();
+        let ineligible = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskClaim {
+                    task_id: second_id.clone(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&ineligible), "scope_denied");
+        store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::TaskClaim {
+                    task_id: second_id.clone(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store
+            .execute(
+                &other,
+                "run-other",
+                &transition(&second_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let third_pool = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskCreatePool {
+                    description: "queued behind".into(),
+                    acceptance: "tests".into(),
+                    eligible: vec!["other".into()],
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let third_id = third_pool["id"].as_str().unwrap().to_owned();
+        let busy = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::TaskClaim {
+                    task_id: third_id,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&busy), "invalid_state");
+    }
+
+    #[test]
+    fn deadlines_expire_and_timeouts_request_stop() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let past = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskAssign {
+                    to: "worker".into(),
+                    description: "work".into(),
+                    acceptance: "evidence".into(),
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: Some("2000-01-01T00:00:00Z".into()),
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&past), "invalid_input");
+        let task = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskAssign {
+                    to: "worker".into(),
+                    description: "work".into(),
+                    acceptance: "evidence".into(),
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: Some(future(60)),
+                    execution_timeout_seconds: Some(1),
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let task_id = task["id"].as_str().unwrap().to_owned();
+        assert!(task["start_deadline"].as_u64().unwrap() > now());
+        diesel::sql_query("UPDATE tasks SET start_deadline = ? WHERE id = ?")
+            .bind::<BigInt, _>((now() as i64) - 1_000)
+            .bind::<Text, _>(&task_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        store
+            .execute(&issuer, "run-issuer", &Operation::AgentList)
+            .unwrap();
+        let expired = store.task(&issuer, &task_id).unwrap();
+        assert_eq!(expired.state, "expired");
+        assert_eq!(expired.version, 2);
+        assert!(expired.start_deadline.is_none());
+        let retried = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskRetry {
+                    task_id: task_id.clone(),
+                    reason: "another attempt".into(),
+                    start_deadline: Some(future(60)),
+                    clear_start_deadline: false,
+                    override_uncertain: false,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(retried["state"], "queued");
+        assert_eq!(retried["revision"], 2);
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&task_id, 2, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        diesel::sql_query("UPDATE tasks SET execution_deadline = ? WHERE id = ?")
+            .bind::<BigInt, _>((now() as i64) - 1_000)
+            .bind::<Text, _>(&task_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        store
+            .execute(&worker, "run-worker", &Operation::AgentList)
+            .unwrap();
+        let requested = store.task(&issuer, &task_id).unwrap();
+        assert_eq!(requested.state, "cancel_requested");
+        let finished = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskFinishCancel {
+                    task_id: task_id.clone(),
+                    revision: 2,
+                    reason: "stopped after timeout".into(),
+                    attempt_id: Some(attempt_id),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(finished["state"], "cancelled");
+        let stopped = store.task(&issuer, &task_id).unwrap();
+        assert_eq!(stopped.attempts[0].outcome.as_deref(), Some("cancelled"));
+    }
+
+    #[test]
+    fn reservations_are_exclusive_expiring_and_releasable() {
+        let store = Store::open(":memory:").unwrap();
+        let worker = actor(&store, "worker");
+        let other = actor(&store, "other");
+        let exclusive = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReserve {
+                    paths: vec!["src/main.rs".into()],
+                    mode: "exclusive".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(exclusive["reservation_ids"].as_array().unwrap().len(), 1);
+        assert!(exclusive["expires_at"].as_u64().unwrap() > now());
+        let conflict = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::FileReserve {
+                    paths: vec!["src/main.rs".into()],
+                    mode: "exclusive".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&conflict), "reservation_conflict");
+        let shared_conflict = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::FileReserve {
+                    paths: vec!["src/main.rs".into()],
+                    mode: "shared".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&shared_conflict), "reservation_conflict");
+        for actor in [&other, &worker] {
+            store
+                .execute(
+                    actor,
+                    "run-shared",
+                    &Operation::FileReserve {
+                        paths: vec!["docs/notes.md".into()],
+                        mode: "shared".into(),
+                        task_id: None,
+                        attempt_id: None,
+                        ttl_seconds: None,
+                        request_id: Uuid::new_v4().to_string(),
+                    },
+                )
+                .unwrap();
+        }
+        let batch = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReserve {
+                    paths: vec!["docs/a.md".into(), "docs/b.md".into()],
+                    mode: "exclusive".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let batch_ids: Vec<String> = batch["reservation_ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(batch_ids.len(), 2);
+        let partial = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::FileReserve {
+                    paths: vec!["docs/a.md".into(), "other.txt".into()],
+                    mode: "exclusive".into(),
+                    task_id: None,
+                    attempt_id: None,
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&partial), "reservation_conflict");
+        let leaked = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::FileReservations {
+                    path: Some("other.txt".into()),
+                    cursor: None,
+                    limit: None,
+                    include_expired: false,
+                },
+            )
+            .unwrap();
+        assert!(leaked["reservations"].as_array().unwrap().is_empty());
+        let renew_foreign = store
+            .execute(
+                &other,
+                "run-other",
+                &Operation::FileRenew {
+                    reservation_ids: vec![batch_ids[0].clone()],
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&renew_foreign), "unauthorized");
+        let released = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileRelease {
+                    reservation_ids: batch_ids.clone(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(released["released"].as_array().unwrap().len(), 2);
+        let again = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileRelease {
+                    reservation_ids: batch_ids,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert!(again["released"].as_array().unwrap().is_empty());
+        // An expired lease tied to an active attempt survives the sweep with an
+        // abandoned warning; once the attempt finishes the row is collected.
+        let owning = store
+            .execute(
+                &other,
+                "run-other",
+                &assign(&other, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let owning_id = owning["id"].as_str().unwrap().to_owned();
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&owning_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        let short = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReserve {
+                    paths: vec!["tmp/y.rs".into()],
+                    mode: "exclusive".into(),
+                    task_id: Some(owning_id.clone()),
+                    attempt_id: Some(attempt_id.clone()),
+                    ttl_seconds: Some(1),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let short_id = short["reservation_ids"][0].as_str().unwrap().to_owned();
+        diesel::sql_query("UPDATE reservations SET expires_at = ? WHERE id = ?")
+            .bind::<BigInt, _>((now() as i64) - 1_000)
+            .bind::<Text, _>(&short_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        let expired_renew = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileRenew {
+                    reservation_ids: vec![short_id.clone()],
+                    ttl_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&expired_renew), "invalid_state");
+        let visible = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReservations {
+                    path: Some("tmp/y.rs".into()),
+                    cursor: None,
+                    limit: None,
+                    include_expired: true,
+                },
+            )
+            .unwrap();
+        assert_eq!(visible["reservations"][0]["expired"], true);
+        assert_eq!(visible["reservations"][0]["abandoned"], true);
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &submit(&owning_id, 1, Some(&attempt_id), &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let swept = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReservations {
+                    path: Some("tmp/y.rs".into()),
+                    cursor: None,
+                    limit: None,
+                    include_expired: true,
+                },
+            )
+            .unwrap();
+        assert!(swept["reservations"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn evidence_is_attempt_scoped_and_operator_verified() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let task = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let task_id = task["id"].as_str().unwrap().to_owned();
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&task_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        let absolute = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::EvidenceAdd {
+                    task_id: task_id.clone(),
+                    kind: "file".into(),
+                    attempt_id: Some(attempt_id.clone()),
+                    path: Some("/etc/passwd".into()),
+                    hash: Some("deadbeef".into()),
+                    commit: None,
+                    repository: None,
+                    branch: None,
+                    base: None,
+                    head: None,
+                    command: None,
+                    outcome: None,
+                    exit_code: None,
+                    summary: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&absolute), "invalid_input");
+        let file = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::EvidenceAdd {
+                    task_id: task_id.clone(),
+                    kind: "file".into(),
+                    attempt_id: Some(attempt_id.clone()),
+                    path: Some("src/lib.rs".into()),
+                    hash: Some("deadbeef".into()),
+                    commit: None,
+                    repository: None,
+                    branch: None,
+                    base: None,
+                    head: None,
+                    command: None,
+                    outcome: None,
+                    exit_code: None,
+                    summary: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(file["verified"], false);
+        let file_id = file["evidence_id"].as_str().unwrap().to_owned();
+        let test = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::EvidenceAdd {
+                    task_id: task_id.clone(),
+                    kind: "test".into(),
+                    attempt_id: Some(attempt_id.clone()),
+                    path: None,
+                    hash: None,
+                    commit: None,
+                    repository: None,
+                    branch: None,
+                    base: None,
+                    head: None,
+                    command: Some("cargo test -p warp-agent-bus".into()),
+                    outcome: Some("passed".into()),
+                    exit_code: Some(0),
+                    summary: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let test_id = test["evidence_id"].as_str().unwrap().to_owned();
+        let foreign_reference = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskSubmit {
+                    task_id: task_id.clone(),
+                    revision: 1,
+                    result: "done".into(),
+                    evidence: "tests pass".into(),
+                    expected_version: None,
+                    attempt_id: Some(attempt_id.clone()),
+                    evidence_ids: vec![Uuid::new_v4().to_string()],
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&foreign_reference), "scope_denied");
+        let submitted = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskSubmit {
+                    task_id: task_id.clone(),
+                    revision: 1,
+                    result: "done".into(),
+                    evidence: "tests pass".into(),
+                    expected_version: None,
+                    attempt_id: Some(attempt_id),
+                    evidence_ids: vec![test_id.clone(), file_id.clone()],
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(submitted["state"], "submitted");
+        assert_eq!(store.task(&issuer, &task_id).unwrap().evidence_records.len(), 2);
+        let unverifiable = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::EvidenceVerify {
+                    evidence_id: test_id,
+                    verified: true,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&unverifiable), "invalid_state");
+        let unknown = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::EvidenceVerify {
+                    evidence_id: Uuid::new_v4().to_string(),
+                    verified: true,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&unknown), "scope_denied");
+        let verified = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::EvidenceVerify {
+                    evidence_id: file_id.clone(),
+                    verified: true,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(verified["verified"], true);
+        assert_eq!(verified["task_id"], task_id.as_str());
+        let task = store.task(&issuer, &task_id).unwrap();
+        assert!(task
+            .evidence_records
+            .iter()
+            .find(|evidence| evidence.id == file_id)
+            .unwrap()
+            .verified);
+    }
+
+    #[test]
+    fn threads_are_participant_scoped_and_search_is_literal() {
+        let store = Store::open(":memory:").unwrap();
+        let alice = actor(&store, "alice");
+        let bob = actor(&store, "bob");
+        let carol = actor(&store, "carol");
+        let root = store
+            .execute(
+                &alice,
+                "run-alice",
+                &Operation::AgentSend {
+                    to: "bob".into(),
+                    body: "please run under_score checks".into(),
+                    subject: None,
+                    thread_id: None,
+                    reply_to: None,
+                    task_id: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let root_id = root["id"].as_str().unwrap().to_owned();
+        assert!(root["thread_id"].is_null());
+        let reply = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::AgentSend {
+                    to: "alice".into(),
+                    body: "acknowledged".into(),
+                    subject: None,
+                    thread_id: None,
+                    reply_to: Some(root_id.clone()),
+                    task_id: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(reply["thread_id"], root_id.as_str());
+        assert_eq!(reply["reply_to"], root_id.as_str());
+        for (body, from) in [
+            ("underX hidden marker", &carol),
+            ("progress 100% complete", &alice),
+            ("progress 1000 complete", &carol),
+        ] {
+            store
+                .execute(
+                    from,
+                    "run-sender",
+                    &Operation::AgentSend {
+                        to: "bob".into(),
+                        body: body.into(),
+                        subject: None,
+                        thread_id: None,
+                        reply_to: None,
+                        task_id: None,
+                        request_id: Uuid::new_v4().to_string(),
+                    },
+                )
+                .unwrap();
+        }
+        let thread = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::ThreadGet {
+                    thread_id: root_id.clone(),
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap();
+        let messages = thread["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["body"], "please run under_score checks");
+        assert_eq!(messages[1]["body"], "acknowledged");
+        let outsider = store
+            .execute(
+                &carol,
+                "run-carol",
+                &Operation::ThreadGet {
+                    thread_id: root_id.clone(),
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&outsider), "scope_denied");
+        let literal = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::MessageSearch {
+                    query: "under_".into(),
+                    task_id: None,
+                    thread_id: None,
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(literal["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(literal["messages"][0]["body"], "please run under_score checks");
+        let padded = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::MessageSearch {
+                    query: "  under_score  ".into(),
+                    task_id: None,
+                    thread_id: None,
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(padded["messages"].as_array().unwrap().len(), 1);
+        let percent = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::MessageSearch {
+                    query: "%".into(),
+                    task_id: None,
+                    thread_id: None,
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(percent["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(percent["messages"][0]["body"], "progress 100% complete");
+        let scoped = store
+            .execute(
+                &carol,
+                "run-carol",
+                &Operation::MessageSearch {
+                    query: "under_score".into(),
+                    task_id: None,
+                    thread_id: None,
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap();
+        assert!(scoped["messages"].as_array().unwrap().is_empty());
+        let empty = store
+            .execute(
+                &bob,
+                "run-bob",
+                &Operation::MessageSearch {
+                    query: "   ".into(),
+                    task_id: None,
+                    thread_id: None,
+                    cursor: None,
+                    limit: None,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&empty), "invalid_input");
+    }
+
+    #[test]
+    fn history_export_is_ordered_and_purge_preserves_unread_work() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let task = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let task_id = task["id"].as_str().unwrap().to_owned();
+        store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &send(&issuer, "worker", "hello", &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let first = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::HistoryExport {
+                    after: None,
+                    limit: Some(3),
+                },
+            )
+            .unwrap();
+        assert_eq!(first["records"].as_array().unwrap().len(), 3);
+        let cursor = first["cursor"].as_u64().unwrap();
+        let second = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::HistoryExport {
+                    after: Some(cursor),
+                    limit: Some(3),
+                },
+            )
+            .unwrap();
+        // Assignment and send each consume a task/message record plus its
+        // message_queued event, six records total.
+        assert_eq!(second["records"].as_array().unwrap().len(), 3);
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&task_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &submit(&task_id, 1, Some(&attempt_id), &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &review(&task_id, 1, true, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let records = export_all(&store);
+        let sequences: Vec<u64> = records
+            .iter()
+            .map(|record| record["sequence"].as_u64().unwrap())
+            .collect();
+        assert!(sequences.windows(2).all(|window| window[0] < window[1]));
+        assert!(records.iter().any(|record| record["type"] == "task"));
+        assert!(records.iter().any(|record| record["type"] == "event"));
+        let accepted = store
+            .pending(&worker)
+            .unwrap()
+            .into_iter()
+            .find(|message| {
+                message.task_id.as_deref() == Some(task_id.as_str()) && message.kind == "accepted"
+            })
+            .unwrap();
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::AgentAck {
+                    message_id: accepted.id,
+                },
+            )
+            .unwrap();
+        let hello = store
+            .pending(&worker)
+            .unwrap()
+            .into_iter()
+            .find(|message| message.body == "hello")
+            .unwrap();
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::AgentAck {
+                    message_id: hello.id,
+                },
+            )
+            .unwrap();
+        let archive = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::TaskArchive {
+                    task_id: task_id.clone(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(archive["archived"], true);
+        let preview = store
+            .execute_controller("/project", &ControllerOperation::PurgePreview)
+            .unwrap();
+        assert_eq!(preview["tasks"], 1);
+        assert_eq!(preview["messages"], 1);
+        let purged = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::HistoryPurge {
+                    archived_tasks: true,
+                    acknowledged_messages: true,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(purged["purged_tasks"], json!([task_id.clone()]));
+        assert_eq!(purged["purged_messages"], 1);
+        assert_eq!(
+            code(&store
+                .execute(
+                    &issuer,
+                    "run-issuer",
+                    &Operation::TaskGet {
+                        task_id: task_id.clone(),
+                    },
+                )
+                .unwrap_err()),
+            "scope_denied"
+        );
+        let records = export_all(&store);
+        assert!(!records
+            .iter()
+            .any(|record| record["data"]["id"] == task_id.as_str()));
+        let pending_task = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let pending_id = pending_task["id"].as_str().unwrap().to_owned();
+        store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::TaskForceCancel {
+                    task_id: pending_id.clone(),
+                    reason: "changed plans".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::TaskArchive {
+                    task_id: pending_id.clone(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let preview = store
+            .execute_controller("/project", &ControllerOperation::PurgePreview)
+            .unwrap();
+        assert_eq!(preview["tasks"], 0);
+        let purged = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::HistoryPurge {
+                    archived_tasks: true,
+                    acknowledged_messages: false,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert!(purged["purged_tasks"].as_array().unwrap().is_empty());
+        assert_eq!(store.task(&issuer, &pending_id).unwrap().state, "cancelled");
+        let third = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let third_id = third["id"].as_str().unwrap().to_owned();
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&third_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        assert_eq!(started["state"], "running");
+        let cancel = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &Operation::TaskCancel {
+                    task_id: third_id.clone(),
+                    reason: "scope changed".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(cancel["state"], "cancel_requested");
+        let stopped = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::TaskFinishCancel {
+                    task_id: third_id.clone(),
+                    revision: 1,
+                    reason: "stopped".into(),
+                    attempt_id: None,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(stopped["state"], "cancelled");
+        let cancelled = store
+            .pending(&worker)
+            .unwrap()
+            .into_iter()
+            .find(|message| {
+                message.task_id.as_deref() == Some(third_id.as_str()) && message.kind == "cancelled"
+            })
+            .unwrap();
+        store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::AgentAck {
+                    message_id: cancelled.id,
+                },
+            )
+            .unwrap();
+        diesel::sql_query("UPDATE tasks SET updated_at = ? WHERE id = ?")
+            .bind::<BigInt, _>((now() as i64) - 2 * 24 * 60 * 60 * 1000)
+            .bind::<Text, _>(&third_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        let invalid_days = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::ArchiveAged {
+                    older_than_days: Some(0),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&invalid_days), "invalid_input");
+        let aged = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::ArchiveAged {
+                    older_than_days: Some(1),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(aged["archived"], json!([third_id.clone()]));
+        let preview = store
+            .execute_controller("/project", &ControllerOperation::PurgePreview)
+            .unwrap();
+        assert_eq!(preview["tasks"], 1);
+        let purged = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::HistoryPurge {
+                    archived_tasks: true,
+                    acknowledged_messages: false,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(purged["purged_tasks"], json!([third_id]));
+    }
+
+    #[test]
+    fn spaces_workspaces_and_devices_are_operator_managed() {
+        let store = Store::open(":memory:").unwrap();
+        actor(&store, "worker");
+        let created = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceCreate {
+                    name: "Alpha".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(created["name"], "Alpha");
+        assert_eq!(created["device"], "local");
+        assert_eq!(created["private"], false);
+        let space_id = created["space_id"].as_str().unwrap().to_owned();
+        let duplicate = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceCreate {
+                    name: "Alpha".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&duplicate), "invalid_input");
+        let reserved = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceCreate {
+                    name: "private".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&reserved), "invalid_input");
+        store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceJoin {
+                    space_id: space_id.clone(),
+                    agent: "worker".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let joined = store
+            .execute_controller("/project", &ControllerOperation::SpaceList)
+            .unwrap();
+        let spaces = joined["spaces"].as_array().unwrap();
+        assert!(spaces[0]["id"].is_null());
+        assert_eq!(spaces[0]["private"], true);
+        assert_eq!(spaces[1]["name"], "Alpha");
+        assert_eq!(spaces[1]["members"][0], "worker");
+        let unknown = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceJoin {
+                    space_id: Uuid::new_v4().to_string(),
+                    agent: "worker".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&unknown), "scope_denied");
+        store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceLeave {
+                    space_id: space_id.clone(),
+                    agent: "worker".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let left = store
+            .execute_controller("/project", &ControllerOperation::SpaceList)
+            .unwrap();
+        assert!(left["spaces"][1]["members"].as_array().unwrap().is_empty());
+        let missing = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::SpaceLeave {
+                    space_id: space_id.clone(),
+                    agent: "worker".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&missing), "invalid_state");
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().to_str().unwrap().to_owned();
+        let mapped = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::WorkspaceMap {
+                    space_id: space_id.clone(),
+                    root: root.clone(),
+                    model: "claude".into(),
+                    branch: Some("main".into()),
+                    base_commit: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let first_id = mapped["workspace_id"].as_str().unwrap().to_owned();
+        assert_eq!(
+            mapped["root"],
+            std::fs::canonicalize(&root).unwrap().to_str().unwrap()
+        );
+        assert_eq!(mapped["model"], "claude");
+        let remapped = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::WorkspaceMap {
+                    space_id: space_id.clone(),
+                    root: root.clone(),
+                    model: "codex".into(),
+                    branch: None,
+                    base_commit: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(remapped["workspace_id"], first_id.as_str());
+        assert_eq!(remapped["model"], "codex");
+        let invalid = store
+            .execute_controller(
+                "/project",
+                &ControllerOperation::WorkspaceMap {
+                    space_id: space_id.clone(),
+                    root: "/definitely/not/a/directory".into(),
+                    model: "claude".into(),
+                    branch: None,
+                    base_commit: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(code(&invalid), "invalid_input");
+        let devices = store
+            .execute_controller("/project", &ControllerOperation::DeviceList)
+            .unwrap_err();
+        assert_eq!(code(&devices), "invalid_state");
+    }
+
+    fn v2_database(path: &str) {
+        let mut connection = SqliteConnection::establish(path).unwrap();
+        connection
+            .batch_execute(
+                "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 INSERT INTO meta(key, value) VALUES ('schema_version', '2');
+                 CREATE TABLE agent_bus_v1 (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
+                 CREATE TABLE agents (id TEXT PRIMARY KEY, terminal TEXT NOT NULL, name TEXT NOT NULL, program TEXT NOT NULL, project TEXT NOT NULL, UNIQUE(project, name));
+                 CREATE TABLE tasks (id TEXT PRIMARY KEY, project TEXT NOT NULL, issuer TEXT NOT NULL, assignee TEXT NOT NULL, reviewer TEXT NOT NULL, description TEXT NOT NULL, acceptance TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, version INTEGER NOT NULL, result TEXT, evidence TEXT, created_seq INTEGER NOT NULL);
+                 CREATE TABLE messages (id TEXT PRIMARY KEY, project TEXT NOT NULL, sender TEXT NOT NULL, recipient TEXT NOT NULL, body TEXT NOT NULL, subject TEXT, thread_id TEXT, reply_to TEXT, task_id TEXT, revision INTEGER, kind TEXT NOT NULL, acknowledged INTEGER NOT NULL, sequence INTEGER NOT NULL);
+                 CREATE TABLE events (id TEXT PRIMARY KEY, project TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, resource TEXT, attempt TEXT, observed_at INTEGER, imported INTEGER NOT NULL, payload TEXT NOT NULL);
+                 CREATE TABLE sequences (project TEXT PRIMARY KEY, value INTEGER NOT NULL);
+                 CREATE TABLE requests (actor TEXT NOT NULL, request_id TEXT NOT NULL, epoch TEXT NOT NULL, fingerprint TEXT NOT NULL, response TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(actor, request_id));",
+            )
+            .unwrap();
+        diesel::sql_query("INSERT INTO agent_bus_v1(id, payload) VALUES (1, ?)")
+            .bind::<Text, _>(SENTINEL_V2)
+            .execute(&mut connection)
+            .unwrap();
+        diesel::sql_query("INSERT INTO agents(id, terminal, name, program, project) VALUES ('agent-old', 't-old', 'old', 'claude', '/p')")
+            .execute(&mut connection)
+            .unwrap();
+        diesel::sql_query("INSERT INTO tasks(id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq) VALUES ('task-v2', '/p', 'agent-old', 'agent-old', 'agent-old', 'old work', 'old acceptance', 'accepted', 1, 1, 'ok', 'ran', 1)")
+            .execute(&mut connection)
+            .unwrap();
+    }
+
+    #[test]
+    fn v2_databases_upgrade_additively_with_backup() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("bus.sqlite");
+        let path = path.to_str().unwrap();
+        v2_database(path);
+        let store = Store::open(path).unwrap();
+        let backup = format!("{path}.pre-upgrade");
+        assert!(std::path::Path::new(&backup).exists());
+        assert_eq!(read_legacy_payload(path).unwrap().as_deref(), Some(SENTINEL));
+        assert_eq!(
+            read_legacy_payload(&backup).unwrap().as_deref(),
+            Some(SENTINEL_V2)
+        );
+        let old = store.register("t-old", "claude", "/p", "old").unwrap();
+        assert_eq!(old.id, "agent-old");
+        let preserved = store.task(&old, "task-v2").unwrap();
+        assert_eq!(preserved.state, "accepted");
+        assert_eq!(preserved.result.as_deref(), Some("ok"));
+        assert!(!preserved.archived);
+        let archived = store
+            .execute_controller(
+                "/p",
+                &ControllerOperation::TaskArchive {
+                    task_id: "task-v2".into(),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(archived["archived"], true);
+        let other = store.register("t2", "claude", "/p", "other").unwrap();
+        let sent = store
+            .execute(
+                &old,
+                "run-old",
+                &send(&old, "other", "post-upgrade", &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        assert_eq!(sent["body"], "post-upgrade");
+        assert_eq!(store.pending(&other).unwrap().len(), 1);
+        drop(store);
+        let store = Store::open(path).unwrap();
+        assert!(store.task(&old, "task-v2").unwrap().archived);
     }
 }

@@ -779,6 +779,17 @@ impl TerminalView {
             .is_sharer_or_viewer()
     }
 
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    pub(crate) fn peer_input_guard(&self, ctx: &AppContext) -> (bool, bool) {
+        use crate::terminal::cli_agent_sessions::CLIAgentSessionStatus;
+        let session = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id);
+        let draft = session.is_some_and(|session| session.draft_text.as_ref().is_some_and(|draft| !draft.is_empty()))
+            || (self.is_cli_agent_rich_input_open(ctx) && !self.input.as_ref(ctx).buffer_text(ctx).is_empty())
+            || !self.ai_context_model.as_ref(ctx).pending_images().is_empty();
+        let blocked = session.is_some_and(|session| matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
+        (draft, blocked)
+    }
+
     /// Simulates clipboard image paste for each pending image attachment by
     /// writing the image to the system clipboard and sending Ctrl+V to the PTY.
     /// After all images are pasted, the text prompt is sent via the normal

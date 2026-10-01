@@ -214,6 +214,7 @@ fn register(broker: &Broker, terminal: &str, program: &str) -> Request {
         capability,
         run: None,
         defer_initial_ready: false,
+        native_activity: None,
         directory: None,
         operation: Operation::AgentRegister {
             name: terminal.into(),
@@ -254,6 +255,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
             capability,
             run: None,
             defer_initial_ready: state == "native-context",
+            native_activity: None,
             directory: (state == "native-context")
                 .then(|| first.path().to_string_lossy().into_owned()),
             operation: Operation::AgentRegister { name: state.into() },
@@ -272,6 +274,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
                 capability,
                 run: None,
                 defer_initial_ready: false,
+                native_activity: None,
                 directory: None,
                 operation: Operation::AgentRegister {
                     name: "native-issuer".into(),
@@ -363,6 +366,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
         capability: claim_capability,
         run: None,
         defer_initial_ready: false,
+        native_activity: None,
         directory: None,
         operation: Operation::AgentRegister {
             name: "worker".into(),
@@ -712,6 +716,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         capability,
         run: None,
         defer_initial_ready: false,
+        native_activity: None,
         directory: None,
         operation: Operation::AgentRegister {
             name: "outside".into(),
@@ -824,6 +829,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 capability,
                 run: None,
                 defer_initial_ready: false,
+                native_activity: None,
                 directory: None,
                 operation: Operation::AgentRegister { name: name.clone() },
             };

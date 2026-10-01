@@ -108,7 +108,7 @@ impl AgentCommunication {
                 CLIAgentSessionsModelEvent::Ended { .. } => broker.end(terminal),
                 CLIAgentSessionsModelEvent::StatusChanged { status, .. } => {
                     if matches!(status, CLIAgentSessionStatus::Blocked { .. }) {
-                        broker.readiness(terminal, false);
+                        broker.activity(terminal, warp_agent_bus::readiness::Activity::WaitingApproval);
                         return;
                     }
                     // Opaque OSC notifications also announce approvals; they cannot prove idle.
@@ -431,6 +431,12 @@ impl AgentCommunication {
                     })
                     .unwrap_or_default();
                 let pending = broker.pending_work();
+                for (terminal, view) in &bindings {
+                    if let Some(view) = view.upgrade(ctx) {
+                        let (draft, blocked) = view.as_ref(ctx).peer_input_guard(ctx);
+                        broker.input_guard(terminal, draft, blocked);
+                    }
+                }
                 model.notified.retain(|terminal, message| {
                     pending.iter().any(|work| &work.terminal == terminal && &work.message_id == message)
                 });
@@ -546,9 +552,7 @@ fn terminal_for_view(view: EntityId) -> Option<String> {
 }
 pub(crate) fn user_input(view: EntityId, bytes: &[u8]) {
     if let (Some(broker), Some(terminal)) = (BROKER.get(), terminal_for_view(view)) {
-        // A submit clears a draft. Cancellation keeps automatic work paused until the user resumes.
-        let boundary = matches!(bytes, b"\r" | b"\n") || bytes.ends_with(b"\r");
-        broker.user_input(&terminal, boundary);
+        broker.input_bytes(&terminal, bytes);
     }
 }
 pub(crate) fn output(view: EntityId) {

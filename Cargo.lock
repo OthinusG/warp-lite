@@ -13688,6 +13688,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-tungstenite",
+ "chrono",
  "diesel",
  "dirs 6.0.0",
  "futures-util",
@@ -13700,6 +13701,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml 0.8.23",
+ "unicode-segmentation",
  "uuid",
 ]
 

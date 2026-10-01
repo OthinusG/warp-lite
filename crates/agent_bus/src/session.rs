@@ -311,9 +311,17 @@ struct ThreadBinding {
     pending: HashSet<String>,
     thread: Option<String>,
     awaiting_turn: bool,
+    turn: Option<String>,
+    pending_turn: HashSet<String>,
 }
 impl ThreadBinding {
     fn outgoing(&mut self, value: &mut Value, config: &Value) -> Option<bool> {
+        if value["method"] == "initialize" {
+            // The TUI can opt out of status notifications it doesn't render; the relay needs them.
+            if let Some(methods) = value["params"]["capabilities"]["optOutNotificationMethods"].as_array_mut() {
+                methods.retain(|method| !matches!(method.as_str(), Some("thread/status/changed" | "turn/started" | "turn/completed")));
+            }
+        }
         if matches!(
             value["method"].as_str(),
             Some("thread/start" | "thread/resume" | "thread/fork")
@@ -323,6 +331,7 @@ impl ThreadBinding {
             };
             self.pending.insert(id.to_string());
             self.thread = None;
+            self.turn = None;
             let Some(params) = value.get_mut("params").and_then(Value::as_object_mut) else {
                 return None;
             };
@@ -342,10 +351,29 @@ impl ThreadBinding {
                 .is_some_and(|id| value["params"]["threadId"] == id);
         if starting_turn {
             self.awaiting_turn = false;
+            self.turn = Some(String::new());
+            if let Some(id) = value.get("id") { self.pending_turn.insert(id.to_string()); }
         }
         starting_turn.then_some(false)
     }
     fn incoming(&mut self, value: &Value) -> Option<bool> {
+        self.incoming_status(value).map(|status| status.is_idle())
+    }
+    fn incoming_status(&mut self, value: &Value) -> Option<crate::readiness::Activity> {
+        use crate::readiness::Activity;
+        let status = |status: &Value, awaiting_turn: bool| match status["type"].as_str() {
+            Some("idle") if !awaiting_turn => Activity::Idle,
+            Some("active") if status["activeFlags"].as_array().is_some_and(|flags| flags.iter().any(|flag| flag == "waitingOnApproval")) => Activity::WaitingApproval,
+            Some("active") if status["activeFlags"].as_array().is_some_and(|flags| flags.iter().any(|flag| flag == "waitingOnUserInput")) => Activity::WaitingInput,
+            Some("systemError") => Activity::Error,
+            Some("notLoaded") => Activity::Starting,
+            _ => Activity::Working,
+        };
+        if value.get("id").is_some_and(|id| self.pending_turn.remove(&id.to_string())) {
+            if let Some(turn) = value["result"]["turn"]["id"].as_str() {
+                self.turn = Some(turn.into());
+            }
+        }
         if value
             .get("id")
             .is_some_and(|id| self.pending.remove(&id.to_string()))
@@ -356,7 +384,7 @@ impl ThreadBinding {
                 if thread["status"]["type"] == "active" {
                     self.awaiting_turn = false;
                 }
-                return Some(thread["status"]["type"] == "idle" && !self.awaiting_turn);
+                return Some(status(&thread["status"], self.awaiting_turn));
             }
         }
         if value["method"] == "thread/status/changed"
@@ -368,7 +396,23 @@ impl ThreadBinding {
             if value["params"]["status"]["type"] == "active" {
                 self.awaiting_turn = false;
             }
-            return Some(value["params"]["status"]["type"] == "idle" && !self.awaiting_turn);
+            return Some(status(&value["params"]["status"], self.awaiting_turn));
+        }
+        if self.thread.as_deref().is_some_and(|id| value["params"]["threadId"] == id) {
+            match value["method"].as_str() {
+                Some("turn/started") => {
+                    self.awaiting_turn = false;
+                    self.turn = value["params"]["turn"]["id"].as_str().map(str::to_owned);
+                    return Some(Activity::Working);
+                }
+                Some("turn/completed") if !self.awaiting_turn && self.turn.as_deref().is_some_and(|id| value["params"]["turn"]["id"] == id) => {
+                    self.turn = None;
+                    return Some(Activity::Idle);
+                }
+                Some(method) if method.ends_with("/requestApproval") => return Some(Activity::WaitingApproval),
+                Some("item/tool/requestUserInput" | "mcpServer/elicitation/request") => return Some(Activity::WaitingInput),
+                _ => {}
+            }
         }
         None
     }
@@ -451,11 +495,12 @@ async fn codex_proxy(
         let mut downstream = downstream;
         let mut binding = ThreadBinding { awaiting_turn: initial_work, ..Default::default() };
         let context = bridge.clone();
-        let (activity, mut updates) = tokio::sync::mpsc::channel(32);
+        let (activity, mut updates) = tokio::sync::mpsc::channel::<(crate::readiness::Activity, Option<tokio::sync::oneshot::Sender<()>>)>(32);
         tasks.spawn(async move {
-            while let Some(ready) = updates.recv().await {
+            while let Some((status, done)) = updates.recv().await {
                 let bridge = bridge.clone();
-                let _ = tokio::task::spawn_blocking(move || bridge.native_activity(ready)).await;
+                let _ = tokio::task::spawn_blocking(move || bridge.native_status(status)).await;
+                if let Some(done) = done { let _ = done.send(()); }
             }
         });
         let result = async {
@@ -469,9 +514,12 @@ async fn codex_proxy(
                         if let Message::Text(text) = &message {
                             let mut value: Value = serde_json::from_str(text)?;
                             if let Some(ready) = binding.outgoing(&mut value, &config) {
-                                let activity_bridge = context.clone();
                                 // Establish busy before forwarding: discovery can precede the thread reply.
-                                let _ = tokio::task::spawn_blocking(move || activity_bridge.native_activity(ready)).await;
+                                // Use the same FIFO as incoming events so a queued older idle cannot win.
+                                let (done, applied) = tokio::sync::oneshot::channel();
+                                let status = if ready { crate::readiness::Activity::Idle } else { crate::readiness::Activity::Working };
+                                let _ = activity.send((status, Some(done))).await;
+                                let _ = applied.await;
                                 if let Some(directory) = value["params"]["cwd"].as_str() { let _ = context.native_directory(directory); }
                             }
                             message = Message::Text(value.to_string());
@@ -485,7 +533,7 @@ async fn codex_proxy(
                         if matches!(message, Message::Ping(_) | Message::Pong(_)) { upstream.flush().await?; continue; }
                         if let Message::Text(text) = &message {
                             let value: Value = serde_json::from_str(text)?;
-                            if let Some(ready) = binding.incoming(&value) { let _ = activity.send(ready).await; }
+                            if let Some(status) = binding.incoming_status(&value) { let _ = activity.send((status, None)).await; }
                         }
                         downstream.send(message).await?;
                     }
@@ -1028,6 +1076,7 @@ mod tests {
             capability: issuer_capability,
             run: None,
             defer_initial_ready: false,
+            native_activity: None,
             directory: None,
             operation: Operation::AgentRegister {
                 name: "issuer".into(),
@@ -1084,7 +1133,7 @@ mod tests {
                 .await
                 .unwrap();
                 let client = ().serve(stream).await.unwrap();
-                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 13);
+                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 29);
                 let peer = server
                     .broker
                     .peers("issuer")
@@ -1144,7 +1193,7 @@ mod tests {
             assert!(serde_json::to_string(&premature.content)
                 .unwrap()
                 .contains("\\\"ready\\\":false"));
-            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 13);
+            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 29);
             assert!(
                 server.broker.wakeups().is_empty(),
                 "Rediscovery cannot replay an old idle notification"

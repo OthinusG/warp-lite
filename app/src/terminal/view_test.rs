@@ -4846,6 +4846,7 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             capability,
             run: None,
             defer_initial_ready: false,
+            native_activity: None,
             directory: None,
             operation: Operation::AgentRegister { name: "issuer".into() },
         };
@@ -4904,6 +4905,7 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 capability,
                 run: None,
                 defer_initial_ready: false,
+                native_activity: None,
                 directory: None,
                 operation: Operation::AgentRegister { name },
             };

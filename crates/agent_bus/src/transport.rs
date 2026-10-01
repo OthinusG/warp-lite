@@ -1,8 +1,8 @@
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 use crate::{
     binding_inactive, capacity_exceeded, coordinator_unavailable, epoch_expired, invalid_input,
-    invalid_state, scope_denied, unauthorized, Agent, DomainError, Operation, Store, Task, MAX_FRAME,
-    MUTATION_EPOCH,
+    invalid_state, scope_denied, unauthorized, Agent, ControllerOperation, DomainError, Operation,
+    Store, Task, MAX_FRAME, MUTATION_EPOCH,
 };
 use anyhow::{anyhow, ensure, Result};
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ use tokio::net::windows::named_pipe::{ClientOptions, ServerOptions};
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
+use crate::readiness::{Activity, Draft};
 
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
 pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
@@ -36,6 +37,9 @@ pub struct Request {
     pub run: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub defer_initial_ready: bool,
+    /// Authenticated launch-relay lifecycle, never an MCP tool argument.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_activity: Option<Activity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directory: Option<String>,
     pub operation: Operation,
@@ -58,7 +62,11 @@ struct Live {
     waiting: bool,
     ready: Option<Instant>,
     last_output: Instant,
-    manual_draft: bool,
+    draft: Draft,
+    rich_draft: bool,
+    blocked: bool,
+    activity: Activity,
+    native_activity: Option<Activity>,
     generation: u64,
     wake: Option<Wake>,
     delivered: HashSet<String>,
@@ -334,7 +342,11 @@ impl Broker {
             waiting: false,
             ready: None,
             last_output: Instant::now(),
-            manual_draft: false,
+            draft: Draft::default(),
+            rich_draft: false,
+            blocked: false,
+            activity: Activity::Starting,
+            native_activity: None,
             generation: 0,
             wake: None,
             delivered: HashSet::new(),
@@ -369,6 +381,9 @@ impl Broker {
     }
     /// Called by native lifecycle completion/busy events; model readiness covers clients without hooks.
     pub fn readiness(&self, terminal: &str, ready: bool) {
+        self.activity(terminal, if ready { Activity::Idle } else { Activity::Working });
+    }
+    pub fn activity(&self, terminal: &str, activity: Activity) {
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state
                 .terminals
@@ -376,8 +391,9 @@ impl Broker {
                 .and_then(|binding| binding.live.as_mut())
             {
                 live.generation += 1;
-                live.ready = ready.then(Instant::now);
-                if !ready {
+                live.activity = activity;
+                live.ready = activity.is_idle().then(Instant::now);
+                if !activity.is_idle() {
                     live.initial_prompt = false;
                     if let Some(wake) = live.wake.take() {
                         live.delivered.remove(&wake.message_id);
@@ -394,12 +410,48 @@ impl Broker {
                 .get_mut(terminal)
                 .and_then(|binding| binding.live.as_mut())
             {
-                live.manual_draft = !submitted_or_cancelled;
+                if submitted_or_cancelled {
+                    live.draft.clear();
+                    live.activity = Activity::Working;
+                    live.ready = None;
+                } else {
+                    live.draft.invalidate();
+                }
                 live.initial_prompt = false;
-                live.ready = None;
                 live.generation += 1;
                 if let Some(wake) = live.wake.take() {
                     live.delivered.remove(&wake.message_id);
+                }
+            }
+        }
+    }
+    /// Track actual native edits while retaining the lifecycle's idle evidence.
+    pub fn input_bytes(&self, terminal: &str, bytes: &[u8]) {
+        if bytes.is_empty() { return; }
+        if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
+                if let Some(activity) = live.draft.input(bytes) {
+                    live.activity = activity;
+                    live.ready = None;
+                }
+                live.initial_prompt = false;
+                live.generation += 1;
+                // A new settling interval prevents Enter racing the final backspace.
+                if live.ready.is_some() { live.ready = Some(Instant::now()); }
+                if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+            }
+        }
+    }
+    /// App-owned rich drafts/attachments and permission overlays affect delivery, not idle evidence.
+    pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
+        if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
+                if live.rich_draft != rich_draft || live.blocked != blocked {
+                    live.rich_draft = rich_draft;
+                    live.blocked = blocked;
+                    live.generation += 1;
+                    if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+                    if live.ready.is_some() { live.ready = Some(Instant::now()); }
                 }
             }
         }
@@ -425,7 +477,7 @@ impl Broker {
             .filter_map(|(terminal, binding)| {
                 let live = binding.live.as_ref()?;
                 if live.waiting
-                    || live.manual_draft
+                    || !live.draft.is_empty() || live.rich_draft || live.blocked
                     || live.wake.is_some()
                     || live.ready?.elapsed() < Duration::from_millis(750)
                     || live.last_output.elapsed() < Duration::from_millis(500)
@@ -484,7 +536,7 @@ impl Broker {
         };
         if live.run != wake.run
             || live.generation != wake.generation
-            || live.manual_draft
+            || !live.draft.is_empty() || live.rich_draft || live.blocked
             || live.ready.is_none()
             || live.waiting
             || live.wake.is_some()
@@ -520,7 +572,7 @@ impl Broker {
                 .get(&wake.terminal)
                 .and_then(|binding| binding.live.as_ref())
                 .is_some_and(|live| {
-                    live.run == wake.run && !live.manual_draft && live.wake.as_ref() == Some(wake)
+                    live.run == wake.run && live.draft.is_empty() && !live.rich_draft && !live.blocked && live.wake.as_ref() == Some(wake)
                 })
         })
     }
@@ -536,8 +588,10 @@ impl Broker {
                     if !submitted {
                         live.delivered.remove(&wake.message_id);
                         live.ready = Some(Instant::now());
+                        live.activity = Activity::Idle;
                         live.generation += 1;
                     }
+                    else { live.activity = Activity::Working; }
                 }
             }
         }
@@ -600,6 +654,21 @@ impl Broker {
             .as_ref()
             .unwrap();
         let run = live.run.clone();
+        if let Some(activity) = request.native_activity {
+            let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
+            live.native_activity = Some(activity);
+            // An explicit cancellation pauses delivery until the user resumes with a new turn.
+            if live.activity != Activity::Cancelled || !activity.is_idle() {
+                live.activity = activity;
+                live.ready = activity.is_idle().then(Instant::now);
+            }
+            live.generation += 1;
+            live.initial_prompt = false;
+            if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+            self.shared.changed.notify_all();
+            return Ok(json!({"activity": live.activity, "ready": live.ready.is_some()}));
+        }
+        let live = state.terminals.get(&request.terminal).unwrap().live.as_ref().unwrap();
         if let Operation::AgentRegister { name } = &request.operation {
             let automatic = name.is_empty();
             let name = if automatic {
@@ -651,6 +720,7 @@ impl Broker {
             // Any input or lifecycle event since activation cancels this one-time lease.
             if live.initial_prompt && live.generation == 0 {
                 live.ready = Some(Instant::now());
+                live.activity = Activity::Idle;
             }
             live.initial_prompt = false;
             self.shared.changed.notify_all();
@@ -674,22 +744,33 @@ impl Broker {
             _ => vec![],
         };
         for recipient in recipients {
-            let target = state
+            if recipient == actor.id || recipient == actor.name {
+                continue;
+            }
+            let live_match = state
                 .terminals
                 .values()
                 .filter_map(|t| t.live.as_ref())
-                .find(|live| {
+                .any(|live| {
                     live.agent.as_ref().is_some_and(|agent| {
                         agent.project == actor.project
                             && (agent.id == recipient || agent.name == recipient)
                     })
                 });
-            if recipient == actor.id || recipient == actor.name {
+            if live_match {
                 continue;
             }
+            // Offline teammates remain addressable while their program stays enabled.
+            let known = state.store.agent(&actor.project, recipient).ok();
+            let allowed = known.as_ref().is_some_and(|agent| {
+                state
+                    .programs
+                    .as_ref()
+                    .is_none_or(|programs| programs.contains(&agent.program))
+            });
             ensure!(
-                target.is_some(),
-                scope_denied("Recipient is not a live enabled agent in this project")
+                allowed,
+                scope_denied("Recipient is not a known enabled agent in this project")
             );
         }
         if matches!(request.operation, Operation::AgentReady) {
@@ -700,7 +781,11 @@ impl Broker {
                 .live
                 .as_mut()
                 .unwrap();
+            if live.native_activity.is_some_and(|activity| !activity.is_idle()) || live.activity == Activity::Cancelled {
+                return Ok(json!({"ready": false, "activity": live.activity, "instruction": "Finish this turn now. Native session completion will establish readiness after work and approval dialogs end."}));
+            }
             live.ready = Some(Instant::now());
+            live.activity = Activity::Idle;
             live.generation += 1;
             if let Some(wake) = live.wake.take() {
                 live.delivered.remove(&wake.message_id);
@@ -717,6 +802,7 @@ impl Broker {
             .as_mut()
             .unwrap();
         live.ready = None;
+        live.activity = Activity::Working;
         if let Some(wake) = live.wake.take() {
             live.delivered.remove(&wake.message_id);
         }
@@ -796,8 +882,22 @@ impl Broker {
                     });
                 agent["online"] = json!(online.is_some());
                 agent["waiting"] = json!(online.is_some_and(|live| live.waiting));
-                agent["ready"] =
-                    json!(online.is_some_and(|live| live.ready.is_some() && !live.manual_draft));
+                if let Some(live) = online {
+                    agent["ready"] = json!(live.ready.is_some());
+                    agent["activity"] = json!(live.activity);
+                    agent["has_draft"] = json!(!live.draft.is_empty() || live.rich_draft);
+                    agent["draft_state"] = json!(if live.rich_draft { "present" } else { live.draft.state() });
+                    let mut blockers = Vec::new();
+                    if live.ready.is_none() { blockers.push("lifecycle_not_idle"); }
+                    if !live.draft.is_empty() || live.rich_draft { blockers.push("draft"); }
+                    if live.blocked { blockers.push("permission_or_question"); }
+                    if live.waiting { blockers.push("cooperative_wait"); }
+                    if live.wake.is_some() { blockers.push("dispatching"); }
+                    if live.ready.is_some_and(|ready| ready.elapsed() < Duration::from_millis(750)) || live.last_output.elapsed() < Duration::from_millis(500) { blockers.push("settling"); }
+                    if live.expired || live.started.elapsed() >= MUTATION_EPOCH { blockers.push("run_expired"); }
+                    agent["can_auto_submit"] = json!(blockers.is_empty());
+                    agent["delivery_blockers"] = json!(blockers);
+                }
                 let mut pending = 0;
                 if let Some(peer) = online.and_then(|live| live.agent.as_ref()) {
                     pending = state.store.pending(peer)?.len();
@@ -828,6 +928,56 @@ impl Broker {
         }
         self.shared.changed.notify_all();
         Ok(result)
+    }
+    fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
+        self.shared
+            .state
+            .lock()
+            .map_err(|_| coordinator_unavailable("Broker unavailable"))
+    }
+    /// Trusted local panel mutations under the deterministic operator principal.
+    pub fn operator(&self, project: &str, operation: &Operation) -> Result<Value> {
+        let state = self.store()?;
+        state
+            .store
+            .execute(&Store::operator(project), crate::storage::OPERATOR_EPOCH, operation)
+    }
+    /// Space, workspace, evidence, archive and history control operations.
+    pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
+        let state = self.store()?;
+        state.store.execute_controller(project, operation)
+    }
+    /// Panel reads span the whole project, unlike caller-scoped agent tools.
+    pub fn operator_agents(&self, project: &str) -> Result<Value> {
+        let state = self.store()?;
+        Ok(json!(state.store.agents(project)?))
+    }
+    pub fn operator_tasks(
+        &self,
+        project: &str,
+        task_state: Option<&str>,
+        assignee: Option<&str>,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+        include_archived: bool,
+    ) -> Result<Value> {
+        let state = self.store()?;
+        state.store.operator_tasks(
+            project,
+            task_state,
+            assignee,
+            cursor,
+            limit,
+            include_archived,
+        )
+    }
+    pub fn operator_task(&self, project: &str, task_id: &str) -> Result<Value> {
+        let state = self.store()?;
+        Ok(json!(state.store.operator_task(project, task_id)?))
+    }
+    pub fn operator_events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
+        let state = self.store()?;
+        state.store.events(project, after, limit)
     }
 }
 fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
