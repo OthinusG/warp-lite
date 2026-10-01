@@ -72,6 +72,17 @@ Acceptance: simulate dormant readiness for every managed identity plus custom; d
 
 ## Settings-managed setup revision (2026-09-30)
 
+## Receiver and adapter repair plan (2026-10-01)
+
+1. Remove the redundant listener/status veto from the shared PTY wake guard; keep explicit blocked/draft/session protections and the broker's run-scoped readiness lease. Only structured lifecycle handlers may establish readiness from status changes.
+2. Show each pending message once using the existing terminal notification event; expose pending count/readiness and truthful queued delivery responses through existing MCP tools. Include the final-action readiness rule in each tool description for clients that omit server instructions.
+3. Replace guessed setup for named vendors with documented configuration adapters, retaining probes for genuinely custom versions. Add reversible TOML list, YAML list and Cordis patch support using existing dependencies. Vibe requires runtime environment injection because its Python stdio client filters inherited variables; capabilities stay exclusively in the terminal environment.
+4. Extend the existing application wake and protocol/setup regressions. Regenerate the replayable patch, verify clean/repeated/reverse replay, then run GitHub protocol, application, and packaging checks.
+
+## Warpai branding (2026-10-01)
+
+The same version uses Warpai as its application/display name and warpai in product prose. Rename shipped window/menu/settings/notification text, macOS display metadata and executable, Windows executable/installer/portable packages, and the installer sidebar graphic. Documentation/help links target this fork; original licensing and upstream attribution remain accurate. Keep crate/bin identifiers, protocol/tool identifiers, persisted settings paths, bundle ID, and real repository URLs compatible. Deliver UI branding as a separate replayable patch after communication restoration; update release workflow asset paths together. Verify Rust parsing, shell/workflow syntax, clean and repeated patch replay, installer image dimensions/text, GitHub checks, and packaged plist/executable naming. No local compilation.
+
 Replace manual vendor setup with a local settings model and serialized background configuration jobs. Discover installed managed command aliases without reading credentials. Use documented vendor config formats or native setup commands; retain ownership metadata only for the dedicated `warp-lite-communication` entry. Apply atomic file updates, preserve unrelated values, refuse collisions, and retain cleanup failures for retry. Codex explicitly passes the three dynamic environment names through `env_vars`; clients with inherited subprocess environments need no persisted capability. UI observers render per-agent status and restart guidance. Broker policy is default-deny in the app, immediately revokes unchecked programs and all programs on global disable, and requires fresh native discovery after re-enable.
 
 The second implementation phase removes the tab picker, reciprocal run sets, and selected-only routing. Existing authenticated project scope remains the single routing boundary; only live, enabled, native-discovered recipients are eligible. Preserve task review authorization and lifecycle/wake protections.

@@ -1,4 +1,4 @@
-name: Validate native agent communication
+name: Validate Warpai communication
 on:
   workflow_dispatch:
   push:
@@ -64,15 +64,19 @@ jobs:
         run: |
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
+          cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
+          cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked
       - name: Build and package review artifacts
         run: |
           cargo build --release --bin warp-oss --locked
           cargo build --release -p warp-agent-bus --bin warp-agent --locked
           script/build-warp-lite-app.sh
-          codesign --verify --deep --strict WarpLite.app
-          ditto -c -k --sequesterRsrc --keepParent WarpLite.app WarpLite.app.zip
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Warpai.app/Contents/Info.plist | grep -qx Warpai
+          test -x Warpai.app/Contents/MacOS/Warpai
+          codesign --verify --deep --strict Warpai.app
+          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: WarpLite-agent-communication-macos
-          path: WarpLite.app.zip
+          name: Warpai-agent-communication-macos
+          path: Warpai.app.zip
           retention-days: 7

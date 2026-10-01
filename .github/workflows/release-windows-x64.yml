@@ -2,7 +2,7 @@ name: Release Windows x64
 
 on:
   workflow_run:
-    workflows: ["Sync Warp Lite and release"]
+    workflows: ["Sync Warpai and release"]
     types:
       - completed
   workflow_dispatch:
@@ -58,15 +58,15 @@ jobs:
 
           EXISTING_ASSETS="$(gh release view "$TARGET_TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)"
 
-          if echo "$EXISTING_ASSETS" | grep -qx "WarpLiteSetup-x64.exe" && [[ "$FORCE_REBUILD" != "true" ]]; then
-            echo "Windows asset WarpLiteSetup-x64.exe already exists on release $TARGET_TAG. Skipping build."
+          if echo "$EXISTING_ASSETS" | grep -qx "WarpaiSetup-x64.exe" && [[ "$FORCE_REBUILD" != "true" ]]; then
+            echo "Windows asset WarpaiSetup-x64.exe already exists on release $TARGET_TAG. Skipping build."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
           else
             echo "Release $TARGET_TAG requires Windows x64 assets."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check out Warp Lite
+      - name: Check out Warpai
         if: steps.check-release.outputs.should_build == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -116,8 +116,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ls -lh WarpLiteSetup-x64.exe WarpLite-windows-x64.zip
-          sha256sum WarpLiteSetup-x64.exe WarpLite-windows-x64.zip
+          ls -lh WarpaiSetup-x64.exe Warpai-windows-x64.zip
+          sha256sum WarpaiSetup-x64.exe Warpai-windows-x64.zip
 
       - name: Upload Windows artifacts to release
         if: steps.check-release.outputs.should_build == 'true'
@@ -128,6 +128,6 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$RELEASE_TAG" \
-            WarpLiteSetup-x64.exe \
-            WarpLite-windows-x64.zip \
+            WarpaiSetup-x64.exe \
+            Warpai-windows-x64.zip \
             --repo "$GITHUB_REPOSITORY"

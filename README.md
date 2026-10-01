@@ -1,6 +1,8 @@
-# warp-lite
+# warpai
 
-**An open-source Warp Terminal alternative for macOS and Windows: the block terminal, without bundled Warp AI, telemetry, or a Warp login — with restored project browsing and broader support for your own CLI agents.**
+**Application name: Warpai.** This development version renames the app, menus, settings, notifications, and installer assets. Existing settings remain compatible. Published `v0.5.7-lite` packages still use their historical WarpLite names; renamed review packages come from the [validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
+
+**A local-first block terminal for macOS and Windows, with project browsing and native communication between your own CLI agents. No bundled cloud AI, telemetry, account login, or billing.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Latest release](https://img.shields.io/github/v/release/OthinusG/warp-lite)](https://github.com/OthinusG/warp-lite/releases/latest)
@@ -8,7 +10,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-x64-blue.svg)](https://github.com/OthinusG/warp-lite/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
-This repository is [OthinusG's fork](https://github.com/OthinusG/warp-lite) of [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite), which is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warp account login, no bundled Warp AI agents, no cloud onboarding, and no telemetry as a product requirement. If you want a Warp alternative that keeps the terminal and drops the AI platform, this is that fork.
+This repository is [OthinusG's fork](https://github.com/OthinusG/warp-lite) of [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite), which is a lightweight, privacy-first AGPL fork of [Warp Terminal](https://github.com/warpdotdev/warp): a local-first, GPU-accelerated block terminal for macOS and Windows with no Warpai account login, no bundled Warpai AI agents, no cloud onboarding, and no telemetry as a product requirement. Warpai keeps the upstream terminal experience and removes the hosted AI platform.
 
 > Status: alpha, with published macOS and Windows x64 packages. The current build is **v0.5.7-lite**, a privacy-vetted August upstream sync with 193 integration commits covering terminal security, reliability, editor/Vim, tabs, performance, and platform compatibility. GitHub Releases includes macOS app/DMG downloads and Windows x64 installer/portable ZIP downloads.
 
@@ -24,30 +26,30 @@ See [`FORK_NOTICE.md`](FORK_NOTICE.md) for upstream Warp attribution and licensi
 
 ## What this fork adds
 
-The original **warp-lite** keeps Warp's block terminal, GPU rendering, shell integration, tabs, panes, editor/Vim, themes, completions, and Markdown viewing. It removes or disables Warp's bundled AI platform, cloud/account/login flows, billing, onboarding, and telemetry surfaces. Those changes remain the foundation of this repository; the original release history and terminal guardrails are preserved below.
+The original **warp-lite** keeps the upstream block terminal, GPU rendering, shell integration, tabs, panes, editor/Vim, themes, completions, and Markdown viewing. It removes or disables the upstream bundled AI platform, cloud/account/login flows, billing, onboarding, and telemetry surfaces. Those changes remain the foundation of this repository; the original release history and terminal guardrails are preserved below.
 
 **This fork adds tools for working with local projects and independently installed CLI agents:**
 
 | Improvement over terzigolu/warp-lite | What you get | Delivery |
 | --- | --- | --- |
 | Restored Project Explorer | Browse project files from the native Tools Panel and its toolbar button. | Available on `warp-lite/main` |
-| Native Mono app icon | Uses Warp's native Mono artwork for macOS icon assets. | Available on `warp-lite/main` |
+| Native Mono app icon | Uses the upstream Mono artwork for macOS icon assets. | Available on `warp-lite/main` |
 | Broader CLI agent recognition | Added Antigravity (`agy`), DeepSeek Harness TUI, Qoder/QoderCN (`qodercn`), and Trae/TraeCN; improved Hermes and Cursor command aliases. Agent icons appear in the existing terminal UI. | Available on `warp-lite/main` |
 | Windows x64 distribution | Download an installer or portable ZIP, with Windows-specific compilation fixes retained. | Published release assets |
 | Customizations survive upstream updates | Sync scripts restore the project browser, CLI integrations, icons, and platform fixes after an upstream update. Conflicting changes stop the sync for review. | Existing synchronization workflow |
-| Local agent-to-agent collaboration | Agents exchange messages, assign work, submit results, accept results, or send them back for revision. Busy agents keep a queue; once idle, Warp submits the next inbox instruction automatically. | In development; see below |
+| Local agent-to-agent collaboration | Agents exchange messages, assign work, submit results, accept results, or send them back for revision. Busy agents keep a queue; once idle, Warpai submits the next inbox instruction automatically. | In development; see below |
 
-Third-party CLI agents are installed and authenticated by you. Supporting them does not restore Warp's bundled AI service or require a Warp account. Their own provider connections remain under their control.
+Third-party CLI agents are installed and authenticated by you. Supporting them does not restore the upstream bundled AI service or require a Warpai account. Their own provider connections remain under their control.
 
 ### Agent collaboration: upcoming
 
 The communication feature is being developed on [`warp-lite/agent-communication`](https://github.com/OthinusG/warp-lite/tree/warp-lite/agent-communication). It adds a bundled local bridge for agents with native MCP support, including eligible custom agents. QoderCN has been confirmed to support the required local connection. Agents without native MCP support are excluded rather than given a shell-based workaround.
 
-Open **Settings > Features > Agent communication**, enable communication, and check the installed CLI agents you want to participate. Warp configures the bundled native MCP bridge in the background, including Codex environment passthrough. Unchecking an agent or disabling communication revokes its live access immediately and removes only Warp-owned configuration. Running agents may need a restart to load the change; setup failures and unsupported installed versions are shown explicitly.
+Open **Settings > Features > Agent communication**, enable communication, and check the installed CLI agents you want to participate. Warpai configures the bundled native MCP bridge in the background, including Codex environment passthrough. Unchecking an agent or disabling communication revokes its live access immediately and removes only Warpai-owned configuration. Running agents may need a restart to load the change; setup failures and unsupported installed versions are shown explicitly.
 
-Agents with a loaded bridge automatically discover other participating agents in the same project. No tab-menu pairing is required. The project boundary is the canonical repository root, so repository subdirectories share communication and separate repositories/worktrees remain isolated. Agents can exchange messages and delegate tasks from ordinary conversation or authorized work. The receiver submits results and verification evidence; its reviewer accepts or requests revision. Warp polls queued work while busy and submits an inbox instruction after readiness is reported. Agents without completion hooks follow the readiness rule supplied by the bridge.
+Agents with a loaded bridge automatically discover other participating agents in the same project. No tab-menu pairing is required. The project boundary is the canonical repository root, so repository subdirectories share communication and separate repositories/worktrees remain isolated. Agents can exchange messages and delegate tasks from ordinary conversation or authorized work. The receiver submits results and verification evidence; its reviewer accepts or requests revision. Warpai polls queued work while busy and submits an inbox instruction after readiness is reported. Agents without completion hooks follow the readiness rule supplied by the bridge.
 
-Automatic delivery preserves user drafts and does not answer permission requests. Messages stay pending until the receiving agent actually acknowledges or consumes them. Coordination stays on your machine; it adds no Warp cloud account or hosted messaging service.
+Automatic delivery preserves user drafts and does not answer permission requests. Messages stay pending until the receiving agent actually acknowledges or consumes them. Coordination stays on your machine; it adds no Warpai cloud account or hosted messaging service.
 
 The source is delivered as a replayable patch through the same upstream-sync process. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
@@ -57,26 +59,26 @@ Upstream Warp is excellent, but includes a large agentic-development and cloud s
 
 Goals, in order:
 
-1. **Local-first.** No Warp account required. No login gate for opening a terminal.
+1. **Local-first.** No Warpai account required. No login gate for opening a terminal.
 2. **Terminal-first.** Preserve the block terminal, GPU renderer, shell integrations, tabs, tab groups, panes, settings, themes, command palette, editor basics, completions, and markdown rendering.
 3. **Stay current.** Regularly pull upstream Warp's terminal, renderer, shell, and bug/perf fixes via vetted `git cherry-pick -x`, while rejecting anything that would reintroduce telemetry, network calls, or AI/cloud/account surfaces.
 4. **Lighter over time.** Remove AI/cloud code paths carefully without breaking terminal rendering or input.
 5. **Honest status.** Some source modules are still present while the default build avoids their product paths. This README tracks that split explicitly.
 
-What this fork is **not**: a closed-source repackage, an MIT relicense, or a project maintained by the Warp Team. The AGPL applies and cannot be downgraded.
+What this fork is **not**: a closed-source repackage, an MIT relicense, or a project maintained by the upstream Warp team. The AGPL applies and cannot be downgraded.
 
-## Looking for a Warp alternative?
+## Looking for a Warpai alternative?
 
-warp-lite is aimed at people who like Warp's terminal UX but not the platform around it:
+warpai is aimed at people who like Warpai's terminal UX but not the platform around it:
 
-- You want Warp's blocks, panes, tabs, command palette, and GPU-accelerated rendering — **without bundled Warp AI** in your prompt. Your own CLI agents can still run in the terminal.
+- You want Warpai's blocks, panes, tabs, command palette, and GPU-accelerated rendering — **without bundled Warpai AI** in your prompt. Your own CLI agents can still run in the terminal.
 - You want a terminal that opens **without a login or account**, ever.
 - You want **no cloud sync** and **no telemetry**: your commands and history stay on your machine.
-- You searched for "Warp terminal without AI" or "Warp without login" and found mostly settings toggles — this fork removes those surfaces at the source level instead.
+- You searched for "Warpai terminal without AI" or "Warpai without login" and found mostly settings toggles — this fork removes those surfaces at the source level instead.
 - You prefer **open-source (AGPL), Rust-based** terminal software you can audit and build yourself.
 - You are fine with alpha software on macOS in exchange for a lighter, local-first terminal.
 
-If you want Warp's bundled AI agents, cloud drive, and team features, upstream [Warp](https://github.com/warpdotdev/warp) is the right choice — this fork intentionally goes the other way.
+If you want the upstream bundled AI agents, cloud drive, and team features, upstream [Warp](https://github.com/warpdotdev/warp) is the right choice — this fork intentionally goes the other way.
 
 ## Install
 
@@ -88,10 +90,12 @@ https://github.com/OthinusG/warp-lite/releases/latest
 
 On macOS, open `WarpLite.dmg` and drag `WarpLite.app` into `/Applications`. On Windows x64, run `WarpLiteSetup-x64.exe`, or extract `WarpLite-windows-x64.zip` and run `WarpLite.exe`.
 
+New development packages use `Warpai.app` / `Warpai.app.zip` on macOS and `WarpaiSetup-x64.exe` / `Warpai-windows-x64.zip` on Windows. The application executable is named `Warpai` / `Warpai.exe`.
+
 The packaged app uses:
 
 - Bundle identifier: `dev.warp-lite.WarpLite`
-- App name: `WarpLite`
+- App name: `Warpai`
 - Current bundle version: `0.5.7-lite`
 
 ## Current Shipped State
@@ -101,26 +105,26 @@ The current build is `v0.5.7-lite`.
 | Area | State | Notes |
 |---|---|---|
 | Terminal core | Works | Core terminal view/input/model files are preserved. Do not wholesale stub them. |
-| macOS app bundle | Works | `script/build-warp-lite-app.sh` builds `WarpLite.app`. |
+| macOS app bundle | Works | `script/build-warp-lite-app.sh` builds `Warpai.app`. |
 | DMG release | Works | `WarpLite.dmg` is published in GitHub Releases. |
 | Windows x64 packages | Published | Installer and portable ZIP are available on GitHub Releases. |
 | Platform product boundary | Enabled | Default Lite omits `warp_platform`; billing, referrals, rewards, pricing UI/model, and selected AI startup/background paths compile only for platform builds. |
-| Warp login gate | Disabled | `skip_firebase_anonymous_user` is enabled by default. Startup, "skip login", and visible account/billing menu entry points are hardened away from Warp auth in the lite build. |
+| Warpai login gate | Disabled | `skip_firebase_anonymous_user` is enabled by default. Startup, "skip login", and visible account/billing menu entry points are hardened away from Warpai auth in the lite build. |
 | Telemetry product goal | Removed/neutralized | Historical telemetry call-site cleanup is part of the fork; keep auditing before claiming perfect network silence. |
 | Project Explorer / Tools Panel | Restored | The native Project Explorer and its top-right toolbar launcher are restored without reintroducing AI, account, or cloud product surfaces. |
 | Context Panel | Removed from shipped UI | The experimental Context Panel was deleted from the app wiring in `v0.5.1-lite` after causing instability and stale data issues. |
 | Codex / Claude Code notifications | Kept | These are intentionally preserved for the lite fork. |
-| Warp MCP manager | Disabled in Lite | Warp's MCP config watcher, server runtime, gallery, and settings page are not started; third-party CLI agents retain their own MCP configuration. |
+| Warpai MCP manager | Disabled in Lite | Warpai's MCP config watcher, server runtime, gallery, and settings page are not started; third-party CLI agents retain their own MCP configuration. |
 | Markdown viewer | Kept | `markdown_tables` and `markdown_mermaid` remain in defaults. |
-| Bundled Warp agent mode | Not a target | Warp agent-mode product surfaces stay out of Lite; independently installed CLI agents are supported separately. |
+| Bundled Warpai agent mode | Not a target | Warpai agent-mode product surfaces stay out of Lite; independently installed CLI agents are supported separately. |
 
-## Inherited Warp Lite Changes
+## Inherited upstream release history
 
-The history below records the original Warp Lite cleanup and upstream integration work. The downstream additions maintained by this repository are listed [above](#what-this-fork-adds).
+The history below records the original Warpai cleanup and upstream integration work. The downstream additions maintained by this repository are listed [above](#what-this-fork-adds).
 
 ### v0.5.7-lite — August upstream sync (2026-08)
 
-- Integrated 193 vetted upstream-sync and Warp Lite adaptation commits while keeping AI/agent, cloud account, billing, team, remote-control, and new telemetry changes out of the default Lite product.
+- Integrated 193 vetted upstream-sync and Warpai adaptation commits while keeping AI/agent, cloud account, billing, team, remote-control, and new telemetry changes out of the default Lite product.
 - Added security hardening for external links/downloads, command and SSH escaping, environment-aware blocklist checks, auth-log redaction, OSC 52 clipboard control, and dependency fixes.
 - Improved terminal and shell reliability across PTY writes, wide-character resize, inline images, OSC hyperlinks, process-group cancellation, zsh/PowerShell bootstrap, SSH, and remote sessions.
 - Expanded editor, Markdown, file-viewer, and Vim behavior, including autosave settings, non-ASCII find/replace, local image refresh, natural file sorting, and additional Vim motions/actions.
@@ -153,7 +157,7 @@ A large, privacy-audited catch-up with upstream Warp. Fork point `bc3fffa` was *
 ### v0.5.4-lite
 
 - Removed the normal prompt's unsupported AI toolbar in the lite build, including Agent/Auto mode switching, `auto (cost-efficient)`, slash AI commands, `@` AI context, and AI file attach controls.
-- Redirected hidden settings entry points such as Account, billing, teams, Warp Drive, and Warp Agent pages to the supported Appearance settings page.
+- Redirected hidden settings entry points such as Account, billing, teams, Warpai Drive, and Warpai Agent pages to the supported Appearance settings page.
 - Kept CLI agent rich-input infrastructure separate so Codex/Claude Code notification and context surfaces can continue to work where they are explicitly supported.
 
 ### v0.5.3-lite
@@ -165,7 +169,7 @@ A large, privacy-audited catch-up with upstream Warp. Fork point `bc3fffa` was *
 ### v0.5.2-lite
 
 - Restored `skip_firebase_anonymous_user` in default features.
-- Fixed the regression where the welcome/sign-up modal still appeared and "Skip for now" attempted Warp/Firebase auth.
+- Fixed the regression where the welcome/sign-up modal still appeared and "Skip for now" attempted Warpai/Firebase auth.
 - Rebuilt and published fresh `WarpLite.dmg` and `WarpLite.app.zip` release assets.
 
 ### v0.5.1-lite
@@ -214,7 +218,7 @@ These modules still exist and should be treated as the next cleanup targets. Som
 | `app/src/voice` | Voice feature source remains although `crates/voice_input` is gone. | Remove dead app-side voice surfaces or gate them out. |
 | `crates/graphql` (`warp_graphql`) | The GraphQL client remains in the resolved graph despite platform product UI cuts. | Remove only after its protected terminal/workspace consumers have neutral ownership boundaries. |
 | `crates/websocket` | Network transport crate still exists. | Verify consumers, then stub or delete if no terminal feature needs it. |
-| `crates/warp_server_client` | Warp backend client remains. | Audit call sites and remove once auth/cloud dependencies are gone. |
+| `crates/warp_server_client` | Warpai backend client remains. | Audit call sites and remove once auth/cloud dependencies are gone. |
 | `crates/managed_secrets` | Cloud/secret product surface remains as a stub candidate. | Keep API only if required, otherwise delete. |
 | `crates/warp_files` | Cloud/file integration residue. | Audit dependencies before removal. |
 
@@ -231,7 +235,7 @@ The terminal works because its core was preserved. Keep these files off any broa
 - `app/src/terminal/alt_screen/alt_screen_element.rs`
 - `app/src/terminal/model/`
 
-If a change makes the build green by replacing terminal rendering/input/model code with small stubs, that change is wrong for warp-lite. Verify with launch testing, not just `cargo check`.
+If a change makes the build green by replacing terminal rendering/input/model code with small stubs, that change is wrong for warpai. Verify with launch testing, not just `cargo check`.
 
 ## Build
 
@@ -263,8 +267,8 @@ script/restore-project-explorer.sh
 CARGO_BUILD_JOBS=4 cargo build --release --bin warp-oss
 CARGO_BUILD_JOBS=4 cargo build --release -p warp-agent-bus --bin warp-agent
 script/build-warp-lite-app.sh
-rm -f WarpLite.dmg
-hdiutil create -volname WarpLite -srcfolder WarpLite.app -ov -format UDZO WarpLite.dmg
+rm -f Warpai.dmg
+hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
 ```
 
 Verification used for the latest release:
@@ -280,7 +284,7 @@ Known caveat: full `cargo fmt --check` can currently fail because the repository
 
 ## Automated Fork Sync
 
-`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer, native Mono icon, CLI agent integrations, and Windows fixes (plus the communication patch on its development branch) with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `WarpLite.app.zip` plus `WarpLite.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication. The Windows release workflow then builds and attaches the installer and portable ZIP. Custom CLI integrations are tracked separately from Warp's disabled AI/MCP product runtime.
+`.github/workflows/sync-upstream-warp-lite.yml` checks the latest `v*-lite` release tag from `terzigolu/warp-lite` daily and can also be run manually. It merges that tagged release, reapplies and verifies the Project Explorer, native Mono icon, CLI agent integrations, and Windows fixes (plus the communication patch on its development branch) with `script/restore-project-explorer.sh`, pushes `warp-lite/main`, then builds the macOS app and publishes `Warpai.app.zip` plus `Warpai.dmg` under the same tag name. Merge, patch, or restoration failures stop before push; build or packaging failures stop publication. The Windows release workflow then builds and attaches the installer and portable ZIP. Custom CLI integrations are tracked separately from Warpai's disabled AI/MCP product runtime.
 
 ## Branch Structure
 
@@ -315,26 +319,26 @@ Historical phase branches and tags may still exist, but the public state should 
 
 ## FAQ
 
-**Is warp-lite a Warp Terminal alternative?**
+**Is Warpai a Warp Terminal alternative?**
 Yes. It is an independent open-source fork of Warp's AGPL source that keeps the block terminal, panes, tabs, and command palette, and removes the AI, cloud, account, and telemetry product surfaces. It is a Warp alternative for people who want the terminal without the platform.
 
-**Does warp-lite require a login or account?**
-No. There is no login gate, no sign-up prompt, and no Warp/Firebase account flow in the lite build. The app opens straight into a terminal.
+**Does warpai require a login or account?**
+No. There is no login gate, no sign-up prompt, and no Warpai/Firebase account flow in the lite build. The app opens straight into a terminal.
 
-**Does warp-lite send telemetry?**
+**Does warpai send telemetry?**
 Telemetry removal is an explicit product goal: historical telemetry call sites have been cleaned up, and upstream changes that would reintroduce telemetry or outbound network calls are rejected during syncs. Auditing continues before claiming perfect network silence — see [Current Shipped State](#current-shipped-state) for the honest status.
 
-**Does warp-lite work on Linux or Windows?**
+**Does warpai work on Linux or Windows?**
 macOS and Windows x64 packages are published by this fork. Linux is not a maintained desktop release target here; Linux protocol tests do not establish Linux app support.
 
 **Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
-Yes. Independently installed CLI agents can run in Warp Lite, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable Warp's bundled AI service.
+Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.
 
 **Is the AI code completely gone from the source?**
 Not yet. Some AI/cloud/auth modules still exist in the source tree but are disabled, gated, or unreachable in the shipped lite build. The [Still Present And Needs Work](#still-present-and-needs-work) table tracks this split honestly; removal continues incrementally.
 
 **Is this project affiliated with Warp or Denver Technologies, Inc.?**
-No. warp-lite is an independent AGPL fork and is not maintained, sponsored, or endorsed by the Warp team. The "Warp" trademark belongs to Denver Technologies, Inc. — see [`FORK_NOTICE.md`](FORK_NOTICE.md).
+No. warpai is an independent AGPL fork and is not maintained, sponsored, or endorsed by the upstream Warp team. The upstream "Warp" trademark belongs to Denver Technologies, Inc. — see [`FORK_NOTICE.md`](FORK_NOTICE.md).
 
 ## License
 

@@ -1,4 +1,4 @@
-name: Sync Warp Lite and release
+name: Sync Warpai and release
 
 on:
   schedule:
@@ -21,7 +21,7 @@ jobs:
       UPSTREAM_REPOSITORY: https://github.com/terzigolu/warp-lite.git
       TARGET_BRANCH: warp-lite/main
     steps:
-      - name: Check out Warp Lite
+      - name: Check out Warpai
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
@@ -80,7 +80,12 @@ jobs:
               app/assets/bundled/svg app/src/terminal/cli_agent_sessions/plugin_manager \
               crates/input_classifier/src/util.rs \
               crates/warp_core/src/ui/icons.rs
-            git commit -m "chore(warp-lite): restore downstream customizations"
+            for patch in .github/patches/agent-communication.patch .github/patches/warpai-branding.patch; do
+              while IFS=$'\t' read -r added deleted path; do
+                git add -- "$path"
+              done < <(git apply --numstat "$patch")
+            done
+            git commit -m "chore(warpai): restore downstream customizations"
           fi
 
           release_tag="$upstream_tag"
@@ -134,7 +139,7 @@ jobs:
           xcrun --find metal
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
 
-      - name: Check and build Warp Lite
+      - name: Check and build Warpai
         if: steps.sync.outputs.needs_release == 'true'
         shell: bash
         run: |
@@ -150,10 +155,10 @@ jobs:
         run: |
           set -euo pipefail
           script/build-warp-lite-app.sh
-          codesign --verify --deep --strict --verbose=2 WarpLite.app
-          ditto -c -k --sequesterRsrc --keepParent WarpLite.app WarpLite.app.zip
-          hdiutil create -volname WarpLite -srcfolder WarpLite.app -ov -format UDZO WarpLite.dmg
-          hdiutil verify WarpLite.dmg
+          codesign --verify --deep --strict --verbose=2 Warpai.app
+          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
+          hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
+          hdiutil verify Warpai.dmg
 
       - name: Publish GitHub release
         if: steps.sync.outputs.needs_release == 'true'
@@ -166,8 +171,8 @@ jobs:
             echo "Release $RELEASE_TAG already exists; refusing to overwrite assets." >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" WarpLite.app.zip WarpLite.dmg \
+          gh release create "$RELEASE_TAG" Warpai.app.zip Warpai.dmg \
             --verify-tag --latest \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Warp Lite $RELEASE_TAG" \
+            --title "Warpai $RELEASE_TAG" \
             --notes "Automated verified sync from terzigolu/warp-lite with Project Explorer restored."

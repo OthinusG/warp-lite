@@ -24,7 +24,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | Grok Build | grok | [Official MCP servers](https://docs.x.ai/build/features/mcp-servers) | Eligible |
 | DeepSeek Harness | dsh-tui; dsh with a TUI profile | [Official MCP client package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) | Eligible when the profile mounts the official MCP client |
 | Qoder | qoder, qodercli, qoder-cli, qodercn | [Official CLI MCP reference](https://docs.qoder.com/cli/mcp-reference); installed qodercn help confirms stdio | Eligible |
-| Trae | trae, traecn, trae-cli, traecn-cli | [Official CLI MCP documentation](https://docs.trae.cn/cli_model-context-protocol) | Eligible on the documented native MCP version; launch-name compatibility to verify |
+| Trae | trae, traecn, trae-cli, traecn-cli, traecli | [Official CLI MCP documentation](https://docs.trae.cn/cli_model-context-protocol) | Eligible on the documented native MCP version; launch-name compatibility to verify |
 | Custom/Unknown | User-defined detection patterns | Detection alone does not establish MCP capability | Eligible individually after confirming native MCP; common custom binding provided |
 
 ## Excluded or unverified
@@ -33,7 +33,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 - Custom managed agents whose native MCP capability has not yet been confirmed are pending verification. Confirmed native MCP clients use the common `custom` binding and are included; they are not excluded based on the `Unknown` enum value.
 - HTTP-only clients cannot use this release's local stdio bridge until native stdio capability is established. No network listener is added for them.
 - Cloud Amp orbs are outside the local Warp terminal boundary.
-- Trae's current executable aliases require configuration verification before an adapter is marked ready. The newly documented `traecli` command is not in the current Warp detector; do not count it as a managed command without an explicit detector change.
+- Trae aliases include the documented `traecli` executable in this revision. Its native YAML list adapter uses the vendor-documented per-platform configuration path.
 
 No currently listed named type has been conclusively established as having no native MCP support in its current release. Do not invent an exclusion list from older product knowledge.
 
@@ -45,7 +45,9 @@ Warp owns only `warp-lite-communication`, not a user's existing `warp-agent` ser
 
 The bridge inherits `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its Warp terminal. Codex receives `env_vars` name-based passthrough automatically. Gemini and Hermes receive runtime variable references. Values are never persisted in configuration or metadata. Other eligible native stdio clients inherit the terminal environment through their native subprocess contract. A process launched outside a managed Warp terminal cannot participate.
 
-Documented adapters cover Codex, Claude, Gemini, OpenCode, Amp, Cursor, Copilot, Droid, Auggie, native-MCP Pi, OMP, Hermes, and Goose. Remaining installed managed commands, including Qoder/QoderCN, Antigravity, Trae and custom literal toolbar commands, are probed for native `mcp add`, inspection, and removal contracts. A missing/unsupported contract is visibly unavailable rather than silently claiming configuration success. Vibe automatic setup is currently unavailable: its native Python transport filters the dynamic Warp variables and a compatible name-based passthrough contract has not been established. Do not persist capability values as a workaround. Non-default vendor profiles and project overrides can supersede user configuration; bridge discovery remains the final participation check.
+Documented adapters cover every named managed type and alias. Codex and Grok use TOML tables; Trae uses its native YAML server list; DeepSeek Harness uses a dedicated insertion in the home Cordis patch; other named clients use their native JSON/YAML sections or confirmed native CLI setup contracts. Custom literal toolbar commands retain native contract probing. Aliases share one vendor configuration and one settings row, while terminal recognition accepts every alias. No shell-tool communication fallback is added.
+
+Vibe uses its native `VIBE_MCP_SERVERS` environment configuration layer. Warp prepares the list and the three dynamic bridge environment variables in memory for a newly opened pane, preserves existing user/project MCP entries at that pane's startup directory, and leaves the Vibe configuration file untouched. Open a new terminal pane after enabling Vibe. Changing Vibe profiles or project configuration after opening the pane can override or stale this environment snapshot; use a new pane in the target directory. Capabilities are never written to disk. The upstream implementation is the [environment layer](https://github.com/mistralai/mistral-vibe/blob/main/vibe/core/config/layers/environment.py) and [configuration precedence](https://github.com/mistralai/mistral-vibe/blob/main/vibe/core/config/default_orchestrator.py). Native discovery is the final participation check; unsupported installed versions or organization policy may still prevent loading.
 
 Restart running clients that do not hot-reload MCP configuration. A fresh managed CLI run loads the bridge and receives a unique project-local identity automatically. All live enabled agents in the same canonical project can discover, message, and delegate to one another; there is no peer picker. Repository subdirectories share scope; separate repositories and worktrees remain isolated.
 
@@ -60,3 +62,7 @@ GitHub tests simulate the restored detector's managed program identities plus a 
 For each eligible vendor/version, separately verify: bridge discovery with all 12 tools; inherited terminal binding; unique-name registration; cross-agent messages; a completed turn returning to the input prompt, then new work automatically being submitted without an open wait call or human prompt; busy task queueing; submission with evidence; reviewer rejection and revised rework; final acceptance; and rejection after CLI exit/replacement. Live model acceptance is pending until the patched build and each authenticated vendor runtime are available.
 
 Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --help` exposes the `stdio` transport, and Warp maps its command to `CLIAgent::Qoder`. It is not part of the unverified custom-agent exclusions. No personal MCP configuration was read during this check.
+
+## Receiver feedback repair (2026-10-01)
+
+All types use the same broker readiness lease and guarded PTY path. Listener existence and stale InProgress presentation no longer block explicit final-action MCP readiness. Opaque OSC notifications cannot establish readiness; only structured lifecycle events or the explicit tool can. Queued work shows a native receiver notification, even before readiness. Send/assign report `delivery: queued`; listing exposes `ready` and `pending_count`. Queued delivery never means acknowledgement or completed work. The application regression installs each available native listener and checks draft/permission protection for every enum type.

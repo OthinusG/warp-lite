@@ -59,10 +59,10 @@ index 60c6ab2..addb30f 100644
  # AWS SDK (loading credentials for BYO LLM)
 diff --git a/app/src/agent_communication.rs b/app/src/agent_communication.rs
 new file mode 100644
-index 0000000..d868078
+index 0000000..90c3bf0
 --- /dev/null
 +++ b/app/src/agent_communication.rs
-@@ -0,0 +1,419 @@
+@@ -0,0 +1,472 @@
 +//! Local coordination for independently authenticated third-party CLI agents.
 +pub(crate) mod setup;
 +use crate::terminal::{
@@ -96,6 +96,7 @@ index 0000000..d868078
 +    pub(crate) status: String,
 +    preferences_path: PathBuf,
 +    pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
++    notified: HashMap<String, String>,
 +}
 +impl Entity for AgentCommunication {
 +    type Event = ();
@@ -154,7 +155,16 @@ index 0000000..d868078
 +                }
 +                CLIAgentSessionsModelEvent::Ended { .. } => broker.end(terminal),
 +                CLIAgentSessionsModelEvent::StatusChanged { status, .. } => {
-+                    broker.readiness(terminal, matches!(status, CLIAgentSessionStatus::Success));
++                    // Opaque OSC notifications also announce approvals; they cannot prove idle.
++                    if view.upgrade(ctx).is_some_and(|view| {
++                        CLIAgentSessionsModel::as_ref(ctx)
++                            .session(view.id())
++                            .is_some_and(|session| {
++                                crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(&session.agent)
++                            })
++                    }) {
++                        broker.readiness(terminal, matches!(status, CLIAgentSessionStatus::Success));
++                    }
 +                }
 +                _ => {}
 +            }
@@ -176,6 +186,7 @@ index 0000000..d868078
 +            status: String::new(),
 +            preferences_path,
 +            pending: None,
++            notified: HashMap::new(),
 +        };
 +        model.configure(None, None, ctx);
 +        model
@@ -277,6 +288,7 @@ index 0000000..d868078
 +            })
 +            .unwrap_or_default();
 +        let (sender, receiver) = std::sync::mpsc::channel();
++        commands.sort_by_key(|(_, command)| !preferences.selected.contains_key(command));
 +        self.pending = Some(receiver);
 +        std::thread::spawn(move || {
 +            let mut errors = Vec::new();
@@ -360,7 +372,11 @@ index 0000000..d868078
 +            for row in &mut available {
 +                if preferences.selected.contains_key(&row.command) {
 +                    row.status = if preferences.selected[&row.command].active {
-+                        "Configured — restart this agent to load the bridge"
++                        if matches!(preferences.selected[&row.command].adapter, setup::Adapter::Vibe(_)) {
++                            "Configured — open a new terminal pane, then start Vibe to load its native MCP environment"
++                        } else {
++                            "Configured — restart this agent to load the bridge"
++                        }
 +                    } else {
 +                        "Disabled — cleanup pending; uncheck or retry cleanup"
 +                    }
@@ -419,6 +435,26 @@ index 0000000..d868078
 +                        views.values().cloned().collect()
 +                    })
 +                    .unwrap_or_default();
++                let pending = broker.pending_work();
++                model.notified.retain(|terminal, message| {
++                    pending.iter().any(|work| &work.terminal == terminal && &work.message_id == message)
++                });
++                for work in pending {
++                    if model.notified.get(&work.terminal) == Some(&work.message_id) {
++                        continue;
++                    }
++                    if let Some((_, view)) = bindings.iter().find(|(terminal, _)| terminal == &work.terminal) {
++                        if let Some(view) = view.upgrade(ctx) {
++                            view.update(ctx, |_, ctx| {
++                                ctx.emit(crate::terminal::view::Event::ShowToast {
++                                    message: "Peer work received. It will start when this agent is ready; drafts and permission requests are preserved.".into(),
++                                    flavor: crate::view_components::ToastFlavor::Default,
++                                });
++                            });
++                            model.notified.insert(work.terminal, work.message_id);
++                        }
++                    }
++                }
 +                for wake in broker.wakeups() {
 +                    if let Some((_, view)) = bindings
 +                        .iter()
@@ -438,12 +474,29 @@ index 0000000..d868078
 +    }
 +}
 +/// Tests and remote terminals without the native singleton receive no capabilities.
-+pub(crate) fn prepare(env: &mut HashMap<OsString, OsString>) -> Option<String> {
++pub(crate) fn prepare(
++    env: &mut HashMap<OsString, OsString>,
++    directory: Option<&Path>,
++    ctx: &warpui::AppContext,
++) -> Option<String> {
 +    let broker = BROKER.get()?;
 +    let terminal = env.get(&OsString::from(TERMINAL))?.to_str()?.to_owned();
 +    let capability = broker.prepare(&terminal).ok()?;
 +    env.insert(ENDPOINT.into(), broker.endpoint.clone().into());
 +    env.insert(CAPABILITY.into(), capability.into());
++    let settings = AgentCommunication::as_ref(ctx);
++    if settings.preferences.enabled {
++        if let Some(installed) = settings
++            .preferences
++            .selected
++            .values()
++            .find(|entry| entry.active && matches!(entry.adapter, setup::Adapter::Vibe(_)))
++        {
++            if setup::vibe_environment(installed, env, directory).is_err() {
++                log::warn!("Could not prepare native Vibe communication environment; existing settings were preserved");
++            }
++        }
++    }
 +    if let Ok(executable) = std::env::current_exe() {
 +        let companion = executable.with_file_name(if cfg!(windows) {
 +            "warp-agent.exe"
@@ -484,10 +537,10 @@ index 0000000..d868078
 +}
 diff --git a/app/src/agent_communication/setup.rs b/app/src/agent_communication/setup.rs
 new file mode 100644
-index 0000000..5789e43
+index 0000000..563823b
 --- /dev/null
 +++ b/app/src/agent_communication/setup.rs
-@@ -0,0 +1,611 @@
+@@ -0,0 +1,948 @@
 +//! Reversible native MCP configuration. Never persist live terminal capabilities.
 +use anyhow::{ensure, Result};
 +use serde::{Deserialize, Serialize};
@@ -532,6 +585,20 @@ index 0000000..5789e43
 +#[derive(Clone, Serialize, Deserialize)]
 +pub enum Adapter {
 +    Codex(PathBuf),
++    Toml {
++        path: PathBuf,
++        value: Value,
++    },
++    Vibe(PathBuf),
++    YamlList {
++        path: PathBuf,
++        key: String,
++        value: Value,
++    },
++    Cordis {
++        path: PathBuf,
++        value: Value,
++    },
 +    Yaml {
 +        path: PathBuf,
 +        key: String,
@@ -651,10 +718,15 @@ index 0000000..5789e43
 +    let Some(home) = dirs::home_dir() else {
 +        return vec![];
 +    };
++    let mut seen = std::collections::HashSet::new();
 +    commands
 +        .into_iter()
 +        .filter_map(|(program, command)| {
 +            let executable = executable(&command, &search_paths)?;
++            // Aliases load the same vendor configuration; configure it only once.
++            if program != "custom" && !seen.insert(program.clone()) {
++                return None;
++            }
 +            let adapter = adapter(&home, &command, &executable, bridge);
 +            let status = if adapter.is_some() {
 +                "Available"
@@ -687,9 +759,36 @@ index 0000000..5789e43
 +        });
 +    }
 +    if matches!(command, "vibe" | "vibe-acp") {
-+        // Current native Python transport filters these dynamic variables and has no verified
-+        // reference/passthrough contract. Do not write a server that cannot authenticate.
-+        return None;
++        return Some(Adapter::Vibe(home.join(".vibe/config.toml")));
++    }
++    if command == "grok" {
++        return Some(Adapter::Toml {
++            path: home.join(".grok/config.toml"),
++            value: standard.clone(),
++        });
++    }
++    if matches!(command, "dsh" | "dsh-tui") {
++        return Some(Adapter::Cordis {
++            path: home.join(".dsh/cordis.patch.yml"),
++            value: json!({"id":SERVER, "name":"@deepseek-ai/dsh-mcp-client", "config":{"serverName":SERVER,"transport":"stdio","command":bridge,"args":["mcp"]}}),
++        });
++    }
++    if matches!(
++        command,
++        "trae" | "traecn" | "trae-cli" | "traecn-cli" | "traecli"
++    ) {
++        let directory = if cfg!(target_os = "macos") {
++            home.join("Library/Application Support")
++        } else if cfg!(windows) {
++            home.join("AppData/Roaming")
++        } else {
++            home.join(".config")
++        };
++        return Some(Adapter::YamlList {
++            path: directory.join("trae_cli/trae_cli.yaml"),
++            key: "mcp_servers".into(),
++            value: json!({"name":SERVER,"type":"stdio","command":bridge,"args":["mcp"]}),
++        });
 +    }
 +    if command == "goose" {
 +        return Some(Adapter::Yaml {
@@ -753,7 +852,10 @@ index 0000000..5789e43
 +            value,
 +        });
 +    }
-+    // Probe native commands rather than guessing flags or installing fallback adapters.
++    cli_adapter(command, executable, bridge)
++}
++fn cli_adapter(command: &str, executable: &Path, bridge: &Path) -> Option<Adapter> {
++    // Qoder/QoderCN and Antigravity expose native setup; custom versions use the same verified contract.
 +    let help = output(executable, &["mcp".into(), "add".into(), "--help".into()]).ok()??;
 +    if !help.to_lowercase().contains("mcp")
 +        || !help.to_lowercase().contains("add")
@@ -844,12 +946,213 @@ index 0000000..5789e43
 +pub fn save_preferences(path: &Path, preferences: &Preferences) -> Result<()> {
 +    atomic_write(path, &serde_json::to_vec(preferences)?)
 +}
++fn read_text(path: &Path) -> Result<String> {
++    ensure!(
++        !path
++            .symlink_metadata()
++            .is_ok_and(|m| m.file_type().is_symlink()),
++        "Configuration symlink was preserved"
++    );
++    match std::fs::read_to_string(path) {
++        Ok(text) => Ok(text),
++        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
++        Err(error) => Err(error.into()),
++    }
++}
++fn vibe_servers(path: &Path) -> Result<Vec<Value>> {
++    let parsed: toml::Value = toml::from_str(&read_text(path)?)
++        .map_err(|_| anyhow::anyhow!("Invalid Vibe TOML; configuration was preserved"))?;
++    match parsed.get("mcp_servers") {
++        Some(servers) => serde_json::from_value(serde_json::to_value(servers)?)
++            .map_err(|_| anyhow::anyhow!("Vibe MCP servers must be a list")),
++        None => Ok(vec![]),
++    }
++}
++/// Vibe's native environment layer supplies the stdio child env at runtime, never on disk.
++pub fn vibe_environment(
++    installed: &Installed,
++    env: &mut std::collections::HashMap<std::ffi::OsString, std::ffi::OsString>,
++    directory: Option<&Path>,
++) -> Result<()> {
++    let Adapter::Vibe(path) = &installed.adapter else {
++        return Ok(());
++    };
++    let mut servers = vibe_servers(path)?;
++    if let Some(directory) = directory {
++        let project = directory.join(".vibe/config.toml");
++        if project.is_file() {
++            let parsed: toml::Value = toml::from_str(&read_text(&project)?)?;
++            if parsed.get("mcp_servers").is_some() {
++                servers = vibe_servers(&project)?;
++            }
++        }
++    }
++    if let Some(existing) = env
++        .get(std::ffi::OsStr::new("VIBE_MCP_SERVERS"))
++        .cloned()
++        .or_else(|| std::env::var_os("VIBE_MCP_SERVERS"))
++    {
++        servers = serde_json::from_str(
++            existing
++                .to_str()
++                .ok_or_else(|| anyhow::anyhow!("Invalid Vibe MCP environment"))?,
++        )?;
++    }
++    ensure!(
++        !servers.iter().any(|server| server["name"] == SERVER),
++        "Communication server belongs to the user; preserved"
++    );
++    let mut dynamic = serde_json::Map::new();
++    for name in [
++        "WARP_AGENT_ENDPOINT",
++        "WARP_AGENT_CAPABILITY",
++        "WARP_TERMINAL_SESSION_UUID",
++    ] {
++        let value = env
++            .get(std::ffi::OsStr::new(name))
++            .and_then(|v| v.to_str())
++            .ok_or_else(|| anyhow::anyhow!("Missing Warpai terminal binding"))?;
++        dynamic.insert(name.into(), Value::String(value.into()));
++    }
++    servers.push(json!({"name":SERVER,"transport":"stdio","command":[installed.bridge],"args":["mcp"],"env":dynamic}));
++    env.insert(
++        "VIBE_MCP_SERVERS".into(),
++        serde_json::to_string(&servers)?.into(),
++    );
++    Ok(())
++}
 +fn codex_block(bridge: &Path) -> String {
 +    let command = toml::Value::String(bridge.to_string_lossy().into_owned());
 +    format!("{START}\n[mcp_servers.{SERVER}]\ncommand = {command}\nargs = [\"mcp\"]\nenv_vars = [\"WARP_AGENT_ENDPOINT\", \"WARP_AGENT_CAPABILITY\", \"WARP_TERMINAL_SESSION_UUID\"]\n{END}\n")
 +}
 +pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
 +    match &installed.adapter {
++        Adapter::Vibe(path) => {
++            if enable {
++                let servers = vibe_servers(path)?;
++                ensure!(
++                    !servers.iter().any(|server| server["name"] == SERVER),
++                    "Communication server belongs to the user; preserved"
++                );
++            }
++            Ok(())
++        }
++        Adapter::Toml { path, value } => {
++            let text = read_text(path)?;
++            let parsed: toml::Value = toml::from_str(&text)
++                .map_err(|_| anyhow::anyhow!("Invalid agent TOML; configuration was preserved"))?;
++            let entry = toml::Value::try_from(json!({"mcp_servers": {SERVER:value}}))?;
++            let block = format!("{START}\n{}{END}\n", toml::to_string(&entry)?);
++            let present = parsed
++                .get("mcp_servers")
++                .and_then(|v| v.get(SERVER))
++                .is_some();
++            if present {
++                ensure!(
++                    owned && text.contains(&block),
++                    "Communication configuration was changed or belongs to the user; preserved"
++                );
++            }
++            if enable && present || !enable && !present {
++                return Ok(());
++            }
++            let next = if enable {
++                format!("{text}\n{block}")
++            } else {
++                text.replacen(&block, "", 1)
++            };
++            let _: toml::Value = toml::from_str(&next)?;
++            atomic_write(path, next.as_bytes())
++        }
++        Adapter::YamlList { path, value, .. } | Adapter::Cordis { path, value } => {
++            let text = read_text(path)?;
++            if !enable && text.trim().is_empty() {
++                return Ok(());
++            }
++            let cordis = matches!(&installed.adapter, Adapter::Cordis { .. });
++            let mut root: Value = serde_yaml::from_str(if text.trim().is_empty() {
++                if cordis {
++                    "[]"
++                } else {
++                    "{}"
++                }
++            } else {
++                &text
++            })
++            .map_err(|_| anyhow::anyhow!("Invalid agent YAML; configuration was preserved"))?;
++            if cordis {
++                let rows = root
++                    .as_array_mut()
++                    .ok_or_else(|| anyhow::anyhow!("Cordis patch must be a list"))?;
++                let expected = json!({"insert":[value]});
++                let matches: Vec<_> = rows
++                    .iter()
++                    .enumerate()
++                    .filter(|(_, row)| {
++                        row.get("insert")
++                            .and_then(Value::as_array)
++                            .is_some_and(|entries| {
++                                entries.iter().any(|entry| {
++                                    entry["id"] == SERVER || entry["config"]["serverName"] == SERVER
++                                })
++                            })
++                    })
++                    .map(|(index, _)| index)
++                    .collect();
++                ensure!(
++                    matches.len() <= 1,
++                    "Duplicate communication entries; preserved"
++                );
++                if let Some(&index) = matches.first() {
++                    ensure!(
++                        owned && rows[index] == expected,
++                        "Communication configuration was changed or belongs to the user; preserved"
++                    );
++                    if !enable {
++                        rows.remove(index);
++                    }
++                } else if enable {
++                    rows.push(expected);
++                }
++            } else {
++                let Adapter::YamlList { key, .. } = &installed.adapter else {
++                    unreachable!()
++                };
++                let object = root
++                    .as_object_mut()
++                    .ok_or_else(|| anyhow::anyhow!("Agent YAML must be an object"))?;
++                if !enable && !object.contains_key(key) {
++                    return Ok(());
++                }
++                let rows = object
++                    .entry(key.clone())
++                    .or_insert_with(|| json!([]))
++                    .as_array_mut()
++                    .ok_or_else(|| anyhow::anyhow!("MCP configuration must be a list"))?;
++                let matches: Vec<_> = rows
++                    .iter()
++                    .enumerate()
++                    .filter(|(_, row)| row["name"] == SERVER)
++                    .map(|(index, _)| index)
++                    .collect();
++                ensure!(
++                    matches.len() <= 1,
++                    "Duplicate communication entries; preserved"
++                );
++                if let Some(&index) = matches.first() {
++                    ensure!(
++                        owned && rows[index] == *value,
++                        "Communication configuration was changed or belongs to the user; preserved"
++                    );
++                    if !enable {
++                        rows.remove(index);
++                    }
++                } else if enable {
++                    rows.push(value.clone());
++                }
++            }
++            atomic_write(path, serde_yaml::to_string(&root)?.as_bytes())
++        }
 +        Adapter::Codex(path) => {
 +            let text = match std::fs::read_to_string(path) {
 +                Ok(s) => s,
@@ -938,9 +1241,7 @@ index 0000000..5789e43
 +            let (success, text) = run(&installed.executable, get)?;
 +            let current = if *get_all {
 +                ensure!(success, "Could not inspect native MCP configuration");
-+                text.lines()
-+                    .find(|line| line.contains(SERVER))
-+                    .map(str::to_owned)
++                listed_entry(&text)
 +            } else if success {
 +                Some(text)
 +            } else {
@@ -978,15 +1279,95 @@ index 0000000..5789e43
 +        }
 +    }
 +}
++fn listed_entry(text: &str) -> Option<String> {
++    let mut lines = text.lines().skip_while(|line| {
++        !line
++            .split(|c: char| !c.is_ascii_alphanumeric() && c != '-')
++            .any(|word| word == SERVER)
++    });
++    let first = lines.next()?;
++    let mut entry = first.to_owned();
++    // Native list output can put command/args on indented lines, rather than the name row.
++    for line in lines {
++        if line.trim().is_empty() || !line.starts_with(char::is_whitespace) {
++            break;
++        }
++        entry.push('\n');
++        entry.push_str(line);
++    }
++    Some(entry)
++}
 +
 +#[cfg(test)]
 +mod tests {
 +    use super::*;
++    #[cfg(unix)]
++    #[test]
++    fn every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory() {
++        use std::os::unix::fs::PermissionsExt;
++        let home = tempfile::tempdir().unwrap();
++        let cli = home.path().join("native-agent");
++        std::fs::write(&cli, "#!/bin/sh\necho 'Usage: mcp add <name> <command>; mcp remove <name>; mcp get <name>'\n").unwrap();
++        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
++        let aliases: Vec<_> = include_str!("../terminal/cli_agent.rs")
++            .lines()
++            .filter(|line| line.contains("=> &[\""))
++            .flat_map(|line| line.split('"').skip(1).step_by(2))
++            .collect();
++        assert!(aliases.contains(&"dsh-tui") && aliases.contains(&"traecli"));
++        for command in aliases {
++            assert!(
++                adapter(home.path(), command, &cli, Path::new("/bridge")).is_some(),
++                "Missing native setup for {command}"
++            );
++        }
++        let path = home.path().join("vibe.toml");
++        let original = "# user settings\n[[mcp_servers]]\nname = 'user-server'\ntransport = 'stdio'\ncommand = 'user-command'\n";
++        std::fs::write(&path, original).unwrap();
++        let installed = Installed {
++            active: true,
++            program: "vibe".into(),
++            executable: cli,
++            adapter: Adapter::Vibe(path.clone()),
++            bridge: PathBuf::from("/bridge"),
++        };
++        configure(&installed, true, false).unwrap();
++        let mut env = std::collections::HashMap::from([
++            ("WARP_AGENT_ENDPOINT".into(), "test-endpoint".into()),
++            ("WARP_AGENT_CAPABILITY".into(), "test-binding".into()),
++            ("WARP_TERMINAL_SESSION_UUID".into(), "test-terminal".into()),
++        ]);
++        vibe_environment(&installed, &mut env, None).unwrap();
++        let servers: Value = serde_json::from_str(
++            env[std::ffi::OsStr::new("VIBE_MCP_SERVERS")]
++                .to_str()
++                .unwrap(),
++        )
++        .unwrap();
++        assert_eq!(servers[0]["name"], "user-server");
++        assert_eq!(servers[1]["env"]["WARP_AGENT_CAPABILITY"], "test-binding");
++        assert!(vibe_environment(&installed, &mut env, None).is_err());
++        configure(&installed, false, true).unwrap();
++        assert_eq!(std::fs::read_to_string(path).unwrap(), original);
++    }
 +    #[test]
 +    fn managed_configuration_is_reversible_and_preserves_user_settings() {
 +        let directory = tempfile::tempdir().unwrap();
 +        for adapter in [
 +            Adapter::Codex(directory.path().join("config.toml")),
++            Adapter::Toml {
++                path: directory.path().join("grok.toml"),
++                value: json!({"command":"/bridge", "args":["mcp"]}),
++            },
++            Adapter::YamlList {
++                path: directory.path().join("trae.yaml"),
++                key: "mcp_servers".into(),
++                value: json!({"name":SERVER,"command":"/bridge","args":["mcp"],"type":"stdio"}),
++            },
++            Adapter::Cordis {
++                path: directory.path().join("cordis.patch.yml"),
++                value: json!({"id":SERVER,"name":"@deepseek-ai/dsh-mcp-client","config":{"serverName":SERVER,"transport":"stdio","command":"/bridge","args":["mcp"]}}),
++            },
 +            Adapter::Yaml {
 +                path: directory.path().join("hermes.yaml"),
 +                key: "mcp_servers".into(),
@@ -1000,10 +1381,19 @@ index 0000000..5789e43
 +        ] {
 +            let path = match &adapter {
 +                Adapter::Codex(p) => p,
-+                Adapter::Json { path, .. } | Adapter::Yaml { path, .. } => path,
++                Adapter::Json { path, .. }
++                | Adapter::Yaml { path, .. }
++                | Adapter::Toml { path, .. }
++                | Adapter::YamlList { path, .. }
++                | Adapter::Cordis { path, .. } => path,
 +                _ => unreachable!(),
 +            };
-+            std::fs::write(path, if matches!(adapter, Adapter::Codex(_)) {"# user comment\nmodel = \"existing\"\n"} else {"{\"theme\":\"existing\",\"mcpServers\":{\"user-server\":{\"command\":\"user\"}}}"}).unwrap();
++            let original = match adapter {
++                Adapter::Codex(_) | Adapter::Toml { .. } => "# user comment\nmodel = \"existing\"\n",
++                Adapter::Cordis { .. } => "- insert:\n    - id: user-server\n      name: existing\n",
++                _ => "{\"theme\":\"existing\",\"mcpServers\":{\"user-server\":{\"command\":\"user\"}}}",
++            };
++            std::fs::write(path, original).unwrap();
 +            let installed = Installed {
 +                active: true,
 +                program: "test".into(),
@@ -1039,7 +1429,7 @@ index 0000000..5789e43
 +            let remaining = std::fs::read_to_string(path).unwrap();
 +            assert!(remaining.contains("existing"));
 +            assert!(!remaining.contains(SERVER));
-+            if matches!(adapter, Adapter::Codex(_)) {
++            if matches!(adapter, Adapter::Codex(_) | Adapter::Toml { .. }) {
 +                assert!(remaining.contains("# user comment"));
 +                assert!(!remaining.contains("env_vars"));
 +            } else {
@@ -1122,15 +1512,24 @@ index d930877..64e49c7 100644
      ctx.add_singleton_model(|_| ActiveAgentViewsModel::new());
      ctx.add_singleton_model(AgentNotificationsModel::new);
 diff --git a/app/src/pane_group/mod.rs b/app/src/pane_group/mod.rs
-index 2b8773e..768e19b 100644
+index 2b8773e..16849df 100644
 --- a/app/src/pane_group/mod.rs
 +++ b/app/src/pane_group/mod.rs
+@@ -2947,7 +2947,7 @@ impl PaneGroup {
+             Banner::<PaneGroupAction>::new_permanently_dismissible(
+                 BannerTextContent::formatted_text(vec![
+                     FormattedTextFragment::plain_text(
+-                        "Warp doesn't currently support your default shell, falling back to zsh.  ",
++                        "Warpai doesn't currently support your default shell, falling back to zsh.  ",
+                     ),
+                     FormattedTextFragment::hyperlink("Learn more", WARP_SHELL_COMPATIBILITY_DOCS),
+                 ]),
 @@ -5491,6 +5491,8 @@ impl PaneGroup {
          ModelHandle<Box<dyn TerminalManager>>,
      ) {
          add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
 +        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
-+        let agent_terminal = crate::agent_communication::prepare(&mut env_vars);
++        let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), ctx);
  
          cfg_if::cfg_if! {
              if #[cfg(feature = "remote_tty")] {
@@ -1327,9 +1726,27 @@ index 0000000..eacfafa
 +    }
 +}
 diff --git a/app/src/settings_view/features_page.rs b/app/src/settings_view/features_page.rs
-index 5e5b9cb..93167f2 100644
+index 5e5b9cb..fbde0e1 100644
 --- a/app/src/settings_view/features_page.rs
 +++ b/app/src/settings_view/features_page.rs
+@@ -302,7 +302,7 @@ pub fn init_actions_from_parent_view<T: Action + Clone>(
+ 
+     if !FeatureFlag::SSHTmuxWrapper.is_enabled() {
+         toggle_binding_pairs.push(ToggleSettingActionPair::new(
+-            "Warp SSH wrapper",
++            "Warpai SSH wrapper",
+             builder(SettingsAction::FeaturesPageToggle(
+                 #[allow(deprecated)]
+                 FeaturesPageAction::ToggleSshWrapper,
+@@ -562,7 +562,7 @@ pub fn init_actions_from_parent_view<T: Action + Clone>(
+ 
+     if DefaultTerminal::can_warp_become_default() {
+         app.register_fixed_bindings([FixedBinding::empty(
+-            "Make Warp the default terminal",
++            "Make Warpai the default terminal",
+             builder(SettingsAction::FeaturesPageToggle(
+                 FeaturesPageAction::MakeWarpDefaultTerminal,
+             )),
 @@ -2533,6 +2533,10 @@ impl FeaturesPageView {
      fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
          let mut general_widgets: Vec<Box<dyn SettingsWidget<View = Self>>> =
@@ -1341,8 +1758,65 @@ index 5e5b9cb..93167f2 100644
  
          let native_preference_settings = NativePreferenceSettings::as_ref(ctx);
          if native_preference_settings
+@@ -4709,9 +4713,9 @@ impl SettingsWidget for LoginItemWidget {
+         let general_settings = GeneralSettings::as_ref(app);
+         let ui_builder = appearance.ui_builder();
+         #[cfg(target_os = "macos")]
+-        let label = "Start Warp at login (requires macOS 13+)";
++        let label = "Start Warpai at login (requires macOS 13+)";
+         #[cfg(not(target_os = "macos"))]
+-        let label = "Start Warp at login";
++        let label = "Start Warpai at login";
+         render_body_item::<FeaturesPageAction>(
+             label.into(),
+             None,
+@@ -4988,7 +4992,7 @@ impl SettingsWidget for DefaultTerminalWidget {
+         let default_terminal = DefaultTerminal::as_ref(app);
+         if default_terminal.is_warp_default() {
+             ui_builder
+-                .wrappable_text("Warp is the default terminal", true)
++                .wrappable_text("Warpai is the default terminal", true)
+                 .with_style(UiComponentStyles {
+                     font_color: Some(appearance.theme().disabled_ui_text_color().into()),
+                     margin: Some(Coords::default().bottom(16.)),
+@@ -4999,7 +5003,7 @@ impl SettingsWidget for DefaultTerminalWidget {
+         } else {
+             ui_builder
+                 .link(
+-                    "Make Warp the default terminal".to_string(),
++                    "Make Warpai the default terminal".to_string(),
+                     None,
+                     Some(Box::new(|ctx| {
+                         ctx.dispatch_typed_action(FeaturesPageAction::MakeWarpDefaultTerminal);
+@@ -5092,7 +5096,7 @@ impl SettingsWidget for SSHWrapperWidget {
+     ) -> Box<dyn Element> {
+         let ui_builder = appearance.ui_builder();
+         render_body_item::<FeaturesPageAction>(
+-            "Warp SSH Wrapper".into(),
++            "Warpai SSH Wrapper".into(),
+             Some(AdditionalInfo {
+                 mouse_state: self.additional_info_link.clone(),
+                 on_click_action: Some(FeaturesPageAction::OpenUrl(
+@@ -5153,7 +5157,7 @@ impl SettingsWidget for DesktopNotificationsWidget {
+         let ui_builder = appearance.ui_builder();
+         let mut column = Flex::column();
+         column.add_child(render_body_item::<FeaturesPageAction>(
+-            "Receive desktop notifications from Warp".into(),
++            "Receive desktop notifications from Warpai".into(),
+             Some(AdditionalInfo {
+                 mouse_state: self.additional_info_link.clone(),
+                 on_click_action: Some(FeaturesPageAction::OpenUrl(NOTIFICATIONS_DOCS_URL.into())),
+@@ -7541,7 +7545,7 @@ impl SettingsWidget for WindowSystemWidget {
+                     may be blurry if your Wayland compositor is using fraction scaling (ex: 125%)."
+                 .to_string();
+         if view.force_x11_changed {
+-            secondary_text.push_str("\n\nRestart Warp for changes to take effect.");
++            secondary_text.push_str("\n\nRestart Warpai for changes to take effect.");
+         }
+         let warp_theme = appearance.theme();
+         children.add_child(
 diff --git a/app/src/settings_view/mod.rs b/app/src/settings_view/mod.rs
-index 4ead81d..39355b5 100644
+index 4ead81d..bc70cb4 100644
 --- a/app/src/settings_view/mod.rs
 +++ b/app/src/settings_view/mod.rs
 @@ -1,3 +1,5 @@
@@ -1351,6 +1825,45 @@ index 4ead81d..39355b5 100644
  use self::telemetry::SettingsTelemetryEvent;
  use crate::pane_group::focus_state::PaneFocusHandle;
  use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;
+@@ -259,8 +261,8 @@ impl Display for SettingsSection {
+             SettingsSection::Keybindings => write!(f, "Keyboard shortcuts"),
+             SettingsSection::SharedBlocks => write!(f, "Shared blocks"),
+             SettingsSection::MCPServers => write!(f, "MCP Servers"),
+-            SettingsSection::WarpDrive => write!(f, "Warp Drive"),
+-            SettingsSection::WarpAgent => write!(f, "Warp Agent"),
++            SettingsSection::WarpDrive => write!(f, "Warpai Drive"),
++            SettingsSection::WarpAgent => write!(f, "Warpai Agent"),
+             SettingsSection::AgentProfiles => write!(f, "Profiles"),
+             SettingsSection::AgentMCPServers => write!(f, "MCP servers"),
+             SettingsSection::Knowledge => write!(f, "Knowledge"),
+@@ -384,9 +386,9 @@ impl FromStr for SettingsSection {
+             "Shared blocks" => Ok(Self::SharedBlocks),
+             "Teams" => Ok(Self::Teams),
+             "Warpify" => Ok(Self::Warpify),
+-            "WarpDrive" | "Warp Drive" => Ok(Self::WarpDrive),
++            "WarpDrive" | "Warpai Drive" => Ok(Self::WarpDrive),
+             // This page was called "Oz" at one point, keep for backward compatibility.
+-            "Oz" | "Warp Agent" => Ok(Self::WarpAgent),
++            "Oz" | "Warpai Agent" => Ok(Self::WarpAgent),
+             "Profiles" | "AgentProfiles" => Ok(Self::AgentProfiles),
+             "MCP servers" | "AgentMCPServers" => Ok(Self::AgentMCPServers),
+             "Knowledge" => Ok(Self::Knowledge),
+diff --git a/app/src/terminal/cli_agent.rs b/app/src/terminal/cli_agent.rs
+index 93873c4..ed54954 100644
+--- a/app/src/terminal/cli_agent.rs
++++ b/app/src/terminal/cli_agent.rs
+@@ -197,9 +197,9 @@ impl CLIAgent {
+             CLIAgent::Vibe => &["vibe", "vibe-acp"],
+             CLIAgent::Antigravity => &["agy"],
+             CLIAgent::Grok => &["grok"],
+-            CLIAgent::DeepSeekHarness => &["dsh"],
++            CLIAgent::DeepSeekHarness => &["dsh", "dsh-tui"],
+             CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli", "qodercn"],
+-            CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli"],
++            CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli", "traecli"],
+             CLIAgent::Unknown => &[],
+         }
+     }
 diff --git a/app/src/terminal/model/session.rs b/app/src/terminal/model/session.rs
 index 9c97585..4ac904d 100644
 --- a/app/src/terminal/model/session.rs
@@ -1368,9 +1881,39 @@ index 9c97585..4ac904d 100644
          &self,
          session_id: SessionId,
 diff --git a/app/src/terminal/view.rs b/app/src/terminal/view.rs
-index 4302c6a..c880aed 100644
+index 4302c6a..c457da2 100644
 --- a/app/src/terminal/view.rs
 +++ b/app/src/terminal/view.rs
+@@ -833,16 +833,16 @@ impl NotificationsTrigger {
+     pub fn discovery_banner_copy(&self) -> &'static str {
+         match self {
+             NotificationsTrigger::LongRunningCommand(..) => {
+-                "Warp can notify you when long-running commands finish."
++                "Warpai can notify you when long-running commands finish."
+             }
+             NotificationsTrigger::AgentTaskCompleted(..) => {
+-                "Warp can notify you when an agent finishes responding."
++                "Warpai can notify you when an agent finishes responding."
+             }
+             NotificationsTrigger::NeedsAttention => {
+-                "Warp can notify you when a command or agent needs your attention."
++                "Warpai can notify you when a command or agent needs your attention."
+             }
+             NotificationsTrigger::PasswordPrompt => {
+-                "Warp can notify you when you're prompted to enter a password."
++                "Warpai can notify you when you're prompted to enter a password."
+             }
+         }
+     }
+@@ -3792,7 +3792,7 @@ impl TerminalView {
+         let incompatible_configuration_banner = ctx.add_typed_action_view(|_| {
+             Banner::new(BannerTextContent::formatted_text(vec![
+                 FormattedTextFragment::plain_text(
+-                    "Your shell configuration is incompatible with Warp...  ",
++                    "Your shell configuration is incompatible with Warpai...  ",
+                 ),
+                 FormattedTextFragment::hyperlink("More info", KNOWN_ISSUES_URL),
+             ]))
 @@ -7712,6 +7712,8 @@ impl TerminalView {
          }
  
@@ -1389,11 +1932,115 @@ index 4302c6a..c880aed 100644
          // If find bar is active, we update the matches for the last/active block or the alt screen.
          if self.find_model.as_ref(ctx).is_find_bar_open() {
              self.find_model.update(ctx, |find_model, ctx| {
+@@ -8629,11 +8633,11 @@ impl TerminalView {
+ 
+         let a11y_message = match &warpify_keybinding {
+             Some(keystroke) => format!(
+-                "You can press {} to Warpify this {} for more Warp features.",
++                "You can press {} to Warpify this {} for more Warpai features.",
+                 keystroke.displayed(),
+                 lowercase_title
+             ),
+-            None => format!("You can Warpify this {lowercase_title} for more Warp features."),
++            None => format!("You can Warpify this {lowercase_title} for more Warpai features."),
+         };
+ 
+         model
+@@ -8783,7 +8787,7 @@ impl TerminalView {
+ 
+         let a11y_content = AccessibilityContent::new(
+             banner_title,
+-            "Make sure you have enabled access for Warp notifications in System Preferences.",
++            "Make sure you have enabled access for Warpai notifications in System Preferences.",
+             WarpA11yRole::TextRole,
+         );
+         ctx.emit_a11y_content(a11y_content);
+@@ -9662,7 +9666,7 @@ impl TerminalView {
+         reset_focus
+     }
+ 
+-    /// Recomputes the chip values for the Warp prompt (i.e. _not_ PS1).
++    /// Recomputes the chip values for the Warpai prompt (i.e. _not_ PS1).
+     fn refresh_warp_prompt(&mut self, ctx: &mut ViewContext<Self>) {
+         // Ask the per-repo sub-model to re-fetch metadata so the chip values
+         // reflect the latest git state (branch, diff stats, etc.).
+@@ -10691,7 +10695,7 @@ impl TerminalView {
+                         let is_in_agent_view = self.agent_view_controller.as_ref(ctx).is_active();
+ 
+                         // On dogfood only, we're interested in the block commands, durations,
+-                        // and exit codes to trial Warp Analytics.
++                        // and exit codes to trial Warpai Analytics.
+                         if ChannelState::channel().is_dogfood() {
+                         }
+                     }
+@@ -10997,7 +11001,7 @@ impl TerminalView {
+                     BlockMetadataUpdateSource::Osc7,
+                     ctx,
+                 );
+-                // Recompute Warp-prompt chip values (notably the
++                // Recompute Warpai-prompt chip values (notably the
+                 // `WorkingDirectory` chip text that feeds the vertical-tab
+                 // subtitle via `display_working_directory`). The chip
+                 // generator reads from `CurrentPrompt::latest_context`, which
+@@ -14948,7 +14952,7 @@ impl TerminalView {
+ 
+                             if is_markdown_file(&path) {
+                                 items.push(
+-                                    MenuItemFields::new("Open in Warp")
++                                    MenuItemFields::new("Open in Warpai")
+                                         .with_on_select_action(TerminalAction::OpenFileInWarp(path))
+                                         .into_item(),
+                                 );
+@@ -15185,7 +15189,7 @@ impl TerminalView {
+                     } else {
+                         items.extend([
+                             MenuItem::Separator,
+-                            MenuItemFields::new("Ask Warp AI")
++                            MenuItemFields::new("Ask Warpai AI")
+                                 .with_on_select_action(TerminalAction::ContextMenu(
+                                     ContextMenuAction::AskAI(AskAISource::SelectedBlockOrText),
+                                 ))
+@@ -15852,7 +15856,7 @@ impl TerminalView {
+ 
+             if !selected_input_text.is_empty() && !FeatureFlag::AgentMode.is_enabled() {
+                 items.push(
+-                    MenuItemFields::new("Ask Warp AI")
++                    MenuItemFields::new("Ask Warpai AI")
+                         .with_on_select_action(TerminalAction::InputContextMenuItem(
+                             InputContextMenuAction::AskWarpAI,
+                         ))
+@@ -20456,7 +20460,7 @@ impl TerminalView {
+         let show_banner = if honor_ps1 {
+             let banner_content = if shell_plugins.contains("p10k_unsupported") {
+                 Some(BannerTextContent::formatted_text(vec![
+-                    FormattedTextFragment::bold("Powerlevel10k now supports Warp!  "),
++                    FormattedTextFragment::bold("Powerlevel10k now supports Warpai!  "),
+                     FormattedTextFragment::plain_text(
+                         "You seem to be running an older (unsupported) version, please follow ",
+                     ),
+@@ -20469,7 +20473,7 @@ impl TerminalView {
+             } else if shell_plugins.contains("pure") {
+                 Some(BannerTextContent::formatted_text(vec![
+                     FormattedTextFragment::plain_text(
+-                        "Pure is not yet supported in Warp. You might consider one of the \
++                        "Pure is not yet supported in Warpai. You might consider one of the \
+                         supported prompts as an alternative.  ",
+                     ),
+                     FormattedTextFragment::hyperlink("Learn more", PROMPT_COMPATIBILITY_URL),
+@@ -21161,7 +21165,7 @@ impl TerminalView {
+                     self.update_incompatible_configuration_banner(session.shell().plugins(), ctx)
+                 }
+ 
+-                // honor_ps1 affects whether the Warp prompt is active, which
++                // honor_ps1 affects whether the Warpai prompt is active, which
+                 // determines if we need git status updates.
+                 self.update_git_status_subscription(ctx);
+             }
 diff --git a/app/src/terminal/view/use_agent_footer/mod.rs b/app/src/terminal/view/use_agent_footer/mod.rs
-index 829d6d7..6b84fc2 100644
+index 829d6d7..34c40a6 100644
 --- a/app/src/terminal/view/use_agent_footer/mod.rs
 +++ b/app/src/terminal/view/use_agent_footer/mod.rs
-@@ -702,7 +702,81 @@ impl TerminalView {
+@@ -702,7 +702,79 @@ impl TerminalView {
          }
  
          let strategy = rich_input_submit_strategy(agent);
@@ -1423,7 +2070,7 @@ index 829d6d7..6b84fc2 100644
 +            return;
 +        };
 +        // Peer-controlled text stays in MCP; only a fixed instruction and a broker UUID enter the PTY.
-+        let text = format!("Warp peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
++        let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
 +        let guard_broker = broker.clone();
 +        let guard_wake = wake.clone();
 +        self.write_cli_agent_text_then_submit(
@@ -1451,8 +2098,6 @@ index 829d6d7..6b84fc2 100644
 +        };
 +        if session.is_remote()
 +            || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
-+            || (session.listener.is_some()
-+                && !matches!(session.status, CLIAgentSessionStatus::Success))
 +            || session
 +                .draft_text
 +                .as_ref()
@@ -1476,7 +2121,7 @@ index 829d6d7..6b84fc2 100644
      }
  
      /// Simulates clipboard image paste for each pending image attachment by
-@@ -727,7 +801,7 @@ impl TerminalView {
+@@ -727,7 +799,7 @@ impl TerminalView {
          }
  
          if images.is_empty() {
@@ -1485,7 +2130,7 @@ index 829d6d7..6b84fc2 100644
              return;
          }
  
-@@ -783,7 +857,7 @@ impl TerminalView {
+@@ -783,7 +855,7 @@ impl TerminalView {
                  if !ok || !me.has_active_cli_agent_input_session(ctx) {
                      return;
                  }
@@ -1494,7 +2139,7 @@ index 829d6d7..6b84fc2 100644
              },
          );
      }
-@@ -797,14 +871,30 @@ impl TerminalView {
+@@ -797,14 +869,30 @@ impl TerminalView {
          &mut self,
          text_bytes: Vec<u8>,
          strategy: RichInputSubmitStrategy,
@@ -1526,7 +2171,7 @@ index 829d6d7..6b84fc2 100644
              }
              RichInputSubmitStrategy::BracketedPaste => {
                  let mut bytes = Vec::with_capacity(
-@@ -813,17 +903,45 @@ impl TerminalView {
+@@ -813,17 +901,45 @@ impl TerminalView {
                  bytes.extend_from_slice(BRACKETED_PASTE_START);
                  bytes.extend_from_slice(&text_bytes);
                  bytes.extend_from_slice(BRACKETED_PASTE_END);
@@ -1576,7 +2221,7 @@ index 829d6d7..6b84fc2 100644
                      },
                  );
              }
-@@ -834,12 +952,29 @@ impl TerminalView {
+@@ -834,12 +950,29 @@ impl TerminalView {
                  bytes.extend_from_slice(BRACKETED_PASTE_START);
                  bytes.extend_from_slice(&text_bytes);
                  bytes.extend_from_slice(BRACKETED_PASTE_END);
@@ -1608,11 +2253,29 @@ index 829d6d7..6b84fc2 100644
                      },
                  );
              }
+@@ -936,7 +1069,7 @@ impl UseAgentToolbar {
+             .with_icon(Icon::Oz)
+             .with_keybinding(KeystrokeSource::Fixed(USE_AGENT_KEYSTROKE.clone()), ctx)
+             .with_size(button_size)
+-            .with_tooltip("Ask the Warp agent to assist")
++            .with_tooltip("Ask the Warpai agent to assist")
+             .with_tooltip_alignment(TooltipAlignment::Left)
+             .on_click(|ctx| {
+                 ctx.dispatch_typed_action(TerminalAction::SetInputModeAgent);
+@@ -950,7 +1083,7 @@ impl UseAgentToolbar {
+             .with_icon(Icon::Oz)
+             .with_keybinding(KeystrokeSource::Fixed(USE_AGENT_KEYSTROKE.clone()), ctx)
+             .with_size(button_size)
+-            .with_tooltip("Ask the Warp agent to resume")
++            .with_tooltip("Ask the Warpai agent to resume")
+             .with_tooltip_alignment(TooltipAlignment::Left)
+             .on_click(|ctx| {
+                 ctx.dispatch_typed_action(TerminalAction::SetInputModeAgent);
 diff --git a/app/src/terminal/view_test.rs b/app/src/terminal/view_test.rs
-index 4226d69..989ac67 100644
+index 4226d69..a2e7ba8 100644
 --- a/app/src/terminal/view_test.rs
 +++ b/app/src/terminal/view_test.rs
-@@ -4821,3 +4821,144 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
+@@ -4821,3 +4821,160 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
          });
      })
  }
@@ -1643,16 +2306,20 @@ index 4226d69..989ac67 100644
 +                view.model.lock().simulate_long_running_block("cat", "")
 +            });
 +            terminal.update(&mut app, |view, ctx| {
++                let listener = crate::terminal::cli_agent_sessions::listener::is_agent_supported(&agent).then(|| {
++                    ctx.add_model(|ctx| CLIAgentSessionListener::new(view.view_id, agent, &view.model_events_handle, ctx))
++                });
 +                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
 +                    sessions.set_session(
 +                        view.view_id,
 +                        CLIAgentSession {
 +                            agent,
-+                            status: CLIAgentSessionStatus::Success,
++                            // Presentation status can lag an explicit MCP final-action readiness.
++                            status: CLIAgentSessionStatus::InProgress,
 +                            session_context: CLIAgentSessionContext::default(),
 +                            input_state: CLIAgentInputState::Closed,
 +                            should_auto_toggle_input: false,
-+                            listener: None,
++                            listener,
 +                            remote_host: None,
 +                            plugin_version: None,
 +                            draft_text: None,
@@ -1711,7 +2378,7 @@ index 4226d69..989ac67 100644
 +                .position(|request| request.terminal == wake.terminal)
 +                .unwrap();
 +            let (terminal, writes, agent) = &terminals[index];
-+            if *agent == CLIAgent::Qoder {
++            {
 +                terminal.update(&mut app, |view, ctx| {
 +                    view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
 +                    view.input.update(ctx, |input, ctx| {
@@ -1732,6 +2399,18 @@ index 4226d69..989ac67 100644
 +                );
 +            }
 +            terminal.update(&mut app, |view, ctx| {
++                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
++                    let mut session = sessions.session(view.view_id).unwrap().clone();
++                    session.status = CLIAgentSessionStatus::Blocked { message: Some("Permission required".into()) };
++                    sessions.set_session(view.view_id, session, ctx);
++                });
++                view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
++                assert!(writes.borrow().is_empty(), "Automatic wake must preserve permission requests for {agent:?}");
++                CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
++                    let mut session = sessions.session(view.view_id).unwrap().clone();
++                    session.status = CLIAgentSessionStatus::InProgress;
++                    sessions.set_session(view.view_id, session, ctx);
++                });
 +                view.wake_for_peer_work(broker.clone(), wake, ctx)
 +            });
 +            // Invalidate the run between the paste and delayed Enter.
@@ -1743,7 +2422,7 @@ index 4226d69..989ac67 100644
 +        for (terminal, writes, agent) in &terminals {
 +            let written: Vec<u8> = writes.borrow().iter().flatten().copied().collect();
 +            assert!(
-+                String::from_utf8_lossy(&written).contains("Warp peer work is waiting"),
++                String::from_utf8_lossy(&written).contains("Warpai peer work is waiting"),
 +                "No wake text for {agent:?}"
 +            );
 +            assert_eq!(
@@ -1758,9 +2437,72 @@ index 4226d69..989ac67 100644
 +    });
 +}
 diff --git a/app/src/workspace/view_test.rs b/app/src/workspace/view_test.rs
-index 10bf8d4..a98d38a 100644
+index 10bf8d4..1f57398 100644
 --- a/app/src/workspace/view_test.rs
 +++ b/app/src/workspace/view_test.rs
+@@ -1850,7 +1850,7 @@ fn test_open_or_toggle_warp_drive() {
+             );
+             assert!(
+                 workspace.current_workspace_state.is_warp_drive_open,
+-                "Warp Drive should be open"
++                "Warpai Drive should be open"
+             );
+             assert!(
+                 !workspace
+@@ -1858,7 +1858,7 @@ fn test_open_or_toggle_warp_drive() {
+                     .as_ref(ctx)
+                     .features_used
+                     .contains(&Tip::Action(TipAction::OpenWarpDrive)),
+-                "Warp drive welcome tip should not be completed"
++                "Warpai drive welcome tip should not be completed"
+             );
+ 
+             // Next, toggle warp drive as a user action. WD should be closed and tip should not be filled out.
+@@ -1869,7 +1869,7 @@ fn test_open_or_toggle_warp_drive() {
+             );
+             assert!(
+                 !workspace.current_workspace_state.is_warp_drive_open,
+-                "Warp Drive should be closed"
++                "Warpai Drive should be closed"
+             );
+             assert!(
+                 !workspace
+@@ -1877,7 +1877,7 @@ fn test_open_or_toggle_warp_drive() {
+                     .as_ref(ctx)
+                     .features_used
+                     .contains(&Tip::Action(TipAction::OpenWarpDrive)),
+-                "Warp drive welcome tip should not be completed"
++                "Warpai drive welcome tip should not be completed"
+             );
+ 
+             // Finally, toggle warp drive again as a user action. WD should be open and tip filled out.
+@@ -1888,7 +1888,7 @@ fn test_open_or_toggle_warp_drive() {
+             );
+             assert!(
+                 workspace.current_workspace_state.is_warp_drive_open,
+-                "Warp Drive should be open"
++                "Warpai Drive should be open"
+             );
+             assert!(
+                 workspace
+@@ -1896,7 +1896,7 @@ fn test_open_or_toggle_warp_drive() {
+                     .as_ref(ctx)
+                     .features_used
+                     .contains(&Tip::Action(TipAction::OpenWarpDrive)),
+-                "Warp drive welcome tip should not be completed"
++                "Warpai drive welcome tip should not be completed"
+             );
+         });
+     });
+@@ -2132,7 +2132,7 @@ fn test_switch_focus_panels() {
+         workspace.update(&mut app, |view, ctx| {
+             assert!(
+                 view.left_panel_view.is_self_or_child_focused(ctx),
+-                "Expected Warp Drive panel to be focused"
++                "Expected Warpai Drive panel to be focused"
+             );
+         });
+ 
 @@ -3360,6 +3360,7 @@ fn test_standard_tab_context_menu_shows_hover_only_tab_bar() {
      });
  }
@@ -2422,10 +3164,10 @@ index 0000000..9099383
 +}
 diff --git a/crates/agent_bus/src/mcp.rs b/crates/agent_bus/src/mcp.rs
 new file mode 100644
-index 0000000..31d982b
+index 0000000..2da3f8e
 --- /dev/null
 +++ b/crates/agent_bus/src/mcp.rs
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,151 @@
 +//! The pinned MCP SDK owns framing, negotiation, and cancellation.
 +use crate::{
 +    transport::{self, Request, CAPABILITY, ENDPOINT, TERMINAL},
@@ -2500,7 +3242,7 @@ index 0000000..31d982b
 +        input.get_mut("required").unwrap().as_array_mut().unwrap().retain(|value| value != "op");
 +        let description = match operation.as_str() {
 +            "agent_register" => "Register this live terminal under a unique project-local name.",
-+            "agent_list" => "List your selected communication peers in this project, including online and cooperative-waiting state.",
++            "agent_list" => "List all live communication peers in this project, including readiness, pending count and cooperative-waiting state.",
 +            "agent_send" => "Send a message to a registered peer in this project.",
 +            "agent_inbox" => "Read pending messages without acknowledging them.",
 +            "agent_ack" => "Acknowledge an ordinary message addressed to this agent.",
@@ -2513,6 +3255,7 @@ index 0000000..31d982b
 +            "task_review" => "As the designated reviewer, accept a submitted revision or request changes with feedback.",
 +            _ => unreachable!("All operations have a description"),
 +        };
++        let description = format!("{description} Before finishing your turn, call warp_agent_ready as your final tool action. Never announce readiness while working or waiting for approval. Sending only queues work; report completion only after a receiver result.");
 +        Tool::new(format!("warp_{operation}"), description, Arc::new(input))
 +    }).collect()
 +}
@@ -2578,10 +3321,10 @@ index 0000000..31d982b
 +}
 diff --git a/crates/agent_bus/src/transport.rs b/crates/agent_bus/src/transport.rs
 new file mode 100644
-index 0000000..dc02355
+index 0000000..1506f85
 --- /dev/null
 +++ b/crates/agent_bus/src/transport.rs
-@@ -0,0 +1,827 @@
+@@ -0,0 +1,863 @@
 +//! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 +use crate::{Agent, Operation, Store, MAX_FRAME};
 +use anyhow::{anyhow, ensure, Result};
@@ -2986,6 +3729,30 @@ index 0000000..dc02355
 +            })
 +            .collect()
 +    }
++    /// Surface queued work even when the receiver is busy or has not announced readiness.
++    pub fn pending_work(&self) -> Vec<Wake> {
++        let Ok(state) = self.shared.state.lock() else {
++            return vec![];
++        };
++        state
++            .terminals
++            .iter()
++            .filter_map(|(terminal, binding)| {
++                let live = binding.live.as_ref()?;
++                let message = state
++                    .store
++                    .pending(live.agent.as_ref()?)
++                    .into_iter()
++                    .next()?;
++                Some(Wake {
++                    terminal: terminal.clone(),
++                    run: live.run.clone(),
++                    message_id: message.id,
++                    generation: live.generation,
++                })
++            })
++            .collect()
++    }
 +    pub fn claim_wake(&self, wake: &Wake) -> bool {
 +        let Ok(mut state) = self.shared.state.lock() else {
 +            return false;
@@ -3261,7 +4028,19 @@ index 0000000..dc02355
 +                    });
 +                agent["online"] = json!(online.is_some());
 +                agent["waiting"] = json!(online.is_some_and(|live| live.waiting));
++                agent["ready"] =
++                    json!(online.is_some_and(|live| live.ready.is_some() && !live.manual_draft));
++                agent["pending_count"] = json!(online
++                    .and_then(|live| live.agent.as_ref())
++                    .map_or(0, |agent| state.store.pending(agent).len()));
 +            }
++        }
++        if matches!(
++            request.operation,
++            Operation::AgentSend { .. } | Operation::TaskAssign { .. }
++        ) {
++            result["delivery"] = json!("queued");
++            result["instruction"] = json!("Work is queued, not completed or acknowledged. The receiver is notified and will process it once ready. Inspect peer pending_count; wait for its reply or task result before reporting completion.");
 +        }
 +        self.shared.changed.notify_all();
 +        Ok(result)
@@ -3411,10 +4190,10 @@ index 0000000..dc02355
 +}
 diff --git a/crates/agent_bus/tests/coordination.rs b/crates/agent_bus/tests/coordination.rs
 new file mode 100644
-index 0000000..514d4de
+index 0000000..1715f9f
 --- /dev/null
 +++ b/crates/agent_bus/tests/coordination.rs
-@@ -0,0 +1,560 @@
+@@ -0,0 +1,569 @@
 +use serde_json::Value;
 +use std::{path::PathBuf, thread, time::Duration};
 +use uuid::Uuid;
@@ -3777,6 +4556,15 @@ index 0000000..514d4de
 +            request_id: request_id(),
 +        };
 +        transport::call(&server.broker.endpoint, &issuer).unwrap();
++        assert_eq!(server.broker.pending_work().len(), index + 1);
++        assert!(
++            server
++                .broker
++                .wakeups()
++                .iter()
++                .all(|wake| wake.terminal != worker.terminal),
++            "Queued notification must not imply readiness"
++        );
 +        worker.operation = Operation::AgentReady;
 +        transport::call(&server.broker.endpoint, &worker).unwrap();
 +        workers.push(worker);
@@ -3984,18 +4772,49 @@ index 0000000..011845b
 +//! Run native setup checks without compiling the graphical application.
 +#[path = "../../../app/src/agent_communication/setup.rs"]
 +mod setup;
+diff --git a/crates/input_classifier/src/util.rs b/crates/input_classifier/src/util.rs
+index 0fb6ee9..d12f963 100644
+--- a/crates/input_classifier/src/util.rs
++++ b/crates/input_classifier/src/util.rs
+@@ -20,7 +20,7 @@ lazy_static! {
+     /// claude code, codex CLI, or gemini CLI) suck, because the user often thinks we're
+     /// intentionally trying to push them away from those CLIs into Agent Mode, so we mitigate the
+     /// risk by always treating as shell.
+-    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "omp", "cursor-agent", "qoder", "qodercn", "trae", "traecn", "hermes"]);
++    static ref ONE_OFF_SHELL_COMMAND_KEYWORDS: HashSet<&'static str> = HashSet::from(["#", "echo", "man", "sudo", "claude", "codex", "gemini", "agy", "dsh", "dsh-tui", "omp", "cursor-agent", "qoder", "qodercn", "trae", "traecn", "traecli", "hermes"]);
+ 
+     static ref ONE_OFF_NATURAL_LANGUAGE_WORDS: HashSet<&'static str> = HashSet::from(["hello", "hi", "hey", "hola", "thanks", "explain", "yes", "no", "what", "nice", "1. "]);
+ 
 diff --git a/script/build-warp-lite-app.sh b/script/build-warp-lite-app.sh
-index 4f7781e..44a851f 100755
+index 4f7781e..8eb89c1 100755
 --- a/script/build-warp-lite-app.sh
 +++ b/script/build-warp-lite-app.sh
-@@ -16,6 +16,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env bash
+-# Builds a minimal WarpLite.app bundle on macOS for warp-lite.
++# Builds a minimal Warpai.app bundle on macOS for warp-lite.
+ #
+ # Prerequisites:
+ #   - target/release/warp-oss already built (cargo build --release --bin warp-oss)
+@@ -8,7 +8,7 @@
+ #   script/build-warp-lite-app.sh
+ #
+ # Output:
+-#   ./WarpLite.app   (drag into /Applications)
++#   ./Warpai.app   (drag into /Applications)
+ 
+ set -euo pipefail
+ 
+@@ -16,7 +16,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
  cd "$ROOT"
  
  BIN="target/release/warp-oss"
+-APP="WarpLite.app"
 +AGENT_BIN="target/release/warp-agent"
- APP="WarpLite.app"
++APP="Warpai.app"
  APP_VERSION="0.5.7"
  APP_SHORT_VERSION="0.5.7-lite"
+ APP_IDENTIFIER="dev.warp-lite.WarpLite"
 @@ -27,6 +28,11 @@ if [[ ! -f "$BIN" ]]; then
      exit 1
  fi
@@ -4008,21 +4827,72 @@ index 4f7781e..44a851f 100755
  if [[ ! -f "$SRC_PNG" ]]; then
      echo "Error: source icon $SRC_PNG not found." >&2
      exit 1
-@@ -38,7 +44,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+@@ -37,8 +43,9 @@ rm -rf "$APP"
+ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
  
  # 1) Copy the binary
- cp "$BIN" "$APP/Contents/MacOS/warp-oss"
+-cp "$BIN" "$APP/Contents/MacOS/warp-oss"
 -chmod +x "$APP/Contents/MacOS/warp-oss"
++cp "$BIN" "$APP/Contents/MacOS/Warpai"
 +cp "$AGENT_BIN" "$APP/Contents/MacOS/warp-agent"
-+chmod +x "$APP/Contents/MacOS/warp-oss" "$APP/Contents/MacOS/warp-agent"
++chmod +x "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
  
  # 2) Generate AppIcon.icns from the 512×512 source via iconset
  ICONSET="$(mktemp -d)/AppIcon.iconset"
+@@ -63,9 +70,9 @@ cat > "$APP/Contents/Info.plist" <<EOF
+ <plist version="1.0">
+ <dict>
+     <key>CFBundleName</key>
+-    <string>WarpLite</string>
++    <string>Warpai</string>
+     <key>CFBundleDisplayName</key>
+-    <string>warp-lite</string>
++    <string>Warpai</string>
+     <key>CFBundleIdentifier</key>
+     <string>$APP_IDENTIFIER</string>
+     <key>CFBundleVersion</key>
+@@ -73,7 +80,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
+     <key>CFBundleShortVersionString</key>
+     <string>$APP_SHORT_VERSION</string>
+     <key>CFBundleExecutable</key>
+-    <string>warp-oss</string>
++    <string>Warpai</string>
+     <key>CFBundlePackageType</key>
+     <string>APPL</string>
+     <key>CFBundleSignature</key>
 diff --git a/script/build-warp-lite-windows.ps1 b/script/build-warp-lite-windows.ps1
-index 1465d59..680d685 100644
+index 1465d59..42fadfb 100644
 --- a/script/build-warp-lite-windows.ps1
 +++ b/script/build-warp-lite-windows.ps1
-@@ -46,6 +46,9 @@ if ($LASTEXITCODE -ne 0) {
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env pwsh
+ #
+-# Builds Windows x64 release artifacts (installer + portable zip) for Warp Lite.
++# Builds Windows x64 release artifacts (installer + portable zip) for Warpai.
+ #
+ # Prerequisites:
+ #   - Rust toolchain target: x86_64-pc-windows-msvc
+@@ -12,8 +12,8 @@
+ #   pwsh script/build-warp-lite-windows.ps1 [-ReleaseTag "v0.5.7-lite"]
+ #
+ # Outputs:
+-#   ./WarpLiteSetup-x64.exe
+-#   ./WarpLite-windows-x64.zip
++#   ./WarpaiSetup-x64.exe
++#   ./Warpai-windows-x64.zip
+ 
+ Param(
+     [Alias('release-tag')]
+@@ -36,7 +36,7 @@ $WindowsInstallerDir = "$RepoRoot\script\windows"
+ # Set environment variables for build scripts
+ $env:GIT_RELEASE_TAG = $ReleaseTag
+ $env:CARGO_BIN_NAME = "oss"
+-$env:WARP_APP_NAME = "WarpLite"
++$env:WARP_APP_NAME = "Warpai"
+ $env:CARGO_FULL_PROFILE = $CargoProfile
+ 
+ # 1. Compile warp-oss binary
+@@ -46,11 +46,16 @@ if ($LASTEXITCODE -ne 0) {
      throw "cargo build failed with exit code $LASTEXITCODE"
  }
  
@@ -4032,18 +4902,91 @@ index 1465d59..680d685 100644
  $WarpOssExe = "$TargetOutputDir\warp-oss.exe"
  if (-not (Test-Path $WarpOssExe)) {
      throw "Build failed: $WarpOssExe not found"
-@@ -87,6 +90,7 @@ $PortableDir = "$RepoRoot\target\WarpLite-portable-x64"
+ }
+ 
++Copy-Item $WarpOssExe "$TargetOutputDir\Warpai.exe" -Force
++
+ # 2. Prepare bundled resources
+ Write-Host "==> [2/4] Preparing bundled resources..."
+ & "$WindowsInstallerDir\prepare_bundled_resources.ps1" -DestinationDir "$BundledResourcesDir" -Channel "oss"
+@@ -63,32 +68,32 @@ Write-Host "==> [3/4] Compiling Windows installer with Inno Setup..."
+ $ISCC_ARGS = @(
+     "$WindowsInstallerDir\windows-installer.iss",
+     "/DReleaseChannel=oss",
+-    "/DMyAppExeName=warp-oss.exe",
++    "/DMyAppExeName=Warpai.exe",
+     "/DTargetProfileDir=$TargetOutputDir",
+-    "/DMyAppName=WarpLite",
++    "/DMyAppName=Warpai",
+     "/DMyAppVersion=$ReleaseTag",
+     "/DArch=$Arch",
+-    "/DOutputName=WarpLiteSetup-x64"
++    "/DOutputName=WarpaiSetup-x64"
+ )
+ & ISCC @ISCC_ARGS
+ if ($LASTEXITCODE -ne 0) {
+     throw "Inno Setup compilation failed with exit code $LASTEXITCODE"
+ }
+ 
+-$InstallerPath = "$WindowsInstallerDir\Output\WarpLiteSetup-x64.exe"
++$InstallerPath = "$WindowsInstallerDir\Output\WarpaiSetup-x64.exe"
+ if (-not (Test-Path $InstallerPath)) {
+     throw "Installer was not created at $InstallerPath"
+ }
+-Copy-Item $InstallerPath "$RepoRoot\WarpLiteSetup-x64.exe" -Force
++Copy-Item $InstallerPath "$RepoRoot\WarpaiSetup-x64.exe" -Force
+ 
+ # 4. Package portable zip
+ Write-Host "==> [4/4] Creating portable zip archive..."
+-$PortableDir = "$RepoRoot\target\WarpLite-portable-x64"
++$PortableDir = "$RepoRoot\target\Warpai-portable-x64"
  if (Test-Path $PortableDir) { Remove-Item $PortableDir -Recurse -Force }
  New-Item -ItemType Directory -Path $PortableDir -Force | Out-Null
  
+-Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\WarpLite.exe" -Force
+-Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\warp-oss.exe" -Force
 +Copy-Item "$TargetOutputDir\warp-agent.exe" "$PortableDir\warp-agent.exe" -Force
- Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\WarpLite.exe" -Force
- Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\warp-oss.exe" -Force
++Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\Warpai.exe" -Force
  Copy-Item "$RepoRoot\app\assets\windows\x64\conpty.dll" "$PortableDir\conpty.dll" -Force
+ Copy-Item "$RepoRoot\app\assets\windows\x64\dxcompiler.dll" "$PortableDir\dxcompiler.dll" -Force
+ Copy-Item "$RepoRoot\app\assets\windows\x64\dxil.dll" "$PortableDir\dxil.dll" -Force
+@@ -104,10 +109,10 @@ Copy-Item "$RepoRoot\app\assets\windows\x64\OpenConsole.exe" "$OpenConsoleDir\Op
+ 
+ Copy-Item "$BundledResourcesDir" "$PortableDir\resources" -Recurse -Force
+ 
+-$ZipPath = "$RepoRoot\WarpLite-windows-x64.zip"
++$ZipPath = "$RepoRoot\Warpai-windows-x64.zip"
+ if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+ Compress-Archive -Path "$PortableDir\*" -DestinationPath $ZipPath -Force
+ 
+ Write-Host "==> Windows x64 build successfully completed!"
+-Write-Host "    Installer: $RepoRoot\WarpLiteSetup-x64.exe"
++Write-Host "    Installer: $RepoRoot\WarpaiSetup-x64.exe"
+ Write-Host "    Portable:  $ZipPath"
 diff --git a/script/windows/windows-installer.iss b/script/windows/windows-installer.iss
-index 15fa051..1de97f8 100644
+index 15fa051..aa26a36 100644
 --- a/script/windows/windows-installer.iss
 +++ b/script/windows/windows-installer.iss
+@@ -2,8 +2,8 @@
+ ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
+ #include "environment.iss"
+ 
+-#define MyAppPublisher "Denver Technologies, Inc."
+-#define MyAppURL "https://www.warp.dev/"
++#define MyAppPublisher "OthinusG"
++#define MyAppURL "https://github.com/OthinusG/warp-lite"
+ #ifndef MyAppName
+   #define MyAppName "WarpDev"
+ #endif
+@@ -58,7 +58,7 @@ Compression=lzma
+ SolidCompression=yes
+ WizardStyle=modern
+ WizardSmallImageFile="installer-images\warp-logo.bmp"
+-WizardImageFile="installer-images\warp-banner.bmp"
++WizardImageFile="installer-images\warpai-banner.bmp"
+ SetupIconFile="..\..\app\channels\{#ReleaseChannel}\icon\no-padding\icon.ico"
+ UninstallDisplayIcon="{app}\icon.ico"
+ ; Force close previous Warp if it hasn't shut down yet.
 @@ -94,6 +94,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
  Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
  
@@ -4052,3 +4995,12 @@ index 15fa051..1de97f8 100644
  ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
  Source: "{#TargetProfileDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
  Source: "{#AssetsDir}\{#Arch}\conpty.dll"; DestDir: "{app}"; Flags: ignoreversion
+@@ -132,7 +133,7 @@ Root: HKA; Subkey: "Software\Classes\Directory\Background\shell\{#MyAppName}Wind
+ Root: HKA; Subkey: "Software\Classes\Directory\Background\shell\{#MyAppName}Window\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""{#MyAppName}://action/new_window?path=%V"""
+ 
+ [Tasks]
+-Name: addToPath; Description: "Add Warp to PATH"
++Name: addToPath; Description: "Add Warpai to PATH"
+ 
+ [UninstallDelete]
+ Type: filesandordirs; Name: "{userappdata}\warp\{#MyAppName}"

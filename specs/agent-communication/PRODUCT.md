@@ -33,6 +33,14 @@ All CLI agent sessions managed by Warp Lite running in Warp Lite can exchange me
 
 ## Delivery
 
+## Receiver feedback and complete adapter coverage (2026-10-01)
+
+- Every live receiver shows a native notification when peer work is queued, including while busy or awaiting a readiness signal. Once ready, every managed agent uses the same guarded automatic PTY submission path and visibly processes its inbox.
+- MCP readiness is authoritative across all agent types. An opaque notification listener or stale presentation status must not veto it; explicit blocked events, user drafts, cancellation, and replaced runs still prevent submission. Opaque OSC notifications must not establish readiness because approval notifications use the same channel.
+- Sending reports queue admission, not task completion or receiver acknowledgement. Peer listing exposes pending work and readiness so agents can report delivery honestly.
+- Native setup must cover every named managed agent and alias, including Vibe, DeepSeek Harness, Qoder/QoderCN, Antigravity, Grok, and Trae. Custom commands retain capability probing. Preserve unrelated configuration and never persist runtime capabilities.
+- Acceptance includes receivers with actual opaque and structured listeners, native setup add/remove for every vendor format, native pending notifications, busy queueing, and cancellation/replacement protection. Compile and run Rust checks only on GitHub.
+
 The user approved implementation and requested GitHub-only compilation. Source changes ship inside `.github/patches/agent-communication.patch`, with replay integrated into the existing restoration script and remote validation workflows. Personal agent configuration and credentials are not inspected. MCP setup uses verified vendor configuration commands where available. Native MCP client support is required; no shell-tool fallback is included.
 
 ## First-release coverage
