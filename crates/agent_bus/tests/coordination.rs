@@ -815,15 +815,17 @@ fn concurrent_pool_claims_over_authenticated_ipc_have_one_winner() {
     let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
     let broker = &server.broker;
     let mut issuer = register(broker, "issuer", "claude");
-    let left = register(broker, "left", "codex");
-    let right = register(broker, "right", "qodercn");
+    let workers: Vec<_> = (0..20)
+        .map(|index| register(broker, &format!("claimant-{index}"), "codex"))
+        .collect();
+    let eligible: Vec<_> = workers.iter().map(|worker| worker.terminal.clone()).collect();
     issuer.operation = serde_json::from_value(serde_json::json!({
         "op": "task_create_pool", "description": "Claim once", "acceptance": "Single owner",
-        "eligible": ["left", "right"], "request_id": request_id()
+        "eligible": eligible, "request_id": request_id()
     })).unwrap();
     let task = transport::call(&broker.endpoint, &issuer).unwrap();
-    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
-    let children: Vec<_> = [left, right].into_iter().map(|mut worker| {
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(workers.len() + 1));
+    let children: Vec<_> = workers.into_iter().map(|mut worker| {
         worker.operation = serde_json::from_value(serde_json::json!({
             "op": "task_claim", "task_id": task["id"], "expected_version": task["version"],
             "request_id": request_id()
@@ -842,6 +844,71 @@ fn concurrent_pool_claims_over_authenticated_ipc_have_one_winner() {
     let committed = transport::call(&broker.endpoint, &issuer).unwrap();
     assert_eq!(committed["version"], 2);
     assert!(!committed["assignee"].as_str().unwrap().is_empty());
+}
+
+#[test]
+fn competing_task_controls_preserve_versions_in_both_orders() {
+    use serde_json::json;
+    for scenario in ["start_cancel", "submit_cancel", "review_retry"] {
+        for reverse in [false, true] {
+            let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+            let mut issuer = register(&server.broker, "issuer", "claude");
+            let mut worker = register(&server.broker, "worker", "codex");
+            issuer.operation = serde_json::from_value(json!({"op":"task_assign", "to":"worker",
+                "description":"Control race", "acceptance":"Keep one owner", "request_id":request_id()})).unwrap();
+            let mut task = transport::call(&server.broker.endpoint, &issuer).unwrap();
+            if scenario != "start_cancel" {
+                worker.operation = serde_json::from_value(json!({"op":"task_start", "task_id":task["id"],
+                    "revision":1, "request_id":request_id()})).unwrap();
+                task = transport::call(&server.broker.endpoint, &worker).unwrap();
+            }
+            if scenario == "review_retry" {
+                worker.operation = serde_json::from_value(json!({"op":"task_submit", "task_id":task["id"],
+                    "revision":1, "result":"Complete", "evidence":"Checked", "request_id":request_id()})).unwrap();
+                task = transport::call(&server.broker.endpoint, &worker).unwrap();
+            }
+            let mut first = if scenario == "review_retry" { issuer.clone() } else { worker.clone() };
+            let mut second = issuer.clone();
+            let id = task["id"].clone();
+            let version = task["version"].clone();
+            first.operation = serde_json::from_value(match scenario {
+                "start_cancel" => json!({"op":"task_start", "task_id":id, "revision":1,
+                    "expected_version":version, "request_id":request_id()}),
+                "submit_cancel" => json!({"op":"task_submit", "task_id":id, "revision":1,
+                    "result":"Complete", "evidence":"Checked", "expected_version":version, "request_id":request_id()}),
+                _ => json!({"op":"task_review", "task_id":id, "revision":1, "accepted":false,
+                    "feedback":"Recheck", "expected_version":version, "request_id":request_id()}),
+            }).unwrap();
+            second.operation = serde_json::from_value(if scenario == "review_retry" {
+                json!({"op":"task_retry", "task_id":id, "reason":"Retry",
+                    "expected_version":version, "request_id":request_id()})
+            } else {
+                json!({"op":"task_cancel", "task_id":id, "reason":"Stop",
+                    "expected_version":version, "request_id":request_id()})
+            }).unwrap();
+            let requests = if reverse { [&second, &first] } else { [&first, &second] };
+            let outcomes: Vec<_> = requests.iter()
+                .map(|request| transport::call(&server.broker.endpoint, request)).collect();
+            assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1,
+                "{scenario}, reverse={reverse}");
+            issuer.operation = Operation::TaskGet { task_id: id.as_str().unwrap().into() };
+            let current = transport::call(&server.broker.endpoint, &issuer).unwrap();
+            assert_eq!(current["version"].as_u64(), Some(version.as_u64().unwrap() + 1));
+            let expected = match (scenario, reverse) {
+                ("start_cancel", false) => "running",
+                ("start_cancel", true) => "cancelled",
+                ("submit_cancel", false) => "submitted",
+                ("submit_cancel", true) => "cancel_requested",
+                _ => "queued",
+            };
+            assert_eq!(current["state"], expected);
+            // Both a winning replay and a rejected stale intent leave current state unchanged.
+            for request in requests {
+                let _ = transport::call(&server.broker.endpoint, request);
+            }
+            assert_eq!(transport::call(&server.broker.endpoint, &issuer).unwrap(), current);
+        }
+    }
 }
 
 #[test]

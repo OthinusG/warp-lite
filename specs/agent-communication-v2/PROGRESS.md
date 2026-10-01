@@ -15,6 +15,24 @@
 - Continue with M2 static visual acceptance before live integration, functional
   M4 shared-space routing, M6 remote coordination and the M0/M7 native acceptance
   gates. No missing real-device or real-model gate is marked passed.
+- `bde9043`, run `36934356183`: both OS protocol suites passed the repaired
+  dormant-wake fixture, page-full/COMMIT rollback and revision-deadline tests.
+  Full application and package validation was still running at this checkpoint.
+- Added both-order start/cancel, submit/cancel and review/retry control checks,
+  including stale replay, and expanded authenticated concurrent claims to 20
+  participants. These additions await the next GitHub run.
+- Downloaded and verified the separate debug UI review app from source `75f47f9`.
+  Launching with an isolated data profile exited 101: `app_menus.rs:104` asserted
+  because ReferAFriend had no registered Lite binding. Gate the menu item with
+  the same `warp_platform` boundary as its binding; a menu-construction regression
+  and workflow entry accompany the fix. The local accessibility permission is
+  absent; no native screenshot/keyboard acceptance is claimed.
+- Extended full validation to build the existing Windows installer/portable
+  packages without publishing a release, using pinned packaging tools and the
+  existing script. Windows builds now require `--locked`, like application checks.
+- User supplied no Windows SSH machine or native model-call budget. C01/C13 and
+  native Windows acceptance remain unverified. `ACCEPTANCE.md` records every
+  PLAN item individually; metadata APIs are not functional shared-space routing.
 
 The user authorized completing the plan, pushing source and GitHub builds, and
 subsequently confirmed that necessary actions require no further permission questions.

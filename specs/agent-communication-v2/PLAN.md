@@ -1,6 +1,6 @@
 # Agent Collaboration Implementation Plan
 
-Date: 2026-10-01. Baseline: `7d2eac7` (source repair `632bd1c`). Status: plan drafted and structurally validated; all implementation work below remains pending.
+Date: 2026-10-01. Baseline: `7d2eac7` (source repair `632bd1c`). Status updated 2026-10-02: M1 has recorded acceptance; later packages are partially implemented. See [PROGRESS.md](PROGRESS.md) and the [per-package verification ledger](ACCEPTANCE.md) for current evidence and remaining gates. Unchecked packages are not accepted.
 
 ## Reading order and scope
 

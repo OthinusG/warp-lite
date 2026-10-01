@@ -41,12 +41,12 @@ $env:CARGO_FULL_PROFILE = $CargoProfile
 
 # 1. Compile warp-oss binary
 Write-Host "==> [1/4] Building warp-oss binary ($PlatformTarget, profile: $CargoProfile)..."
-cargo build -p warp --profile $CargoProfile --bin warp-oss --features "release_bundle,gui,nld_improvements" --target $PlatformTarget
+cargo build -p warp --profile $CargoProfile --bin warp-oss --features "release_bundle,gui,nld_improvements" --target $PlatformTarget --locked
 if ($LASTEXITCODE -ne 0) {
     throw "cargo build failed with exit code $LASTEXITCODE"
 }
 
-cargo build -p warp-agent-bus --profile $CargoProfile --bin warp-agent --target $PlatformTarget
+cargo build -p warp-agent-bus --profile $CargoProfile --bin warp-agent --target $PlatformTarget --locked
 if ($LASTEXITCODE -ne 0) { throw "Agent companion build failed" }
 
 $WarpOssExe = "$TargetOutputDir\warp-oss.exe"

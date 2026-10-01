@@ -150,6 +150,7 @@ fn make_new_app_menu(ctx: &AppContext) -> Menu {
         ))
     }
 
+    #[cfg(feature = "warp_platform")]
     menu_items.extend([
         MenuItem::Separator,
         updateable_custom_item_without_checkmark(CustomAction::ReferAFriend, ctx),
@@ -1187,5 +1188,40 @@ fn custom_action_updater(
         changes.checked = Some(checkmark_status(ctx));
 
         changes
+    }
+}
+
+#[cfg(all(test, not(feature = "warp_platform")))]
+mod tests {
+    use super::*;
+    use warpui::{keymap::EditableBinding, App};
+
+    #[test]
+    fn lite_app_menu_builds_without_platform_bindings() {
+        App::test((), |app| async move {
+            app.update(|ctx| {
+            // Match the Lite startup boundary: the referral action is deliberately unregistered.
+            for (name, action) in [
+                ("test:about", CustomAction::ShowAboutWarp),
+                ("test:resources", CustomAction::ToggleResourceCenter),
+                ("test:settings", CustomAction::ShowSettings),
+                ("test:keybindings", CustomAction::ToggleKeybindingsPage),
+                ("test:configure", CustomAction::ConfigureKeybindings),
+                ("test:appearance", CustomAction::ShowAppearance),
+                ("test:changelog", CustomAction::ViewChangelog),
+            ] {
+                ctx.register_editable_bindings([
+                    EditableBinding::new(
+                        name,
+                        "Terminal menu action",
+                        crate::workspace::WorkspaceAction::ToggleLeftPanel,
+                    ).with_custom_action(action),
+                ]);
+            }
+            let menu = make_new_app_menu(ctx);
+            assert_eq!(menu.title, "Warpai");
+            assert!(!menu.menu_items.is_empty());
+            });
+        });
     }
 }

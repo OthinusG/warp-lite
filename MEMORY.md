@@ -19,6 +19,16 @@
 
 ## Native Agent Communication Design
 
+- Native debug review startup on 2026-10-02 exposed a Lite boundary mismatch:
+  `ReferAFriend` is registered only under `warp_platform`, but the macOS app menu
+  still constructed it. Its missing description panicked at startup in debug and
+  produced a dead item in release. Keep menu construction under the same boundary;
+  do not weaken `default_name` assertions to hide missing action registration.
+- The continuation has no Windows SSH test machine or authorized model-call budget
+  (user reply: unavailable). Local macOS UI automation also lacks accessibility
+  permission. Keep C01/C05/C13 and real-model/device acceptance distinct from CI;
+  `specs/agent-communication-v2/ACCEPTANCE.md` tracks every remaining PLAN item.
+
 - Continuation audit on 2026-10-02: source `fb298cb` failed its dormant wake fixture
   because it expected `AgentReady` to permit delivery during an unfinished delegated
   task. Keep the executing-task readiness guard; submit/fail/confirm cancellation

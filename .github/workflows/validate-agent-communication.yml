@@ -51,12 +51,31 @@ jobs:
       - name: Prepare Windows application build
         if: ${{ !inputs.protocol_only }}
         shell: pwsh
-        run: choco install protoc -y
+        run: |
+          choco install protoc innosetup -y
+          "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Check Windows default and platform application
         if: ${{ !inputs.protocol_only }}
         run: |
           cargo check -p warp --bin warp-oss --locked
           cargo check -p warp --bin warp-oss --features warp_platform --locked
+      - name: Prepare Windows packaging dependencies
+        if: ${{ !inputs.protocol_only }}
+        run: bash script/install_cargo_release_deps
+      - name: Build and package Windows review artifacts
+        if: ${{ !inputs.protocol_only }}
+        shell: pwsh
+        run: script/build-warp-lite-windows.ps1 -ReleaseTag "0.5.7-review"
+      - name: Upload Windows review artifacts
+        if: ${{ !inputs.protocol_only }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-agent-communication-windows
+          path: |
+            WarpaiSetup-x64.exe
+            Warpai-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 7
   macos:
     runs-on: macos-15
     timeout-minutes: 180
@@ -109,6 +128,7 @@ jobs:
       - name: Test dormant wake and settings configuration
         if: ${{ !inputs.protocol_only }}
         run: |
+          cargo test -p warp --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warp --lib collaboration_fixtures_cover_required_states_and_long_content --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
