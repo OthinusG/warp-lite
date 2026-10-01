@@ -1,3 +1,5 @@
+/Users/wqin/workplace/warp-lite/crates/agent_bus/src/mcp.rs:
+
 //! The pinned MCP SDK owns framing, negotiation, and cancellation.
 use crate::{
     transport::{self, Request, CAPABILITY, ENDPOINT, TERMINAL},
@@ -11,7 +13,10 @@ use rmcp::{
 };
 use serde_json::{json, Value};
 use std::{
-    sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::{Duration, Instant},
 };
 
@@ -24,11 +29,22 @@ pub struct Bridge {
     run: Arc<Mutex<Option<String>>>,
     native_ready: Arc<Mutex<Option<bool>>>,
     discovered: Arc<AtomicBool>,
+    native_bound: Arc<AtomicBool>,
+    directory: Arc<Mutex<Option<String>>>,
 }
 impl Bridge {
     #[cfg(test)]
     pub(crate) fn test_binding(endpoint: String, terminal: String, capability: String) -> Self {
-        Self { endpoint, terminal, capability, run: Arc::new(Mutex::new(None)), native_ready: Arc::new(Mutex::new(None)), discovered: Arc::new(AtomicBool::new(false)) }
+        Self {
+            endpoint,
+            terminal,
+            capability,
+            run: Arc::new(Mutex::new(None)),
+            native_ready: Arc::new(Mutex::new(None)),
+            discovered: Arc::new(AtomicBool::new(false)),
+            native_bound: Arc::new(AtomicBool::new(false)),
+            directory: Arc::new(Mutex::new(None)),
+        }
     }
     pub fn from_env() -> Result<Self> {
         fn variable(name: &str) -> Result<String> {
@@ -41,23 +57,53 @@ impl Bridge {
             run: Arc::new(Mutex::new(None)),
             native_ready: Arc::new(Mutex::new(None)),
             discovered: Arc::new(AtomicBool::new(false)),
+            native_bound: Arc::new(AtomicBool::new(false)),
+            directory: Arc::new(Mutex::new(None)),
         })
     }
     /// Native session notifications cannot register a peer before actual MCP discovery.
     pub(crate) fn native_activity(&self, ready: bool) -> Result<()> {
-        let mut activity = self.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;
+        self.native_bound.store(true, Ordering::Release);
+        let mut activity = self
+            .native_ready
+            .lock()
+            .map_err(|_| anyhow!("Bridge unavailable"))?;
         *activity = Some(ready);
-        let registered = self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))?.is_some();
+        let registered = self
+            .run
+            .lock()
+            .map_err(|_| anyhow!("Bridge unavailable"))?
+            .is_some();
         if registered {
             self.apply_native_activity(ready)
         } else {
             Ok(())
         }
     }
+    pub(crate) fn native_directory(&self, directory: &str) -> Result<()> {
+        *self
+            .directory
+            .lock()
+            .map_err(|_| anyhow!("Bridge unavailable"))? = Some(directory.to_owned());
+        Ok(())
+    }
+    pub(crate) fn with_native_directory(&self, directory: String) -> Self {
+        let mut bridge = self.clone();
+        bridge.directory = Arc::new(Mutex::new(Some(directory)));
+        bridge
+    }
     fn apply_native_activity(&self, ready: bool) -> Result<()> {
-        let registered = self.run.lock().map_err(|_| anyhow!("Bridge unavailable"))?.is_some();
+        let registered = self
+            .run
+            .lock()
+            .map_err(|_| anyhow!("Bridge unavailable"))?
+            .is_some();
         if registered {
-            self.execute(if ready { Operation::AgentReady } else { Operation::AgentList })?;
+            self.execute(if ready {
+                Operation::AgentReady
+            } else {
+                Operation::AgentList
+            })?;
         }
         Ok(())
     }
@@ -78,6 +124,12 @@ impl Bridge {
             terminal: self.terminal.clone(),
             capability: self.capability.clone(),
             run: run.clone(),
+            defer_initial_ready: registration && self.native_bound.load(Ordering::Acquire),
+            directory: self
+                .directory
+                .lock()
+                .map_err(|_| anyhow!("Bridge unavailable"))?
+                .clone(),
             operation,
         };
         // Native MCP discovery can precede the UI's shell-command start event.
@@ -154,9 +206,14 @@ impl ServerHandler for Bridge {
             bridge.execute(Operation::AgentRegister {
                 name: String::new(),
             })?;
-            let activity = bridge.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;
+            let activity = bridge
+                .native_ready
+                .lock()
+                .map_err(|_| anyhow!("Bridge unavailable"))?;
             if !bridge.discovered.swap(true, Ordering::AcqRel) {
-                if let Some(ready) = *activity { bridge.apply_native_activity(ready)?; }
+                if let Some(ready) = *activity {
+                    bridge.apply_native_activity(ready)?;
+                }
             }
             Ok::<_, anyhow::Error>(())
         })

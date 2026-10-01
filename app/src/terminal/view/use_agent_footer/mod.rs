@@ -754,7 +754,7 @@ impl TerminalView {
             return false;
         };
         if session.is_remote()
-            || !session.agent.accepts_peer_prompt(&self.model.lock().block_list().active_block().command_to_string())
+            || !crate::agent_communication::accepts_peer_prompt(&session.agent, &self.model.lock().block_list().active_block().command_to_string(), ctx)
             || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
             || session
                 .draft_text

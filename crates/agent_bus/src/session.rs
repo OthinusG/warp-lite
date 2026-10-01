@@ -1,3 +1,5 @@
+/Users/wqin/workplace/warp-lite/crates/agent_bus/src/session.rs:
+
 //! Per-launch MCP transport binding, independent of a vendor's shared process environment.
 use crate::mcp::Bridge;
 use anyhow::{anyhow, ensure, Result};
@@ -34,6 +36,12 @@ pub struct NativeLaunch {
     pub options: crate::launch::LaunchOptions,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ForwardContext {
+    directory: Option<String>,
+}
+
 fn without_terminal_binding(command: &mut Command) {
     for name in [
         crate::transport::ENDPOINT,
@@ -61,14 +69,29 @@ fn without_terminal_binding(command: &mut Command) {
 /// No command string or shell evaluation: aliases dispatch to the resolved native executable.
 pub fn native_executable(invocation: &str) -> Option<NativeLaunch> {
     let name = Path::new(invocation).file_name()?.to_str()?;
+    let normalized = if cfg!(windows) {
+        name.to_ascii_lowercase()
+    } else {
+        name.to_owned()
+    };
     let name = if cfg!(windows) {
-        name.strip_suffix(".exe").unwrap_or(name)
+        normalized.strip_suffix(".exe").unwrap_or(&normalized)
     } else {
         name
     };
     let mut launches: BTreeMap<String, NativeLaunch> =
         serde_json::from_str(&std::env::var(LAUNCHES).ok()?).ok()?;
-    launches.remove(name)
+    let key = launches
+        .keys()
+        .find(|key| {
+            if cfg!(windows) {
+                key.eq_ignore_ascii_case(name)
+            } else {
+                key.as_str() == name
+            }
+        })?
+        .clone();
+    launches.remove(&key)
 }
 
 pub fn install_launchers(
@@ -173,6 +196,19 @@ impl Relay {
                 }
                 let bridge = bridge.clone();
                 clients.spawn(async move {
+                    let mut stream = stream;
+                    let Ok(context) = crate::transport::receive::<ForwardContext>(
+                        &mut stream,
+                        std::time::Instant::now() + Duration::from_secs(5),
+                    )
+                    .await
+                    else {
+                        return;
+                    };
+                    let bridge = match context.directory {
+                        Some(directory) => bridge.with_native_directory(directory),
+                        None => bridge,
+                    };
                     if let Ok(service) = bridge.serve(stream).await {
                         let _ = service.waiting().await;
                     }
@@ -199,9 +235,22 @@ impl Drop for Relay {
 }
 
 pub async fn forward(endpoint: &str) -> Result<()> {
-    let stream = tokio::time::timeout(Duration::from_secs(5), crate::transport::connect(endpoint))
-        .await
-        .map_err(|_| anyhow!("Native MCP relay unavailable"))??;
+    let mut stream =
+        tokio::time::timeout(Duration::from_secs(5), crate::transport::connect(endpoint))
+            .await
+            .map_err(|_| anyhow!("Native MCP relay unavailable"))??;
+    let directory = std::env::current_dir()?
+        .to_str()
+        .ok_or_else(|| anyhow!("Native workspace must be UTF-8"))?
+        .to_owned();
+    crate::transport::send(
+        &mut stream,
+        &ForwardContext {
+            directory: Some(directory),
+        },
+        std::time::Instant::now() + Duration::from_secs(5),
+    )
+    .await?;
     let (mut reader, mut writer) = tokio::io::split(stream);
     tokio::try_join!(
         async {
@@ -223,17 +272,18 @@ struct ThreadBinding {
     thread: Option<String>,
 }
 impl ThreadBinding {
-    fn outgoing(&mut self, value: &mut Value, config: &Value) {
+    fn outgoing(&mut self, value: &mut Value, config: &Value) -> Option<bool> {
         if matches!(
             value["method"].as_str(),
             Some("thread/start" | "thread/resume" | "thread/fork")
         ) {
             let Some(id) = value.get("id") else {
-                return;
+                return None;
             };
             self.pending.insert(id.to_string());
+            self.thread = None;
             let Some(params) = value.get_mut("params").and_then(Value::as_object_mut) else {
-                return;
+                return None;
             };
             let overrides = params.entry("config").or_insert_with(|| json!({}));
             if overrides.is_null() {
@@ -242,7 +292,14 @@ impl ThreadBinding {
             if let Some(overrides) = overrides.as_object_mut() {
                 overrides.insert(format!("mcp_servers.{SERVER}"), config.clone());
             }
+            return Some(false);
         }
+        (value["method"] == "turn/start"
+            && self
+                .thread
+                .as_deref()
+                .is_some_and(|id| value["params"]["threadId"] == id))
+        .then_some(false)
     }
     fn incoming(&mut self, value: &Value) -> Option<bool> {
         if value
@@ -342,6 +399,7 @@ async fn codex_proxy(
             .await.map_err(|_| anyhow!("Native daemon handshake timed out"))??;
         let mut downstream = downstream;
         let mut binding = ThreadBinding::default();
+        let context = bridge.clone();
         let (activity, mut updates) = tokio::sync::mpsc::channel(32);
         tasks.spawn(async move {
             while let Some(ready) = updates.recv().await {
@@ -359,7 +417,12 @@ async fn codex_proxy(
                         if matches!(message, Message::Ping(_) | Message::Pong(_)) { downstream.flush().await?; continue; }
                         if let Message::Text(text) = &message {
                             let mut value: Value = serde_json::from_str(text)?;
-                            binding.outgoing(&mut value, &config);
+                            if let Some(ready) = binding.outgoing(&mut value, &config) {
+                                let activity_bridge = context.clone();
+                                // Establish busy before forwarding: discovery can precede the thread reply.
+                                let _ = tokio::task::spawn_blocking(move || activity_bridge.native_activity(ready)).await;
+                                if let Some(directory) = value["params"]["cwd"].as_str() { let _ = context.native_directory(directory); }
+                            }
                             message = Message::Text(value.to_string());
                         }
                         upstream.send(message).await?;
@@ -384,10 +447,26 @@ async fn codex_proxy(
     result
 }
 
-fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions) -> bool {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CodexMode {
+    Native,
+    Embedded,
+    Shared,
+}
+
+/// Reuse the installed option contract so global arguments cannot hide a batch subcommand.
+pub fn codex_accepts_peer_prompt(args: &[String], options: &crate::launch::LaunchOptions) -> bool {
+    codex_launch_mode(
+        &args.iter().map(OsString::from).collect::<Vec<_>>(),
+        options,
+    ) != CodexMode::Native
+}
+
+fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) -> CodexMode {
     use crate::launch::Arity;
     let mut args = args.iter().peekable();
     let mut first_positional = true;
+    let mut mode = CodexMode::Shared;
     while let Some(arg) = args.next() {
         let arg = arg.to_string_lossy();
         if arg == "--" {
@@ -430,7 +509,7 @@ fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions
                         | "stdio-to-uds"
                 )
             {
-                return false;
+                return CodexMode::Native;
             }
             first_positional = false;
             continue;
@@ -453,13 +532,17 @@ fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions
                 name = &arg[..2];
             }
         }
-        // These exclusions match the native daemon policy, rather than replacing it with embedded mode.
+        // Preserve native backend selection while binding the embedded client's MCP separately.
+        if matches!(
+            name,
+            "--remote" | "--remote-auth-token-env" | "--help" | "-h" | "--version" | "-V"
+        ) {
+            return CodexMode::Native;
+        }
         if matches!(
             name,
             "--no-daemon"
                 | "--oss"
-                | "--remote"
-                | "--remote-auth-token-env"
                 | "--profile"
                 | "-p"
                 | "--config"
@@ -467,15 +550,11 @@ fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions
                 | "--search"
                 | "--strict-config"
                 | "--dangerously-bypass-hook-trust"
-                | "--help"
-                | "-h"
-                | "--version"
-                | "-V"
         ) {
-            return false;
+            mode = CodexMode::Embedded;
         }
         let Some(arity) = options.0.get(name) else {
-            return false;
+            return CodexMode::Native;
         };
         let value = match arity {
             Arity::Value | Arity::Values | Arity::BlockedValue | Arity::BlockedValues => {
@@ -484,7 +563,7 @@ fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions
                         .map(|value| value.to_string_lossy().into_owned())
                 });
                 let Some(value) = value else {
-                    return false;
+                    return CodexMode::Native;
                 };
                 if matches!(arity, Arity::Values | Arity::BlockedValues) {
                     while args
@@ -527,10 +606,24 @@ fn shared_codex_launch(args: &[OsString], options: &crate::launch::LaunchOptions
                 )
             })
         {
-            return false;
+            if value.as_deref().is_some_and(|value| {
+                matches!(
+                    value,
+                    "api_key_model_discovery"
+                        | "code_mode_host"
+                        | "auth_elicitation"
+                        | "mcp_oauth_refresh_coordination"
+                )
+            }) {
+                return CodexMode::Native;
+            }
+            mode = CodexMode::Embedded;
+        }
+        if name == "--disable" && value.as_deref() == Some("daemon_auto_start") {
+            return CodexMode::Native;
         }
     }
-    true
+    mode
 }
 
 pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i32> {
@@ -538,16 +631,25 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     let name = binding.program.as_str();
     let companion = std::env::var_os("WARP_AGENT_BIN").map(PathBuf::from);
     let bridge = Bridge::from_env().ok();
+    let mut codex_mode = if name == "codex" {
+        codex_launch_mode(&args, &binding.options)
+    } else {
+        CodexMode::Native
+    };
+    if codex_mode == CodexMode::Shared && std::env::var_os("CODEX_EXEC_SERVER_URL").is_some() {
+        codex_mode = CodexMode::Embedded;
+    }
     let shared_codex = name == "codex"
         && companion.is_some()
         && bridge.is_some()
-        && shared_codex_launch(&args, &binding.options);
-    let relay = if (shared_codex
+        && codex_mode == CodexMode::Shared;
+    let relay = if (name == "codex" && codex_mode != CodexMode::Native
         || matches!(
             name,
             "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn"
         ))
         && bridge.is_some()
+        && companion.is_some()
     {
         Some(Relay::start(bridge.as_ref().unwrap().clone()).await?)
     } else {
@@ -597,9 +699,27 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
         remote.append(&mut args);
         args = remote;
     } else if let Some(relay) = &relay {
-        let config =
-            json!({"mcpServers": {SERVER: relay.config(companion.as_ref().unwrap())}}).to_string();
-        let mut native = vec!["--mcp-config".into(), config.into()];
+        let config = relay.config(companion.as_ref().unwrap());
+        let mut native = if name == "codex" {
+            ["command", "args"]
+                .into_iter()
+                .flat_map(|key| {
+                    [
+                        OsString::from("-c"),
+                        format!("mcp_servers.{SERVER}.{key}={}", config[key]).into(),
+                    ]
+                })
+                .chain([
+                    "-c".into(),
+                    format!("mcp_servers.{SERVER}.env_vars=[]").into(),
+                ])
+                .collect::<Vec<_>>()
+        } else {
+            vec![
+                "--mcp-config".into(),
+                json!({"mcpServers": {SERVER: config}}).to_string().into(),
+            ]
+        };
         native.append(&mut args);
         args = native;
     }
@@ -648,26 +768,47 @@ mod tests {
                 .split_whitespace()
                 .map(OsString::from)
                 .collect::<Vec<_>>();
-            assert!(shared_codex_launch(&args, &options), "{args:?}");
+            assert_eq!(
+                codex_launch_mode(&args, &options),
+                CodexMode::Shared,
+                "{args:?}"
+            );
+        }
+        for args in ["--no-daemon --yolo", "-pprofile", "-cmodel=x"] {
+            let args = args
+                .split_whitespace()
+                .map(OsString::from)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                codex_launch_mode(&args, &options),
+                CodexMode::Embedded,
+                "{args:?}"
+            );
         }
         for args in [
             "exec task",
             "--yolo mcp list",
             "--model model app-server",
-            "--no-daemon --yolo",
-            "-pprofile",
-            "-cmodel=x",
             "--enable code_mode_host",
             "--disable code_mode_host",
             "--remote ws://localhost",
             "--unknown",
             "--help",
         ] {
+            let words = args
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            assert!(!codex_accepts_peer_prompt(&words, &options), "{args}");
             let args = args
                 .split_whitespace()
                 .map(OsString::from)
                 .collect::<Vec<_>>();
-            assert!(!shared_codex_launch(&args, &options), "{args:?}");
+            assert_ne!(
+                codex_launch_mode(&args, &options),
+                CodexMode::Shared,
+                "{args:?}"
+            );
         }
     }
 
@@ -688,6 +829,8 @@ mod tests {
             terminal: "issuer".into(),
             capability: issuer_capability,
             run: None,
+            defer_initial_ready: false,
+            directory: None,
             operation: Operation::AgentRegister {
                 name: "issuer".into(),
             },
@@ -716,7 +859,7 @@ mod tests {
                 let capability = server.broker.prepare(&terminal).unwrap();
                 server
                     .broker
-                    .activate(&terminal, program, "/project", false)
+                    .activate(&terminal, program, "/project", true)
                     .unwrap();
                 let bridge = Bridge::test_binding(
                     server.broker.endpoint.clone(),
@@ -734,10 +877,15 @@ mod tests {
                 assert!(!config.contains(&capability));
                 assert!(!config.contains(&terminal));
                 // Both clients run in this same process; neither identity comes from its environment.
-                let client =
-                    ().serve(transport::connect(&relay.endpoint).await.unwrap())
-                        .await
-                        .unwrap();
+                let mut stream = transport::connect(&relay.endpoint).await.unwrap();
+                transport::send(
+                    &mut stream,
+                    &ForwardContext { directory: None },
+                    std::time::Instant::now() + Duration::from_secs(5),
+                )
+                .await
+                .unwrap();
+                let client = ().serve(stream).await.unwrap();
                 assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 12);
                 let peer = server
                     .broker
@@ -823,7 +971,7 @@ mod tests {
         let config =
             json!({"command":"/bridge", "args":["forward","/private/mcp.sock"], "env_vars":[]});
         let mut request = json!({"id":7,"method":"thread/start","params":{"cwd":"/project","sandbox":"danger-full-access","config":{"model_reasoning_effort":"high","mcp_servers.other":{"command":"other"}}}});
-        binding.outgoing(&mut request, &config);
+        assert_eq!(binding.outgoing(&mut request, &config), Some(false));
         assert_eq!(
             request["params"]["config"]["mcp_servers.warp-lite-communication"],
             config
@@ -847,9 +995,24 @@ mod tests {
         );
         assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"other","status":{"type":"idle"}}})), None);
         assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"active","activeFlags":["waitingOnApproval"]}}})), Some(false));
+        assert_eq!(
+            binding.outgoing(
+                &mut json!({"id":10,"method":"turn/start","params":{"threadId":"other"}}),
+                &config
+            ),
+            None
+        );
+        assert_eq!(
+            binding.outgoing(
+                &mut json!({"id":11,"method":"turn/start","params":{"threadId":"mine"}}),
+                &config
+            ),
+            Some(false)
+        );
         let mut resume =
             json!({"id":9,"method":"thread/resume","params":{"threadId":"new","config":null}});
-        binding.outgoing(&mut resume, &config);
+        assert_eq!(binding.outgoing(&mut resume, &config), Some(false));
+        assert_eq!(binding.incoming(&json!({"method":"thread/status/changed","params":{"threadId":"mine","status":{"type":"idle"}}})), None);
         assert_eq!(
             binding.incoming(
                 &json!({"id":9,"result":{"thread":{"id":"new","status":{"type":"idle"}}}})

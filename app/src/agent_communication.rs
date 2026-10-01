@@ -471,7 +471,8 @@ pub(crate) fn prepare(
             let launches: std::collections::BTreeMap<_, _> = settings.preferences.selected.iter()
                 .filter(|(_, entry)| entry.active)
                 .map(|(command, entry)| (command.clone(), warp_agent_bus::session::NativeLaunch {
-                    executable: entry.executable.clone(), program: entry.program.clone(), options: entry.launch_options.clone(),
+                    executable: entry.executable.clone(), program: entry.program.clone(),
+                    options: if entry.program == "codex" { entry.launch_options.clone() } else { Default::default() },
                 }))
                 .collect();
             if let Some(server) = &settings._server {
@@ -479,12 +480,10 @@ pub(crate) fn prepare(
                 if !launches.is_empty() && warp_agent_bus::session::install_launchers(&directory, &companion, &launches).is_ok() {
                         let inherited = env.get(&OsString::from("PATH")).cloned().or_else(|| std::env::var_os("PATH")).unwrap_or_default();
                         let paths = std::iter::once(directory.clone()).chain(std::env::split_paths(&inherited));
-                        if let Ok(path) = std::env::join_paths(paths) {
+                        if let (Ok(path), Ok(launches)) = (std::env::join_paths(paths), serde_json::to_string(&launches)) {
                             env.insert("WARP_AGENT_LAUNCH_PATH".into(), directory.clone().into_os_string());
                             env.insert("PATH".into(), path);
-                            if let Ok(launches) = serde_json::to_string(&launches) {
-                                env.insert(warp_agent_bus::session::LAUNCHES.into(), launches.into());
-                            }
+                            env.insert(warp_agent_bus::session::LAUNCHES.into(), launches.into());
                         }
                 }
             }
@@ -492,6 +491,15 @@ pub(crate) fn prepare(
     }
     Some(terminal)
 }
+pub(crate) fn accepts_peer_prompt(agent: &CLIAgent, command: &str, ctx: &warpui::AppContext) -> bool {
+    if !agent.accepts_peer_prompt(command) { return false; }
+    if *agent != CLIAgent::Codex { return true; }
+    let Some(words) = shlex::split(command) else { return false; };
+    AgentCommunication::as_ref(ctx).preferences.selected.values()
+        .find(|entry| entry.active && entry.program == "codex")
+        .is_some_and(|entry| warp_agent_bus::session::codex_accepts_peer_prompt(&words[1..], &entry.launch_options))
+}
+
 pub(crate) fn bind(view: &ViewHandle<TerminalView>, terminal: Option<String>) {
     if let (Some(terminal), Some(views)) = (terminal, VIEWS.get()) {
         if let Ok(mut views) = views.lock() {

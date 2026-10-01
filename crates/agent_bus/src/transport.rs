@@ -1,3 +1,5 @@
+/Users/wqin/workplace/warp-lite/crates/agent_bus/src/transport.rs:
+
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 use crate::{Agent, Operation, Store, Task, MAX_FRAME};
 use anyhow::{anyhow, ensure, Result};
@@ -30,6 +32,10 @@ pub struct Request {
     pub terminal: String,
     pub capability: String,
     pub run: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub defer_initial_ready: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directory: Option<String>,
     pub operation: Operation,
 }
 #[derive(Serialize, Deserialize)]
@@ -348,6 +354,7 @@ impl Broker {
                 live.generation += 1;
                 live.ready = ready.then(Instant::now);
                 if !ready {
+                    live.initial_prompt = false;
                     if let Some(wake) = live.wake.take() {
                         live.delivered.remove(&wake.message_id);
                     }
@@ -364,6 +371,7 @@ impl Broker {
                 .and_then(|binding| binding.live.as_mut())
             {
                 live.manual_draft = !submitted_or_cancelled;
+                live.initial_prompt = false;
                 live.ready = None;
                 live.generation += 1;
                 if let Some(wake) = live.wake.take() {
@@ -521,11 +529,53 @@ impl Broker {
             .state
             .lock()
             .map_err(|_| anyhow!("Broker unavailable"))?;
-        let live = authenticate(
+        authenticate(
             &state,
             request,
             matches!(request.operation, Operation::AgentRegister { .. }),
         )?;
+        if let Some(directory) = &request.directory {
+            ensure!(
+                Path::new(directory).is_absolute(),
+                "Native workspace must be absolute"
+            );
+            let project = crate::project_root(Path::new(directory))?;
+            let live = state
+                .terminals
+                .get_mut(&request.terminal)
+                .unwrap()
+                .live
+                .as_mut()
+                .unwrap();
+            if live.agent.is_some() {
+                ensure!(
+                    live.project == project,
+                    "Native workspace changed; start a fresh managed CLI session"
+                );
+            } else {
+                live.project = project;
+            }
+        }
+        {
+            let live = state
+                .terminals
+                .get_mut(&request.terminal)
+                .unwrap()
+                .live
+                .as_mut()
+                .unwrap();
+            if request.defer_initial_ready && live.agent.is_none() {
+                live.initial_prompt = false;
+                live.ready = None;
+            }
+        }
+        let live = state
+            .terminals
+            .get(&request.terminal)
+            .unwrap()
+            .live
+            .as_ref()
+            .unwrap();
         let run = live.run.clone();
         if let Operation::AgentRegister { name } = &request.operation {
             let automatic = name.is_empty();
@@ -790,7 +840,7 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
     }
     Ok(live)
 }
-async fn receive<T: serde::de::DeserializeOwned>(
+pub(crate) async fn receive<T: serde::de::DeserializeOwned>(
     stream: &mut (impl AsyncRead + Unpin),
     deadline: Instant,
 ) -> Result<T> {
@@ -815,7 +865,7 @@ async fn receive<T: serde::de::DeserializeOwned>(
     .await
     .map_err(|_| anyhow!("Local IPC read deadline exceeded"))?
 }
-async fn send<T: Serialize>(
+pub(crate) async fn send<T: Serialize>(
     stream: &mut (impl AsyncWrite + Unpin),
     value: &T,
     deadline: Instant,

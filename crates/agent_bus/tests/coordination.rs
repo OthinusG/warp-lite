@@ -1,3 +1,5 @@
+/Users/wqin/workplace/warp-lite/crates/agent_bus/tests/coordination.rs:
+
 use serde_json::Value;
 use std::{path::PathBuf, thread, time::Duration};
 use uuid::Uuid;
@@ -203,6 +205,8 @@ fn register(broker: &Broker, terminal: &str, program: &str) -> Request {
         terminal: terminal.into(),
         capability,
         run: None,
+        defer_initial_ready: false,
+        directory: None,
         operation: Operation::AgentRegister {
             name: terminal.into(),
         },
@@ -210,6 +214,102 @@ fn register(broker: &Broker, terminal: &str, program: &str) -> Request {
     let result = transport::call(&broker.endpoint, &request).unwrap();
     request.run = result["run"].as_str().map(str::to_owned);
     request
+}
+
+#[test]
+fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    let project = warp_agent_bus::project_root(first.path()).unwrap();
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let mut issuer = register(&server.broker, "issuer", "codex");
+    for state in [
+        "native-context",
+        "native-busy",
+        "user-submit",
+        "user-draft",
+        "empty",
+    ] {
+        let capability = server.broker.prepare(state).unwrap();
+        server
+            .broker
+            .activate(state, "codex", "/project", true)
+            .unwrap();
+        match state {
+            "native-busy" => server.broker.readiness(state, false),
+            "user-submit" => server.broker.user_input(state, true),
+            "user-draft" => server.broker.user_input(state, false),
+            _ => {}
+        }
+        let mut receiver = Request {
+            terminal: state.into(),
+            capability,
+            run: None,
+            defer_initial_ready: state == "native-context",
+            directory: (state == "native-context")
+                .then(|| first.path().to_string_lossy().into_owned()),
+            operation: Operation::AgentRegister { name: state.into() },
+        };
+        let registered = transport::call(&server.broker.endpoint, &receiver).unwrap();
+        receiver.run = registered["run"].as_str().map(str::to_owned);
+        if state == "native-context" {
+            assert_eq!(registered["agent"]["project"], project);
+            let capability = server.broker.prepare("native-issuer").unwrap();
+            server
+                .broker
+                .activate("native-issuer", "codex", &project, false)
+                .unwrap();
+            let mut native_issuer = Request {
+                terminal: "native-issuer".into(),
+                capability,
+                run: None,
+                defer_initial_ready: false,
+                directory: None,
+                operation: Operation::AgentRegister {
+                    name: "native-issuer".into(),
+                },
+            };
+            let registered = transport::call(&server.broker.endpoint, &native_issuer).unwrap();
+            native_issuer.run = registered["run"].as_str().map(str::to_owned);
+            native_issuer.operation = Operation::AgentSend {
+                to: state.into(),
+                body: "weekday".into(),
+                request_id: request_id(),
+            };
+            transport::call(&server.broker.endpoint, &native_issuer).unwrap();
+            receiver.directory = Some(second.path().to_string_lossy().into_owned());
+            receiver.operation = Operation::AgentList;
+            assert!(
+                transport::call(&server.broker.endpoint, &receiver).is_err(),
+                "A registered identity cannot switch projects"
+            );
+            assert!(server
+                .broker
+                .peers("issuer")
+                .iter()
+                .all(|peer| peer.terminal != state));
+            continue;
+        }
+        issuer.operation = Operation::AgentSend {
+            to: state.into(),
+            body: "weekday".into(),
+            request_id: request_id(),
+        };
+        transport::call(&server.broker.endpoint, &issuer).unwrap();
+    }
+    thread::sleep(Duration::from_millis(850));
+    let wakes = server.broker.wakeups();
+    assert_eq!(wakes.len(), 1);
+    assert_eq!(wakes[0].terminal, "empty");
+    let legacy = serde_json::json!({"terminal":"legacy","capability":"placeholder","run":null,"operation":{"op":"agent_register","name":""}});
+    let legacy: Request = serde_json::from_value(legacy).unwrap();
+    assert!(!legacy.defer_initial_ready);
+    assert!(legacy.directory.is_none());
+    assert!(!serde_json::to_value(legacy)
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .contains_key("directory"));
 }
 #[test]
 fn socket_wait_handoff_and_expired_run_rejection() {
@@ -246,6 +346,8 @@ fn socket_wait_handoff_and_expired_run_rejection() {
         terminal: "claimant".into(),
         capability: claim_capability,
         run: None,
+        defer_initial_ready: false,
+        directory: None,
         operation: Operation::AgentRegister {
             name: "worker".into(),
         },
@@ -515,6 +617,8 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         terminal: "outside".into(),
         capability,
         run: None,
+        defer_initial_ready: false,
+        directory: None,
         operation: Operation::AgentRegister {
             name: "outside".into(),
         },
@@ -617,6 +721,8 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 terminal: name.clone(),
                 capability,
                 run: None,
+                defer_initial_ready: false,
+                directory: None,
                 operation: Operation::AgentRegister { name: name.clone() },
             };
             let registered = transport::call(&broker.endpoint, &worker).unwrap();
