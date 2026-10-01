@@ -495,6 +495,8 @@ pub(crate) fn accepts_peer_prompt(agent: &CLIAgent, command: &str, ctx: &warpui:
     if !agent.accepts_peer_prompt(command) { return false; }
     if *agent != CLIAgent::Codex { return true; }
     let Some(words) = shlex::split(command) else { return false; };
+    let fallback = warp_agent_bus::launch::LaunchOptions::from_help("codex", "");
+    if warp_agent_bus::session::codex_accepts_peer_prompt(&words[1..], &fallback) { return true; }
     AgentCommunication::as_ref(ctx).preferences.selected.values()
         .find(|entry| entry.active && entry.program == "codex")
         .is_some_and(|entry| warp_agent_bus::session::codex_accepts_peer_prompt(&words[1..], &entry.launch_options))

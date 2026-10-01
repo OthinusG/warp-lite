@@ -4845,6 +4845,8 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             terminal: "issuer".into(),
             capability,
             run: None,
+            defer_initial_ready: false,
+            directory: None,
             operation: Operation::AgentRegister { name: "issuer".into() },
         };
         let result = transport::call(&broker.endpoint, &issuer).unwrap();
@@ -4901,6 +4903,8 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 terminal: name.clone(),
                 capability,
                 run: None,
+                defer_initial_ready: false,
+                directory: None,
                 operation: Operation::AgentRegister { name },
             };
             let result = transport::call(&broker.endpoint, &request).unwrap();
