@@ -54,11 +54,11 @@ Each package produces a reviewable commit/PR with updated specifications, focuse
 
 ### M1 — Durable storage, events and versioned contracts
 
-- [ ] **M1.1:** Translate API.md into serde operation contracts and schema-derived MCP tools. Preserve the existing twelve tool names and required fields; add optional fields/new tools with explicit feature negotiation.
-- [ ] **M1.2:** Add versioned SQLite migrations and normalized task, attempt, message, event and idempotency rows. Use existing Diesel/SQLite. Keep runtime terminal bindings in memory and separate from durable collaboration identities.
-- [ ] **M1.3:** Add atomic event emission with each mutation, paginated read APIs, stable error codes, attempt fencing and optimistic versions for new control operations. Record observed delivery phases separately from authoritative task outcomes.
-- [ ] **M1.4:** Migrate a v1 snapshot with a tested backup/restore path and downgrade guard. Include full-capacity, malformed, interrupted and disk-full fixtures. Do not drop the only copy of old data.
-- [ ] **M1.5:** Implement bounded mutation epochs and deduplication retention so cleanup cannot make an old request execute again. Add non-destructive capacity reporting.
+- [x] **M1.1:** Translate API.md into serde operation contracts and schema-derived MCP tools. Preserve the existing twelve tool names and required fields; add optional fields/new tools with explicit feature negotiation.
+- [x] **M1.2:** Add versioned SQLite migrations and normalized task, attempt, message, event and idempotency rows. Use existing Diesel/SQLite. Keep runtime terminal bindings in memory and separate from durable collaboration identities.
+- [x] **M1.3:** Add atomic event emission with each mutation, paginated read APIs, stable error codes, attempt fencing and optimistic versions for new control operations. Record observed delivery phases separately from authoritative task outcomes.
+- [x] **M1.4:** Migrate a v1 snapshot with a tested backup/restore path and downgrade guard. Include full-capacity, malformed, interrupted and disk-full fixtures. Do not drop the only copy of old data.
+- [x] **M1.5:** Implement bounded mutation epochs and deduplication retention so cleanup cannot make an old request execute again. Add non-destructive capacity reporting.
 - **Exit:** C03/C04/C10 pass on macOS and Windows; old-data migration and stale replay rejection are proven before the new UI writes data.
 
 ### M2 — Native collaboration panel
