@@ -638,10 +638,40 @@ fn codex_launch_mode(args: &[OsString], options: &crate::launch::LaunchOptions) 
 pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i32> {
     let executable = &binding.executable;
     let name = binding.program.as_str();
+    let mut options = binding.options.clone();
+    // Restored panes can precede settings discovery when upgrading metadata without option contracts.
+    if name == "codex" && options.0.is_empty() {
+        for subcommand in [None, Some("resume"), Some("fork")] {
+            let mut help = Command::new(executable);
+            if let Some(subcommand) = subcommand {
+                help.arg(subcommand);
+            }
+            if let Ok(Ok(output)) = tokio::time::timeout(
+                Duration::from_secs(3),
+                help.arg("--help")
+                    .stdin(Stdio::null())
+                    .stderr(Stdio::null())
+                    .kill_on_drop(true)
+                    .output(),
+            )
+            .await
+            {
+                if output.status.success() {
+                    options.0.extend(
+                        crate::launch::LaunchOptions::from_help(
+                            "codex",
+                            &String::from_utf8_lossy(&output.stdout),
+                        )
+                        .0,
+                    );
+                }
+            }
+        }
+    }
     let companion = std::env::var_os("WARP_AGENT_BIN").map(PathBuf::from);
     let bridge = Bridge::from_env().ok();
     let mut codex_mode = if name == "codex" {
-        codex_launch_mode(&args, &binding.options)
+        codex_launch_mode(&args, &options)
     } else {
         CodexMode::Native
     };
@@ -697,7 +727,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
             executable.to_owned(),
             config,
             bridge.unwrap(),
-            !binding.options.is_empty_interactive(
+            !options.is_empty_interactive(
                 &args
                     .iter()
                     .map(|arg| arg.to_string_lossy().into_owned())

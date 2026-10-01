@@ -61,15 +61,17 @@ The common Warp broker and per-launch relay have simulated isolation coverage fo
 
 | Native transport | Implementation | Verification |
 | --- | --- | --- |
-| Codex default shared app-server | Native daemon/proxy; session-local MCP overrides on owned thread creation/resume/fork | GitHub protocol tests and both application configurations; patched native TUI acceptance pending |
-| Codex embedded/profile/config modes | Dedicated native MCP override with the same private relay; preserves native backend selection | Option-mode and isolation regressions; native acceptance pending |
-| Claude and Qoder/QoderCN native interactive clients | Confirmed inline MCP configuration to a per-launch relay | Common relay and reversible setup regressions; native acceptance pending |
+| Codex default shared app-server | Native daemon/proxy; session-local MCP overrides on owned thread creation/resume/fork | GitHub protocol tests; two real same-project Codex TUI clients independently registered and reported idle with the 843681f bridge; patched Warpai wake/model acceptance pending |
+| Codex embedded/profile/config modes | Dedicated native MCP override with the same private relay; preserves native backend selection | Option-mode/isolation regressions; two real --no-daemon clients independently registered with the 843681f bridge; other embedded modes and patched Warpai acceptance pending |
+| Claude and Qoder/QoderCN native interactive clients | Confirmed inline MCP configuration to a per-launch relay | Common relay/setup regressions; two real QoderCN clients independently registered with the 843681f bridge; Claude stopped at native directory trust selection; patched Warpai acceptance pending |
 | Other managed native stdio clients | Existing documented adapters and terminal binding through the common Warp broker | Common protocol/setup coverage; authenticated native acceptance pending |
 | Arbitrary vendor external daemon or explicit remote attachment | No general per-terminal binding guarantee | Requires a verified vendor session context API; not implemented by environment passthrough |
 
 Codex explicit remote endpoints, unknown launch syntax and server-feature compatibility overrides retain native behavior; they are not claimed as transparently bound shared transports. No shared daemon is restarted to acquire a pane's environment.
 
 OpenCode's documented [server API](https://opencode.ai/docs/server/) exposes instance configuration and dynamic MCP addition separately from session creation. Its [native MCP implementation](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/mcp/index.ts) stores MCP clients by instance. This indicates that replacing one shared MCP entry cannot isolate multiple attached terminals in the same instance; no global replacement is performed. Copilot's [ACP server](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server) permits per-session MCP configuration, but ACP server mode is not an interactive terminal frontend and has no implemented Warpai attachment adapter.
+
+Native probes above used an isolated synthetic broker and no model turn. They prove frontend MCP loading and binding, not native model processing or Warpai automatic PTY handoff. Client exit completed through native EOF; existing shared daemons were not restarted or stopped.
 
 QoderCN's zero-exit missing-entry response is handled only when it exactly matches the confirmed user-scope not-found sentence. Existing or edited user entries remain protected.
 
