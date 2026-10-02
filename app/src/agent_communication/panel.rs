@@ -2915,7 +2915,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     });
                 })
                 .add_named_assertion("export preserves original scope ordering and relationships", move |app, window| {
-                    let copied = app.clipboard().read();
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    let copied = panel.update(app, |_, ctx| ctx.clipboard().read());
                     let parsed = serde_json::from_str::<serde_json::Value>(&copied.plain_text).ok();
                     let original = expected.lock().unwrap().clone();
                     warpui::async_assert!(original.is_some() && parsed == original
