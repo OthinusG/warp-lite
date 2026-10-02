@@ -961,6 +961,93 @@ fn competing_task_controls_preserve_versions_in_both_orders() {
 }
 
 #[test]
+fn prerequisite_acceptance_and_dependent_start_serialize_over_authenticated_ipc() {
+    use serde_json::json;
+    for order in ["start_first", "review_first", "concurrent"] {
+        let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+        let endpoint = &server.broker.endpoint;
+        let mut issuer = register(&server.broker, "issuer", "claude");
+        let mut prerequisite_worker = register(&server.broker, "prerequisite", "codex");
+        let mut dependent_worker = register(&server.broker, "dependent", "codex");
+        issuer.operation = serde_json::from_value(json!({"op":"task_assign", "to":"prerequisite",
+            "description":"Prepare input", "acceptance":"Reviewed input", "request_id":request_id()})).unwrap();
+        let prerequisite = transport::call(endpoint, &issuer).unwrap();
+        prerequisite_worker.operation = serde_json::from_value(json!({"op":"task_start",
+            "task_id":prerequisite["id"], "revision":1, "request_id":request_id()}))
+        .unwrap();
+        transport::call(endpoint, &prerequisite_worker).unwrap();
+        prerequisite_worker.operation = serde_json::from_value(json!({"op":"task_submit",
+            "task_id":prerequisite["id"], "revision":1, "result":"Prepared", "evidence":"Checked",
+            "request_id":request_id()}))
+        .unwrap();
+        let submitted = transport::call(endpoint, &prerequisite_worker).unwrap();
+        issuer.operation = serde_json::from_value(json!({"op":"task_assign", "to":"dependent",
+            "description":"Use input", "acceptance":"Depends on accepted input",
+            "dependencies":[prerequisite["id"]], "request_id":request_id()}))
+        .unwrap();
+        let dependent = transport::call(endpoint, &issuer).unwrap();
+        issuer.operation = serde_json::from_value(json!({"op":"task_review",
+            "task_id":prerequisite["id"], "revision":1, "accepted":true, "feedback":"Accepted",
+            "expected_version":submitted["version"], "request_id":request_id()}))
+        .unwrap();
+        dependent_worker.operation = serde_json::from_value(json!({"op":"task_start",
+            "task_id":dependent["id"], "revision":1, "expected_version":dependent["version"],
+            "request_id":request_id()}))
+        .unwrap();
+        let outcome = match order {
+            "start_first" => {
+                let outcome = transport::call(endpoint, &dependent_worker);
+                assert!(outcome.is_err(), "Submitted input is not accepted input");
+                transport::call(endpoint, &issuer).unwrap();
+                outcome
+            }
+            "review_first" => {
+                transport::call(endpoint, &issuer).unwrap();
+                let outcome = transport::call(endpoint, &dependent_worker);
+                assert!(outcome.is_ok());
+                outcome
+            }
+            _ => {
+                let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+                let workers: Vec<_> = [issuer.clone(), dependent_worker.clone()]
+                    .into_iter()
+                    .map(|request| {
+                        let endpoint = endpoint.clone();
+                        let barrier = barrier.clone();
+                        thread::spawn(move || {
+                            barrier.wait();
+                            transport::call(&endpoint, &request)
+                        })
+                    })
+                    .collect();
+                barrier.wait();
+                let mut outcomes = workers.into_iter().map(|worker| worker.join().unwrap());
+                outcomes.next().unwrap().unwrap();
+                outcomes.next().unwrap()
+            }
+        };
+        issuer.operation = Operation::TaskGet {
+            task_id: dependent["id"].as_str().unwrap().into(),
+        };
+        let before_retry = transport::call(endpoint, &issuer).unwrap();
+        if outcome.is_err() {
+            assert_eq!(before_retry["state"], "queued");
+            assert_eq!(before_retry["version"], dependent["version"]);
+            assert!(before_retry["attempts"].as_array().unwrap().is_empty());
+        }
+        // The same intent either replays its committed grant or starts once after acceptance.
+        let started = transport::call(endpoint, &dependent_worker).unwrap();
+        assert_eq!(started["state"], "running");
+        assert_eq!(started["version"], 2);
+        assert_eq!(started["attempts"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            transport::call(endpoint, &dependent_worker).unwrap(),
+            started
+        );
+    }
+}
+
+#[test]
 fn project_roots_share_subdirectories_but_isolate_worktrees() {
     let root = std::env::temp_dir().join(format!("warp-project-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(root.join("repo/.git")).unwrap();

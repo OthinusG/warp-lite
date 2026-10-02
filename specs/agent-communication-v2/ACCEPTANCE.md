@@ -14,6 +14,12 @@ menu test initially failed to compile because its App binding was immutable;
 the one-line fixture repair awaits its source run. Packaging was still running.
 Native UI/device/model gates remain unchanged.
 
+Source `bfbc585`, run [36941810908](https://github.com/OthinusG/warp-lite/actions/runs/36941810908),
+passed both OS complete protocol/migration and representative-history suites,
+including explicit-scope overlap warnings and the v3→v4 backup/private-row tests.
+The debug native capture driver requires its corrected application build and
+actual image review before the static UI checkpoint can pass.
+
 | PLAN item | Smallest available check / evidence | Remaining verification or implementation |
 | --- | --- | --- |
 | M0.1 | Separate `e08b2ed` app provenance and signature; PROGRESS | Completed historical baseline only |
@@ -37,7 +43,7 @@ Native UI/device/model gates remain unchanged.
 | M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
 | M4.1 | Space/workspace metadata controller tests | Functional shared-space routing and checkout-qualified agents not implemented |
 | M4.2 | Controller join/leave metadata operations | Scope preview, new-session routing and UI not implemented |
-| M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner tests; explicit-scope overlap/migration regressions in `bfbc585` | Local physical leases verified; overlap warning Rust tests pending, SQL privacy/migration check passed; UI pending |
+| M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner tests; explicit-scope overlap/migration regressions in `bfbc585` passed both OS | Backend overlap warnings verified; device-qualified workspace routing and UI pending |
 | M4.4 | MCP reserve/renew/release and abandoned-owner metadata | UI conflicts, renewal and release pending |
 | M5.1 | Thread participants, literal search, reply/task/subject validation tests | Backend verified |
 | M5.2 | Attempt-scoped evidence, opened-file SHA-256 and local Git-object tests | Backend verified; file-view integration and remote-unavailable labels pending |

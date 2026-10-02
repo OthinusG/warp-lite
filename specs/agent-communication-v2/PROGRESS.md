@@ -12,6 +12,12 @@
   GitHub verification pending. This does not implement shared task routing or UI.
   The actual SQL schema/query also passed a local SQLite check for private-row
   exclusion, membership revocation and additive migration; Rust stays CI-only.
+  Source `bfbc585`, run `36941810908`: both OS complete protocol/migration and
+  representative-history suites passed, including the new warning/backup tests.
+- Added authenticated IPC dependency acceptance/start regression covering both
+  deterministic orders and simultaneous requests. Rejected starts must preserve
+  queued version/no attempt; retrying the same intent after acceptance must grant
+  one attempt, and replay cannot create another. GitHub verification pending.
 
 - Added an opt-in debug native static capture harness using the retained warpui
   driver and GPU frames, with 72 fixture/width/theme/zoom combinations, a unique
