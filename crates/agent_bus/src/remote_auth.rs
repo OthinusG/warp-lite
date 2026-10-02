@@ -223,6 +223,70 @@ impl Store {
                 .optional()?,
         )
     }
+    pub(super) fn update_device_grant(
+        &self,
+        project: &str,
+        device: &str,
+        expected_generation: u64,
+        space: &str,
+        mode: Option<&str>,
+    ) -> Result<Value> {
+        ensure!(
+            Uuid::parse_str(device).is_ok_and(|id| !id.is_nil())
+                && Uuid::parse_str(space).is_ok_and(|id| !id.is_nil())
+                && mode.is_none_or(|mode| matches!(mode, "read" | "write")),
+            invalid_input("Review a device, space and read/write grant or removal")
+        );
+        let row = self
+            .device_row(device)?
+            .ok_or_else(|| scope_denied("Device not found"))?;
+        ensure!(
+            row.revoked == 0,
+            scope_denied("Revoked devices require new enrollment")
+        );
+        ensure!(
+            row.generation as u64 == expected_generation,
+            version_conflict(
+                "Device grants changed; review the current generation",
+                row.generation as u64
+            )
+        );
+        ensure!(
+            row.generation < i64::MAX,
+            invalid_state("Device generation exhausted")
+        );
+        self.space(space)?
+            .ok_or_else(|| scope_denied("Space not found"))?;
+        self.budget_available()?;
+        if let Some(mode) = mode {
+            ensure!(
+                self.count(
+                    "SELECT COUNT(*) AS count FROM device_spaces WHERE device_id=? AND space_id=?",
+                    &[device, space]
+                )? != 0
+                    || self.count(
+                        "SELECT COUNT(*) AS count FROM device_spaces WHERE device_id=?",
+                        &[device]
+                    )? < 32,
+                capacity_exceeded("Device already has 32 granted spaces")
+            );
+            diesel::sql_query("INSERT INTO device_spaces(device_id,space_id,mode) VALUES (?,?,?) ON CONFLICT(device_id,space_id) DO UPDATE SET mode=excluded.mode")
+                .bind::<Text,_>(device).bind::<Text,_>(space).bind::<Text,_>(mode)
+                .execute(&mut *self.connection.borrow_mut())?;
+        } else {
+            diesel::sql_query("DELETE FROM device_spaces WHERE device_id=? AND space_id=?")
+                .bind::<Text, _>(device)
+                .bind::<Text, _>(space)
+                .execute(&mut *self.connection.borrow_mut())?;
+        }
+        diesel::sql_query("UPDATE devices SET generation=generation+1 WHERE id=?")
+            .bind::<Text, _>(device)
+            .execute(&mut *self.connection.borrow_mut())?;
+        self.record(project, "device_grant_changed", OPERATOR_EPOCH, Some(device), None,
+            json!({"device_id":device,"space_id":space,"mode":mode,"generation":row.generation+1,"execution_stopped":false}))?;
+        Ok(json!({"device_id":device,"space_id":space,"mode":mode,"generation":row.generation+1}))
+    }
+
     pub(super) fn device_list(&self) -> Result<Value> {
         let rows = diesel::sql_query(
             "SELECT id,name,verifier,generation,revoked FROM devices ORDER BY created_at,id",
@@ -231,12 +295,13 @@ impl Store {
         let mut devices = Vec::new();
         for row in rows {
             let spaces = diesel::sql_query(
-                "SELECT space_id AS value FROM device_spaces WHERE device_id=? ORDER BY space_id",
+                "SELECT space_id,mode FROM device_spaces WHERE device_id=? ORDER BY space_id",
             )
             .bind::<Text, _>(&row.id)
-            .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+            .load::<DeviceGrant>(&mut *self.connection.borrow_mut())?;
             devices.push(json!({"id": row.id, "name": row.name, "generation": row.generation, "revoked": row.revoked != 0,
-                "space_ids": spaces.into_iter().map(|space| space.value).collect::<Vec<_>>()}));
+                "space_ids": spaces.iter().map(|grant| &grant.space_id).collect::<Vec<_>>(),
+                "grants": spaces.iter().map(|grant| json!({"space_id":grant.space_id,"mode":grant.mode})).collect::<Vec<_>>()}));
         }
         Ok(json!({"devices": devices}))
     }
@@ -261,6 +326,14 @@ impl Store {
         )?;
         Ok(json!({"device_id": device, "generation": row.generation + 1, "revoked": true}))
     }
+}
+
+#[derive(QueryableByName)]
+struct DeviceGrant {
+    #[diesel(sql_type = Text)]
+    space_id: String,
+    #[diesel(sql_type = Text)]
+    mode: String,
 }
 
 #[derive(QueryableByName)]
@@ -294,6 +367,102 @@ mod tests {
     fn id() -> String {
         Uuid::new_v4().to_string()
     }
+    #[test]
+    fn reviewed_grant_updates_fence_old_connections_and_preserve_original_receipts() {
+        let store = Store::open(":memory:").unwrap();
+        let space = store
+            .execute_controller(
+                "/private",
+                &ControllerOperation::SpaceCreate {
+                    name: "Grant review".into(),
+                    request_id: id(),
+                },
+            )
+            .unwrap()["space_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let invitation = store
+            .execute_controller(
+                "/private",
+                &ControllerOperation::InvitationCreate {
+                    space_ids: vec![space.clone()],
+                    ttl_seconds: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        let enrolled = store
+            .enroll_remote(invitation["invitation"].as_str().unwrap(), "Participant")
+            .unwrap();
+        let credential = enrolled["credential"].as_str().unwrap();
+        let principal = store.authenticate_remote(credential).unwrap();
+        let update = ControllerOperation::DeviceGrantUpdate {
+            device_id: principal.device.clone(),
+            expected_generation: principal.generation,
+            space_id: space.clone(),
+            mode: Some("read".into()),
+            request_id: id(),
+        };
+        let result = store.execute_controller("/private", &update).unwrap();
+        assert_eq!(
+            store.execute_controller("/private", &update).unwrap(),
+            result
+        );
+        assert!(store.authorize_remote(&principal, &space, false).is_err());
+        let current = store.authenticate_remote(credential).unwrap();
+        assert_eq!(current.generation, principal.generation + 1);
+        store.authorize_remote(&current, &space, false).unwrap();
+        assert!(store.authorize_remote(&current, &space, true).is_err());
+        let list = store
+            .execute_controller("/private", &ControllerOperation::DeviceList)
+            .unwrap();
+        assert_eq!(list["devices"][0]["grants"][0]["mode"], "read");
+        let grant = |generation, mode: Option<&str>| ControllerOperation::DeviceGrantUpdate {
+            device_id: principal.device.clone(),
+            expected_generation: generation,
+            space_id: space.clone(),
+            mode: mode.map(str::to_owned),
+            request_id: id(),
+        };
+        assert!(store
+            .execute_controller("/private", &grant(principal.generation, Some("write")))
+            .is_err());
+        assert!(store
+            .execute_controller(
+                "/private",
+                &grant(current.generation, Some("administrator"))
+            )
+            .is_err());
+        store.authorize_remote(&current, &space, false).unwrap();
+        store
+            .execute_controller("/private", &grant(current.generation, Some("write")))
+            .unwrap();
+        let write = store.authenticate_remote(credential).unwrap();
+        store.authorize_remote(&write, &space, true).unwrap();
+        store
+            .execute_controller("/private", &grant(write.generation, None))
+            .unwrap();
+        let removed = store.authenticate_remote(credential).unwrap();
+        assert!(store.authorize_remote(&removed, &space, false).is_err());
+        assert!(store.remote_grants(&removed).is_err());
+        assert!(store
+            .execute_controller("/private", &ControllerOperation::DeviceList)
+            .unwrap()["devices"][0]["grants"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store.events("/private", None, Some(200)).unwrap()["events"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|event| event["kind"] == "device_grant_changed")
+                .count(),
+            3
+        );
+    }
+
     #[test]
     fn enrollment_secrets_are_single_use_and_never_persisted_in_receipts_or_events() {
         let store = Store::open(":memory:").unwrap();

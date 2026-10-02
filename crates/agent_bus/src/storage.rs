@@ -3350,6 +3350,8 @@ impl Store {
                     Ok(json!({"released": [reservation_id], "execution_stopped": false}))
                 }
             }
+            ControllerOperation::DeviceGrantUpdate { device_id, expected_generation, space_id, mode, .. } =>
+                self.update_device_grant(project, device_id, *expected_generation, space_id, mode.as_deref()),
             ControllerOperation::DeviceRevoke { device_id, .. } => self.revoke_device(project, device_id),
             ControllerOperation::SpaceCreate { name, .. } => self.space_create(project, actor, name),
             ControllerOperation::SpaceJoin { space_id, agent, .. } => {

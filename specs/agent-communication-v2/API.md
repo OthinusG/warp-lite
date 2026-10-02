@@ -440,3 +440,16 @@ invalidate presence; durable tasks and uncertain effects remain unchanged. Remot
 pool claim requires this current native lease before mutation/replay. Presence alone
 never makes an actor ready or enables terminal wake. Host panel online/runtime
 projections use the same validated lease, independently of durable task outcome.
+
+
+### Reviewed device space-grant changes
+
+Trusted local controller `DeviceGrantUpdate` pins device UUID, original expected
+generation and one space UUID. `mode` is `read`, `write`, or null to remove that
+grant. Validate both durable identities and the 32-space device limit before any
+write; atomically change the grant, increment generation and record the operator
+audit event through the existing request ledger. Old authenticated connections
+lose read, mutation, cursor and presence authority before replay. Grant changes do
+not stop execution or erase tasks/attempts. `DeviceList` retains `space_ids` and
+adds explicit space/mode grant records for review. Remote agents cannot invoke
+this controller operation. Native settings integration remains pending.

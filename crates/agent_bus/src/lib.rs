@@ -588,6 +588,13 @@ pub enum ControllerOperation {
         ttl_seconds: Option<u64>,
         request_id: String,
     },
+    DeviceGrantUpdate {
+        device_id: String,
+        expected_generation: u64,
+        space_id: String,
+        mode: Option<String>,
+        request_id: String,
+    },
     DeviceList,
     DeviceRevoke {
         device_id: String,
@@ -610,6 +617,7 @@ impl ControllerOperation {
             | Self::ReservationUpdate { request_id, .. }
             | Self::RemoteWorkspaceMap { request_id, .. }
             | Self::InvitationCreate { request_id, .. }
+            | Self::DeviceGrantUpdate { request_id, .. }
             | Self::DeviceRevoke { request_id, .. } => Some(request_id),
             _ => None,
         }

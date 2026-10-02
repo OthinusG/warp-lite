@@ -243,3 +243,5 @@
 - Participant remote intents use a separate bounded table in the existing private SQLite Store, not authoritative task copies or plaintext credential preferences. Original identity/content and confirmed results are immutable; unresolved rows survive restart/expiry and cannot be removed. Native routing must stage before network writes without holding the broker mutex across SSH I/O.
 
 - Remote native online state is a connection-bound monotonic receipt-time lease, separate from seven-day mutation epochs and durable tasks. Revalidate generation/grants/run before reporting online or allowing a remote pool claim; disconnect/shutdown clear only ephemeral presence. A heartbeat does not assert idle, empty draft, approval clearance or stopped execution, and cannot enable native wake.
+
+- Device grant review is a trusted local controller mutation pinned to the original generation. Every read/write/removal change increments generation atomically with the grant/audit, fencing live sessions before replay while preserving tasks and execution uncertainty. DeviceList keeps compatible space_ids and exposes explicit roles; remote MCP/gateway operations cannot edit grants.
