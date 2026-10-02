@@ -264,3 +264,6 @@
 
 
 - Remote credentials reuse the existing SecureStorage trait with UUID-only namespaced keys. Empty/no-op providers must fail closed, enrollment must not overwrite existing keys, and successful writes require exact readback. Delete only the newly owned key after failed verification; verify absence after removal. Synthetic provider checks do not prove native Keychain/DPAPI acceptance.
+
+
+- Native remote enrollment transfers credential results only in memory to the existing secure provider. Persist reviewed non-secret profile metadata only after readback; preserve older settings with an empty profile list. Cancel network futures through an owned watch channel and drop their SSH child; dropping only the result receiver leaves an unnecessary child alive until timeout. Metadata persistence alone must not enable remote MCP participation.

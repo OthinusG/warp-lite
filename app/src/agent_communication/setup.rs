@@ -18,6 +18,8 @@ const END: &str = "# END WARP LITE COMMUNICATION";
 pub struct Preferences {
     pub enabled: bool,
     pub selected: BTreeMap<String, Installed>,
+    #[serde(default)]
+    pub(super) remote_profiles: Vec<super::remote_settings::Profile>,
 }
 impl Preferences {
     pub fn programs(&self) -> std::collections::HashSet<String> {
@@ -885,6 +887,7 @@ mod tests {
         let preferences = Preferences {
             enabled: true,
             selected: BTreeMap::from([("qodercn".into(), selected)]),
+            remote_profiles: vec![],
         };
         assert!(preferences.programs().contains("qodercn"));
         assert!(!preferences.programs().contains("qoder"));

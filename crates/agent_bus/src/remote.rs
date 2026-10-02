@@ -153,7 +153,7 @@ pub fn ssh_command(alias: &str) -> Result<Command> {
     build_ssh_command(&ssh_executable()?, alias)
 }
 
-fn build_ssh_command(executable: &Path, alias: &str) -> Result<Command> {
+pub fn validate_alias(alias: &str) -> Result<()> {
     ensure!(
         !alias.is_empty()
             && alias.len() <= 253
@@ -165,6 +165,11 @@ fn build_ssh_command(executable: &Path, alias: &str) -> Result<Command> {
             "Use an SSH host alias containing letters, numbers, dots, underscores or hyphens"
         )
     );
+    Ok(())
+}
+
+fn build_ssh_command(executable: &Path, alias: &str) -> Result<Command> {
+    validate_alias(alias)?;
     let mut command = Command::new(executable);
     command.arg("-T");
     for option in SSH_OPTIONS {

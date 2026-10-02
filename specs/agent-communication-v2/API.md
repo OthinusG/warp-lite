@@ -523,3 +523,21 @@ mutation epoch and marks previous unfinished execution unknown. Reconciliation
 can reveal an authorized retained receipt, but an absent receipt requires current
 connection ownership. The replacement fence and receipt lookup share the broker
 mutex; old queued frames cannot commit after that lookup returns not_committed.
+
+
+### Native enrollment metadata
+
+The native app verifies the explicitly entered coordinator UUID before sending
+an invitation on its owned SSH child. Enrollment results cross into the UI model
+in memory, without Debug/Serialize, and are consumed by the existing secure
+provider. Reviewed connection preferences contain only alias, coordinator UUID,
+device UUID, enrollment generation and granted space UUIDs; reject unknown
+profile fields and invalid/duplicate identities. Older preferences default to an
+empty remote profile list. Cap stored connections at 32.
+
+Write metadata only after credential persistence/readback succeeds. Failure
+keeps participation disabled. Cancelling enrollment drops a watch sender, cancels
+the network future and drops only its owned SSH child; a late result cannot reach
+the model. Disabling communication also cancels enrollment. Settings CLI setup
+and enrollment result application cannot overwrite each other's preferences.
+The enrollment model does not enable MCP routing or synthesize live participation.

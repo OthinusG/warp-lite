@@ -45,3 +45,15 @@ Existing retained capture drivers and private IPC/stdio fixtures provide
 credential-free deterministic checks. They do not establish physical SSH across
 macOS/Windows or real vendor model acceptance; those require unavailable user
 runtime resources. Do not enable incomplete production routing to bypass a gate.
+
+
+## Current source checkpoint
+
+Credential helpers and synthetic-provider failure checks are committed; full
+source 86e154c is building on both platforms in run 37010763280. Native enrollment
+now has an owned asynchronous SSH worker, expected-coordinator validation,
+cancellation and a secure-provider/model handoff. Profiles persist only reviewed
+non-secret metadata and preserve older preference files. Focused profile checks
+cover serialization boundaries, invalid identity/alias/grants and cancellation.
+Enrollment UI, native secure-provider runtime acceptance, mappings, MCP routing
+and guarded wake remain unfinished. No production participation is enabled.

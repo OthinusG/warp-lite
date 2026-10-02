@@ -1,6 +1,7 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 pub(crate) mod setup;
 mod remote_credentials;
+mod remote_settings;
 pub(crate) mod panel;
 use crate::terminal::{
     cli_agent_sessions::{
@@ -34,6 +35,9 @@ pub(crate) struct AgentCommunication {
     preferences_path: PathBuf,
     pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
     notified: HashMap<String, String>,
+    pub(crate) remote_status: String,
+    remote_pending: Option<std::sync::mpsc::Receiver<anyhow::Result<remote_settings::Enrollment>>>,
+    remote_cancel: Option<tokio::sync::watch::Sender<bool>>,
 }
 impl Entity for AgentCommunication {
     type Event = ();
@@ -145,6 +149,9 @@ impl AgentCommunication {
             preferences_path,
             pending: None,
             notified: HashMap::new(),
+            remote_status: String::new(),
+            remote_pending: None,
+            remote_cancel: None,
         };
         model.configure(None, None, ctx);
         model
@@ -194,6 +201,9 @@ impl AgentCommunication {
     ) {
         if self.busy {
             return;
+        }
+        if enabled == Some(false) {
+            self.cancel_remote_enrollment(ctx);
         }
         let mut preferences = self.preferences.clone();
         if let Some(enabled) = enabled {
@@ -404,6 +414,7 @@ impl AgentCommunication {
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(250)), |model, _, ctx| {
+            model.poll_remote_enrollment(ctx);
             if let Some(result) = model
                 .pending
                 .as_ref()
