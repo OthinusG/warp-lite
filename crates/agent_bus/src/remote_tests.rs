@@ -27,6 +27,19 @@ fn negotiation_rejects_downgrade_and_never_grants_identity() {
     assert_ne!(first["connection_epoch"], second["connection_epoch"]);
     assert!(first.get("device_id").is_none());
     assert!(first.get("grants").is_none());
+    let mut newer = serde_json::to_value(hello()).unwrap();
+    newer["features"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("future_feature"));
+    let negotiated = serde_json::to_value(
+        serde_json::from_value::<NegotiationFrame>(newer)
+            .unwrap()
+            .negotiate(coordinator)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(negotiated["features"], json!(FEATURES));
     assert!(serde_json::from_value::<NegotiationFrame>(first)
         .unwrap()
         .negotiate(coordinator)
@@ -71,6 +84,7 @@ async fn bounded_hello_frames_handle_partial_io_and_reject_untrusted_payloads() 
     use std::time::Instant;
     use tokio::io::AsyncWriteExt;
     let payload = serde_json::to_vec(&hello()).unwrap();
+    assert_eq!(payload, br#"{"type":"hello","protocol_major":2,"protocol_minor":9,"features":["task_control","dependencies","threads","reservations","evidence_refs","event_resume"],"max_frame_bytes":65536}"#);
     let mut framed = (payload.len() as u32).to_be_bytes().to_vec();
     framed.extend_from_slice(&payload);
     let (mut reader, mut writer) = tokio::io::duplex(64);
@@ -92,6 +106,14 @@ async fn bounded_hello_frames_handle_partial_io_and_reject_untrusted_payloads() 
                 .await
                 .is_err()
         );
+    }
+    for truncated in [vec![0, 0], vec![0, 0, 0, 20, b'{']] {
+        assert!(receive::<NegotiationFrame>(
+            &mut std::io::Cursor::new(truncated),
+            Instant::now() + Duration::from_secs(1)
+        )
+        .await
+        .is_err());
     }
     for invalid in [
         b"not-json".as_slice(),
