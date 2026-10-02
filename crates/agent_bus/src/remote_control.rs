@@ -167,7 +167,7 @@ impl RunningController {
                 sessions.spawn(async move {
                     tokio::select! {
                         _ = closed.changed() => {},
-                        _ = session(stream, broker, coordinator_id) => {},
+                        _ = session(stream, broker, coordinator_id, nonce) => {},
                     }
                 });
             }
@@ -209,10 +209,12 @@ impl Drop for RunningController {
     }
 }
 
-fn active(broker: &Broker) -> Result<std::sync::MutexGuard<'_, super::State>> {
+fn active(broker: &Broker, owner: Uuid) -> Result<std::sync::MutexGuard<'_, super::State>> {
     let state = broker.store()?;
     ensure!(
-        state.remote_active && !broker.shared.stopped.load(Ordering::Acquire),
+        state.remote_active
+            && state.remote_owner == Some(owner)
+            && !broker.shared.stopped.load(Ordering::Acquire),
         coordinator_unavailable("Remote participation is disabled")
     );
     Ok(state)
@@ -223,15 +225,16 @@ fn parse_uuid(value: &serde_json::Value) -> Result<Uuid> {
         .and_then(|value| Uuid::parse_str(value).ok())
         .ok_or_else(|| invalid_state("Enrollment identity is unavailable"))
 }
-fn grants(broker: &Broker, principal: &RemotePrincipal) -> Result<Vec<Uuid>> {
-    active(broker)?.store.remote_grants(principal)
+fn grants(broker: &Broker, principal: &RemotePrincipal, owner: Uuid) -> Result<Vec<Uuid>> {
+    active(broker, owner)?.store.remote_grants(principal)
 }
 async fn session<S: AsyncRead + AsyncWrite + Unpin>(
     mut stream: S,
     broker: Broker,
     coordinator: Uuid,
+    owner: Uuid,
 ) -> Result<()> {
-    let result = session_inner(&mut stream, &broker, coordinator).await;
+    let result = session_inner(&mut stream, &broker, coordinator, owner).await;
     if let Err(error) = &result {
         let safe = error
             .downcast_ref::<DomainError>()
@@ -259,8 +262,9 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
     stream: &mut S,
     broker: &Broker,
     coordinator: Uuid,
+    owner: Uuid,
 ) -> Result<()> {
-    active(broker)?;
+    active(broker, owner)?;
     let hello: NegotiationFrame = receive(stream, DEADLINE).await?;
     let result = hello.negotiate(coordinator)?;
     let epoch = match &result {
@@ -283,7 +287,7 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
         .await?;
         let response = match frame {
             AuthenticationFrame::Enroll { invitation, name } if principal.is_none() => {
-                let enrolled = active(broker)?
+                let enrolled = active(broker, owner)?
                     .store
                     .enroll_remote(&invitation, &name)
                     .map_err(crate::classify_storage)?;
@@ -304,11 +308,11 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 }
             }
             AuthenticationFrame::Authenticate { credential } if principal.is_none() => {
-                let authenticated = active(broker)?
+                let authenticated = active(broker, owner)?
                     .store
                     .authenticate_remote(&credential)
                     .map_err(crate::classify_storage)?;
-                let spaces = grants(broker, &authenticated)?;
+                let spaces = grants(broker, &authenticated, owner)?;
                 let response = AuthenticationFrame::Authenticated {
                     device_id: Uuid::parse_str(&authenticated.device)?,
                     generation: authenticated.generation,
@@ -329,9 +333,11 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 let principal = principal
                     .as_ref()
                     .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
-                active(broker)?
-                    .store
-                    .authorize_remote(principal, &space_id.to_string(), false)?;
+                active(broker, owner)?.store.authorize_remote(
+                    principal,
+                    &space_id.to_string(),
+                    false,
+                )?;
                 AuthenticationFrame::HeartbeatResult {
                     connection_epoch: epoch,
                 }
