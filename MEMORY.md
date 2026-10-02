@@ -205,3 +205,5 @@
 - The native capture harness clears WARP_COLLABORATION_CAPTURE before app window creation so worker children take normal entrypoints. GPU readback configuration must use the retained WARPUI_USE_REAL_DISPLAY_IN_INTEGRATION_TESTS flag (debug-only), rather than the cleared launcher variable.
 
 - Remote routing storage uses additive SQLite v6 tables rather than extending host workspaces' canonical-root uniqueness. Remote physical identity is enrolled device plus participant checkout UUID; display paths are not host roots. Native run UUIDs map to durable server mutation epochs. Preserve closed-run tombstones and uncertain attempts, and fence remap/departure before replay. This backend foundation does not enable production remote routing.
+
+- Store::transaction owns an explicit BEGIN/COMMIT and is not nestable. Atomic remote admission must call a transaction-internal recovery helper; preserve the public recovery wrapper for ordinary caller-owned operations. Do not split identity/run creation and interrupted-attempt recovery into separate commits.

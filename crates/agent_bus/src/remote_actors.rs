@@ -68,10 +68,10 @@ impl Store {
             ensure!(prior.is_some() || self.count("SELECT COUNT(*) AS count FROM remote_workspaces", &[])? < 1000,
                 capacity_exceeded("Remote workspace capacity reached"));
             let id = prior.map(|row| row.value).unwrap_or_else(|| Uuid::new_v4().to_string());
-            let actors = diesel::sql_query("SELECT agent AS value FROM remote_actor_bindings WHERE workspace_id=? AND space_id!=?")
+            let actors = diesel::sql_query(format!("SELECT {BINDING} FROM remote_actor_bindings WHERE workspace_id=? AND space_id!=?"))
                 .bind::<Text, _>(&id).bind::<Text, _>(&space)
-                .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
-            for actor in actors { self.revoke_remote_actor(&actor.value, &self.remote_binding(&actor.value)?.unwrap().space_id)?; }
+                .load::<Binding>(&mut *self.connection.borrow_mut())?;
+            for actor in actors { self.revoke_remote_actor(&actor.agent, &actor.space_id)?; }
             diesel::sql_query("INSERT INTO remote_workspaces(id,device,space_id,checkout,label,repository_id,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(device,checkout) DO UPDATE SET space_id=excluded.space_id,label=excluded.label,repository_id=excluded.repository_id")
                 .bind::<Text, _>(&id).bind::<Text, _>(&principal.device).bind::<Text, _>(&space)
                 .bind::<Text, _>(&checkout).bind::<Text, _>(label)
@@ -168,7 +168,7 @@ impl Store {
                 diesel::sql_query("INSERT INTO remote_runs(epoch,agent,native_run,expires_at,closed) VALUES (?,?,?,?,0)")
                     .bind::<Text, _>(&epoch).bind::<Text, _>(&actor.id).bind::<Text, _>(&native_run)
                     .bind::<BigInt, _>(expires_at as i64).execute(&mut *self.connection.borrow_mut())?;
-                self.recover(&actor, &epoch)?;
+                self.recover_in_transaction(&actor, &epoch)?;
             }
             Ok(RemoteActor { actor, epoch, expires_at })
         })

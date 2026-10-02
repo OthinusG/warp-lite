@@ -894,60 +894,62 @@ impl Store {
 
     /// Losing a run proves disconnection, not process exit or stopped side effects.
     pub fn recover(&self, actor: &Agent, run: &str) -> Result<()> {
+        self.transaction(|| self.recover_in_transaction(actor, run))
+    }
+
+    fn recover_in_transaction(&self, actor: &Agent, run: &str) -> Result<()> {
         self.authorize(actor)?;
-        self.transaction(|| {
-            let tasks = diesel::sql_query(format!(
-                "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')"
-            ))
-            .bind::<Text, _>(&actor.id)
-            .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
-            for task in tasks.into_iter().map(TaskRow::task) {
-                let active = self.active_attempts(&task.id)?;
-                if active.iter().any(|attempt| attempt.run == run) {
-                    continue;
-                }
-                if self.pending_interrupt_notification(actor, &task)? {
-                    continue;
-                }
-                for attempt in &active {
-                    diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=NULL WHERE id=?")
-                        .bind::<Text, _>(&attempt.id)
-                        .execute(&mut *self.connection.borrow_mut())?;
-                    self.record(
-                        &task.project,
-                        "task_interrupted",
-                        &actor.id,
-                        Some(&task.id),
-                        Some(&attempt.id),
-                        json!({"revision": task.revision}),
-                    )?;
-                }
-                let mut task = task;
-                task.version += 1;
-                self.update_task_state(&task)?;
-                if active.is_empty() {
-                    self.record(
-                        &task.project,
-                        "task_interrupted",
-                        &actor.id,
-                        Some(&task.id),
-                        None,
-                        json!({"revision": task.revision}),
-                    )?;
-                }
-                let message = task_message(
-                    &task.issuer,
-                    &actor.id,
-                    "interrupted",
-                    "Interrupted task. Previous execution is unknown; inspect it and request operator recovery before starting new work."
-                        .into(),
-                    &task.id,
-                    task.revision,
-                );
-                self.queue(&task.project, message)?;
+        let tasks = diesel::sql_query(format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')"
+        ))
+        .bind::<Text, _>(&actor.id)
+        .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
+        for task in tasks.into_iter().map(TaskRow::task) {
+            let active = self.active_attempts(&task.id)?;
+            if active.iter().any(|attempt| attempt.run == run) {
+                continue;
             }
-            Ok(())
-        })
+            if self.pending_interrupt_notification(actor, &task)? {
+                continue;
+            }
+            for attempt in &active {
+                diesel::sql_query("UPDATE attempts SET certainty='interrupted', finished_at=NULL WHERE id=?")
+                    .bind::<Text, _>(&attempt.id)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                self.record(
+                    &task.project,
+                    "task_interrupted",
+                    &actor.id,
+                    Some(&task.id),
+                    Some(&attempt.id),
+                    json!({"revision": task.revision}),
+                )?;
+            }
+            let mut task = task;
+            task.version += 1;
+            self.update_task_state(&task)?;
+            if active.is_empty() {
+                self.record(
+                    &task.project,
+                    "task_interrupted",
+                    &actor.id,
+                    Some(&task.id),
+                    None,
+                    json!({"revision": task.revision}),
+                )?;
+            }
+            let message = task_message(
+                &task.issuer,
+                &actor.id,
+                "interrupted",
+                "Interrupted task. Previous execution is unknown; inspect it and request operator recovery before starting new work."
+                    .into(),
+                &task.id,
+                task.revision,
+            );
+            self.queue(&task.project, message)?;
+        }
+        Ok(())
     }
 
     fn pending_interrupt_notification(&self, actor: &Agent, task: &Task) -> Result<bool> {

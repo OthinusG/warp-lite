@@ -4,6 +4,12 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `f16496e`, run `36971306130`: v6 source compiled on both OSes,
+  v5 backup/host-lease/coordinator identity migration passed, and existing backend
+  checks passed. Registration tests exposed nested BEGIN from recover inside the
+  admission transaction. Reuse a transaction-internal recovery helper so identity,
+  membership, epoch and interrupted attempts remain atomic. Rerun pending.
+
 - Added SQLite v6 device-qualified workspace/actor/run storage with a v5 backup
   and downgrade sentinel, immutable participant checkout identities, original-run
   resume, replacement/leave/remap fences and existing interruption recovery.
