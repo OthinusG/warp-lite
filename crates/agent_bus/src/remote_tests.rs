@@ -279,6 +279,23 @@ while True:
                   connection_epoch=epoch, space_ids=[space]))
     elif frame['type'] == 'heartbeat':
         send(dict(type='heartbeat_result', connection_epoch=epoch))
+    elif frame['type'] == 'actor_announce':
+        actor = dict(id=str(uuid.uuid4()), terminal='remote:'+device+':'+frame['native_session'],
+                     project='space:'+space, program=frame['program'], name=frame['name'])
+        send(dict(type='actor_announced', connection_epoch=epoch, actor=actor,
+                  mutation_epoch=str(uuid.uuid4()), expires_at=2000000000000))
+    elif frame['type'] == 'operation':
+        operation = frame['operation']
+        if operation.get('task_id') == 'stale-version':
+            send(dict(type='error', error=dict(code='version_conflict', message='fixture-reflection',
+                                              retryable=False, version=7)))
+        else:
+            correlation = str(uuid.uuid4()) if operation.get('task_id') == 'wrong-correlation' else frame['frame_id']
+            send(dict(type='operation_result', connection_epoch=epoch, frame_id=correlation,
+                      mutation_epoch=frame['mutation_epoch'], result=dict(operation=operation)))
+    elif frame['type'] == 'events':
+        send(dict(type='events_result', connection_epoch=epoch, frame_id=frame['frame_id'],
+                  result=dict(events=[], cursor=frame.get('after'))))
 "#).unwrap();
     // Close the script handle before Python opens it on Windows.
     let script = script.into_temp_path();
@@ -289,21 +306,101 @@ while True:
         let mut command = Command::new("python3");
         #[cfg(windows)]
         let mut command = Command::new("python");
-        command.arg(&script).arg(coordinator.to_string()).arg(space.to_string())
-            .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        command
+            .arg(&script)
+            .arg(coordinator.to_string())
+            .arg(space.to_string())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         command
     };
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let rejected = Connection::from_command(command(), uuid::Uuid::new_v4()).await;
         assert!(rejected.is_err());
-        let mut connection = Connection::from_command(command(), coordinator).await.unwrap();
+        let mut connection = Connection::from_command(command(), coordinator)
+            .await
+            .unwrap();
         assert!(connection.heartbeat(space).await.is_err());
-        let AuthenticationFrame::EnrollResult { credential, device_id, .. } = connection
-            .enroll("fixture-invitation".into(), "Fixture".into()).await.unwrap()
-            else { panic!("Expected enrollment delivery") };
-        assert_eq!(connection.authenticate(credential).await.unwrap(), device_id);
+        let AuthenticationFrame::EnrollResult {
+            credential,
+            device_id,
+            ..
+        } = connection
+            .enroll("fixture-invitation".into(), "Fixture".into())
+            .await
+            .unwrap()
+        else {
+            panic!("Expected enrollment delivery")
+        };
+        assert_eq!(
+            connection.authenticate(credential).await.unwrap(),
+            device_id
+        );
         assert!(connection.heartbeat(uuid::Uuid::new_v4()).await.is_err());
         connection.heartbeat(space).await.unwrap();
+        let actor = connection
+            .announce(
+                uuid::Uuid::new_v4(),
+                space,
+                uuid::Uuid::new_v4(),
+                uuid::Uuid::new_v4(),
+                uuid::Uuid::new_v4(),
+                "codex",
+                "Fixture",
+            )
+            .await
+            .unwrap();
+        let operation = crate::Operation::AgentSend {
+            to: "receiver".into(),
+            body: "Original intent".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
+            request_id: uuid::Uuid::new_v4().to_string(),
+        };
+        let first = connection.execute(&actor, &operation).await.unwrap();
+        let replay = connection.execute(&actor, &operation).await.unwrap();
+        assert_eq!(first, replay);
+        assert_eq!(
+            first["operation"],
+            serde_json::to_value(&operation).unwrap()
+        );
+        assert_eq!(
+            connection.events(space, Some(42), Some(2)).await.unwrap()["cursor"],
+            42
+        );
+        assert!(connection
+            .events(uuid::Uuid::new_v4(), None, None)
+            .await
+            .is_err());
+        let mut foreign = actor.clone();
+        foreign.actor.terminal =
+            format!("remote:{}:{}", uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        assert!(connection.execute(&foreign, &operation).await.is_err());
+        let stale = connection
+            .execute(
+                &actor,
+                &crate::Operation::TaskGet {
+                    task_id: "stale-version".into(),
+                },
+            )
+            .await
+            .unwrap_err();
+        let stale = stale.downcast_ref::<crate::DomainError>().unwrap();
+        assert_eq!(stale.code, "version_conflict");
+        assert_eq!(stale.version, Some(7));
+        assert!(!stale.message.contains("fixture-reflection"));
+        assert!(connection
+            .execute(
+                &actor,
+                &crate::Operation::TaskGet {
+                    task_id: "wrong-correlation".into(),
+                }
+            )
+            .await
+            .is_err());
     });
 }
 
@@ -311,11 +408,21 @@ while True:
 fn peer_errors_never_preserve_reflected_credentials_or_unknown_codes() {
     for code in ["device_revoked", "untrusted_peer_value"] {
         let error = remote_error(crate::DomainError {
-            code: code.into(), message: "sensitive-fixture-reflection".into(), retryable: true, version: None,
+            code: code.into(),
+            message: "sensitive-fixture-reflection".into(),
+            retryable: true,
+            version: None,
         });
         assert!(!error.to_string().contains("sensitive-fixture-reflection"));
         let safe = error.downcast_ref::<crate::DomainError>().unwrap();
-        assert_eq!(safe.code, if code == "device_revoked" { code } else { "invalid_input" });
-        assert!(!safe.retryable);
+        assert_eq!(
+            safe.code,
+            if code == "device_revoked" {
+                code
+            } else {
+                "invalid_input"
+            }
+        );
+        assert_eq!(safe.retryable, code == "device_revoked");
     }
 }

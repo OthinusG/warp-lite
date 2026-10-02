@@ -384,3 +384,10 @@ It returns the device-qualified mapping without opening the participant path.
 Generation/grants are checked inside the same request-ledger transaction; replay
 returns the original mapping receipt and remapping cannot revive old native runs.
 This is a host operator API, never an agent operation or remote frame.
+
+The owned SSH client validates actor admission against the authenticated device,
+reviewed space and verified native session, and validates every operation/event
+response's connection/correlation/original mutation epoch. It never creates a new
+mutation request ID. Callers must persist pending intent before sending mutations;
+a transport failure does not authorize executing a replacement. Peer error text
+is discarded while known domain codes and numeric version metadata are retained.

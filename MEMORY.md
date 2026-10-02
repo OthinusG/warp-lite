@@ -235,3 +235,5 @@
 - Native task list projection intentionally contains only id/state/revision/version/assignee. Checks requiring description, archive markers or attempts must use the existing selected-task/history-export full records rather than inventing summary fields. The Rust compiler caught this in retained GUI fixtures; local Rust verification remains GitHub-only.
 
 - Remote gateway task dispatch separates connection/correlation epochs from the coordinator-assigned original mutation epoch. Resolve the device-bound actor and current generation/grants before the existing Store request ledger can replay. Native readiness/wait and controller APIs remain excluded until guarded participant presence/wake is connected.
+
+- Remote client replies must match the original actor/device/space, connection, correlation and mutation epochs. Transport correlation IDs may change while the original mutation request UUID/content stays unchanged. Preserve whitelisted structured conflict versions without retaining reflected peer messages. Existing schemars UUID support is absent; describe UUID wire fields as strings instead of adding a dependency feature.

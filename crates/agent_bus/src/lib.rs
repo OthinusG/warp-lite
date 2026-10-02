@@ -560,11 +560,15 @@ pub enum ControllerOperation {
         request_id: String,
     },
     RemoteWorkspaceMap {
+        #[schemars(with = "String")]
         device_id: Uuid,
         expected_generation: u64,
+        #[schemars(with = "String")]
         space_id: Uuid,
+        #[schemars(with = "String")]
         checkout_id: Uuid,
         label: String,
+        #[schemars(with = "Option<String>")]
         repository_id: Option<Uuid>,
         request_id: String,
     },

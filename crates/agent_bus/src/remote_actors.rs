@@ -9,7 +9,7 @@ pub(crate) struct RemoteWorkspace {
     pub checkout: String,
 }
 #[derive(Clone)]
-pub(crate) struct RemoteActor {
+pub struct RemoteActor {
     pub actor: Agent,
     pub epoch: String,
     pub expires_at: u64,

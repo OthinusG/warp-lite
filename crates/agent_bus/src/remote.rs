@@ -210,14 +210,23 @@ fn remote_error(error: crate::DomainError) -> anyhow::Error {
         | "feature_unavailable"
         | "capacity_exceeded"
         | "storage_full"
-        | "coordinator_unavailable" => error.code.as_str(),
+        | "coordinator_unavailable"
+        | "request_conflict"
+        | "request_epoch_expired"
+        | "execution_unknown"
+        | "stale_attempt"
+        | "stale_revision"
+        | "version_conflict"
+        | "reservation_conflict"
+        | "dependency_blocked"
+        | "dependency_cycle" => error.code.as_str(),
         _ => "invalid_input",
     };
     crate::domain(
         code,
         "Remote collaboration request was rejected",
-        code == "coordinator_unavailable",
-        None,
+        error.retryable,
+        error.version,
     )
 }
 
@@ -392,6 +401,165 @@ impl Connection {
         );
         self.principal = Some((device_id, generation, space_ids));
         Ok(device_id)
+    }
+
+    /// The participant app supplies its reviewed mapping and verified native identities, never MCP arguments.
+    pub async fn announce(
+        &mut self,
+        workspace: uuid::Uuid,
+        space: uuid::Uuid,
+        checkout: uuid::Uuid,
+        native_session: uuid::Uuid,
+        native_run: uuid::Uuid,
+        program: &str,
+        name: &str,
+    ) -> Result<crate::storage::RemoteActor> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        let device = self
+            .principal
+            .as_ref()
+            .filter(|(_, _, spaces)| spaces.contains(&space))
+            .map(|(device, _, _)| *device)
+            .ok_or_else(|| crate::scope_denied("Authenticate with a grant for this space"))?;
+        ensure!(
+            !workspace.is_nil()
+                && !checkout.is_nil()
+                && !native_session.is_nil()
+                && !native_run.is_nil(),
+            invalid_input("Reviewed workspace and native identities are required")
+        );
+        let AuthenticationFrame::ActorAnnounced {
+            connection_epoch,
+            actor,
+            mutation_epoch,
+            expires_at,
+        } = self
+            .exchange(&AuthenticationFrame::ActorAnnounce {
+                connection_epoch: self.connection_epoch,
+                workspace_id: workspace,
+                space_id: space,
+                checkout_id: checkout,
+                native_session,
+                native_run,
+                program: program.into(),
+                name: name.into(),
+            })
+            .await?
+        else {
+            return Err(invalid_input("Unexpected actor admission response"));
+        };
+        ensure!(
+            connection_epoch == self.connection_epoch
+                && !mutation_epoch.is_nil()
+                && expires_at > 0
+                && uuid::Uuid::parse_str(&actor.id).is_ok_and(|id| !id.is_nil())
+                && actor.terminal == format!("remote:{device}:{native_session}")
+                && actor.project == format!("space:{space}")
+                && actor.program == program,
+            invalid_input("Remote actor admission does not match the reviewed native context")
+        );
+        Ok(crate::storage::RemoteActor {
+            actor,
+            epoch: mutation_epoch.to_string(),
+            expires_at,
+        })
+    }
+
+    /// Send an original intent only after the app has durably recorded it for reconciliation.
+    pub async fn execute(
+        &mut self,
+        actor: &crate::storage::RemoteActor,
+        operation: &crate::Operation,
+    ) -> Result<serde_json::Value> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        let space = actor
+            .actor
+            .project
+            .strip_prefix("space:")
+            .and_then(|space| uuid::Uuid::parse_str(space).ok())
+            .ok_or_else(|| invalid_input("Remote actor scope is unavailable"))?;
+        ensure!(
+            self.principal
+                .as_ref()
+                .is_some_and(|(device, _, spaces)| spaces.contains(&space)
+                    && actor
+                        .actor
+                        .terminal
+                        .starts_with(&format!("remote:{device}:"))),
+            crate::scope_denied("Actor belongs to another authenticated device or space")
+        );
+        if let Some(request) = operation.request_id() {
+            ensure!(
+                uuid::Uuid::parse_str(request).is_ok(),
+                invalid_input("Original mutation request UUID is required")
+            );
+        }
+        let actor_id = uuid::Uuid::parse_str(&actor.actor.id)
+            .map_err(|_| invalid_input("Invalid remote actor identity"))?;
+        let mutation_epoch = uuid::Uuid::parse_str(&actor.epoch)
+            .map_err(|_| invalid_input("Invalid original mutation epoch"))?;
+        let frame_id = uuid::Uuid::new_v4();
+        let AuthenticationFrame::OperationResult {
+            connection_epoch,
+            frame_id: received_id,
+            mutation_epoch: received_epoch,
+            result,
+        } = self
+            .exchange(&AuthenticationFrame::Operation {
+                connection_epoch: self.connection_epoch,
+                frame_id,
+                actor_id,
+                mutation_epoch,
+                operation: operation.clone(),
+            })
+            .await?
+        else {
+            return Err(invalid_input("Unexpected operation response"));
+        };
+        ensure!(
+            connection_epoch == self.connection_epoch
+                && received_id == frame_id
+                && received_epoch == mutation_epoch,
+            invalid_input("Operation response does not match the original request")
+        );
+        Ok(result)
+    }
+
+    pub async fn events(
+        &mut self,
+        space: uuid::Uuid,
+        after: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<serde_json::Value> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        ensure!(
+            self.principal
+                .as_ref()
+                .is_some_and(|(_, _, spaces)| spaces.contains(&space)),
+            crate::scope_denied("Authenticate with a grant for this space")
+        );
+        let frame_id = uuid::Uuid::new_v4();
+        let AuthenticationFrame::EventsResult {
+            connection_epoch,
+            frame_id: received_id,
+            result,
+        } = self
+            .exchange(&AuthenticationFrame::Events {
+                connection_epoch: self.connection_epoch,
+                frame_id,
+                space_id: space,
+                after,
+                limit,
+            })
+            .await?
+        else {
+            return Err(invalid_input("Unexpected event response"));
+        };
+        ensure!(
+            connection_epoch == self.connection_epoch && received_id == frame_id,
+            invalid_input("Event response does not match the original request")
+        );
+        Ok(result)
     }
 
     pub async fn heartbeat(&mut self, space: uuid::Uuid) -> Result<()> {

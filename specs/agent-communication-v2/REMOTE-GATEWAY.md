@@ -3,7 +3,8 @@
 Status: enrollment/storage and SSH negotiation are verified subsets. An enrollment-only
 controller and byte relay are verified with real IPC. Authenticated actor announcement,
 original-epoch task dispatch and granted event pages now use the same coordinator
-Store; extended real-IPC duplicate/revocation checks are pending CI. Production
+Store; extended real-IPC duplicate/revocation checks passed on both target OS in
+run 36999119942. Production
 application opt-in, participant routing/persistence and guarded remote wake remain
 unfinished. This document
 fixes those remaining boundaries; it does not accept M6.

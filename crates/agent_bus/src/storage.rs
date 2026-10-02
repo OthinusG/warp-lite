@@ -28,7 +28,8 @@ use uuid::Uuid;
 mod remote_auth;
 #[path = "remote_actors.rs"]
 mod remote_actors;
-pub(crate) use remote_actors::{RemoteActor, RemoteWorkspace};
+pub use remote_actors::RemoteActor;
+pub(crate) use remote_actors::RemoteWorkspace;
 pub(crate) use remote_auth::RemotePrincipal;
 
 pub(crate) const SCHEMA_VERSION: &str = "6";
