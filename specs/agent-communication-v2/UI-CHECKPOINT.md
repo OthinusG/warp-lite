@@ -81,3 +81,19 @@ preview navigation, Page Down/Up scrolling and Escape focus restoration while
 preserving an unsent draft. Resize each fixture to a bounded viewport rather
 than relying on an initial size that startup restoration may replace. These
 new checks remain pending until the exact debug artifact completes.
+
+Source `8c33356`, run `36950239278`: all macOS capture assertions passed,
+including an unsent draft, explicit panel focus, Left/Right/Enter, Page Up/Down
+and Escape. The 74 PNGs use a bounded 1200px-wide native viewport. Reviewed
+narrow enlarged detail and wide enlarged task states wrap without overlap. The
+first scrolled image stops short of the last reservation line; repeat Page Down
+and Page Up three times to capture the entire end and restoration. Windows
+checks/packages passed, but capture exited 101 with no PNGs. The debug executable
+was launched without the portable package's DXC/ConPTY DLLs. Stage these existing
+runtime assets beside it and preserve only panic source locations for diagnosis.
+This explains a packaging defect; the rerun must prove it fixes Windows startup.
+
+For faster isolated capture, dispatch `protocol_only=true,capture_ui=true`: both
+OS protocol suites and debug UI builds/captures run, while application checks and
+release packages stay skipped. This is screenshot evidence, not full app build
+acceptance. No real-model task execution or daily application installation occurs.

@@ -443,7 +443,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("page down scrolls detail")
-                .with_keystrokes(&["pagedown"])
+                .with_keystrokes(&["pagedown", "pagedown", "pagedown"])
                 .add_named_assertion("detail scrolled", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
@@ -455,7 +455,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("page up restores detail")
-                .with_keystrokes(&["pageup"])
+                .with_keystrokes(&["pageup", "pageup", "pageup"])
                 .add_named_assertion("detail at top", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
