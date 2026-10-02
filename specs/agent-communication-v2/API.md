@@ -316,6 +316,8 @@ Native assignment and pool forms expose explicit prerequisites, eligible names, 
 
 The trusted panel reservation projection is scoped to both the active collaboration domain and physical checkout. It pages 50 records using creation sequence, includes expired/abandoned-owner metadata and uses the same lease assembly as native MCP reads. Active private reservations in that checkout may prevent conflicting shared grants, but their owner and record are absent from the shared projection. Pagination never traverses a different checkout implicitly. Renewal/release still require owner authority; UI request controls are a separate remaining gate.
 
+Native task filters reuse the operator task query's state, assignee and include-archived fields. Changing a filter clears task pagination and selected detail; it does not mutate task state. Participant buttons select scoped stable actor IDs, including authorized offline participants. The filtered empty state remains distinct from missing agents or a disconnected coordinator.
+
 ## Space preview pagination and admission
 
 `space_list` accepts optional `cursor` (last unique name) and `limit` (existing

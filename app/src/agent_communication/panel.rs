@@ -103,7 +103,7 @@ pub(crate) struct CollaborationPanel {
     in_flight: bool,
     status: String,
     task_buttons: HashMap<String, MouseStateHandle>,
-    page_buttons: [MouseStateHandle; 6],
+    page_buttons: [MouseStateHandle; 8],
     generation: u64,
     connected: bool,
     form: Option<controls::Form>,
@@ -113,6 +113,7 @@ pub(crate) struct CollaborationPanel {
     workspace_preview: Option<WorkspacePreview>,
     workspace_buttons: HashMap<String, MouseStateHandle>,
     scope_buttons: [MouseStateHandle; 5],
+    agent_task_buttons: HashMap<String, MouseStateHandle>,
 }
 
 #[derive(Clone, Debug)]
@@ -135,6 +136,9 @@ pub(crate) enum Action {
     PreviewWorkspace(String),
     ConfirmWorkspace,
     FirstSpaces,
+    FilterTaskState,
+    FilterTaskAssignee(Option<String>),
+    ToggleArchived,
     FirstReservations,
     NextReservations,
     NextSpaces,
@@ -172,6 +176,7 @@ impl CollaborationPanel {
             workspace_preview: None,
             workspace_buttons: Default::default(),
             scope_buttons: Default::default(),
+            agent_task_buttons: Default::default(),
         }
     }
 
@@ -264,6 +269,8 @@ impl CollaborationPanel {
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
+                    panel.agent_task_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
+                    for row in &snapshot.agents { panel.agent_task_buttons.entry(row.agent.id.clone()).or_default(); }
                     panel.focus_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
                     for row in &snapshot.agents { panel.focus_buttons.entry(row.agent.id.clone()).or_default(); }
                     panel.workspace_buttons.retain(|id, _| snapshot.spaces.iter().flat_map(|space| &space.workspaces).any(|workspace| &workspace.id == id));
@@ -309,6 +316,12 @@ impl CollaborationPanel {
                     snapshot.project
                 ),
                 "Only explicitly participating agents in this scope can collaborate.".into(),
+                format!(
+                    "Task filters · state {} · assignee {} · archived {}",
+                    self.query.task_state.as_deref().unwrap_or("any"),
+                    self.query.task_assignee.as_deref().unwrap_or("any"),
+                    self.query.include_archived
+                ),
             ],
         });
         if self.show_spaces {
@@ -614,6 +627,37 @@ impl TypedActionView for CollaborationPanel {
                         );
                     }
                     return;
+                }
+                Action::FilterTaskState => {
+                    let states = [
+                        None,
+                        Some("queued"),
+                        Some("blocked"),
+                        Some("running"),
+                        Some("cancel_requested"),
+                        Some("submitted"),
+                        Some("accepted"),
+                        Some("failed"),
+                        Some("expired"),
+                        Some("cancelled"),
+                    ];
+                    let index = states
+                        .iter()
+                        .position(|state| *state == self.query.task_state.as_deref())
+                        .unwrap_or(0);
+                    self.query.task_state = states[(index + 1) % states.len()].map(str::to_owned);
+                    self.query.task_after = None;
+                    self.query.selected_task = None;
+                }
+                Action::FilterTaskAssignee(id) => {
+                    self.query.task_assignee = id.clone();
+                    self.query.task_after = None;
+                    self.query.selected_task = None;
+                }
+                Action::ToggleArchived => {
+                    self.query.include_archived = !self.query.include_archived;
+                    self.query.task_after = None;
+                    self.query.selected_task = None;
                 }
                 Action::FirstReservations => {
                     self.query.reservation_after = None;
@@ -929,6 +973,61 @@ impl View for CollaborationPanel {
                     .with_padding_left(8.)
                     .finish(),
                 );
+            }
+        }
+        if !self.preview && !self.show_spaces && self.form.is_none() {
+            for (label, state, action) in [
+                (
+                    format!(
+                        "Task state: {} (next)",
+                        self.query.task_state.as_deref().unwrap_or("any")
+                    ),
+                    self.scope_buttons[4].clone(),
+                    Action::FilterTaskState,
+                ),
+                (
+                    format!(
+                        "Archived: {} (toggle)",
+                        if self.query.include_archived {
+                            "included"
+                        } else {
+                            "hidden"
+                        }
+                    ),
+                    self.page_buttons[6].clone(),
+                    Action::ToggleArchived,
+                ),
+                (
+                    "All assignees".into(),
+                    self.page_buttons[7].clone(),
+                    Action::FilterTaskAssignee(None),
+                ),
+            ] {
+                body.add_child(
+                    builder
+                        .button(ButtonVariant::Text, state)
+                        .with_text_label(label)
+                        .build()
+                        .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
+                        .finish(),
+                );
+            }
+            if let Some(snapshot) = &self.snapshot {
+                for row in &snapshot.agents {
+                    let id = row.agent.id.clone();
+                    body.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.agent_task_buttons[&id].clone())
+                            .with_text_label(format!("Tasks assigned to {}", row.agent.name))
+                            .build()
+                            .on_click(move |ctx, _, _| {
+                                ctx.dispatch_typed_action(Action::FilterTaskAssignee(Some(
+                                    id.clone(),
+                                )))
+                            })
+                            .finish(),
+                    );
+                }
             }
         }
         if !self.preview && self.show_spaces {
@@ -2108,6 +2207,75 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("live-pool-policy.png"),
         );
     filenames.push("live-pool-policy.png".into());
+    driver = driver
+        .with_step(
+            TestStep::new("filter native queued tasks by participant").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let worker = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .agents
+                            .iter()
+                            .find(|row| row.agent.name == "capture-worker")
+                            .unwrap()
+                            .agent
+                            .id
+                            .clone();
+                        panel.handle_action(&Action::FilterTaskState, ctx);
+                        panel.handle_action(&Action::FilterTaskAssignee(Some(worker)), ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native participant filter excludes unassigned pool")
+                .add_named_assertion("one explicitly assigned queued task", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .query
+                        .task_state
+                        .as_deref()
+                        == Some("queued")
+                        && panel
+                            .snapshot
+                            .as_ref()
+                            .is_some_and(|snapshot| snapshot.tasks.len() == 1
+                                && snapshot.tasks[0].assignee
+                                    == *panel.query.task_assignee.as_ref().unwrap())))
+                }),
+        )
+        .with_step(
+            TestStep::new("switch native task state and archive filter").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.handle_action(&Action::FilterTaskState, ctx);
+                        panel.handle_action(&Action::ToggleArchived, ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native filtered empty state retains draft")
+                .add_named_assertion("blocked filter is empty and explicit", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.query.task_state.as_deref()
+                            == Some("blocked")
+                            && panel.query.include_archived
+                            && panel
+                                .snapshot
+                                .as_ref()
+                                .is_some_and(|snapshot| snapshot.tasks.is_empty()))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-task-filtered.png"),
+        );
+    filenames.push("live-task-filtered.png".into());
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

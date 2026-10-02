@@ -147,6 +147,9 @@ pub struct PanelQuery {
     pub spaces: bool,
     pub space_after: Option<String>,
     pub reservation_after: Option<u64>,
+    pub task_state: Option<String>,
+    pub task_assignee: Option<String>,
+    pub include_archived: bool,
 }
 impl RunningBroker {
     /// Executable aliases live beside the private broker socket and disappear with the app.
@@ -1180,7 +1183,7 @@ impl Broker {
                 "ready": live.is_some_and(|live| live.ready.is_some()),
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
-        let tasks = state.store.operator_tasks(&project, None, None, same_scope.then_some(query.task_after).flatten(), Some(50), false)?;
+        let tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
         let task = query.selected_task.as_ref().filter(|_| same_scope).map(|id| state.store.operator_task(&project, id))
             .transpose()?;
         let runtime = task.as_ref().map(|task| {

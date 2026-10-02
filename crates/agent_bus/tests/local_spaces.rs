@@ -619,6 +619,27 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
     assert_eq!(offline["task_runtime"]["online"], false);
     assert_eq!(offline["task_runtime"]["interrupted"], true);
 
+    query.task_state = Some("accepted".into());
+    assert!(b.operator_panel(&query).unwrap()["tasks"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    query.task_state = Some("running".into());
+    assert_eq!(
+        b.operator_panel(&query).unwrap()["tasks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    query.task_assignee = Some(id());
+    assert!(b.operator_panel(&query).unwrap()["tasks"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    query.task_state = None;
+    query.task_assignee = None;
+
     for index in 0..51 {
         client(
             b,
