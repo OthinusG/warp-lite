@@ -199,3 +199,5 @@
 - Windows native screenshot readback needs surface COPY_SRC independently of the old integration_tests feature. Enable only for the explicit debug collaboration capture or integration tests; reject unsupported usage/format before GPU copy encoding.
 
 - macOS controller sockets share the existing /tmp broker runtime directory; the full Unix socket path must remain below SUN_LEN. Use a short random basename, not a long descriptive prefix, and remove only the nonce-owned socket on controller drop.
+
+- SSH participant sessions must verify the expected durable coordinator UUID before sending enrollment/authentication secrets, and derive connection epochs from server replies. Own and kill only the SSH child, drain stderr without persistence, and keep one-time credentials in memory until platform secure storage succeeds. Real-child stdio fixtures do not prove real SSH or platform credential acceptance.

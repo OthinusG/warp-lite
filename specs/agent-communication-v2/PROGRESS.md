@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `e54dc28`, run `36962285181`: both OS complete backend suites passed,
+  including actual controller/gateway enrollment/authentication/heartbeat/live
+  revocation/restart identity, stale ownership, bounded/private discovery,
+  malformed/oversize frame rejection and clean unavailable CLI stdio.
+- Added an owned system-SSH client session with expected-authority validation,
+  enrollment/authentication and grant-checked heartbeat. Added a credential-free
+  real-child/stdio fixture check for authority and authentication; CI pending.
+  This fixture is not real SSH authentication or platform credential persistence.
+
 - Source `47284a9`, run `36961667419`: Windows full backend validation passed,
   including the new real controller/gateway enrollment/authentication/heartbeat/
   live revocation and restart identity check. macOS is rerunning the socket-name

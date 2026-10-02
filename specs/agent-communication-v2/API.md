@@ -65,6 +65,15 @@ this per-user endpoint and emits a framed `coordinator_unavailable` failure when
 there is no running controller. This subset does not advertise production remote
 task availability.
 
+The participant SSH session owns its system-SSH child and all three pipes. It
+validates the expected durable coordinator UUID before delivering an invitation
+or credential, retains the server connection epoch internally, and requires
+successful authentication plus an explicit grant before heartbeat. Stderr is
+discarded through a bounded copy buffer rather than persisted or exposed. Closing
+the session terminates only its owned child. Enrollment returns credentials in
+memory so the application can persist them through platform secure storage; this
+client alone does not enable production participation or reconnect/replay.
+
 ## Resource shapes
 
 Local workspace mappings may carry an optional opaque UUID `repository_id`,

@@ -52,8 +52,8 @@ actual image review before the static UI checkpoint can pass.
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
-| M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; Windows real IPC enrollment/authentication/heartbeat/revocation passed in run 36961667419; macOS path-limit fix rerun pending | Application opt-in and remote task dispatch pending |
-| M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Windows controller IPC passed in run 36961667419; macOS corrected socket and secure participant storage pending |
+| M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; Both OS real IPC enrollment/authentication/heartbeat/revocation/restart and malformed frame checks passed in run 36962285181 | Application opt-in and remote task dispatch pending |
+| M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Both OS controller IPC passed in run 36962285181; secure participant storage pending |
 | M6.4 | Typed remote hello/result and bounded frame regressions passed both OS including golden/truncation checks in run 36951776747 | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |

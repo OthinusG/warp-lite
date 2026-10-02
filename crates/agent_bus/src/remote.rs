@@ -180,6 +180,221 @@ fn build_ssh_command(executable: &Path, alias: &str) -> Result<Command> {
     Ok(command)
 }
 
+/// Owns one system SSH child. Credentials and protocol payloads have no Debug representation.
+pub struct Connection {
+    child: tokio::process::Child,
+    input: tokio::process::ChildStdin,
+    output: tokio::process::ChildStdout,
+    diagnostics: tokio::task::JoinHandle<()>,
+    coordinator_id: uuid::Uuid,
+    connection_epoch: uuid::Uuid,
+    principal: Option<(uuid::Uuid, u64, Vec<uuid::Uuid>)>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum HelloResponse {
+    Negotiation(NegotiationFrame),
+    Authentication(crate::transport::remote_control::AuthenticationFrame),
+}
+
+impl Connection {
+    pub fn coordinator_id(&self) -> uuid::Uuid {
+        self.coordinator_id
+    }
+    pub fn connection_epoch(&self) -> uuid::Uuid {
+        self.connection_epoch
+    }
+
+    /// The expected durable authority comes from explicit enrollment, never from host-name matching.
+    pub async fn open(alias: &str, coordinator: uuid::Uuid) -> Result<Self> {
+        Self::from_command(ssh_command(alias)?, coordinator).await
+    }
+
+    async fn from_command(mut command: Command, coordinator: uuid::Uuid) -> Result<Self> {
+        use crate::transport::{receive, remote_control::AuthenticationFrame, send};
+        use std::time::{Duration, Instant};
+        ensure!(
+            !coordinator.is_nil(),
+            invalid_input("Expected coordinator identity is required")
+        );
+        command.kill_on_drop(true);
+        let mut child = command
+            .spawn()
+            .map_err(|_| crate::coordinator_unavailable("SSH channel could not start"))?;
+        let input = child
+            .stdin
+            .take()
+            .ok_or_else(|| crate::invalid_state("SSH input unavailable"))?;
+        let output = child
+            .stdout
+            .take()
+            .ok_or_else(|| crate::invalid_state("SSH output unavailable"))?;
+        let mut stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| crate::invalid_state("SSH diagnostics unavailable"))?;
+        // Discard diagnostics through Tokio's fixed-size copy buffer; never persist SSH output.
+        let diagnostics = tokio::spawn(async move {
+            let _ = tokio::io::copy(&mut stderr, &mut tokio::io::sink()).await;
+        });
+        let mut connection = Self {
+            child,
+            input,
+            output,
+            diagnostics,
+            coordinator_id: coordinator,
+            connection_epoch: uuid::Uuid::nil(),
+            principal: None,
+        };
+        let deadline = Instant::now() + Duration::from_secs(15);
+        send(
+            &mut connection.input,
+            &NegotiationFrame::Hello {
+                protocol_major: PROTOCOL_MAJOR,
+                protocol_minor: 0,
+                features: FEATURES.iter().map(|feature| (*feature).into()).collect(),
+                max_frame_bytes: crate::MAX_FRAME as u32,
+            },
+            deadline,
+        )
+        .await
+        .map_err(|_| crate::coordinator_unavailable("SSH negotiation failed"))?;
+        let response: HelloResponse = receive(&mut connection.output, deadline)
+            .await
+            .map_err(|_| crate::coordinator_unavailable("SSH negotiation failed"))?;
+        match response {
+            HelloResponse::Negotiation(NegotiationFrame::HelloResult {
+                protocol_major,
+                features,
+                max_frame_bytes,
+                coordinator_id,
+                connection_epoch,
+                ..
+            }) => {
+                NegotiationFrame::Hello {
+                    protocol_major,
+                    protocol_minor: 0,
+                    features,
+                    max_frame_bytes,
+                }
+                .negotiate(coordinator_id)?;
+                ensure!(
+                    coordinator_id == coordinator && !connection_epoch.is_nil(),
+                    crate::scope_denied("Coordinator authority does not match enrollment")
+                );
+                connection.connection_epoch = connection_epoch;
+            }
+            HelloResponse::Authentication(AuthenticationFrame::Error { error }) => {
+                return Err(error.into())
+            }
+            _ => return Err(invalid_input("Unexpected SSH negotiation response")),
+        }
+        Ok(connection)
+    }
+
+    async fn exchange(
+        &mut self,
+        frame: &crate::transport::remote_control::AuthenticationFrame,
+    ) -> Result<crate::transport::remote_control::AuthenticationFrame> {
+        use crate::transport::{receive, remote_control::AuthenticationFrame, send};
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        send(&mut self.input, frame, deadline)
+            .await
+            .map_err(|_| crate::coordinator_unavailable("SSH channel is unavailable"))?;
+        let response = receive(&mut self.output, deadline)
+            .await
+            .map_err(|_| crate::coordinator_unavailable("SSH channel is unavailable"))?;
+        match response {
+            AuthenticationFrame::Error { error } => Err(error.into()),
+            response => Ok(response),
+        }
+    }
+
+    /// Delivery remains in memory. The app must persist through platform secure storage before use.
+    pub async fn enroll(
+        &mut self,
+        invitation: String,
+        name: String,
+    ) -> Result<crate::transport::remote_control::AuthenticationFrame> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        ensure!(
+            self.principal.is_none(),
+            crate::invalid_state("Already authenticated")
+        );
+        let response = self
+            .exchange(&AuthenticationFrame::Enroll { invitation, name })
+            .await?;
+        ensure!(
+            matches!(&response, AuthenticationFrame::EnrollResult { .. }),
+            invalid_input("Unexpected enrollment response")
+        );
+        Ok(response)
+    }
+
+    pub async fn authenticate(&mut self, credential: String) -> Result<uuid::Uuid> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        ensure!(
+            self.principal.is_none(),
+            crate::invalid_state("Already authenticated")
+        );
+        let AuthenticationFrame::Authenticated {
+            device_id,
+            generation,
+            connection_epoch,
+            space_ids,
+        } = self
+            .exchange(&AuthenticationFrame::Authenticate { credential })
+            .await?
+        else {
+            return Err(invalid_input("Unexpected authentication response"));
+        };
+        ensure!(
+            generation > 0
+                && connection_epoch == self.connection_epoch
+                && !space_ids.is_empty()
+                && space_ids.len() <= 32
+                && space_ids
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    == space_ids.len(),
+            invalid_input("Invalid authentication context")
+        );
+        self.principal = Some((device_id, generation, space_ids));
+        Ok(device_id)
+    }
+
+    pub async fn heartbeat(&mut self, space: uuid::Uuid) -> Result<()> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        ensure!(
+            self.principal
+                .as_ref()
+                .is_some_and(|(_, _, spaces)| spaces.contains(&space)),
+            crate::scope_denied("Authenticate with a grant for this space")
+        );
+        let response = self
+            .exchange(&AuthenticationFrame::Heartbeat {
+                connection_epoch: self.connection_epoch,
+                space_id: space,
+            })
+            .await?;
+        ensure!(
+            matches!(response, AuthenticationFrame::HeartbeatResult { connection_epoch }
+            if connection_epoch == self.connection_epoch),
+            invalid_input("Unexpected heartbeat response")
+        );
+        Ok(())
+    }
+}
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        self.diagnostics.abort();
+        let _ = self.child.start_kill();
+    }
+}
+
 #[cfg(test)]
 #[path = "remote_tests.rs"]
 mod tests;

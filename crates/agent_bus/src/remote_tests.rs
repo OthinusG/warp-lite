@@ -246,3 +246,63 @@ async fn system_ssh_accepts_strict_background_options_without_connecting() {
         );
     }
 }
+
+#[test]
+fn owned_stdio_client_checks_authority_and_authenticated_space() {
+    use crate::transport::remote_control::AuthenticationFrame;
+    use std::{io::Write, process::Stdio};
+    let mut script = tempfile::NamedTempFile::new().unwrap();
+    script.write_all(br#"
+import json, struct, sys, uuid
+
+def read():
+    size = struct.unpack('>I', sys.stdin.buffer.read(4))[0]
+    return json.loads(sys.stdin.buffer.read(size))
+
+def send(value):
+    data = json.dumps(value).encode()
+    sys.stdout.buffer.write(struct.pack('>I', len(data)) + data)
+    sys.stdout.buffer.flush()
+
+hello = read()
+epoch, device, space = str(uuid.uuid4()), str(uuid.uuid4()), sys.argv[2]
+send(dict(type='hello_result', protocol_major=2, protocol_minor=0,
+          features=hello['features'], max_frame_bytes=hello['max_frame_bytes'],
+          coordinator_id=sys.argv[1], connection_epoch=epoch, presence_lease_ms=30000))
+while True:
+    frame = read()
+    if frame['type'] == 'enroll':
+        send(dict(type='enroll_result', device_id=device, credential='fixture-credential',
+                  generation=1, space_ids=[space]))
+    elif frame['type'] == 'authenticate':
+        send(dict(type='authenticated', device_id=device, generation=1,
+                  connection_epoch=epoch, space_ids=[space]))
+    elif frame['type'] == 'heartbeat':
+        send(dict(type='heartbeat_result', connection_epoch=epoch))
+"#).unwrap();
+    // Close the script handle before Python opens it on Windows.
+    let script = script.into_temp_path();
+    let coordinator = uuid::Uuid::new_v4();
+    let space = uuid::Uuid::new_v4();
+    let command = || {
+        #[cfg(target_os = "macos")]
+        let mut command = Command::new("python3");
+        #[cfg(windows)]
+        let mut command = Command::new("python");
+        command.arg(&script).arg(coordinator.to_string()).arg(space.to_string())
+            .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        command
+    };
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let rejected = Connection::from_command(command(), uuid::Uuid::new_v4()).await;
+        assert!(rejected.is_err());
+        let mut connection = Connection::from_command(command(), coordinator).await.unwrap();
+        assert!(connection.heartbeat(space).await.is_err());
+        let AuthenticationFrame::EnrollResult { credential, device_id, .. } = connection
+            .enroll("fixture-invitation".into(), "Fixture".into()).await.unwrap()
+            else { panic!("Expected enrollment delivery") };
+        assert_eq!(connection.authenticate(credential).await.unwrap(), device_id);
+        assert!(connection.heartbeat(uuid::Uuid::new_v4()).await.is_err());
+        connection.heartbeat(space).await.unwrap();
+    });
+}
