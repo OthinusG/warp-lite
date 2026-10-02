@@ -108,6 +108,8 @@ struct State {
     remote_active: bool,
     remote_owner: Option<Uuid>,
     remote_presence: HashMap<String, remote_control::ActorPresence>,
+    remote_connection_sequence: u64,
+    remote_native_connections: HashMap<String, (u64, Uuid)>,
 }
 impl State {
     fn expire_remote_presence(&mut self) -> Result<()> {
@@ -223,6 +225,8 @@ impl RunningBroker {
                 remote_active: false,
                 remote_owner: None,
                 remote_presence: HashMap::new(),
+                remote_connection_sequence: 0,
+                remote_native_connections: HashMap::new(),
             }),
             changed: Condvar::new(),
             stopped: AtomicBool::new(false),

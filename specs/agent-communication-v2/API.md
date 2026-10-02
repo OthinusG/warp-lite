@@ -506,3 +506,20 @@ ages use validated receipt-time presence. These are presentation facts, independ
 of readiness and task outcome. Offline observations remain unavailable, not a
 fabricated timestamp. Remote actors are labeled by device and never acquire a
 local terminal focus target. Fields remain optional in the native read model.
+
+
+### Native connection replacement fence
+
+The coordinator assigns a monotonically increasing in-memory connection order
+after Hello negotiation. ActorAnnounce checks the device-qualified native identity
+before registration; an older connection cannot replace a newer admission. Keep
+the latest owner after disconnect, bounded to 10,000 native identities, so delayed
+announcements cannot reclaim a run. No participant clock determines this order.
+
+Every mutation requires the current native connection and a valid receipt-time
+presence lease, before request-ledger replay. Heartbeat requires the same owner
+and cannot transfer ownership. A replacement announcement retains the original
+mutation epoch and marks previous unfinished execution unknown. Reconciliation
+can reveal an authorized retained receipt, but an absent receipt requires current
+connection ownership. The replacement fence and receipt lookup share the broker
+mutex; old queued frames cannot commit after that lookup returns not_committed.

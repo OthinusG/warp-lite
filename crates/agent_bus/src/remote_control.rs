@@ -23,6 +23,33 @@ use uuid::Uuid;
 const DEADLINE: Duration = Duration::from_secs(5);
 const PRESENCE: Duration = Duration::from_secs(30);
 
+fn connection_order(state: &super::State, native: &str, order: u64) -> Result<()> {
+    ensure!(
+        state
+            .remote_native_connections
+            .get(native)
+            .is_none_or(|(prior, _)| order >= *prior),
+        invalid_state("Native connection was superseded; reconnect before sending")
+    );
+    ensure!(
+        state.remote_native_connections.contains_key(native)
+            || state.remote_native_connections.len() < 10_000,
+        crate::capacity_exceeded("Remote native connection capacity reached")
+    );
+    Ok(())
+}
+
+fn owns_connection(state: &super::State, native: &str, connection: Uuid) -> Result<()> {
+    ensure!(
+        state
+            .remote_native_connections
+            .get(native)
+            .is_some_and(|(_, current)| *current == connection),
+        invalid_state("Announce the original native run on this connection before sending")
+    );
+    Ok(())
+}
+
 pub(super) struct ActorPresence {
     principal: RemotePrincipal,
     epoch: Uuid,
@@ -433,6 +460,16 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
         } => *connection_epoch,
         _ => unreachable!(),
     };
+    let order = {
+        let mut state = active(broker, owner)?;
+        state.remote_connection_sequence = state
+            .remote_connection_sequence
+            .checked_add(1)
+            .ok_or_else(|| {
+                crate::capacity_exceeded("Remote connection sequence capacity reached")
+            })?;
+        state.remote_connection_sequence
+    };
     send(stream, &result, Instant::now() + DEADLINE).await?;
     let _presence_guard = PresenceGuard {
         broker: broker.clone(),
@@ -519,12 +556,13 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     .as_ref()
                     .ok_or_else(|| crate::unauthorized("Authenticate before native presence"))?;
                 let mut state = active(broker, owner)?;
-                state.store.resolve_remote_run(
+                let actor = state.store.resolve_remote_run(
                     principal,
                     &actor_id.to_string(),
                     &mutation_epoch.to_string(),
                     false,
                 )?;
+                owns_connection(&state, &actor.terminal, epoch)?;
                 ensure!(
                     state.remote_presence.contains_key(&actor_id.to_string())
                         || state.remote_presence.len() < 1000,
@@ -566,7 +604,9 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 let principal = principal
                     .as_ref()
                     .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
-                let state = active(broker, owner)?;
+                let mut state = active(broker, owner)?;
+                let native = format!("remote:{}:{native_session}", principal.device);
+                connection_order(&state, &native, order)?;
                 let workspace = RemoteWorkspace {
                     id: workspace_id.to_string(),
                     device: principal.device.clone(),
@@ -584,6 +624,19 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                         &name,
                     )
                     .map_err(crate::classify_storage)?;
+                if let Some(presence) = state.remote_presence.get(&registered.actor.id) {
+                    if presence.connection != epoch {
+                        state.store.observe_remote_disconnect(
+                            &registered.actor.id,
+                            &presence.mutation_epoch(),
+                        )?;
+                        state.remote_presence.remove(&registered.actor.id);
+                    }
+                }
+                // Retain ownership after disconnect: an older queued announcement cannot reclaim a run.
+                state
+                    .remote_native_connections
+                    .insert(native, (order, epoch));
                 AuthenticationFrame::ActorAnnounced {
                     connection_epoch: epoch,
                     actor: registered.actor,
@@ -638,7 +691,8 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     &run,
                     write,
                 )?;
-                if matches!(operation, Operation::TaskClaim { .. }) {
+                if write {
+                    owns_connection(&state, &actor.terminal, epoch)?;
                     ensure!(
                         state
                             .remote_presence
@@ -647,7 +701,7 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                                 && presence.epoch == mutation_epoch
                                 && presence.valid(&state.store, &actor.id)),
                         crate::invalid_state(
-                            "Native presence expired; reconnect before claiming work"
+                            "Native presence expired; reconnect before mutating work"
                         )
                     );
                 }
@@ -681,6 +735,15 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     &mutation_epoch.to_string(),
                     &operation,
                 )?;
+                if result["status"] == "not_committed" {
+                    let actor = state.store.resolve_remote_run(
+                        principal,
+                        &actor_id.to_string(),
+                        &mutation_epoch.to_string(),
+                        true,
+                    )?;
+                    owns_connection(&state, &actor.terminal, epoch)?;
+                }
                 AuthenticationFrame::Reconciled {
                     connection_epoch: epoch,
                     frame_id,
@@ -1318,7 +1381,7 @@ mod tests {
                 .unwrap();
             send(
                 &mut client,
-                &AuthenticationFrame::Authenticate { credential },
+                &AuthenticationFrame::Authenticate { credential: credential.clone() },
                 Instant::now() + DEADLINE,
             )
             .await
@@ -1348,7 +1411,11 @@ mod tests {
                 panic!("Expected heartbeat")
             };
             let mut actors = Vec::new();
+            let mut native_runs = Vec::new();
             for name in ["remote-issuer", "remote-worker"] {
+                let native_session = Uuid::new_v4();
+                let native_run = Uuid::new_v4();
+                native_runs.push((native_session, native_run));
                 send(
                     &mut client,
                     &AuthenticationFrame::ActorAnnounce {
@@ -1356,8 +1423,8 @@ mod tests {
                         workspace_id: Uuid::parse_str(&workspace.id).unwrap(),
                         space_id: Uuid::parse_str(&space).unwrap(),
                         checkout_id: checkout,
-                        native_session: Uuid::new_v4(),
-                        native_run: Uuid::new_v4(),
+                        native_session,
+                        native_run,
                         program: "codex".into(),
                         name: name.into(),
                     },
@@ -1541,6 +1608,66 @@ mod tests {
                 else { panic!("Expected confirmed scoped cursor") };
             assert_eq!(result["sequence"], confirmed_sequence);
 
+            let (mut replacement, relay) = tokio::io::duplex(crate::MAX_FRAME * 2);
+            let path = descriptor.clone();
+            let replacement_task = tokio::spawn(async move {
+                let (input, output) = tokio::io::split(relay);
+                gateway(&path, input, output).await
+            });
+            send(&mut replacement, &hello, Instant::now() + DEADLINE).await.unwrap();
+            let NegotiationFrame::HelloResult { connection_epoch: replacement_epoch, .. } =
+                receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected replacement connection") };
+            send(&mut replacement, &AuthenticationFrame::Authenticate { credential },
+                Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::Authenticated { .. } =
+                receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected replacement authentication") };
+            send(&mut replacement, &AuthenticationFrame::ActorAnnounce {
+                connection_epoch: replacement_epoch,
+                workspace_id: Uuid::parse_str(&workspace.id).unwrap(),
+                space_id: Uuid::parse_str(&space).unwrap(), checkout_id: checkout,
+                native_session: native_runs[0].0, native_run: native_runs[0].1,
+                program: "codex".into(), name: "remote-issuer".into(),
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::ActorAnnounced { actor, mutation_epoch, .. } =
+                receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected original run replacement admission") };
+            assert_eq!(actor.id, actors[0].0.id);
+            assert_eq!(mutation_epoch, actors[0].1);
+            let absent_request = Uuid::new_v4().to_string();
+            let absent = Operation::AgentSend { to: actors[1].0.name.clone(), body: "Fenced old request".into(),
+                subject: None, thread_id: None, reply_to: None, task_id: None, request_id: absent_request };
+            send(&mut replacement, &AuthenticationFrame::Reconcile {
+                connection_epoch: replacement_epoch, frame_id: Uuid::new_v4(),
+                actor_id: Uuid::parse_str(&actor.id).unwrap(), mutation_epoch,
+                operation: absent.clone(),
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::Reconciled { result, .. } =
+                receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected fenced absent receipt") };
+            assert_eq!(result["status"], "not_committed");
+            send(&mut client, &AuthenticationFrame::Operation {
+                connection_epoch, frame_id: Uuid::new_v4(),
+                actor_id: Uuid::parse_str(&actor.id).unwrap(), mutation_epoch, operation: absent.clone(),
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::Error { error } =
+                receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected old connection write fencing") };
+            assert_eq!(error.code, "invalid_state");
+            let _ = task.await.unwrap();
+            {
+                let state = server.broker.store().unwrap();
+                assert_eq!(state.store.reconcile_remote_request(&RemotePrincipal {
+                    device: device_id.to_string(), generation: 1,
+                }, &actor.id, &mutation_epoch.to_string(), &absent).unwrap()["status"], "not_committed");
+                let native = &actor.terminal;
+                let order = state.remote_native_connections[native].0;
+                assert!(connection_order(&state, native, order - 1).is_err());
+                assert!(owns_connection(&state, native, connection_epoch).is_err());
+                assert!(owns_connection(&state, native, replacement_epoch).is_ok());
+            }
+
             server
                 .broker
                 .control(
@@ -1551,18 +1678,21 @@ mod tests {
                     },
                 )
                 .unwrap();
-            send(&mut client, &operation(), Instant::now() + DEADLINE)
+            send(&mut replacement, &AuthenticationFrame::Operation {
+                connection_epoch: replacement_epoch, frame_id: Uuid::new_v4(),
+                actor_id: Uuid::parse_str(&actor.id).unwrap(), mutation_epoch, operation: absent,
+            }, Instant::now() + DEADLINE)
                 .await
                 .unwrap();
             let AuthenticationFrame::Error { error } =
-                receive(&mut client, Instant::now() + DEADLINE)
+                receive(&mut replacement, Instant::now() + DEADLINE)
                     .await
                     .unwrap()
             else {
                 panic!("Expected revocation")
             };
             assert_eq!(error.code, "device_revoked");
-            let _ = task.await.unwrap();
+            let _ = replacement_task.await.unwrap();
             // Session cleanup removes only ephemeral online leases, not durable tasks.
             for _ in 0..20 {
                 if server.broker.store().unwrap().remote_presence.is_empty() { break; }

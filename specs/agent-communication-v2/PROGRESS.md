@@ -584,3 +584,28 @@ Tools Panel integration points:
 - Source `15460de`, run `36976343320`: both applications compiled; native capture failed after 94 images. Action acceptance exposed ordinary retry treating a force-cancellation override as authorization for replacement execution. The shared retry/reassignment guard is being corrected and revalidated; no acceptance is claimed for this run.
 - Shared scope preview/create/map/leave controls and reviewed new-tab admission are implemented. Source `00c86d0` runs `36977526463`; native shared admission driver source `f822201` runs `36977759626`. Both are validation checkpoints, not completed M4 acceptance. The retained driver now additionally covers pool creation and deadline policy.
 - Eight-hour backend soak dispatched on fixed baseline `3d66017`, run `36977886213`. This is an in-progress backend stability check, not real vendor or physical-device acceptance and not yet a passed soak.
+
+
+## 2026-10-02 build and remote safety checkpoint
+
+- Full source dc46ca6 passed macOS and Windows backend/history, default and
+  warp_platform application checks, release packaging and 115 native captures
+  in run 36998413298. This is a complete build checkpoint, not whole-plan acceptance.
+- Presence, reviewed grants, unknown execution on connection loss, scoped
+  snapshots/confirmed cursors, shutdown failure fencing and cursor restart
+  passed both OS backend suites in runs 37002464526, 37002776680, 37003138274,
+  37003690031, 37004266066 and 37004317107 respectively.
+- Sources 5b988d3/cec947a passed both backend suites including explicit original
+  owner completion of an unknown attempt. Their native builds failed because
+  the capture assertion used App.clipboard instead of the existing ViewContext
+  accessor; b1bf828 fixes it. Run 37009716224 rechecks native history export and
+  participant metadata on both platforms. No successful new UI acceptance yet.
+- Added coordinator-ordered native connection ownership before writes and absent
+  receipt reconciliation. The real IPC check replaces a connection without
+  changing its original epoch, obtains not_committed, then rejects the delayed
+  old write and verifies the receipt is still absent. Exact-source CI pending.
+- Baseline 3d66017 completed four-hour soak phase 1 on both platforms; phase 2
+  remains running. This baseline does not cover later remote changes.
+- Production native remote opt-in, secure credential persistence, participant
+  MCP routing, guarded wake and physical checkout conflict guards remain unfinished.
+  Physical cross-device and vendor model acceptance remain unavailable.

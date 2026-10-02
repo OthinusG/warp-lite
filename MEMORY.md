@@ -257,3 +257,7 @@
 - Native history clipboard acceptance is restricted to isolated GitHub runners. Capture the exact page before explicit CopyHistory and compare only that owned fixture result, including scope/cursor/order/linkage and unchanged draft; local capture mode never reads or overwrites the daily user's clipboard.
 
 - Native participant rows show qualified device, physical checkout and monotonic observation age without equating connectivity/activity with readiness or task outcome. Remote ages come from validated receipt leases; offline ages stay unavailable. Local focus remains limited to existing VIEWS matches. Preserve native labels and scroll/wrapping when adding these metadata facts.
+
+
+- Native remote reconnect must fence the device-qualified native connection before absent-receipt reconciliation. Keep server-ordered owner tombstones after disconnect, reject older announcements and heartbeats, and guard every write before ledger replay. Otherwise a delayed old frame can commit after a new connection reports not_committed. Retain original mutation epochs and mark superseded execution unknown.
+- Native capture assertions access clipboard through an existing ViewContext, not App. Explicit history export verification runs only on isolated GitHub runners; local captures must not inspect or replace the daily clipboard.
