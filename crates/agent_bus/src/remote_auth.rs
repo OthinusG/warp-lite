@@ -233,6 +233,8 @@ impl Store {
         self.authorize_remote(principal, space, false)?;
         let project = format!("space:{space}");
         let high_water = self.history_sequence(&project)?;
+        let confirmed = self.count("SELECT COALESCE(MAX(sequence),0) AS count FROM cursors WHERE device_id=? AND space_id=?", &[&principal.device, space])? as u64;
+        let after = after.or(Some(confirmed));
         ensure!(
             after.is_none_or(|after| after <= high_water),
             crate::domain(
@@ -244,6 +246,7 @@ impl Store {
         );
         let mut page = self.events(&project, after, limit)?;
         page["high_water"] = json!(high_water);
+        page["confirmed_cursor"] = json!(confirmed);
         Ok(page)
     }
 
@@ -448,7 +451,9 @@ mod tests {
     }
     #[test]
     fn remote_snapshot_fences_changed_pages_and_confirms_only_received_space_cursors() {
-        let store = Store::open(":memory:").unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("remote-cursors.sqlite");
+        let store = Store::open(database.to_str().unwrap()).unwrap();
         let space = store
             .execute_controller(
                 "/private",
@@ -525,6 +530,14 @@ mod tests {
         assert!(store
             .acknowledge_remote_cursor(&principal, &space, original_sequence)
             .is_err());
+        drop(store);
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        let resumed = store
+            .remote_events(&principal, &space, None, Some(2))
+            .unwrap();
+        assert_eq!(resumed["confirmed_cursor"], sequence);
+        assert!(resumed["events"].as_array().unwrap().is_empty());
+
         assert!(store
             .remote_snapshot(&principal, &id(), None, None, None)
             .is_err());

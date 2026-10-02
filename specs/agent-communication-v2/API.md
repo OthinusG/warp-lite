@@ -477,3 +477,8 @@ granted space. It cannot advance beyond coordinator high-water or move backwards
 Grant/generation checks precede reading/updating cursor rows. These read projections
 and cursor metadata are not task ownership or execution authority; no automatic
 replay, compaction or remote terminal wake is introduced.
+
+With no explicit `after`, remote event reads resume from that device/space's durable
+confirmed cursor (zero before the first confirmation). Replies include
+`confirmed_cursor` and current `high_water`. SQLite reopening preserves that cursor;
+reads and transport reconnects never advance it without an explicit confirmation.
