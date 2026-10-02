@@ -1126,8 +1126,10 @@ impl Broker {
         Ok(result)
     }
     fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
-        let mut state = self.shared.state.lock()
+        let state = self.shared.state.lock()
             .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
+        #[cfg(all(test, any(target_os = "macos", windows)))]
+        let mut state = state;
         #[cfg(all(test, any(target_os = "macos", windows)))]
         state.expire_remote_presence()?;
         Ok(state)

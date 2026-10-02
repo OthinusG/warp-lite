@@ -361,3 +361,17 @@ These are specification changes; source implementation/removal remains pending.
 - Checkpoint scope/verification: specs/agent-communication-v2/IMPLEMENTATION.md.
   Local Rust parsing, SQL and whitespace checks passed; exact-source GitHub
   protocol/application/runtime acceptance is pending. SSH Remote is not delivered.
+
+- User requirement on 2026-10-03: the SSH task panel must include remote host
+  status. SR41/HOST-STATUS.md pins host/account/project and separate SSH/SFTP/
+  companion/MCP status, remote CPU/memory/project-volume space, source/age and
+  expanded OS/architecture/uptime. Unsupported/offline values are unavailable or
+  stale; no local fallback, readiness inference or background focus change.
+  Specification is updated; the remote status source/UI is not implemented yet.
+
+- R0 validation source 4c27262/run 37038998741 passed both desktop OS protocol/
+  setup and representative-history steps; application builds were in progress.
+  Follow-up shared macOS deletion uses the pinned security-framework direct
+  delete API: no password retrieval and OS deletion failures are propagated.
+  Stronger local-attempt/receipt/selection checks and this provider change await
+  a fresh exact-source run. Native keychain runtime acceptance remains pending.

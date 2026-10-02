@@ -180,3 +180,14 @@ Rust builds/tests run on GitHub. Build local macOS/Windows desktop/default/warp_
 ## Primary references
 
 [OpenSSH ssh manual](https://man.openbsd.org/ssh) defines remote command and authentication/forwarding behavior. [OpenSSH sftp manual](https://man.openbsd.org/sftp) defines the SSH-based transfer client and batch/resume options. Use these alongside pinned implementation code; neither document proves current repository functionality. SFTP is the only planned transfer protocol.
+
+
+## Host status projection (SR41)
+
+The SSH task panel's status header reads bounded remote host observations from
+its exact environment/project attachment. Reuse the companion's control channel
+and GUI generation fence; no separate metrics transport/daemon or central
+telemetry is needed. OS-native counters supply optional CPU/memory/uptime; volume
+space refers to the selected remote root. Missing, stale and disconnected data
+remain distinct. See [HOST-STATUS.md](HOST-STATUS.md). Implementation and static/
+live host-status acceptance remain pending.

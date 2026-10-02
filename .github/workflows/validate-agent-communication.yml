@@ -67,6 +67,11 @@ jobs:
         run: |
           cargo check -p warp --bin warp-oss --locked
           cargo check -p warp --bin warp-oss --features warp_platform --locked
+      - name: Verify Windows legacy metadata and credential cleanup
+        if: ${{ !inputs.protocol_only }}
+        run: |
+          cargo test -p warp --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warp --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
       - name: Prepare Windows packaging dependencies
         if: ${{ !inputs.protocol_only }}
         run: bash script/install_cargo_release_deps

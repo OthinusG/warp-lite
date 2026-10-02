@@ -272,3 +272,14 @@ Old v6 device/workspace/run/intents are not converted through a rename. Their re
 ## 11. Executable checks required
 
 Derived types/feature schemas must validate bounds, unknown fields and identity pinning. Check SSH argv versus remote shell encoding separately, malicious filenames, unsupported capabilities, receipt matching, changed original content, authority/run replacement and two concurrent session/claim attempts. Use real controlled SSH/SFTP and remote helper processes for execution/file/session checks; codec fixtures alone are insufficient. See V01–V24 in ACCEPTANCE.md.
+
+
+## 12. Remote host status projection (SR41)
+
+`HostStatus` is a read-only managed-control operation bound to the current
+verified environment/project/service attachment. It reports separate connection
+capabilities and optional remotely sampled metrics, never Agent readiness.
+The status header consumes this projection alongside the same remote task
+snapshot. See [HOST-STATUS.md](HOST-STATUS.md) for fields, polling bounds,
+missing/stale semantics and scope fencing. No Agent MCP tool or local metrics
+fallback is added.

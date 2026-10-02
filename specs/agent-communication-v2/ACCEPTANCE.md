@@ -1,6 +1,6 @@
 # SSH Remote Acceptance and Historical Evidence
 
-Date: 2026-10-03. Current scope: SSH/SFTP-only, local GUI macOS/Windows, remote environments Linux/macOS/Windows. All V01–V24 gates below are **pending**. Existing local protocol/native screenshot evidence is reusable regression evidence, not SSH Remote acceptance. No document update executes or deletes code.
+Date: 2026-10-03. Current scope: SSH/SFTP-only, local GUI macOS/Windows, remote environments Linux/macOS/Windows. All V01–V24 gates below are **pending**. Existing local protocol/native screenshot evidence is reusable regression evidence, not SSH Remote acceptance. Source cutover has begun; pending gates are not passed by documentation or source inspection.
 
 ## R0 cutover checkpoint — 2026-10-03
 
@@ -9,7 +9,11 @@ Rust syntax parsing (rustfmt emit only), SQLite schema/cutover SQL, workflow YAM
 and diff whitespace checks passed. These are static checks, not Rust compilation.
 New checks cover read-only legacy profiles, cleanup without credential reads,
 retired controller/gateway refusal and v6 backup/unknown-attempt/intent retention.
-Exact-source GitHub protocol and application checks are pending. V01/V02/V18
+Source `4c27262`, [run 37038998741](https://github.com/OthinusG/warp-lite/actions/runs/37038998741),
+passed macOS and Windows protocol/setup and representative-history checks.
+Application checks were still running at the checkpoint. Subsequent macOS
+provider deletion and stronger local-task/receipt/selection checks require a new
+exact-source run. V01/V02/V18
 and R0 remain pending; no SSH/process/SFTP/GUI gate is claimed.
 
 ## Current gate matrix
@@ -65,6 +69,7 @@ Local GitHub runners, containers and loopback SSH are controlled runtime evidenc
 - SR18–SR22: V07/V13–V15, V19, V23.
 - SR23–SR33: V07/V08/V15–V20/V22/V23.
 - SR34–SR40: V01/V02/V18/V20–V24.
+- SR41 (remote host status): V05/V21/V22/V23; HOST-STATUS.md; implementation pending.
 
 R0 exit: V01/V02/V18. R1: V03/V04/V05. R2: V06/V07/V08/V17. R3: V09–V12. R4: V13–V15. R5: V16/V17/V19/V20. R6: V21/V22. R7: every gate applicable to a published capability. A blocked vendor/physical row limits the release claim rather than turning unfinished engineering into completion.
 

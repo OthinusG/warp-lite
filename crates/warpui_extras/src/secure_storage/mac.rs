@@ -37,9 +37,9 @@ impl super::SecureStorage for SecureStorage {
     }
 
     fn remove_value(&self, key: &str) -> Result<(), Error> {
-        let (_, item) = self.get_password_item(key)?;
-        item.delete();
-        Ok(())
+        // Delete by namespace without loading the secret, and preserve OS failures.
+        security_framework::passwords::delete_generic_password(&self.service_name, key)
+            .map_err(Into::into)
     }
 }
 

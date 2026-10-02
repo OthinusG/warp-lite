@@ -1,6 +1,6 @@
 # Warpai SSH Remote and File Management Plan
 
-Date: 2026-10-03. Status: revised product plan; SSH Remote is not implemented or accepted. This revision supersedes the former M6 machine-to-machine collaboration direction. Existing source remains unchanged by this documentation task. No item below becomes complete merely because an earlier gateway test passed.
+Date: 2026-10-03. Status: revised product plan; SSH Remote is not implemented or accepted. This revision supersedes the former M6 machine-to-machine collaboration direction. R0 implementation has begun; see IMPLEMENTATION.md for the source checkpoint and pending gates. No item below becomes complete merely because an earlier gateway test passed.
 
 ## 1. Outcome and reading order
 
@@ -141,7 +141,7 @@ File browsing and terminal foundations may be developed independently after iden
 ### R6 — Unified GUI and task management
 
 - [ ] **R6.1** Static UI acceptance precedes live data: Connections/Projects, Explorer, Transfers, existing Tab/Pane sidebar status/actions and on-demand collaboration task/message detail using existing themes/components. No duplicate Agent/Session dashboard.
-- [ ] **R6.2** Bind remote tree, sidebar Agent/session rows, terminals, on-demand tasks/messages/history and transfers to exact environment/project. Independent tabs retain their own scope; all session status and task badges share the authoritative projections.
+- [ ] **R6.2** Bind remote tree, sidebar Agent/session rows, terminals, on-demand tasks/messages/history, remote host status (SR41/HOST-STATUS.md) and transfers to exact environment/project. Independent tabs retain their own scope; all session status and task badges share the authoritative projections.
 - [ ] **R6.3** Reuse the collaboration panel for a compact active-task list/detail and messages, closed by default on fresh profiles. Keep assign/cancel/review where relevant; reveal retry/reassign/attempts/dependencies/archive/search/export/purge on demand. Preserve saved selection, show stale cache and disable unsafe writes offline; never require manual GUI steps for Agent-to-Agent communication.
 - [ ] **R6.4** Extend existing Tab/Pane rows and context actions for focus/rename/status/reconnect/stop/detach. Represent retained detached sessions in the same project hierarchy without duplicate entries. Add explicit task→exact owning session and sidebar→current task links; missing/replaced runs remain unavailable, never focus another same-named agent.
 - [ ] **R6.5** Reconnect diagnostics show SSH/authentication/helper/SFTP/MCP readiness separately with actionable remediation. Connection removal preserves task history and does not assert unreachable processes stopped.

@@ -831,8 +831,13 @@ mod tests {
             "alias": "old-host", "coordinator": Uuid::new_v4(), "device": Uuid::new_v4(),
             "generation": 1, "spaces": [Uuid::new_v4()],
         });
+        let selected = BTreeMap::from([("codex".to_owned(), Installed {
+            active: true, program: "codex".into(), executable: "/native/codex".into(),
+            adapter: Adapter::Codex("/native/config.toml".into()), bridge: "/native/warp-agent".into(),
+            search_paths: vec![], launch_options: Default::default(),
+        })]);
         let preferences: Preferences = serde_json::from_value(serde_json::json!({
-            "enabled": true, "selected": {}, "remote_profiles": [profile.clone()],
+            "enabled": true, "selected": selected, "remote_profiles": [profile.clone()],
         })).unwrap();
         assert!(preferences.enabled);
         assert_eq!(preferences.legacy_remote_profiles.len(), 1);
@@ -840,7 +845,8 @@ mod tests {
         let encoded = serde_json::to_value(&preferences).unwrap();
         assert!(encoded.get("remote_profiles").is_none());
         assert_eq!(encoded["legacy_remote_profiles"][0]["alias"], "old-host");
-        assert_eq!(encoded["selected"], serde_json::json!({}));
+        assert_eq!(encoded["selected"], serde_json::to_value(&selected).unwrap());
+        assert!(preferences.programs().contains("codex"));
         let roundtrip: Preferences = serde_json::from_value(encoded).unwrap();
         assert!(roundtrip.legacy_remote_profiles[0].cleanup_pending);
         let old: Preferences = serde_json::from_value(serde_json::json!({

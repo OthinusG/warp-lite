@@ -1,6 +1,6 @@
 # SSH Remote Source Cutover and Removal Inventory
 
-Date: 2026-10-03. Status: planned code disposition, not executed deletion. Source inspected on the agent-communication branch after b529062. This task changes documentation only. Use [PLAN.md](PLAN.md) R0/R7 for execution and [TECH.md](TECH.md) for the replacement architecture.
+Date: 2026-10-03. Status: R0 source cutover checkpoint implemented; exact-source checks pending. Source inspected on the agent-communication branch after b529062. The native enrollment worker is removed and the device runtime is excluded from production; remaining dispositions below are not all complete. See IMPLEMENTATION.md and ACCEPTANCE.md. Use [PLAN.md](PLAN.md) R0/R7 for execution and [TECH.md](TECH.md) for the replacement architecture.
 
 ## Disposition definitions
 

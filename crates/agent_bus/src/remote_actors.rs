@@ -898,6 +898,15 @@ mod tests {
                 subject: None, thread_id: None, reply_to: None, task_id: None, request_id: id() }).unwrap();
         let host = store.register("local", "codex", directory.path().to_str().unwrap(), "local").unwrap();
         let host_lease = store.execute(&host, "local-run", &reserve()).unwrap();
+        let local = store.execute(&Store::operator(&host.project), OPERATOR_EPOCH, &Operation::TaskAssign {
+            to: host.name.clone(), description: "Local work".into(), acceptance: "Unaffected".into(),
+            reviewer: None, dependencies: vec![], start_deadline: None,
+            execution_timeout_seconds: None, review_timeout_seconds: None, request_id: id(),
+        }).unwrap();
+        let local_id = local["id"].as_str().unwrap();
+        store.execute(&host, "local-run", &Operation::TaskStart { task_id: local_id.into(),
+            revision: 1, expected_version: None, request_id: id() }).unwrap();
+        let local_before = json!(store.operator_task(&host.project, local_id).unwrap());
         let before = store.operator_task(&domain, task_id).unwrap();
         store.connection.borrow_mut().batch_execute("UPDATE meta SET value='6' WHERE key='schema_version'").unwrap();
         store.set_legacy_payload(SENTINEL_V6).unwrap();
@@ -906,6 +915,11 @@ mod tests {
         assert_eq!(upgraded.meta_version().unwrap().as_deref(), Some(SCHEMA_VERSION));
         assert_eq!(read_legacy_payload(&format!("{path}.pre-upgrade-v6")).unwrap().as_deref(), Some(SENTINEL_V6));
         let after = upgraded.operator_task(&domain, task_id).unwrap();
+        assert_eq!(json!(upgraded.operator_task(&host.project, local_id).unwrap()), local_before);
+        let receipt = diesel::sql_query("SELECT response AS value FROM requests WHERE actor=? AND request_id=?")
+            .bind::<Text, _>(&actor.actor.id).bind::<Text, _>(start.request_id().unwrap())
+            .get_result::<ValueRow>(&mut *upgraded.connection.borrow_mut()).unwrap().value;
+        assert_eq!(serde_json::from_str::<Value>(&receipt).unwrap(), started);
         assert_eq!(after.state, "running");
         assert_eq!(after.description, before.description);
         assert_eq!(after.version, before.version + 1);

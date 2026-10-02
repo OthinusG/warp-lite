@@ -159,3 +159,17 @@ actual controller cancellation with unknown effects, a rejected normal retry and
 an explicitly confirmed retry. Verify a new revision retains the previous unknown
 attempt, with no false stopped outcome and no terminal draft loss. Source and
 platform render/action acceptance are pending.
+
+
+## SSH task panel host status checkpoint (SR41, pending)
+
+Reuse the existing Tools Panel/theme/paragraph/status controls as visual authority.
+Add a compact host/project header and progressively disclosed system details,
+without duplicating sidebar Agent/session management. Fixed fixtures must cover
+healthy host, connecting/authenticating, SSH-only, missing SFTP/helper/MCP,
+permission-denied/unsupported metrics, stale/offline last sample, long host/root,
+high utilization and project switching with an old callback. Capture narrow/wide,
+light/dark and 125% text; preserve the terminal draft and closed-panel default.
+Inspect status labels, wrapping, metric units, sample age and task/header scope
+agreement before live integration. Sample metrics stay explicitly labeled as
+fixtures. The prior 115 captures do not pass this new checkpoint.

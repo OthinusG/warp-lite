@@ -105,3 +105,22 @@ SSH provides project access and execution; SFTP provides file transfer. Linux, m
 39. **SR39 — Supported platforms.** The local GUI supports macOS/Windows and remote project environments support Linux/macOS/Windows through explicitly tested helper/shell/SFTP versions. Unsupported architecture/libc/shell configurations are reported. Linux remote support does not imply a Linux desktop release. Agent compatibility records name actual vendor versions rather than claiming universal support.
 
 40. **SR40 — Honest acceptance.** Separate source build, protocol fixture, real SSH/SFTP, native GUI, deterministic remote edit/test and real vendor-model execution evidence. Old device-gateway tests are historical evidence only. Unavailable physical machines or model budget remain unverified and cannot be presented as successful SSH Remote release acceptance.
+
+
+## Remote host status in the SSH task panel
+
+41. **SR41 — Host status alongside remote tasks.** The on-demand SSH task panel
+    includes a compact status header for its exact selected remote environment
+    and project: host/account/root, connection state and separate SSH, SFTP,
+    companion and MCP availability. Show remotely sampled CPU utilization,
+    memory used/total and free/total space on the selected project's volume,
+    with sample source and observation age; reveal OS/architecture and uptime
+    in expanded detail. Unsupported or denied metrics are unavailable, never
+    zero. Offline retains the last sample with a stale/offline label and cannot
+    imply current health or Agent readiness. Background refresh neither opens
+    the panel nor steals focus. A task viewed from history identifies its
+    producing host rather than displaying another tab's currently selected host.
+
+This requirement was added by the user on 2026-10-03. Its executable contract,
+static states and verification are defined in [HOST-STATUS.md](HOST-STATUS.md).
+It does not create another Agent/session dashboard or outbound telemetry service.
