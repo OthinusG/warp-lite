@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- M6.1 startup spike: native system OpenSSH path, bounded host alias, fixed
+  remote gateway command, strict known-host checks and noninteractive pipes;
+  disable forwarding, local commands and shared control sockets. Local macOS
+  `ssh -G` against an empty test config accepted all options without networking.
+  Added both-OS system option/injection/path regressions; Rust CI pending. This
+  does not expose a gateway or advertise remote task support.
+- Corrected clock-jump regression passed both OS full protocol/migration/history
+  suites: source `61a44cd`, run `36950035983`. Native interruption/UI gates remain.
+
 - Added explicit-clock sweep regression for forward/backward UTC jumps: no
   resurrection, duplicate deadline events, reassignment, lost attempts or replay
   start. Production still supplies current UTC; no system clock is modified.

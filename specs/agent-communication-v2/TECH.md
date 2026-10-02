@@ -151,6 +151,17 @@ Subscribe at the app model level and update visible rows incrementally. Storage/
 
 ### 9. SSH transport and trust
 
+M6.1 executable spike: construct an owned Tokio child using the platform system
+OpenSSH path, a bounded ASCII host alias and the fixed gateway command. The
+background channel uses BatchMode and strict known-host verification, disables
+agent/X11/port forwarding, local commands and shared control sockets, and keeps
+stderr separate. Native authentication remains an explicit prerequisite. Validate
+option parsing with system `ssh -G -F <empty test config>` on both OS jobs without
+network access or reading credentials; separately test injection-like aliases and
+executable paths containing spaces. This spike does not expose a gateway, enroll
+a device or satisfy real SSH/device acceptance. Reuse Tokio process/pipe ownership;
+no remote-server installation service or new transport dependency.
+
 Use the system OpenSSH executable as a child process with `-T` and a fixed `warp-agent remote-stdio` command on the selected SSH host. Standard streams carry the bounded length-prefixed JSON protocol; stderr contains bounded diagnostics. Host aliases are validated as data and may not introduce command-line options. No user task text, paths, tokens or commands are interpolated into the remote command. The host prerequisite is a verified companion command on the SSH session PATH; fail with setup guidance if absent. Test macOS shells and Windows OpenSSH's configured default shell rather than assuming Unix quoting.
 
 Reuse established SSH authentication and known-host verification. A setup connection may require the user's ordinary SSH authentication/host verification; reconnect uses noninteractive authentication and fails visibly if it needs user input. Never bypass changed host keys, enable agent forwarding or modify SSH/firewall/service settings automatically. Existing user-configured jump hosts may be used, but Warpai does not implement NAT traversal.

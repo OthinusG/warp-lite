@@ -38,7 +38,7 @@ actual image review before the static UI checkpoint can pass.
 | M2.2 | Signed `8ea58e2` debug review app completed 72 native macOS PNGs twice; narrow/wide detail inspected | Complete image review, scrolling/keyboard/focus and Windows render pending; native capture bypasses the accessibility-automation limitation |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
-| M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression added (GitHub pending); native interrupt unsupported-state UI pending |
+| M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression passed both OS in run 36950035983; native interrupt unsupported-state UI pending |
 | M3.2 | Stale run/attempt and explicit operator recovery tests | Retry/reassignment backend verified; panel pending |
 | M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
 | M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks passed on both OSes | Native presence acceptance remains distinct |
@@ -51,7 +51,7 @@ actual image review before the static UI checkpoint can pass.
 | M5.2 | Attempt-scoped evidence, opened-file SHA-256 and local Git-object tests | Backend verified; file-view integration and remote-unavailable labels pending |
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
-| M6.1 | No remote transport implementation | System SSH paths, authentication and known-host checks pending |
+| M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks added; CI pending | Real SSH authentication, changed hosts and remote stdio remain pending |
 | M6.2 | No remote gateway/control endpoint | Pending |
 | M6.3 | Device APIs explicitly return feature_unavailable | Enrollment, secure credentials, grants and revocation pending |
 | M6.4 | Local protocol major/features negotiation exists | Remote hello, device epochs, heartbeat, spool and resume pending |
