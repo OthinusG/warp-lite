@@ -10,7 +10,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     sync::atomic::Ordering,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
@@ -252,7 +252,7 @@ async fn session<S: AsyncRead + AsyncWrite + Unpin>(
         let _ = send(
             &mut stream,
             &Frame::Authentication(AuthenticationFrame::Error { error: safe }),
-            DEADLINE,
+            Instant::now() + DEADLINE,
         )
         .await;
     }
@@ -265,7 +265,7 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
     owner: Uuid,
 ) -> Result<()> {
     active(broker, owner)?;
-    let hello: NegotiationFrame = receive(stream, DEADLINE).await?;
+    let hello: NegotiationFrame = receive(stream, Instant::now() + DEADLINE).await?;
     let result = hello.negotiate(coordinator)?;
     let epoch = match &result {
         NegotiationFrame::HelloResult {
@@ -273,15 +273,15 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
         } => *connection_epoch,
         _ => unreachable!(),
     };
-    send(stream, &result, DEADLINE).await?;
+    send(stream, &result, Instant::now() + DEADLINE).await?;
     let mut principal = None;
     loop {
         let frame: AuthenticationFrame = receive(
             stream,
             if principal.is_some() {
-                PRESENCE
+                Instant::now() + PRESENCE
             } else {
-                DEADLINE
+                Instant::now() + DEADLINE
             },
         )
         .await?;
@@ -351,7 +351,7 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
             }
             _ => return Err(invalid_input("Unexpected controller frame")),
         };
-        send(stream, &response, DEADLINE).await?;
+        send(stream, &response, Instant::now() + DEADLINE).await?;
     }
 }
 
@@ -559,7 +559,7 @@ pub async fn gateway_stdio() -> Result<()> {
         send(
             &mut tokio::io::stdout(),
             &AuthenticationFrame::Error { error },
-            DEADLINE,
+            Instant::now() + DEADLINE,
         )
         .await?;
         return Err(coordinator_unavailable(
@@ -634,12 +634,16 @@ mod tests {
                 .map(|value| (*value).into())
                 .collect(),
             };
-            send(&mut client, &hello, DEADLINE).await.unwrap();
+            send(&mut client, &hello, Instant::now() + DEADLINE)
+                .await
+                .unwrap();
             let NegotiationFrame::HelloResult {
                 connection_epoch,
                 coordinator_id,
                 ..
-            } = receive(&mut client, DEADLINE).await.unwrap()
+            } = receive(&mut client, Instant::now() + DEADLINE)
+                .await
+                .unwrap()
             else {
                 panic!("Expected hello result")
             };
@@ -650,7 +654,7 @@ mod tests {
                     invitation,
                     name: "Participant".into(),
                 },
-                DEADLINE,
+                Instant::now() + DEADLINE,
             )
             .await
             .unwrap();
@@ -658,19 +662,23 @@ mod tests {
                 credential,
                 device_id,
                 ..
-            } = receive(&mut client, DEADLINE).await.unwrap()
+            } = receive(&mut client, Instant::now() + DEADLINE)
+                .await
+                .unwrap()
             else {
                 panic!("Expected enrollment")
             };
             send(
                 &mut client,
                 &AuthenticationFrame::Authenticate { credential },
-                DEADLINE,
+                Instant::now() + DEADLINE,
             )
             .await
             .unwrap();
             let AuthenticationFrame::Authenticated { .. } =
-                receive(&mut client, DEADLINE).await.unwrap()
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
             else {
                 panic!("Expected authentication")
             };
@@ -680,12 +688,14 @@ mod tests {
                     connection_epoch,
                     space_id: Uuid::parse_str(&space).unwrap(),
                 },
-                DEADLINE,
+                Instant::now() + DEADLINE,
             )
             .await
             .unwrap();
             let AuthenticationFrame::HeartbeatResult { .. } =
-                receive(&mut client, DEADLINE).await.unwrap()
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
             else {
                 panic!("Expected heartbeat")
             };
@@ -705,12 +715,14 @@ mod tests {
                     connection_epoch,
                     space_id: Uuid::parse_str(&space).unwrap(),
                 },
-                DEADLINE,
+                Instant::now() + DEADLINE,
             )
             .await
             .unwrap();
             let AuthenticationFrame::Error { error } =
-                receive(&mut client, DEADLINE).await.unwrap()
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
             else {
                 panic!("Expected revocation")
             };
