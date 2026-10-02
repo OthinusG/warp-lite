@@ -104,3 +104,14 @@ controls wrap without overlap or horizontal truncation. Narrow enlarged agent/ta
 lists and detail extend below the viewport and require scrolling; end-of-detail
 proof remains pending from the three-Page-Down revision. Windows remains pending.
 Diagnostic contact sheets are local review aids, not replacement native artifacts.
+
+Source `1267827`, run `36958662888`: macOS capture passed all 74 images and
+navigation/draft assertions. The three-Page-Down detail-end image was visually
+reviewed: final reservation warnings, human controls and uncertain-execution
+confirmation guidance are fully visible; the unsent draft remains intact.
+Windows still failed in wgpu command encoding after runtime DLL staging. Inspection
+of the retained readback path found COPY_SRC enabled only by `integration_tests`;
+the explicit debug capture needs the same usage. Source `25c80ed`, run
+`36961960929`, contains that correction and rejects unsupported texture usage or
+format before GPU copy encoding. Windows rerun and screenshot review remain
+required before live panel integration.
