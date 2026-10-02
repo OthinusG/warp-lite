@@ -1072,7 +1072,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Captures only fixed fixtures in an isolated debug profile; never enables live operations.
+/// Exercises fixed fixtures and deterministic local operations in an isolated debug profile.
 #[cfg(debug_assertions)]
 pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Result<()> {
     use crate::{
@@ -1650,6 +1650,176 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-cancelled.png",
             "live-retry-blocked.png",
             "live-retried.png",
+        ]
+        .map(str::to_owned),
+    );
+    let shared_fixture = directory.join("owned-shared-checkout");
+    std::fs::create_dir(&shared_fixture)?;
+    let shared_root = warp_agent_bus::project_root(&shared_fixture)?;
+    let mapping_root = shared_root.clone();
+    let original_view = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let saved_view = original_view.clone();
+    driver = driver
+        .with_step(
+            TestStep::new("create native shared space").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.handle_action(&Action::Back, ctx);
+                    panel.handle_action(&Action::Spaces, ctx);
+                    panel.open_control(controls::Kind::CreateSpace, ctx);
+                    panel.fill_control_checkpoint(&["Native reviewed collaboration"], ctx);
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native space created")
+                .add_named_assertion("space visible with original draft", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .spaces
+                                .iter()
+                                .any(|space| space.name == "Native reviewed collaboration")))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-space-created.png"),
+        )
+        .with_step(
+            TestStep::new("map owned checkout from native form").with_action(
+                move |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let space = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .spaces
+                            .iter()
+                            .find(|space| space.name == "Native reviewed collaboration")
+                            .unwrap()
+                            .id
+                            .clone()
+                            .unwrap();
+                        panel.open_control(controls::Kind::MapWorkspace, ctx);
+                        panel.fill_control_checkpoint(&[&space, &mapping_root, ""], ctx);
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("mapped checkout visible")
+                .add_named_assertion("private scope retained", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .admission
+                                == "private"
+                                && snapshot
+                                    .spaces
+                                    .iter()
+                                    .any(|space| !space.workspaces.is_empty())))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-workspace-mapped.png"),
+        )
+        .with_step(
+            TestStep::new("review exact native admission")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let id = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .spaces
+                            .iter()
+                            .flat_map(|space| &space.workspaces)
+                            .next()
+                            .unwrap()
+                            .id
+                            .clone();
+                        panel.handle_action(&Action::PreviewWorkspace(id), ctx);
+                    });
+                })
+                .with_take_screenshot("live-workspace-reviewed.png"),
+        )
+        .with_step(
+            TestStep::new("confirm new shared tab").with_action(move |app, window, _| {
+                *saved_view.lock().unwrap() = app.read(|ctx| {
+                    crate::workspace::ActiveSession::as_ref(ctx).terminal_view_id(window)
+                });
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.handle_action(&Action::ConfirmWorkspace, ctx)
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("new tab uses reviewed shared scope")
+                .add_named_assertion(
+                    "pending admission precedes native discovery",
+                    move |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(
+                            panel.read(app, |panel, _| panel.connected
+                                && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                    .admission
+                                    == "shared"
+                                    && snapshot.project.starts_with("space:")
+                                    && snapshot.agents.is_empty()))
+                                && app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
+                                    .path_if_local(window)
+                                    .and_then(|path| warp_agent_bus::project_root(path).ok())
+                                    .as_deref()
+                                    == Some(shared_root.as_str()))
+                        )
+                    },
+                )
+                .with_take_screenshot("live-workspace-shared-tab.png"),
+        )
+        .with_step(
+            TestStep::new("return to original private pane").with_action(move |app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                let terminal_view_id = original_view.lock().unwrap().unwrap();
+                workspace.update(app, |workspace, ctx| {
+                    workspace.handle_action(
+                        &WorkspaceAction::FocusTerminalViewInWorkspace { terminal_view_id },
+                        ctx,
+                    )
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("private work and draft survive shared tab")
+                .add_named_assertion("original private task and draft retained", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.connected
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .admission
+                                == "private"
+                                && snapshot.tasks.len() == 1
+                                && snapshot.tasks[0].revision == 2))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-workspace-private-retained.png"),
+        );
+    filenames.extend(
+        [
+            "live-space-created.png",
+            "live-workspace-mapped.png",
+            "live-workspace-reviewed.png",
+            "live-workspace-shared-tab.png",
+            "live-workspace-private-retained.png",
         ]
         .map(str::to_owned),
     );
