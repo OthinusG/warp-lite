@@ -38,7 +38,7 @@ actual image review before the static UI checkpoint can pass.
 | M2.2 | Signed `8ea58e2` debug review app completed 72 native macOS PNGs twice; narrow/wide detail inspected | Complete image review, scrolling/keyboard/focus and Windows render pending; native capture bypasses the accessibility-automation limitation |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
-| M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Native interrupt unsupported/unsupported-state UI and clock-jump acceptance pending |
+| M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression added (GitHub pending); native interrupt unsupported-state UI pending |
 | M3.2 | Stale run/attempt and explicit operator recovery tests | Retry/reassignment backend verified; panel pending |
 | M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
 | M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks passed on both OSes | Native presence acceptance remains distinct |

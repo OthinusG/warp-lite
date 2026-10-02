@@ -4,6 +4,11 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Added explicit-clock sweep regression for forward/backward UTC jumps: no
+  resurrection, duplicate deadline events, reassignment, lost attempts or replay
+  start. Production still supplies current UTC; no system clock is modified.
+  Both-platform GitHub verification is pending.
+
 - Native static panel keyboard/focus revision: pinned preview controls, native
   screen-reader state/help, Left/Right/Enter navigation, Page Up/Down scrolling
   and Escape return through existing Tools Panel focus actions. Ordinary opening

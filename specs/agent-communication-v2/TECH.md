@@ -103,7 +103,7 @@ Cancellation of queued/blocked/submitted work is immediate. Cancellation of runn
 
 The coordinator cannot undo external side effects or ensure an unreachable process stopped. A lost connection changes execution certainty to `unknown`; it does not automatically fail, cancel or reassign the task. A human override records the acknowledged risk, fences old submissions and leaves the old attempt in history. Recovery in a replacement pane requires a verified native binding, explicit reclaim of the stable agent identity, and known termination of the prior process or an operator override; a name match or expired network lease is insufficient. Never kill a broad process group.
 
-Deadlines are optional. Coordinator UTC timestamps define start/review deadlines; monotonic time drives live heartbeat/lease intervals. A start deadline can expire unstarted work. An execution deadline requests cancellation. An overdue review remains submitted and raises a visible reminder. Clock jumps must not create duplicate starts or silently transfer ownership; inject clocks in tests.
+Deadlines are optional. Coordinator UTC timestamps define start/review deadlines; monotonic time drives live heartbeat/lease intervals. A start deadline can expire unstarted work. An execution deadline requests cancellation. An overdue review remains submitted and raises a visible reminder. Clock jumps must not create duplicate starts or silently transfer ownership; inject clocks in tests. The durable deadline sweep accepts an explicit observed UTC value internally; production supplies the current clock, while regressions move that value backward and forward without changing the system clock. Event timestamps remain real observations.
 
 ### 5. Dependency and claim scheduling
 

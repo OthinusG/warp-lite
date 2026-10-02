@@ -1361,7 +1361,10 @@ impl Store {
 
     /// Deadline expiry is lazy: every mutation checks unstarted past-due work and overdue execution.
     pub(crate) fn sweep(&self, project: &str) -> Result<()> {
-        let now = now();
+        self.sweep_at(project, now())
+    }
+
+    fn sweep_at(&self, project: &str, now: u64) -> Result<()> {
         // Expired leases whose execution already resolved are dropped; unknown owners keep their warning.
         diesel::sql_query("DELETE FROM reservations WHERE workspace = ? AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty = 'active'))")
             .bind::<Text, _>(project)
@@ -6099,6 +6102,102 @@ mod tests {
         let expired_retry = store.task(&issuer, &task_id).unwrap();
         assert_eq!(expired_retry.revision, 3);
         assert_eq!(expired_retry.state, "expired", "An old revision's attempt must not suppress a new start deadline");
+    }
+
+    #[test]
+    fn clock_jumps_do_not_resurrect_work_or_transfer_execution() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let baseline = now();
+        let queued = store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &serde_json::from_value(json!({
+                    "op": "task_assign", "to": "worker", "description": "Queued work",
+                    "acceptance": "Evidence", "start_deadline": future(3600),
+                    "request_id": Uuid::new_v4().to_string()
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let queued_id = queued["id"].as_str().unwrap();
+        let running = store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &serde_json::from_value(json!({
+                    "op": "task_assign", "to": "worker", "description": "Running work",
+                    "acceptance": "Evidence", "execution_timeout_seconds": 3600,
+                    "request_id": Uuid::new_v4().to_string()
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let running_id = running["id"].as_str().unwrap();
+        let start = transition(running_id, 1, &Uuid::new_v4().to_string());
+        let started = store.execute(&worker, "worker-run", &start).unwrap();
+        let original = store.task(&issuer, running_id).unwrap();
+        assert_eq!(original.attempts.len(), 1);
+
+        store
+            .sweep_at(&issuer.project, baseline.saturating_sub(86400))
+            .unwrap();
+        assert_eq!(store.task(&issuer, queued_id).unwrap().state, "queued");
+        assert_eq!(
+            store.task(&issuer, running_id).unwrap().version,
+            original.version
+        );
+        store.sweep_at(&issuer.project, baseline + 86400).unwrap();
+        let expired = store.task(&issuer, queued_id).unwrap();
+        let overdue = store.task(&issuer, running_id).unwrap();
+        assert_eq!(expired.state, "expired");
+        assert!(expired.attempts.is_empty());
+        assert_eq!(overdue.state, "cancel_requested");
+        assert_eq!(json!(overdue.attempts), json!(original.attempts));
+        assert_eq!(overdue.assignee, worker.id);
+        let events = store.events(&issuer.project, None, Some(200)).unwrap();
+
+        // Moving UTC back cannot undo a committed expiry or prove execution stopped.
+        for observed in [baseline.saturating_sub(86400), baseline + 172800, baseline] {
+            store.sweep_at(&issuer.project, observed).unwrap();
+            assert_eq!(
+                store.task(&issuer, queued_id).unwrap().version,
+                expired.version
+            );
+            assert_eq!(
+                store.task(&issuer, running_id).unwrap().version,
+                overdue.version
+            );
+            assert_eq!(
+                store.events(&issuer.project, None, Some(200)).unwrap(),
+                events
+            );
+        }
+        assert_eq!(
+            store.execute(&worker, "worker-run", &start).unwrap(),
+            started
+        );
+        let current = store.task(&issuer, running_id).unwrap();
+        assert_eq!(current.state, "cancel_requested");
+        assert_eq!(json!(current.attempts), json!(original.attempts));
+        assert_eq!(
+            code(
+                &store
+                    .execute(
+                        &issuer,
+                        "issuer-run",
+                        &serde_json::from_value(json!({
+                            "op": "task_retry", "task_id": running_id, "reason": "Clock moved",
+                            "request_id": Uuid::new_v4().to_string()
+                        }))
+                        .unwrap()
+                    )
+                    .unwrap_err()
+            ),
+            "invalid_state"
+        );
     }
 
     #[test]
