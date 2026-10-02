@@ -236,6 +236,56 @@ impl Store {
         Ok(actor)
     }
 
+    /// Read an original receipt without executing it, including after that run was closed.
+    pub(crate) fn reconcile_remote_request(
+        &self,
+        principal: &RemotePrincipal,
+        agent: &str,
+        epoch: &str,
+        operation: &Operation,
+    ) -> Result<Value> {
+        let binding = self
+            .remote_binding(agent)?
+            .ok_or_else(|| scope_denied("Remote actor not found"))?;
+        ensure!(
+            binding.device == principal.device,
+            scope_denied("Actor belongs to another device")
+        );
+        self.authorize_remote(principal, &binding.space_id, false)?;
+        let actor = self.agent(&format!("space:{}", binding.space_id), agent)?;
+        self.authorize(&actor)?;
+        ensure!(
+            self.count(
+                "SELECT COUNT(*) AS count FROM remote_runs WHERE agent=? AND epoch=?",
+                &[agent, epoch]
+            )? == 1,
+            epoch_expired("Original remote run is unavailable")
+        );
+        let request_id = operation
+            .request_id()
+            .ok_or_else(|| invalid_input("Reconciliation requires an original mutation"))?;
+        ensure!(
+            Uuid::parse_str(request_id).is_ok(),
+            invalid_input("Original request UUID is required")
+        );
+        if let Some(row) = self.request_row(agent, request_id)? {
+            ensure!(
+                row.epoch == epoch,
+                epoch_expired("Receipt belongs to another original run")
+            );
+            ensure!(
+                row.fingerprint == serde_json::to_string(operation)?,
+                request_conflict("Original request content does not match its receipt")
+            );
+            return Ok(
+                json!({"status":"committed", "result":serde_json::from_str::<Value>(&row.response)?}),
+            );
+        }
+        // An absent receipt permits only replay under this still-authorized original epoch.
+        self.resolve_remote_run(principal, agent, epoch, true)?;
+        Ok(json!({"status":"not_committed"}))
+    }
+
     pub(super) fn remote_authorized(&self, actor: &Agent) -> Result<Option<bool>> {
         if self.remote_binding(&actor.id)?.is_none() {
             return Ok(None);
@@ -321,6 +371,85 @@ mod tests {
             ttl_seconds: None,
             request_id: id(),
         }
+    }
+
+    #[test]
+    fn original_receipt_survives_run_replacement_without_authorizing_new_execution() {
+        let store = Store::open(":memory:").unwrap();
+        let space = space(&store);
+        let principal = device(&store, &[space]);
+        let other = device(&store, &[space]);
+        let workspace = store
+            .map_remote_workspace(
+                &principal,
+                space,
+                Uuid::new_v4(),
+                "Participant checkout",
+                None,
+            )
+            .unwrap();
+        let session = Uuid::new_v4();
+        let actor = store
+            .register_remote_actor(
+                &principal,
+                &workspace,
+                session,
+                Uuid::new_v4(),
+                "codex",
+                "receipt-owner",
+            )
+            .unwrap();
+        let operation = reserve();
+        assert_eq!(
+            store
+                .reconcile_remote_request(&principal, &actor.actor.id, &actor.epoch, &operation)
+                .unwrap()["status"],
+            "not_committed"
+        );
+        let committed = store
+            .execute(&actor.actor, &actor.epoch, &operation)
+            .unwrap();
+        let replacement = store
+            .register_remote_actor(
+                &principal,
+                &workspace,
+                session,
+                Uuid::new_v4(),
+                "codex",
+                "receipt-owner",
+            )
+            .unwrap();
+        assert_ne!(actor.epoch, replacement.epoch);
+        let receipt = store
+            .reconcile_remote_request(&principal, &actor.actor.id, &actor.epoch, &operation)
+            .unwrap();
+        assert_eq!(receipt["status"], "committed");
+        assert_eq!(receipt["result"], committed);
+        assert!(store
+            .reconcile_remote_request(&principal, &actor.actor.id, &actor.epoch, &reserve())
+            .is_err());
+        assert!(store
+            .reconcile_remote_request(&other, &actor.actor.id, &actor.epoch, &operation)
+            .is_err());
+        let mut changed = operation.clone();
+        if let Operation::FileReserve { paths, .. } = &mut changed {
+            *paths = vec!["fixtures/changed.txt".into()];
+        }
+        assert!(store
+            .reconcile_remote_request(&principal, &actor.actor.id, &actor.epoch, &changed)
+            .is_err());
+        store
+            .execute_controller(
+                "/coordinator",
+                &ControllerOperation::DeviceRevoke {
+                    device_id: principal.device.clone(),
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        assert!(store
+            .reconcile_remote_request(&principal, &actor.actor.id, &actor.epoch, &operation)
+            .is_err());
     }
 
     #[test]

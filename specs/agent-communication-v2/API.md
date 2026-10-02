@@ -391,3 +391,17 @@ response's connection/correlation/original mutation epoch. It never creates a ne
 mutation request ID. Callers must persist pending intent before sending mutations;
 a transport failure does not authorize executing a replacement. Peer error text
 is discarded while known domain codes and numeric version metadata are retained.
+
+
+### Original remote receipt reconciliation
+
+Authenticated `reconcile` frames carry the original actor, mutation epoch and full
+mutation operation/request UUID. They query the existing request ledger under the
+controller mutex without executing a mutation. Current device generation, space
+grant and actor membership are checked before any receipt lookup. Matching retained
+receipts return `committed` and the original result even after run replacement;
+changed request content is `request_conflict`. An absent receipt returns
+`not_committed` only for the still-current authorized original epoch. A closed,
+expired or missing original run fails explicitly and cannot authorize a new epoch.
+`reconciled` replies preserve connection/correlation/original mutation identities.
+Participant persistence and wake routing remain unfinished.

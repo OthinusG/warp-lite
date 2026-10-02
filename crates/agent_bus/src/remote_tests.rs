@@ -293,6 +293,10 @@ while True:
             correlation = str(uuid.uuid4()) if operation.get('task_id') == 'wrong-correlation' else frame['frame_id']
             send(dict(type='operation_result', connection_epoch=epoch, frame_id=correlation,
                       mutation_epoch=frame['mutation_epoch'], result=dict(operation=operation)))
+    elif frame['type'] == 'reconcile':
+        send(dict(type='reconciled', connection_epoch=epoch, frame_id=frame['frame_id'],
+                  mutation_epoch=frame['mutation_epoch'], result=dict(status='committed',
+                  result=dict(operation=frame['operation']))))
     elif frame['type'] == 'events':
         send(dict(type='events_result', connection_epoch=epoch, frame_id=frame['frame_id'],
                   result=dict(events=[], cursor=frame.get('after'))))
@@ -363,6 +367,9 @@ while True:
         let first = connection.execute(&actor, &operation).await.unwrap();
         let replay = connection.execute(&actor, &operation).await.unwrap();
         assert_eq!(first, replay);
+        let receipt = connection.reconcile(&actor, &operation).await.unwrap();
+        assert_eq!(receipt["status"], "committed");
+        assert_eq!(receipt["result"], first);
         assert_eq!(
             first["operation"],
             serde_json::to_value(&operation).unwrap()

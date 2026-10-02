@@ -471,6 +471,28 @@ impl Connection {
         actor: &crate::storage::RemoteActor,
         operation: &crate::Operation,
     ) -> Result<serde_json::Value> {
+        self.actor_request(actor, operation, false).await
+    }
+
+    /// Query the original receipt before replaying an intent whose response was lost.
+    pub async fn reconcile(
+        &mut self,
+        actor: &crate::storage::RemoteActor,
+        operation: &crate::Operation,
+    ) -> Result<serde_json::Value> {
+        ensure!(
+            operation.request_id().is_some(),
+            invalid_input("Reconcile an original mutation")
+        );
+        self.actor_request(actor, operation, true).await
+    }
+
+    async fn actor_request(
+        &mut self,
+        actor: &crate::storage::RemoteActor,
+        operation: &crate::Operation,
+        reconcile: bool,
+    ) -> Result<serde_json::Value> {
         use crate::transport::remote_control::AuthenticationFrame;
         let space = actor
             .actor
@@ -499,23 +521,39 @@ impl Connection {
         let mutation_epoch = uuid::Uuid::parse_str(&actor.epoch)
             .map_err(|_| invalid_input("Invalid original mutation epoch"))?;
         let frame_id = uuid::Uuid::new_v4();
-        let AuthenticationFrame::OperationResult {
-            connection_epoch,
-            frame_id: received_id,
-            mutation_epoch: received_epoch,
-            result,
-        } = self
-            .exchange(&AuthenticationFrame::Operation {
+        let request = if reconcile {
+            AuthenticationFrame::Reconcile {
                 connection_epoch: self.connection_epoch,
                 frame_id,
                 actor_id,
                 mutation_epoch,
                 operation: operation.clone(),
-            })
-            .await?
-        else {
-            return Err(invalid_input("Unexpected operation response"));
+            }
+        } else {
+            AuthenticationFrame::Operation {
+                connection_epoch: self.connection_epoch,
+                frame_id,
+                actor_id,
+                mutation_epoch,
+                operation: operation.clone(),
+            }
         };
+        let (connection_epoch, received_id, received_epoch, result) =
+            match self.exchange(&request).await? {
+                AuthenticationFrame::OperationResult {
+                    connection_epoch,
+                    frame_id,
+                    mutation_epoch,
+                    result,
+                } if !reconcile => (connection_epoch, frame_id, mutation_epoch, result),
+                AuthenticationFrame::Reconciled {
+                    connection_epoch,
+                    frame_id,
+                    mutation_epoch,
+                    result,
+                } if reconcile => (connection_epoch, frame_id, mutation_epoch, result),
+                _ => return Err(invalid_input("Unexpected original-intent response")),
+            };
         ensure!(
             connection_epoch == self.connection_epoch
                 && received_id == frame_id

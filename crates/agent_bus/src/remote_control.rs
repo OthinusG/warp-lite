@@ -82,6 +82,19 @@ pub enum AuthenticationFrame {
         mutation_epoch: Uuid,
         result: serde_json::Value,
     },
+    Reconcile {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        actor_id: Uuid,
+        mutation_epoch: Uuid,
+        operation: Operation,
+    },
+    Reconciled {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        mutation_epoch: Uuid,
+        result: serde_json::Value,
+    },
     Events {
         connection_epoch: Uuid,
         frame_id: Uuid,
@@ -474,6 +487,34 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 let result = state.store.execute(&actor, &run, &operation)?;
                 broker.shared.changed.notify_all();
                 AuthenticationFrame::OperationResult {
+                    connection_epoch: epoch,
+                    frame_id,
+                    mutation_epoch,
+                    result,
+                }
+            }
+            AuthenticationFrame::Reconcile {
+                connection_epoch,
+                frame_id,
+                actor_id,
+                mutation_epoch,
+                operation,
+            } => {
+                ensure!(
+                    connection_epoch == epoch && !frame_id.is_nil(),
+                    invalid_input("Invalid reconciliation connection or correlation")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::scope_denied("Authenticate before reconciliation"))?;
+                let state = active(broker, owner)?;
+                let result = state.store.reconcile_remote_request(
+                    principal,
+                    &actor_id.to_string(),
+                    &mutation_epoch.to_string(),
+                    &operation,
+                )?;
+                AuthenticationFrame::Reconciled {
                     connection_epoch: epoch,
                     frame_id,
                     mutation_epoch,
@@ -1007,6 +1048,35 @@ mod tests {
                     review_timeout_seconds: None,
                 },
             };
+            let reconcile = || {
+                let AuthenticationFrame::Operation {
+                    actor_id,
+                    mutation_epoch,
+                    operation,
+                    ..
+                } = operation()
+                else {
+                    unreachable!()
+                };
+                AuthenticationFrame::Reconcile {
+                    connection_epoch,
+                    frame_id: Uuid::new_v4(),
+                    actor_id,
+                    mutation_epoch,
+                    operation,
+                }
+            };
+            send(&mut client, &reconcile(), Instant::now() + DEADLINE)
+                .await
+                .unwrap();
+            let AuthenticationFrame::Reconciled { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
+            else {
+                panic!("Expected original receipt lookup")
+            };
+            assert_eq!(result["status"], "not_committed");
             let mut original = None;
             for _ in 0..2 {
                 send(&mut client, &operation(), Instant::now() + DEADLINE)
@@ -1029,6 +1099,18 @@ mod tests {
                     original = Some(result);
                 }
             }
+            send(&mut client, &reconcile(), Instant::now() + DEADLINE)
+                .await
+                .unwrap();
+            let AuthenticationFrame::Reconciled { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
+            else {
+                panic!("Expected committed original receipt")
+            };
+            assert_eq!(result["status"], "committed");
+            assert_eq!(result["result"], original.unwrap());
             send(
                 &mut client,
                 &AuthenticationFrame::Events {
