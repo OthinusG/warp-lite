@@ -1004,7 +1004,7 @@ fn prerequisite_acceptance_and_dependent_start_serialize_over_authenticated_ipc(
             "review_first" => {
                 transport::call(endpoint, &issuer).unwrap();
                 let outcome = transport::call(endpoint, &dependent_worker);
-                assert!(outcome.is_ok());
+                assert!(outcome.is_err(), "Acceptance must fence the old blocked version");
                 outcome
             }
             _ => {
@@ -1030,15 +1030,18 @@ fn prerequisite_acceptance_and_dependent_start_serialize_over_authenticated_ipc(
             task_id: dependent["id"].as_str().unwrap().into(),
         };
         let before_retry = transport::call(endpoint, &issuer).unwrap();
-        if outcome.is_err() {
-            assert_eq!(before_retry["state"], "queued");
-            assert_eq!(before_retry["version"], dependent["version"]);
-            assert!(before_retry["attempts"].as_array().unwrap().is_empty());
-        }
-        // The same intent either replays its committed grant or starts once after acceptance.
+        assert!(outcome.is_err());
+        assert_eq!(before_retry["state"], "queued");
+        assert_eq!(before_retry["version"].as_u64(), Some(dependent["version"].as_u64().unwrap() + 1));
+        assert!(before_retry["attempts"].as_array().unwrap().is_empty());
+        assert!(transport::call(endpoint, &dependent_worker).is_err());
+        // Acceptance changes the dependent version; only a refreshed intent may start.
+        dependent_worker.operation = serde_json::from_value(json!({"op":"task_start",
+            "task_id":dependent["id"], "revision":1, "expected_version":before_retry["version"],
+            "request_id":request_id()})).unwrap();
         let started = transport::call(endpoint, &dependent_worker).unwrap();
         assert_eq!(started["state"], "running");
-        assert_eq!(started["version"], 2);
+        assert_eq!(started["version"], 3);
         assert_eq!(started["attempts"].as_array().unwrap().len(), 1);
         assert_eq!(
             transport::call(endpoint, &dependent_worker).unwrap(),
