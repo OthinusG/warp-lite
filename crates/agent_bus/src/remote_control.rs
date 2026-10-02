@@ -30,6 +30,9 @@ pub(super) struct ActorPresence {
     seen: Instant,
 }
 impl ActorPresence {
+    pub(super) fn mutation_epoch(&self) -> String {
+        self.epoch.to_string()
+    }
     pub(super) fn executing(
         &self,
         store: &crate::storage::Store,
@@ -52,9 +55,16 @@ struct PresenceGuard {
 impl Drop for PresenceGuard {
     fn drop(&mut self) {
         if let Ok(mut state) = self.broker.store() {
-            state
+            let disconnected: Vec<_> = state
                 .remote_presence
-                .retain(|_, presence| presence.connection != self.connection);
+                .iter()
+                .filter(|(_, presence)| presence.connection == self.connection)
+                .map(|(actor, presence)| (actor.clone(), presence.mutation_epoch()))
+                .collect();
+            for (actor, epoch) in disconnected {
+                let _ = state.store.observe_remote_disconnect(&actor, &epoch);
+                state.remote_presence.remove(&actor);
+            }
             self.broker.shared.changed.notify_all();
         }
     }
@@ -272,6 +282,9 @@ impl RunningController {
                 if state.remote_owner == Some(nonce) {
                     state.remote_active = false;
                     state.remote_owner = None;
+                for (actor, presence) in &state.remote_presence {
+                    let _ = state.store.observe_remote_disconnect(actor, &presence.mutation_epoch());
+                }
                 state.remote_presence.clear();
                     let _ = state.store.invalidate_remote_sessions();
                 }
@@ -466,9 +479,6 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     &mutation_epoch.to_string(),
                     false,
                 )?;
-                state
-                    .remote_presence
-                    .retain(|_, presence| presence.seen.elapsed() < PRESENCE);
                 ensure!(
                     state.remote_presence.contains_key(&actor_id.to_string())
                         || state.remote_presence.len() < 1000,

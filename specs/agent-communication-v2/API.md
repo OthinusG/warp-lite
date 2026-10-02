@@ -453,3 +453,11 @@ lose read, mutation, cursor and presence authority before replay. Grant changes 
 not stop execution or erase tasks/attempts. `DeviceList` retains `space_ids` and
 adds explicit space/mode grant records for review. Remote agents cannot invoke
 this controller operation. Native settings integration remains pending.
+
+Loss of native presence also records `task_execution_unknown` for unfinished active
+attempts owned by that exact remote actor/epoch, increments affected task versions
+once, and leaves task outcome/state and finish timestamps unchanged. It never
+converts reconnect/heartbeat into restored execution authority. Original committed
+receipts remain queryable; unresolved effects require explicit recovery before
+continuation. Host access sweeps expired/revoked leases and disconnect/shutdown
+cleanup uses the same exact-run storage transition.

@@ -108,6 +108,19 @@ struct State {
     remote_owner: Option<Uuid>,
     remote_presence: HashMap<String, remote_control::ActorPresence>,
 }
+impl State {
+    fn expire_remote_presence(&mut self) -> Result<()> {
+        let expired: Vec<_> = self.remote_presence.iter()
+            .filter(|(actor, presence)| !self.remote_active || !presence.valid(&self.store, actor))
+            .map(|(actor, presence)| (actor.clone(), presence.mutation_epoch()))
+            .collect();
+        for (actor, epoch) in expired {
+            self.store.observe_remote_disconnect(&actor, &epoch)?;
+            self.remote_presence.remove(&actor);
+        }
+        Ok(())
+    }
+}
 struct Shared {
     state: Mutex<State>,
     changed: Condvar,
@@ -1074,10 +1087,10 @@ impl Broker {
         Ok(result)
     }
     fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
-        self.shared
-            .state
-            .lock()
-            .map_err(|_| coordinator_unavailable("Broker unavailable"))
+        let mut state = self.shared.state.lock()
+            .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
+        state.expire_remote_presence()?;
+        Ok(state)
     }
     /// Trusted local panel mutations under the deterministic operator principal.
     pub fn operator(&self, project: &str, operation: &Operation) -> Result<Value> {

@@ -245,3 +245,5 @@
 - Remote native online state is a connection-bound monotonic receipt-time lease, separate from seven-day mutation epochs and durable tasks. Revalidate generation/grants/run before reporting online or allowing a remote pool claim; disconnect/shutdown clear only ephemeral presence. A heartbeat does not assert idle, empty draft, approval clearance or stopped execution, and cannot enable native wake.
 
 - Device grant review is a trusted local controller mutation pinned to the original generation. Every read/write/removal change increments generation atomically with the grant/audit, fencing live sessions before replay while preserving tasks and execution uncertainty. DeviceList keeps compatible space_ids and exposes explicit roles; remote MCP/gateway operations cannot edit grants.
+
+- Remote disconnect/lease loss must persist unknown certainty for active attempts of the exact actor/epoch, with one audit/version change and no finished timestamp or task outcome. Online projection alone is insufficient. Reuse this transition for lease expiry, session cleanup and controller shutdown; a heartbeat cannot restore execution authority or erase the original uncertainty.

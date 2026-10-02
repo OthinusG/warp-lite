@@ -236,6 +236,29 @@ impl Store {
         Ok(actor)
     }
 
+    /// Connectivity loss changes certainty only; it never confirms stopped effects or a task outcome.
+    pub(crate) fn observe_remote_disconnect(&self, agent: &str, epoch: &str) -> Result<()> {
+        let binding = self
+            .remote_binding(agent)?
+            .ok_or_else(|| scope_denied("Remote actor not found"))?;
+        self.transaction(|| {
+            let attempts = diesel::sql_query("SELECT id,task_id,revision,owner,run,certainty,outcome,started_at,finished_at FROM attempts WHERE owner=? AND run=? AND certainty='active' AND outcome IS NULL AND finished_at IS NULL")
+                .bind::<Text,_>(agent).bind::<Text,_>(epoch)
+                .load::<AttemptRow>(&mut *self.connection.borrow_mut())?;
+            for attempt in attempts.into_iter().map(AttemptRow::attempt) {
+                let mut task = self.operator_task(&format!("space:{}", binding.space_id), &attempt.task_id)?;
+                if !matches!(task.state.as_str(), "running" | "cancel_requested") { continue; }
+                diesel::sql_query("UPDATE attempts SET certainty='unknown' WHERE id=?")
+                    .bind::<Text,_>(&attempt.id).execute(&mut *self.connection.borrow_mut())?;
+                task.version += 1;
+                self.update_task_state(&task)?;
+                self.record(&task.project, "task_execution_unknown", agent, Some(&task.id), Some(&attempt.id),
+                    json!({"revision":task.revision,"reason":"remote_presence_lost","execution_stopped":false}))?;
+            }
+            Ok(())
+        })
+    }
+
     /// Read an original receipt without executing it, including after that run was closed.
     pub(crate) fn reconcile_remote_request(
         &self,
@@ -371,6 +394,94 @@ mod tests {
             ttl_seconds: None,
             request_id: id(),
         }
+    }
+
+    #[test]
+    fn remote_disconnect_preserves_unknown_effects_without_finishing_the_task() {
+        let store = Store::open(":memory:").unwrap();
+        let space = space(&store);
+        let principal = device(&store, &[space]);
+        let workspace = store
+            .map_remote_workspace(
+                &principal,
+                space,
+                Uuid::new_v4(),
+                "Participant checkout",
+                None,
+            )
+            .unwrap();
+        let actor = store
+            .register_remote_actor(
+                &principal,
+                &workspace,
+                Uuid::new_v4(),
+                Uuid::new_v4(),
+                "codex",
+                "disconnect-worker",
+            )
+            .unwrap();
+        let domain = format!("space:{space}");
+        let task = store
+            .execute(
+                &Store::operator(&domain),
+                OPERATOR_EPOCH,
+                &Operation::TaskAssign {
+                    to: actor.actor.name.clone(),
+                    description: "Disconnected execution".into(),
+                    acceptance: "Unknown effects remain visible".into(),
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        let task_id = task["id"].as_str().unwrap();
+        store
+            .execute(
+                &actor.actor,
+                &actor.epoch,
+                &Operation::TaskStart {
+                    task_id: task_id.into(),
+                    revision: 1,
+                    expected_version: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        let before = store.operator_task(&domain, task_id).unwrap();
+        store
+            .observe_remote_disconnect(&actor.actor.id, &actor.epoch)
+            .unwrap();
+        store
+            .observe_remote_disconnect(&actor.actor.id, &actor.epoch)
+            .unwrap();
+        let after = store.operator_task(&domain, task_id).unwrap();
+        assert_eq!(after.state, "running");
+        assert_eq!(after.version, before.version + 1);
+        assert_eq!(after.attempts[0].certainty, "unknown");
+        assert!(after.attempts[0].finished_at.is_none());
+        assert!(after.executing_run.is_none());
+        assert!(store
+            .execute_controller(
+                &domain,
+                &ControllerOperation::TaskArchive {
+                    task_id: task_id.into(),
+                    request_id: id(),
+                }
+            )
+            .is_err());
+        assert_eq!(
+            store.events(&domain, None, Some(200)).unwrap()["events"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|event| event["kind"] == "task_execution_unknown")
+                .count(),
+            1
+        );
     }
 
     #[test]
