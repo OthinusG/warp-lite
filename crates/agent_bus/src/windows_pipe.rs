@@ -84,7 +84,7 @@ mod tests {
         Authorization::{
             ConvertSecurityDescriptorToStringSecurityDescriptorW, GetSecurityInfo, SE_FILE_OBJECT,
         },
-        DACL_SECURITY_INFORMATION,
+        GetAce, GetSecurityDescriptorDacl, ACCESS_ALLOWED_ACE, DACL_SECURITY_INFORMATION, PSID,
     };
 
     #[tokio::test]
@@ -120,7 +120,31 @@ mod tests {
         }
         let _text = unsafe { Owned::new(HLOCAL(text.0.cast())) };
         let text = unsafe { text.to_string().unwrap() };
-        assert!(text.contains(&current_user_sid().unwrap()));
+        // SDDL renders well-known users such as LocalSystem as aliases; compare the kernel SID itself.
+        let mut present = false.into();
+        let mut defaulted = false.into();
+        let mut dacl = std::ptr::null_mut();
+        unsafe {
+            GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted).unwrap();
+        }
+        assert!(present.as_bool() && !dacl.is_null());
+        assert!(unsafe { (*dacl).AceCount } == 1);
+        let mut ace = std::ptr::null_mut();
+        unsafe {
+            GetAce(dacl, 0, &mut ace).unwrap();
+        }
+        let ace = unsafe { &*ace.cast::<ACCESS_ALLOWED_ACE>() };
+        assert!(ace.Header.AceType == 0);
+        let mut granted_sid = PWSTR::null();
+        unsafe {
+            ConvertSidToStringSidW(
+                PSID((&ace.SidStart as *const u32).cast_mut().cast()),
+                &mut granted_sid,
+            )
+            .unwrap();
+        }
+        let _sid = unsafe { Owned::new(HLOCAL(granted_sid.0.cast())) };
+        assert!(unsafe { granted_sid.to_string().unwrap() } == current_user_sid().unwrap());
         assert!(text.contains("D:P") && text.matches('(').count() == 1);
         assert!(!text.contains(";;;WD") && !text.contains(";;;AN"));
         let client = ClientOptions::new().open(&endpoint).unwrap();

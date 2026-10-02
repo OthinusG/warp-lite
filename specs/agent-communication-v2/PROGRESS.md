@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Windows pipe source `78f5cce`, run `36959439468`: macOS backend passed; Windows
+  compiled and passed existing unit checks, but the ACL regression assumed SDDL
+  always renders a numeric SID. Well-known accounts use aliases. Inspect and
+  compare the actual kernel ACE SID instead, without logging account identifiers;
+  the corrected OS-boundary check is pending.
+
+
 - Added a current-user-only protected Windows pipe DACL for every native listener
   instance, rejecting remote clients and inherited handles. Reused the locked
   Windows bindings and Tokio constructor. A native kernel DACL/current-user
