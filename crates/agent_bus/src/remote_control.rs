@@ -614,6 +614,39 @@ mod tests {
     }
 
     #[test]
+    fn gateway_rejects_invalid_frames_without_echoing_payloads() {
+        let directory = tempfile::tempdir().unwrap();
+        let server = RunningBroker::start(&directory.path().join("bus.sqlite")).unwrap();
+        let descriptor = directory.path().join("controller.json");
+        let _controller = RunningController::start(&server, &descriptor).unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            for bytes in [
+                0u32.to_be_bytes().to_vec(),
+                (crate::MAX_FRAME as u32 + 1).to_be_bytes().to_vec(),
+                [1u32.to_be_bytes().as_slice(), b"{"].concat(),
+            ] {
+                let (mut client, relay) = tokio::io::duplex(128);
+                let path = descriptor.clone();
+                let task = tokio::spawn(async move {
+                    let (input, output) = tokio::io::split(relay);
+                    gateway(&path, input, output).await
+                });
+                client.write_all(&bytes).await.unwrap();
+                let AuthenticationFrame::Error { error } =
+                    receive(&mut client, Instant::now() + DEADLINE)
+                        .await
+                        .unwrap()
+                else {
+                    panic!("Expected bounded protocol rejection")
+                };
+                assert_eq!(error.message, "Controller session is unavailable");
+                let _ = task.await.unwrap();
+            }
+        });
+    }
+
+    #[test]
     fn gateway_enrollment_revoke_and_disable_use_real_local_ipc() {
         let directory = tempfile::tempdir().unwrap();
         let database = directory.path().join("bus.sqlite");
