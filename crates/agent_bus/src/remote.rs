@@ -500,6 +500,21 @@ impl Connection {
         operation: &crate::Operation,
         reconcile: bool,
     ) -> Result<serde_json::Value> {
+        let (actor_id, mutation_epoch) = self.actor_authority(actor)?;
+        if let Some(request) = operation.request_id() {
+            ensure!(
+                uuid::Uuid::parse_str(request).is_ok(),
+                invalid_input("Original mutation request UUID is required")
+            );
+        }
+        self.wire_operation(actor_id, mutation_epoch, operation, reconcile)
+            .await
+    }
+
+    fn actor_authority(
+        &self,
+        actor: &crate::storage::RemoteActor,
+    ) -> Result<(uuid::Uuid, uuid::Uuid)> {
         let space = actor
             .actor
             .project
@@ -516,18 +531,35 @@ impl Connection {
                         .starts_with(&format!("remote:{device}:"))),
             crate::scope_denied("Actor belongs to another authenticated device or space")
         );
-        if let Some(request) = operation.request_id() {
-            ensure!(
-                uuid::Uuid::parse_str(request).is_ok(),
-                invalid_input("Original mutation request UUID is required")
-            );
-        }
         let actor_id = uuid::Uuid::parse_str(&actor.actor.id)
             .map_err(|_| invalid_input("Invalid remote actor identity"))?;
         let mutation_epoch = uuid::Uuid::parse_str(&actor.epoch)
             .map_err(|_| invalid_input("Invalid original mutation epoch"))?;
-        self.wire_operation(actor_id, mutation_epoch, operation, reconcile)
-            .await
+        ensure!(
+            !actor_id.is_nil() && !mutation_epoch.is_nil(),
+            invalid_input("Original native identities are required")
+        );
+        Ok((actor_id, mutation_epoch))
+    }
+
+    pub async fn actor_heartbeat(&mut self, actor: &crate::storage::RemoteActor) -> Result<()> {
+        use crate::transport::remote_control::AuthenticationFrame;
+        let (actor_id, mutation_epoch) = self.actor_authority(actor)?;
+        let response = self
+            .exchange(&AuthenticationFrame::ActorHeartbeat {
+                connection_epoch: self.connection_epoch,
+                actor_id,
+                mutation_epoch,
+            })
+            .await?;
+        ensure!(
+            matches!(response, AuthenticationFrame::ActorHeartbeatResult {
+            connection_epoch, actor_id: received_actor, mutation_epoch: received_epoch,
+        } if connection_epoch == self.connection_epoch && received_actor == actor_id
+            && received_epoch == mutation_epoch),
+            invalid_input("Native presence response does not match the run")
+        );
+        Ok(())
     }
 
     /// Send a previously staged intent without reconstructing or replacing its authority.

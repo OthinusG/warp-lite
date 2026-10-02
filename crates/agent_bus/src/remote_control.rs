@@ -23,6 +23,43 @@ use uuid::Uuid;
 const DEADLINE: Duration = Duration::from_secs(5);
 const PRESENCE: Duration = Duration::from_secs(30);
 
+pub(super) struct ActorPresence {
+    principal: RemotePrincipal,
+    epoch: Uuid,
+    connection: Uuid,
+    seen: Instant,
+}
+impl ActorPresence {
+    pub(super) fn executing(
+        &self,
+        store: &crate::storage::Store,
+        actor: &str,
+        run: Option<&str>,
+    ) -> bool {
+        run == Some(self.epoch.to_string().as_str()) && self.valid(store, actor)
+    }
+    pub(super) fn valid(&self, store: &crate::storage::Store, actor: &str) -> bool {
+        self.seen.elapsed() < PRESENCE
+            && store
+                .resolve_remote_run(&self.principal, actor, &self.epoch.to_string(), false)
+                .is_ok()
+    }
+}
+struct PresenceGuard {
+    broker: Broker,
+    connection: Uuid,
+}
+impl Drop for PresenceGuard {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.broker.store() {
+            state
+                .remote_presence
+                .retain(|_, presence| presence.connection != self.connection);
+            self.broker.shared.changed.notify_all();
+        }
+    }
+}
+
 /// Sensitive frames deliberately have no Debug implementation or durable retry representation.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -52,6 +89,16 @@ pub enum AuthenticationFrame {
     },
     HeartbeatResult {
         connection_epoch: Uuid,
+    },
+    ActorHeartbeat {
+        connection_epoch: Uuid,
+        actor_id: Uuid,
+        mutation_epoch: Uuid,
+    },
+    ActorHeartbeatResult {
+        connection_epoch: Uuid,
+        actor_id: Uuid,
+        mutation_epoch: Uuid,
     },
     ActorAnnounce {
         connection_epoch: Uuid,
@@ -225,6 +272,7 @@ impl RunningController {
                 if state.remote_owner == Some(nonce) {
                     state.remote_active = false;
                     state.remote_owner = None;
+                state.remote_presence.clear();
                     let _ = state.store.invalidate_remote_sessions();
                 }
             }
@@ -327,6 +375,10 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
         _ => unreachable!(),
     };
     send(stream, &result, Instant::now() + DEADLINE).await?;
+    let _presence_guard = PresenceGuard {
+        broker: broker.clone(),
+        connection: epoch,
+    };
     let mut principal = None;
     loop {
         let frame: AuthenticationFrame = receive(
@@ -393,6 +445,52 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 )?;
                 AuthenticationFrame::HeartbeatResult {
                     connection_epoch: epoch,
+                }
+            }
+            AuthenticationFrame::ActorHeartbeat {
+                connection_epoch,
+                actor_id,
+                mutation_epoch,
+            } => {
+                ensure!(
+                    connection_epoch == epoch,
+                    invalid_input("Connection epoch does not match")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before native presence"))?;
+                let mut state = active(broker, owner)?;
+                state.store.resolve_remote_run(
+                    principal,
+                    &actor_id.to_string(),
+                    &mutation_epoch.to_string(),
+                    false,
+                )?;
+                state
+                    .remote_presence
+                    .retain(|_, presence| presence.seen.elapsed() < PRESENCE);
+                ensure!(
+                    state.remote_presence.contains_key(&actor_id.to_string())
+                        || state.remote_presence.len() < 1000,
+                    crate::capacity_exceeded("Remote native presence capacity reached")
+                );
+                state.remote_presence.insert(
+                    actor_id.to_string(),
+                    ActorPresence {
+                        principal: RemotePrincipal {
+                            device: principal.device.clone(),
+                            generation: principal.generation,
+                        },
+                        epoch: mutation_epoch,
+                        connection: epoch,
+                        seen: Instant::now(),
+                    },
+                );
+                broker.shared.changed.notify_all();
+                AuthenticationFrame::ActorHeartbeatResult {
+                    connection_epoch: epoch,
+                    actor_id,
+                    mutation_epoch,
                 }
             }
             AuthenticationFrame::ActorAnnounce {
@@ -484,6 +582,19 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     &run,
                     write,
                 )?;
+                if matches!(operation, Operation::TaskClaim { .. }) {
+                    ensure!(
+                        state
+                            .remote_presence
+                            .get(&actor.id)
+                            .is_some_and(|presence| presence.connection == epoch
+                                && presence.epoch == mutation_epoch
+                                && presence.valid(&state.store, &actor.id)),
+                        crate::invalid_state(
+                            "Native presence expired; reconnect before claiming work"
+                        )
+                    );
+                }
                 let result = state.store.execute(&actor, &run, &operation)?;
                 broker.shared.changed.notify_all();
                 AuthenticationFrame::OperationResult {
@@ -1030,6 +1141,47 @@ mod tests {
                 assert_eq!(actor.project, format!("space:{space}"));
                 actors.push((actor, mutation_epoch));
             }
+            for (actor, mutation_epoch) in &actors {
+                send(&mut client, &AuthenticationFrame::ActorHeartbeat {
+                    connection_epoch, actor_id: Uuid::parse_str(&actor.id).unwrap(),
+                    mutation_epoch: *mutation_epoch,
+                }, Instant::now() + DEADLINE).await.unwrap();
+                let AuthenticationFrame::ActorHeartbeatResult { actor_id, mutation_epoch: returned, .. } =
+                    receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                    else { panic!("Expected native presence receipt") };
+                assert_eq!(actor_id.to_string(), actor.id);
+                assert_eq!(returned, *mutation_epoch);
+            }
+            {
+                let mut state = server.broker.store().unwrap();
+                assert_eq!(state.remote_presence.len(), 2);
+                assert!(state.remote_presence[&actors[0].0.id].valid(&state.store, &actors[0].0.id));
+                state.remote_presence.get_mut(&actors[0].0.id).unwrap().seen = Instant::now() - PRESENCE;
+                assert!(!state.remote_presence[&actors[0].0.id].valid(&state.store, &actors[0].0.id));
+            }
+            send(&mut client, &AuthenticationFrame::ActorHeartbeat {
+                connection_epoch, actor_id: Uuid::parse_str(&actors[0].0.id).unwrap(),
+                mutation_epoch: actors[0].1,
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::ActorHeartbeatResult { .. } =
+                receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected refreshed receipt-time presence") };
+            let pool = server.broker.operator(&format!("space:{space}"), &Operation::TaskCreatePool {
+                description: "Native remote claim".into(), acceptance: "Current receipt-time presence".into(),
+                eligible: vec![actors[0].0.name.clone()], reviewer: None, dependencies: vec![],
+                start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None,
+                request_id: Uuid::new_v4().to_string(),
+            }).unwrap();
+            send(&mut client, &AuthenticationFrame::Operation {
+                connection_epoch, frame_id: Uuid::new_v4(),
+                actor_id: Uuid::parse_str(&actors[0].0.id).unwrap(), mutation_epoch: actors[0].1,
+                operation: Operation::TaskClaim { task_id: pool["id"].as_str().unwrap().into(),
+                    expected_version: None, request_id: Uuid::new_v4().to_string() },
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::OperationResult { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected presence-authorized native pool claim") };
+            assert_eq!(result["assignee"], actors[0].0.id);
             let request_id = Uuid::new_v4().to_string();
             let operation = || AuthenticationFrame::Operation {
                 connection_epoch,
@@ -1155,6 +1307,15 @@ mod tests {
             };
             assert_eq!(error.code, "device_revoked");
             let _ = task.await.unwrap();
+            // Session cleanup removes only ephemeral online leases, not durable tasks.
+            for _ in 0..20 {
+                if server.broker.store().unwrap().remote_presence.is_empty() { break; }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            let state = server.broker.store().unwrap();
+            assert!(state.remote_presence.is_empty());
+            assert_eq!(state.store.operator_task(&format!("space:{space}"), pool["id"].as_str().unwrap()).unwrap().state, "queued");
+
         });
         drop(controller);
         assert!(!descriptor.exists());

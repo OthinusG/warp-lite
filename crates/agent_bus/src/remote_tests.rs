@@ -279,6 +279,9 @@ while True:
                   connection_epoch=epoch, space_ids=[space]))
     elif frame['type'] == 'heartbeat':
         send(dict(type='heartbeat_result', connection_epoch=epoch))
+    elif frame['type'] == 'actor_heartbeat':
+        send(dict(type='actor_heartbeat_result', connection_epoch=epoch,
+                  actor_id=frame['actor_id'], mutation_epoch=frame['mutation_epoch']))
     elif frame['type'] == 'actor_announce':
         actor = dict(id=str(uuid.uuid4()), terminal='remote:'+device+':'+frame['native_session'],
                      project='space:'+space, program=frame['program'], name=frame['name'])
@@ -355,6 +358,7 @@ while True:
             )
             .await
             .unwrap();
+        connection.actor_heartbeat(&actor).await.unwrap();
         let operation = crate::Operation::AgentSend {
             to: "receiver".into(),
             body: "Original intent".into(),
@@ -400,6 +404,7 @@ while True:
         foreign.actor.terminal =
             format!("remote:{}:{}", uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
         assert!(connection.execute(&foreign, &operation).await.is_err());
+        assert!(connection.actor_heartbeat(&foreign).await.is_err());
         let stale = connection
             .execute(
                 &actor,

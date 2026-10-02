@@ -106,6 +106,7 @@ struct State {
     programs: Option<HashSet<String>>,
     remote_active: bool,
     remote_owner: Option<Uuid>,
+    remote_presence: HashMap<String, remote_control::ActorPresence>,
 }
 struct Shared {
     state: Mutex<State>,
@@ -207,6 +208,7 @@ impl RunningBroker {
                 programs: None,
                 remote_active: false,
                 remote_owner: None,
+                remote_presence: HashMap::new(),
             }),
             changed: Condvar::new(),
             stopped: AtomicBool::new(false),
@@ -1185,7 +1187,9 @@ impl Broker {
                 .filter_map(|binding| binding.live.as_ref())
                 .find(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH
                     && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
-            json!({"agent": agent, "online": live.is_some(),
+            let remote_online = state.remote_active && state.remote_presence.get(&agent.id)
+                .is_some_and(|presence| presence.valid(&state.store, &agent.id));
+            json!({"agent": agent, "online": live.is_some() || remote_online,
                 "activity": live.map(|live| live.activity),
                 "draft": live.map(|live| if live.rich_draft { "present" } else { live.draft.state() }),
                 "blocked": live.is_some_and(|live| live.blocked),
@@ -1255,10 +1259,14 @@ fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
                 .as_ref()
                 .is_some_and(|agent| agent.id == task.assignee)
         });
+    let remote = state.remote_presence.get(&task.assignee)
+        .filter(|presence| state.remote_active && presence.valid(&state.store, &task.assignee));
     (
-        live.is_some(),
+        live.is_some() || remote.is_some(),
         matches!(task.state.as_str(), "running" | "cancel_requested")
-            && !live.is_some_and(|live| task.executing_run.as_deref() == Some(live.run.as_str())),
+            && !live.is_some_and(|live| task.executing_run.as_deref() == Some(live.run.as_str()))
+            && !remote.is_some_and(|presence| presence.executing(&state.store,
+                &task.assignee, task.executing_run.as_deref())),
     )
 }
 fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> Result<&'a Live> {

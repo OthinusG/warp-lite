@@ -427,3 +427,16 @@ checking its original coordinator, authenticated device, granted space, actor,
 epoch and operation/request UUID before framing. They retain all original mutation
 identities and create only a new transport correlation ID. They do not hold a
 participant Store/broker lock across network I/O or automatically replay failures.
+
+
+### Remote native presence lease
+
+`actor_heartbeat` identifies only an already admitted actor and its original
+mutation epoch. The coordinator rechecks current device generation/grants and run
+membership, then retains a 30-second monotonic receipt-time lease bound to this
+connection. No participant clock, draft, approval or readiness assertion is accepted
+by this frame. Disconnect, controller shutdown, revocation and run replacement
+invalidate presence; durable tasks and uncertain effects remain unchanged. Remote
+pool claim requires this current native lease before mutation/replay. Presence alone
+never makes an actor ready or enables terminal wake. Host panel online/runtime
+projections use the same validated lease, independently of durable task outcome.
