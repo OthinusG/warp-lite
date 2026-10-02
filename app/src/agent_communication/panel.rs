@@ -4,7 +4,7 @@ use crate::appearance::Appearance;
 mod controls;
 use serde::Deserialize;
 use std::{collections::HashMap, time::Duration};
-use warp_agent_bus::{transport::PanelQuery, Agent, Event, Task};
+use warp_agent_bus::{transport::PanelQuery, Agent, Event, Reservation, Task};
 use warpui::r#async::Timer;
 use warpui::{
     accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},
@@ -86,6 +86,8 @@ struct Snapshot {
     admission: String,
     spaces: Vec<SpacePreview>,
     space_cursor: Option<String>,
+    reservations: Vec<Reservation>,
+    reservation_cursor: Option<u64>,
 }
 
 pub(crate) struct CollaborationPanel {
@@ -101,7 +103,7 @@ pub(crate) struct CollaborationPanel {
     in_flight: bool,
     status: String,
     task_buttons: HashMap<String, MouseStateHandle>,
-    page_buttons: [MouseStateHandle; 4],
+    page_buttons: [MouseStateHandle; 6],
     generation: u64,
     connected: bool,
     form: Option<controls::Form>,
@@ -133,6 +135,8 @@ pub(crate) enum Action {
     PreviewWorkspace(String),
     ConfirmWorkspace,
     FirstSpaces,
+    FirstReservations,
+    NextReservations,
     NextSpaces,
 }
 
@@ -526,6 +530,18 @@ impl CollaborationPanel {
             }
         }
         fixture.sections.push(Section {
+            title: "File reservations · current checkout · up to 50 records".into(),
+            rows: std::iter::once("Reservations coordinate participants; they do not lock files or prove that writes stopped. Renewal and release require the owning agent's valid attempt.".into())
+                .chain(snapshot.reservations.iter().map(|lease| {
+                    let expiry = i64::try_from(lease.expires_at).ok()
+                        .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
+                        .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string()).unwrap_or_else(|| "unavailable".into());
+                    format!("{} · {} · {} · owner {} · expires {} · {}{} · task {} · attempt {}", lease.id, lease.path, lease.mode, lease.owner, expiry,
+                        if lease.expired { "expired" } else { "active" }, if lease.abandoned { "; abandoned owner, execution effects unknown" } else { "" },
+                        lease.task_id.as_deref().unwrap_or("unlinked"), lease.attempt_id.as_deref().unwrap_or("unlinked"))
+                })).collect(),
+        });
+        fixture.sections.push(Section {
             title: "Activity · latest 200 received events".into(),
             rows: self
                 .events
@@ -598,6 +614,15 @@ impl TypedActionView for CollaborationPanel {
                         );
                     }
                     return;
+                }
+                Action::FirstReservations => {
+                    self.query.reservation_after = None;
+                }
+                Action::NextReservations => {
+                    self.query.reservation_after = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.reservation_cursor);
                 }
                 Action::FirstSpaces => {
                     self.query.space_after = None;
@@ -954,6 +979,31 @@ impl View for CollaborationPanel {
                 }
             }
         }
+        if !self.preview {
+            if let Some(snapshot) = &self.snapshot {
+                for (index, label, action) in [
+                    (4, "First reservation page", Some(Action::FirstReservations)),
+                    (
+                        5,
+                        "Next reservation page",
+                        (snapshot.reservations.len() == 50).then_some(Action::NextReservations),
+                    ),
+                ] {
+                    if let Some(action) = action {
+                        body.add_child(
+                            builder
+                                .button(ButtonVariant::Text, self.page_buttons[index].clone())
+                                .with_text_label(label.into())
+                                .build()
+                                .on_click(move |ctx, _, _| {
+                                    ctx.dispatch_typed_action(action.clone())
+                                })
+                                .finish(),
+                        );
+                    }
+                }
+            }
+        }
         if !self.preview && self.form.is_none() && self.snapshot.is_some() {
             if let Some(snapshot) = &self.snapshot {
                 for row in &snapshot.agents {
@@ -1104,6 +1154,15 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         task_id: task["id"].as_str().unwrap().into(),
         revision: 1,
         expected_version: None,
+        request_id: uuid::Uuid::new_v4().to_string(),
+    };
+    transport::call(&broker.endpoint, &request)?;
+    request.operation = Operation::FileReserve {
+        paths: vec!["native-capture-fixture.txt".into()],
+        mode: "exclusive".into(),
+        task_id: Some(task["id"].as_str().unwrap().into()),
+        attempt_id: None,
+        ttl_seconds: Some(600),
         request_id: uuid::Uuid::new_v4().to_string(),
     };
     transport::call(&broker.endpoint, &request)?;

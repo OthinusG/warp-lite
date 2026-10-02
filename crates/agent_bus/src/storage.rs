@@ -3944,14 +3944,28 @@ impl Store {
         limit: Option<u32>,
         include_expired: bool,
     ) -> Result<Value> {
-        let limit = Self::page_limit(limit)?;
         let workspace = self.physical_root(actor)?;
         let filter = path.map(|path| self.reservation_path(actor, &workspace, path)).transpose()?;
-        let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? AND owner IN (SELECT id FROM agents WHERE project = ?) ORDER BY created_seq")
-            .bind::<Text, _>(&workspace)
-            .bind::<Text, _>(&actor.project)
-            .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
+        self.operator_reservations(&actor.project, &workspace, filter.as_deref(), cursor, limit, include_expired)
+    }
+
+    /// Trusted panel reads use the same checkout and scope filters as native leases.
+    pub(crate) fn operator_reservations(
+        &self, project: &str, workspace: &str, filter: Option<&str>,
+        cursor: Option<u64>, limit: Option<u32>, include_expired: bool,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
         let now_ms = now();
+        let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? AND owner IN (SELECT id FROM agents WHERE project = ?) AND created_seq > ? AND (expires_at > ? OR ?) ORDER BY created_seq LIMIT ?")
+            .bind::<Text, _>(&workspace)
+            .bind::<Text, _>(project)
+            .bind::<BigInt, _>(i64::try_from(cursor.unwrap_or(0)).unwrap_or(i64::MAX))
+            .bind::<BigInt, _>(now_ms as i64)
+            .bind::<Integer, _>(i32::from(include_expired))
+            // Filtered native reads retain complete overlap matching; the common
+            // unfiltered panel page is bounded directly by the indexed SQL query.
+            .bind::<BigInt, _>(if filter.is_some() { i64::MAX } else { limit as i64 + 1 })
+            .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
         let mut reservations = Vec::new();
         for row in rows {
             if cursor.is_some_and(|cursor| row.created_seq as u64 <= cursor) {
@@ -3961,9 +3975,7 @@ impl Store {
             if !include_expired && reservation.expired {
                 continue;
             }
-            if filter
-                .as_deref()
-                .is_some_and(|filter| !paths_overlap(&reservation.path, filter))
+            if filter.is_some_and(|filter| !paths_overlap(&reservation.path, filter))
             {
                 continue;
             }

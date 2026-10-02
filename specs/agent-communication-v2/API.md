@@ -314,6 +314,8 @@ A force-cancellation override acknowledges cancellation risk for its current rev
 
 Native assignment and pool forms expose explicit prerequisites, eligible names, optional start deadlines, execution/review timeouts and reviewer selection through the existing task operations. Details show persisted deadline policy, overdue review, eligible participants, truncated history and complete evidence descriptors; metadata never implies fetched remote content.
 
+The trusted panel reservation projection is scoped to both the active collaboration domain and physical checkout. It pages 50 records using creation sequence, includes expired/abandoned-owner metadata and uses the same lease assembly as native MCP reads. Active private reservations in that checkout may prevent conflicting shared grants, but their owner and record are absent from the shared projection. Pagination never traverses a different checkout implicitly. Renewal/release still require owner authority; UI request controls are a separate remaining gate.
+
 ## Space preview pagination and admission
 
 `space_list` accepts optional `cursor` (last unique name) and `limit` (existing

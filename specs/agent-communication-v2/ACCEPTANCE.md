@@ -34,21 +34,21 @@ actual image review before the static UI checkpoint can pass.
 | M1.3 | `attempts_versions_and_events_commit_with_transitions`, replay tests | Backend verified; UI event integration remains M2 |
 | M1.4 | `migration_preserves_v1_data_with_backup_and_restore`, migration failures, downgrade sentinel, SQLite-full rollback | Backend verified; native old-binary release gate remains distinct |
 | M1.5 | `request_replay_conflicts_and_epoch_expiry`, retention and quota tests | Backend verified |
-| M2.1 | Native panel source, persisted selection, nine fixed fixtures | Fixture app test and rendered checkpoint required |
-| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Detail-end revision reviewed in source 1267827; Windows capture pending; Windows readback failed 101 because COPY_SRC was gated by the old integration feature; debug capture correction pending |
-| M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
-| M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
+| M2.1 | Native panel, persisted selection and fixed fixtures; both OS static checkpoint source `3d66017`, run `36970541930` | Static gate accepted; live integration tracked separately |
+| M2.2 | 74 native captures per OS in run `36970541930`; all 72 combinations and final detail/draft/focus reviewed | Static visual gate accepted; Windows readback correction verified |
+| M2.3 | Bounded live operator projection, 50-item pages, 200-event tail, scoped resume and generation fencing; both OS source `bd593d9`, run `36973482638` | Live native captures source `15460de` rendered 18 read states; complete action gate still pending |
+| M2.4 | Native original-intent forms, typed overlap confirmation and terminal-focus dispatch implemented | Both OS source `15460de` compiled; action driver exposed cancellation/retry risk authorization gap. Source `14d5e45` corrects shared guard and real IPC expectation; cloud revalidation pending |
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression passed both OS in run 36950035983; native interrupt unsupported-state UI pending |
-| M3.2 | Stale run/attempt and explicit operator recovery tests | Retry/reassignment backend verified; panel pending |
-| M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
+| M3.2 | Stale run/attempt and explicit operator recovery tests; native retry/reassign forms implemented | Replacement of unknown execution now requires its own operator override. Native and IPC regression revalidation pending |
+| M3.3 | Dependency/cycle/foreign-edge backend checks verified; native assign/pool forms expose prerequisites and detail wait reason | Updated native scheduling capture pending |
 | M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks passed on both OSes | Native presence acceptance remains distinct |
-| M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
-| M4.1 | Schema-v5 and real shared IPC passed both OS in run 36958662888: scoped delegation/rework, private-task preservation, immutable producing checkout | Fresh shared-pane admission UI pending |
-| M4.2 | Explicit fresh workspace admission and departure/remap fencing passed both OS in run 36958662888 | Scope preview and admission UI pending |
+| M3.5 | MCP cooperation instructions, native task control and scheduling forms implemented | Missing-acknowledgement delivery UI and full native operation matrix pending |
+| M4.1 | Schema-v5 shared IPC verified; new-tab options pin reviewed workspace/space/root, default and restored panes remain private | Native shared-tab checkpoint implemented; cloud verification pending |
+| M4.2 | Backend departure/remap fencing verified; create/map/scope preview/confirm new tab/remove participant controls and real-IPC native driver implemented | Cloud native preview/admission/departure assertions pending; package not accepted |
 | M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner tests; explicit-scope overlap/migration regressions in `bfbc585` passed both OS | Backend overlap warnings verified; device-qualified workspace routing and UI pending |
 | M4.4 | MCP reserve/renew/release and abandoned-owner metadata | UI conflicts, renewal and release pending |
 | M5.1 | Thread participants, literal search, reply/task/subject validation tests | Backend verified |
-| M5.2 | Attempt-scoped evidence, opened-file SHA-256 and local Git-object tests | Backend verified; file-view integration and remote-unavailable labels pending |
+| M5.2 | Attempt-scoped evidence, file SHA-256/Git-object backend checks verified; native full evidence descriptors distinguish remote metadata | Native file-view integration remains pending |
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |

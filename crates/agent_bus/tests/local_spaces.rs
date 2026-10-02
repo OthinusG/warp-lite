@@ -117,6 +117,62 @@ fn leases() -> Operation {
 }
 
 #[test]
+fn panel_reservation_pages_preserve_scope_and_checkout() {
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    let root1 = warp_agent_bus::project_root(first.path()).unwrap();
+    let root2 = warp_agent_bus::project_root(second.path()).unwrap();
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let b = &server.broker;
+    let group = space(b, &root1, "Lease scope");
+    let workspace1 = map(b, &root1, &group);
+    let workspace2 = map(b, &root2, &group);
+    let shared = client(b, "lease-shared", "shared", &root1, Some(&workspace1));
+    let private = client(b, "lease-private", "private", &root1, None);
+    let other = client(b, "lease-other", "other", &root2, Some(&workspace2));
+    call(b, &private, reserve("private-path.txt")).unwrap();
+    call(b, &other, reserve("other-checkout.txt")).unwrap();
+    for index in 0..51 {
+        call(b, &shared, reserve(&format!("shared-{index}.txt"))).unwrap();
+    }
+    let mut query = warp_agent_bus::transport::PanelQuery {
+        project: root1.clone(),
+        terminal: Some("lease-shared".into()),
+        ..Default::default()
+    };
+    let first_page = b.operator_panel(&query).unwrap();
+    assert_eq!(first_page["reservations"].as_array().unwrap().len(), 50);
+    query.scope = first_page["project"].as_str().map(str::to_owned);
+    query.reservation_after = first_page["reservation_cursor"].as_u64();
+    let second_page = b.operator_panel(&query).unwrap();
+    assert_eq!(second_page["reservations"].as_array().unwrap().len(), 1);
+    let paths: std::collections::HashSet<_> = first_page["reservations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(second_page["reservations"].as_array().unwrap())
+        .map(|lease| lease["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(paths.len(), 51);
+    assert!(!paths.contains("private-path.txt"));
+    assert!(!paths.contains("other-checkout.txt"));
+    query.project = root2;
+    query.terminal = Some("lease-other".into());
+    query.reservation_after = None;
+    assert_eq!(
+        b.operator_panel(&query).unwrap()["reservations"][0]["path"],
+        "other-checkout.txt"
+    );
+    query.project = root1;
+    query.terminal = Some("lease-private".into());
+    query.reservation_after = Some(u64::MAX);
+    assert_eq!(
+        b.operator_panel(&query).unwrap()["reservations"][0]["path"],
+        "private-path.txt"
+    );
+}
+
+#[test]
 fn reviewed_workspace_is_pinned_and_visible_before_agent_discovery() {
     let fixture = tempfile::tempdir().unwrap();
     std::fs::create_dir(fixture.path().join(".git")).unwrap();

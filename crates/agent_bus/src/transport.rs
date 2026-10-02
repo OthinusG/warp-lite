@@ -146,6 +146,7 @@ pub struct PanelQuery {
     pub wait: bool,
     pub spaces: bool,
     pub space_after: Option<String>,
+    pub reservation_after: Option<u64>,
 }
 impl RunningBroker {
     /// Executable aliases live beside the private broker socket and disappear with the app.
@@ -1186,13 +1187,15 @@ impl Broker {
             let (online, interrupted) = task_runtime(&state, task);
             json!({"online": online, "interrupted": interrupted})
         });
+        let reservations = state.store.operator_reservations(&project, &query.project, None,
+            same_scope.then_some(query.reservation_after).flatten(), Some(50), true)?;
         let spaces = if query.spaces {
             state.store.execute_controller(&project, &ControllerOperation::SpaceList { cursor: query.space_after.clone(), limit: Some(50) })?
         } else { json!({"spaces": [], "cursor": null}) };
         Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
-            "event_cursor": events["cursor"], "spaces": spaces["spaces"], "space_cursor": spaces["cursor"]}))
+            "event_cursor": events["cursor"], "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"]}))
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {
