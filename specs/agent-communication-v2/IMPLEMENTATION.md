@@ -36,8 +36,15 @@ the shared trusted GUI controller boundary and must reject retired operations.
 protocol definitions, but no server binary. `RunCommand` buffers command output;
 it does not implement retained PTYs or scoped process ownership. The existing
 installer downloads upstream Oz. Preserve ordinary SSH/terminal code, but do not
-use that installer for managed projects. A repository-owned compatible server
-and explicit protocol scope/version extensions are still required for V02.
+use that installer for managed projects. A separately packaged compatible companion and explicit protocol scope/version
+extensions are still required for V02. The repository already has server handlers
+in `app/src/remote_server/server_model.rs`, with daemon/proxy dispatch through
+`app/src/lib.rs` and `app/src/remote_server/unix/`. Reuse this implementation where
+appropriate rather than assume that no server source exists. Its current daemon
+starts a WarpUI headless application, is Unix-only, uses unbounded outbound
+channels and has no admitted project/root boundary. It cannot establish V02 for
+a small Linux/macOS/Windows companion unchanged. Its random `host_id` is generated
+per daemon boot, not a verified durable SSH environment/account identity.
 
 The new managed control path will extend the existing little-endian protobuf
 envelope; it must not reuse the retired big-endian JSON device authorization.
@@ -57,3 +64,24 @@ view accessed a setup-private legacy profile field. Repair: expose only a boolea
 pending-cleanup query on Preferences and use it from settings; keep profile
 metadata private. Verify the query in the existing serialization regression,
 then repeat both OS backend/default/platform/native-cleanup checks on GitHub.
+
+## Existing remote/local path call sites
+
+| Current source | Actual boundary | Managed-project disposition |
+| --- | --- | --- |
+| `crates/repo_metadata/src/repository_identifier.rs` | Remote root pairs a daemon HostId with a server-side StandardizedPath; local roots use a distinct variant | Keep location distinction; add verified environment/project/boot fencing, never identify a host by path text |
+| `crates/warp_files/src/lib.rs` | register_remote_file routes save/delete through the matching client; file_path returns only local paths | Reuse routing; managed writes need selected-root containment, fingerprints and original receipts before enabling them |
+| `app/src/remote_server/server_model.rs` | Navigation canonicalizes on the daemon OS; command cwd and file paths arrive in requests | Reuse remote canonicalization, but admission must pin the root/account before any request; do not expose the old unrestricted command/file handlers as Agent tools |
+| `app/src/remote_server/ssh_transport.rs` | ControlMaster socket selects an existing SSH account; setup runs uname and upstream installation | Reuse clean stdio/lifetime handling after interactive trust; replace installer and Windows detection in the managed path |
+| `app/src/terminal/view/ssh_file_upload.rs` | File upload inserts a shell SFTP here-string into a terminal | Keep ordinary terminal behavior; this is not a scoped transfer queue or safe filename batch contract |
+| `crates/agent_bus/src/lib.rs` | normalize_workspace_path resolves the service host's filesystem and rejects escapes | Reuse on the remote producing service, never apply it on the GUI host to a RemoteFileRef |
+
+R0.3's identity shapes are defined in API section 2, but are not executable new
+admission types yet. No old device UUID, alias, daemon boot UUID or identical
+local/remote path is promoted to a trusted SSH identity by this checkpoint.
+
+
+The accessor repair was verified by source d71d8b1/run 37041826672: both OS
+backend/history/default/platform/legacy-cleanup checks and macOS native
+configuration/wake/Keychain-classification tests passed. No SSH capability or
+host-status runtime acceptance is asserted. Packaging is tracked separately.

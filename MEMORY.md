@@ -387,3 +387,22 @@ exact-source revalidation is pending. Source was verified to
 match the workspace's 17 implementation paths without altering the current index.
 SSH Remote and SR41 host-status collection/rendering remain unimplemented; their
 contracts and static/live acceptance requirements are recorded in specs/agent-communication-v2/HOST-STATUS.md.
+
+
+Remote-server reuse audit: the lightweight client crate has no binary, but actual
+server handlers exist under app/src/remote_server/server_model.rs and Unix
+proxy/daemon dispatch. The daemon depends on WarpUI headless app services;
+Windows dispatch is unsupported. Its host_id is a boot-random UUID, not stable
+SSH account/server identity. Reuse verified handlers/codec instead of inventing
+another full stack; packaging, root admission, bounded queues and multi-platform
+service ownership still require work before managed SSH activation.
+
+
+R0 repair source `d71d8b1`, [run 37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672):
+macOS and Windows protocol/setup, representative history, default application and
+warp_platform application checks passed. Both OS legacy metadata/credential
+cleanup tests and macOS native configuration, wake and Keychain error-classifier
+tests passed. Review-package builds remain in progress; real credential-provider
+and SSH runtime acceptance remain pending. These results validate the
+cutover implementation, not R1–R7 or SR41 runtime behavior. The workspace's 17
+implementation paths match this source; its current branch/index was preserved.

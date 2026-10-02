@@ -65,7 +65,10 @@ repository-owned companion replaces the requirement for another full Warpai GUI.
 
 The existing Tab/Pane sidebar remains the Agent/session management entrypoint.
 Task, message and history details reuse an on-demand collaboration panel; no
-parallel Agent dashboard or mandatory manual task board is planned.
+parallel Agent dashboard or mandatory manual task board is planned. The remote
+task panel will show verified host/account/project, independent connection
+capabilities, CPU/memory/project-volume status and observation age; see the
+[host-status contract](specs/agent-communication-v2/HOST-STATUS.md).
 
 This is proposed work, not a capability in the published release. SFTP is the only
 planned transfer protocol; FTP/FTPS and cross-host device federation are excluded.

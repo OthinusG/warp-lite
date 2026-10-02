@@ -6,7 +6,7 @@ Date: 2026-10-03. Status: revised product plan; SSH Remote is not implemented or
 
 Build a local Warpai GUI that manages SSH remote project environments: browse/edit/transfer remote files, open remote terminals, launch remote CLI agents, show their state and tasks, and control their sessions. Agent commands, file operations, tests and Git operations execute on the selected remote machine. Agents in the same selected remote project communicate through the existing collaboration semantics. The remote machine does not need a full Warpai GUI.
 
-Read [PRODUCT.md](PRODUCT.md) for behavior SR01–SR40, [TECH.md](TECH.md) for architecture and validation, [API.md](API.md) for contracts, [CUTOVER.md](CUTOVER.md) for actual source dispositions, and [ACCEPTANCE.md](ACCEPTANCE.md) for evidence. [PROGRESS.md](PROGRESS.md) retains chronology. The previous M0–M7 documents are preserved under [legacy-machine-collaboration](legacy-machine-collaboration/README.md); their IDs describe historical evidence only.
+Read [PRODUCT.md](PRODUCT.md) for behavior SR01–SR41, [TECH.md](TECH.md) for architecture and validation, [API.md](API.md) for contracts, [CUTOVER.md](CUTOVER.md) for actual source dispositions, and [ACCEPTANCE.md](ACCEPTANCE.md) for evidence. [PROGRESS.md](PROGRESS.md) retains chronology. The previous M0–M7 documents are preserved under [legacy-machine-collaboration](legacy-machine-collaboration/README.md); their IDs describe historical evidence only.
 
 ### GUI ownership and default experience
 
