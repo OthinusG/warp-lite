@@ -54,7 +54,7 @@ actual image review before the static UI checkpoint can pass.
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
 | M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; Both OS real IPC enrollment/authentication/heartbeat/revocation/restart and malformed frame checks passed in run 36962285181 | Application opt-in and remote task dispatch pending |
 | M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Both OS controller IPC passed in run 36962285181; secure participant storage pending |
-| M6.4 | Typed remote hello/result and bounded frame regressions passed both OS including golden/truncation checks in run 36951776747 | Device authentication, live heartbeat, durable spool and event resume pending |
+| M6.4 | Both OS gateway auth/live heartbeat in run 36962285181 and owned-child participant authority/auth/grant fixture in run 36962746574; golden/truncation checks passed | Real SSH, durable pending intent, reconnect/reconciliation and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
 | M6.7 | Local stale run, replay and crash fixtures only | Remote fault injection and reconciliation pending |

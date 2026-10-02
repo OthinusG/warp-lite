@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `07b12ef`, run `36962746574`: both OS full backend suites passed,
+  including the owned-child/stdio participant session fixture: expected
+  coordinator authority, authentication, explicit-space heartbeat and rejection
+  of ungranted use. System SSH option probes remain offline; real SSH, secure
+  participant persistence and remote native operation routing are still pending.
+- Hardened peer enrollment contexts and error handling: bound credentials/grants,
+  reject nil identities and retain only known error codes with static messages.
+  Reflected peer messages never reach application errors. CI rerun pending.
+
 - Source `e54dc28`, run `36962285181`: both OS complete backend suites passed,
   including actual controller/gateway enrollment/authentication/heartbeat/live
   revocation/restart identity, stale ownership, bounded/private discovery,
