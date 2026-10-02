@@ -49,8 +49,8 @@ const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
 // Overrides preserve uncertainty across revisions; history cleanup cannot imply execution stopped.
 const CERTAIN_TASK: &str = "NOT EXISTS (SELECT 1 FROM attempts WHERE task_id = tasks.id AND (finished_at IS NULL OR certainty = 'unknown'))";
-const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent JOIN messages AS reply ON reply.project = parent.project AND (reply.reply_to = parent.id OR reply.thread_id = parent.id) WHERE parent.task_id = tasks.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))";
-const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND (reply.reply_to = messages.id OR reply.thread_id = messages.id))";
+const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent WHERE parent.task_id = tasks.id AND (EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.reply_to = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id)) OR EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.thread_id = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))))";
+const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.reply_to = messages.id) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.thread_id = messages.id)";
 
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
 /// The operator principal's deterministic identity; it is never stored in the agents table.
@@ -3354,10 +3354,17 @@ impl Store {
                 self.archive_aged(project, actor, *older_than_days)
             }
             ControllerOperation::HistoryPurge {
+                expected_sequence,
                 archived_tasks,
                 acknowledged_messages,
                 ..
-            } => self.history_purge(project, actor, *archived_tasks, *acknowledged_messages),
+            } => {
+                if let Some(expected) = expected_sequence {
+                    let current = self.history_sequence(project)?;
+                    ensure!(*expected == current, version_conflict("History changed; refresh the purge preview", current));
+                }
+                self.history_purge(project, actor, *archived_tasks, *acknowledged_messages)
+            },
             _ => Err(invalid_state("Controller operation requires read handling")),
         }
     }
@@ -3731,6 +3738,10 @@ impl Store {
         Ok(json!({"archived": archived}))
     }
 
+    fn history_sequence(&self, project: &str) -> Result<u64> {
+        Ok(self.count("SELECT COALESCE(MAX(value), 0) AS count FROM sequences WHERE project = ?", &[project])? as u64)
+    }
+
     fn purge_preview(&self, project: &str) -> Result<Value> {
         let tasks = self.count(
             &format!("SELECT COUNT(*) AS count FROM tasks WHERE project = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK}"),
@@ -3740,7 +3751,7 @@ impl Store {
             &format!("SELECT COUNT(*) AS count FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE}"),
             &[project],
         )?;
-        Ok(json!({"tasks": tasks, "messages": messages}))
+        Ok(json!({"tasks": tasks, "messages": messages, "sequence": self.history_sequence(project)?}))
     }
 
     /// Only archived, unreferenced work and read messages; active or uncertain records are never deleted.
@@ -3755,49 +3766,60 @@ impl Store {
             archived_tasks || acknowledged_messages,
             invalid_input("Select archived tasks, acknowledged messages, or both")
         );
-        let mut purged_tasks = Vec::new();
-        if archived_tasks {
-            let rows = diesel::sql_query(format!(
+        // Select both sets before either deletion can make additional rows eligible.
+        let rows = if archived_tasks {
+            diesel::sql_query(format!(
                 "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK} ORDER BY created_seq"
             ))
             .bind::<Text, _>(project)
-            .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
-            for task in rows.into_iter().map(TaskRow::task) {
-                for statement in [
-                    "DELETE FROM messages WHERE task_id = ?",
-                    "DELETE FROM task_dependencies WHERE task_id = ?",
-                    "DELETE FROM task_eligibles WHERE task_id = ?",
-                    "DELETE FROM attempts WHERE task_id = ?",
-                    "DELETE FROM feedback WHERE task_id = ?",
-                    "DELETE FROM evidence WHERE task_id = ?",
-                ] {
-                    diesel::sql_query(statement)
-                        .bind::<Text, _>(&task.id)
-                        .execute(&mut *self.connection.borrow_mut())?;
-                }
-                diesel::sql_query("DELETE FROM tasks WHERE id = ?")
+            .load::<TaskRow>(&mut *self.connection.borrow_mut())?
+        } else {
+            Vec::new()
+        };
+        let purged_messages = if acknowledged_messages {
+            diesel::sql_query(format!("DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE})"))
+                .bind::<Text, _>(project)
+                .execute(&mut *self.connection.borrow_mut())? as u64
+        } else {
+            0
+        };
+        let mut purged_tasks = Vec::new();
+        for task in rows.into_iter().map(TaskRow::task) {
+            for statement in [
+                "DELETE FROM messages WHERE task_id = ?",
+                "DELETE FROM task_dependencies WHERE task_id = ?",
+                "DELETE FROM task_eligibles WHERE task_id = ?",
+                "DELETE FROM attempts WHERE task_id = ?",
+                "DELETE FROM feedback WHERE task_id = ?",
+                "DELETE FROM evidence WHERE task_id = ?",
+            ] {
+                diesel::sql_query(statement)
                     .bind::<Text, _>(&task.id)
                     .execute(&mut *self.connection.borrow_mut())?;
-                self.record(
-                    project,
-                    "task_purged",
-                    &actor.id,
-                    Some(&task.id),
-                    None,
-                    json!({"revision": task.revision, "state": task.state}),
-                )?;
-                purged_tasks.push(task.id);
             }
+            diesel::sql_query("DELETE FROM tasks WHERE id = ?")
+                .bind::<Text, _>(&task.id)
+                .execute(&mut *self.connection.borrow_mut())?;
+            self.record(
+                project,
+                "task_purged",
+                &actor.id,
+                Some(&task.id),
+                None,
+                json!({"revision": task.revision, "state": task.state}),
+            )?;
+            purged_tasks.push(task.id);
         }
-        let mut purged_messages = 0;
-        if acknowledged_messages {
-            purged_messages = diesel::sql_query(format!("DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE})"))
-                .bind::<Text, _>(project)
-                .execute(&mut *self.connection.borrow_mut())? as u64;
-        }
+        self.record(
+            project,
+            "history_purged",
+            &actor.id,
+            None,
+            None,
+            json!({"tasks": purged_tasks.len(), "messages": purged_messages}),
+        )?;
         Ok(json!({"purged_tasks": purged_tasks, "purged_messages": purged_messages}))
     }
-
     /// One merged ordered stream: tasks, messages and events share the per-project sequence counter.
     fn history_export(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
@@ -5727,7 +5749,7 @@ mod tests {
         let preview = store.purge_preview("/project").unwrap();
         assert_eq!(preview["tasks"], 10000);
         assert_eq!(preview["messages"], 100000);
-        store.execute_controller("/project", &ControllerOperation::HistoryPurge {
+        store.execute_controller("/project", &ControllerOperation::HistoryPurge { expected_sequence: None,
             archived_tasks: true, acknowledged_messages: true, request_id: Uuid::new_v4().to_string()
         }).unwrap();
         assert_eq!(store.task(&issuer, live["id"].as_str().unwrap()).unwrap().state, "queued");
@@ -7112,6 +7134,24 @@ mod tests {
     }
 
     #[test]
+    fn purge_confirmation_is_fenced_and_replay_preserves_its_original_result() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        actor(&store, "worker");
+        let sequence = store.purge_preview("/project").unwrap()["sequence"].as_u64().unwrap();
+        store.execute(&issuer, "run-issuer", &send(&issuer, "worker", "new unread work", &Uuid::new_v4().to_string())).unwrap();
+        let old = ControllerOperation::HistoryPurge { expected_sequence: Some(sequence), archived_tasks: true, acknowledged_messages: true, request_id: Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute_controller("/project", &old).unwrap_err()), "version_conflict");
+        let current = store.purge_preview("/project").unwrap()["sequence"].as_u64().unwrap();
+        let confirmed = ControllerOperation::HistoryPurge { expected_sequence: Some(current), archived_tasks: true, acknowledged_messages: true, request_id: Uuid::new_v4().to_string() };
+        let result = store.execute_controller("/project", &confirmed).unwrap();
+        let after = store.history_sequence("/project").unwrap();
+        assert!(after > current);
+        assert_eq!(store.execute_controller("/project", &confirmed).unwrap(), result);
+        assert_eq!(store.history_sequence("/project").unwrap(), after);
+    }
+
+    #[test]
     fn history_export_is_ordered_and_purge_preserves_unread_work() {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
@@ -7234,7 +7274,7 @@ mod tests {
         let purged = store
             .execute_controller(
                 "/project",
-                &ControllerOperation::HistoryPurge {
+                &ControllerOperation::HistoryPurge { expected_sequence: None,
                     archived_tasks: true,
                     acknowledged_messages: true,
                     request_id: Uuid::new_v4().to_string(),
@@ -7294,7 +7334,7 @@ mod tests {
         let purged = store
             .execute_controller(
                 "/project",
-                &ControllerOperation::HistoryPurge {
+                &ControllerOperation::HistoryPurge { expected_sequence: None,
                     archived_tasks: true,
                     acknowledged_messages: false,
                     request_id: Uuid::new_v4().to_string(),
@@ -7396,7 +7436,7 @@ mod tests {
         let purged = store
             .execute_controller(
                 "/project",
-                &ControllerOperation::HistoryPurge {
+                &ControllerOperation::HistoryPurge { expected_sequence: None,
                     archived_tasks: true,
                     acknowledged_messages: false,
                     request_id: Uuid::new_v4().to_string(),

@@ -72,6 +72,20 @@ struct SpacePreview {
     members: Vec<String>,
     workspaces: Vec<WorkspacePreview>,
 }
+#[derive(Clone, Deserialize)]
+struct PurgePreview {
+    tasks: u64,
+    messages: u64,
+    sequence: u64,
+}
+#[derive(Deserialize)]
+struct HistoryPage {
+    capacity: serde_json::Value,
+    preview: PurgePreview,
+    records: Vec<serde_json::Value>,
+    cursor: Option<u64>,
+}
+
 #[derive(Deserialize)]
 struct Snapshot {
     project: String,
@@ -90,6 +104,7 @@ struct Snapshot {
     reservation_cursor: Option<u64>,
     messages: Vec<Message>,
     message_cursor: Option<u64>,
+    history: Option<HistoryPage>,
 }
 
 pub(crate) struct CollaborationPanel {
@@ -120,6 +135,7 @@ pub(crate) struct CollaborationPanel {
     thread_buttons: HashMap<String, MouseStateHandle>,
     message_page_buttons: [MouseStateHandle; 3],
     evidence_buttons: HashMap<String, MouseStateHandle>,
+    history_buttons: [MouseStateHandle; 4],
 }
 
 #[derive(Clone, Debug)]
@@ -142,6 +158,10 @@ pub(crate) enum Action {
     PreviewWorkspace(String),
     ConfirmWorkspace,
     FirstSpaces,
+    History,
+    FirstHistory,
+    NextHistory,
+    CopyHistory,
     OpenEvidence(String),
     OpenThread(String),
     FirstMessages,
@@ -191,6 +211,7 @@ impl CollaborationPanel {
             thread_buttons: Default::default(),
             message_page_buttons: Default::default(),
             evidence_buttons: Default::default(),
+            history_buttons: Default::default(),
         }
     }
 
@@ -343,7 +364,52 @@ impl CollaborationPanel {
                 ),
             ],
         });
-        if self.show_messages {
+        if self.query.history {
+            fixture.state = "history and capacity".into();
+            if let Some(history) = &snapshot.history {
+                let capacity = &history.capacity;
+                fixture.sections.push(Section {
+                    title: "Storage budget".into(),
+                    rows: vec![
+                        format!(
+                            "Database bytes used {} · soft limit {} · hard limit {}",
+                            capacity["database"]["used_bytes"],
+                            capacity["database"]["soft_limit"],
+                            capacity["database"]["hard_limit"]
+                        ),
+                        format!(
+                            "Tasks active {} · total {} · active limit {}",
+                            capacity["tasks"]["used"],
+                            capacity["tasks"]["total"],
+                            capacity["tasks"]["limit"]
+                        ),
+                        format!(
+                            "Messages {} · pending {} · per-agent pending limit {}",
+                            capacity["messages"]["used"],
+                            capacity["pending_messages"]["used"],
+                            capacity["pending_messages"]["per_agent_limit"]
+                        ),
+                    ],
+                });
+                fixture.sections.push(Section { title: "Purge preview".into(), rows: vec![
+                    format!("Eligible archived tasks {} · acknowledged messages {} · reviewed sequence {}", history.preview.tasks, history.preview.messages, history.preview.sequence),
+                    "Unknown execution, unread work, prerequisites and retained reply roots are protected. Cleanup does not stop processes or file writes.".into(),
+                ] });
+                fixture.sections.push(Section {
+                    title: "Ordered export page · up to 50 records".into(),
+                    rows: history
+                        .records
+                        .iter()
+                        .map(|record| {
+                            format!(
+                                "Sequence {} · {} · {}",
+                                record["sequence"], record["type"], record["data"]["id"]
+                            )
+                        })
+                        .collect(),
+                });
+            }
+        } else if self.show_messages {
             fixture.state = if self.query.selected_thread.is_some() {
                 "thread history"
             } else {
@@ -626,7 +692,47 @@ impl TypedActionView for CollaborationPanel {
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         if !self.preview {
             match action {
+                Action::History => {
+                    self.query.task_state = None;
+                    self.query.task_assignee = None;
+                    self.query.include_archived = true;
+                    self.query.history = true;
+                    self.query.history_after = None;
+                    self.query.selected_task = None;
+                    self.query.spaces = false;
+                    self.show_spaces = false;
+                    self.show_messages = false;
+                    self.query.message_query = None;
+                    self.query.selected_thread = None;
+                }
+                Action::FirstHistory => self.query.history_after = None,
+                Action::NextHistory => {
+                    self.query.history_after = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.history.as_ref())
+                        .and_then(|history| history.cursor)
+                }
+                Action::CopyHistory => {
+                    if self.connected
+                        && Self::current_context(ctx) == self.context
+                        && super::AgentCommunication::as_ref(ctx).preferences.enabled
+                    {
+                        if let Some(snapshot) = &self.snapshot {
+                            if let Some(history) = &snapshot.history {
+                                let page = serde_json::json!({"project": snapshot.project, "after": self.query.history_after, "cursor": history.cursor, "records": history.records});
+                                if let Ok(text) = serde_json::to_string_pretty(&page) {
+                                    ctx.clipboard().write(
+                                        warpui::clipboard::ClipboardContent::plain_text(text),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
                 Action::Spaces => {
+                    self.query.history = false;
                     self.show_spaces = true;
                     self.show_messages = false;
                     self.query.message_query = None;
@@ -700,6 +806,7 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::OpenThread(id) => {
+                    self.query.history = false;
                     self.show_messages = true;
                     self.show_spaces = false;
                     self.query.selected_task = None;
@@ -810,6 +917,8 @@ impl TypedActionView for CollaborationPanel {
                 }
                 Action::SelectTask(id) => self.query.selected_task = Some(id.clone()),
                 Action::Back => {
+                    self.query.history = false;
+                    self.query.history_after = None;
                     self.query.selected_task = None;
                     self.show_spaces = false;
                     self.show_messages = false;
@@ -964,7 +1073,19 @@ impl View for CollaborationPanel {
                         .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
                         .finish(),
                 );
-                if self.query.selected_task.is_some() || self.show_spaces || self.show_messages {
+                header.add_child(
+                    builder
+                        .button(ButtonVariant::Text, self.history_buttons[0].clone())
+                        .with_text_label("History and storage".into())
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History))
+                        .finish(),
+                );
+                if self.query.selected_task.is_some()
+                    || self.show_spaces
+                    || self.show_messages
+                    || self.query.history
+                {
                     header.add_child(
                         builder
                             .button(ButtonVariant::Text, self.page_buttons[0].clone())
@@ -1066,7 +1187,12 @@ impl View for CollaborationPanel {
                 );
             }
         }
-        if !self.preview && !self.show_spaces && !self.show_messages && self.form.is_none() {
+        if !self.preview
+            && !self.show_spaces
+            && !self.show_messages
+            && !self.query.history
+            && self.form.is_none()
+        {
             for (label, state, action) in [
                 (
                     format!(
@@ -1147,6 +1273,40 @@ impl View for CollaborationPanel {
                             })
                             .finish(),
                     );
+                }
+            }
+        }
+        if !self.preview && self.query.history && self.form.is_none() {
+            body.add_child(self.render_controls(app));
+            for (index, label, action) in [
+                (1, "First export page", Some(Action::FirstHistory)),
+                (
+                    2,
+                    "Next export page",
+                    self.snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.history.as_ref())
+                        .and_then(|history| history.cursor)
+                        .map(|_| Action::NextHistory),
+                ),
+                (
+                    3,
+                    "Copy this export page as JSON",
+                    Some(Action::CopyHistory),
+                ),
+            ] {
+                let button = builder
+                    .button(ButtonVariant::Text, self.history_buttons[index].clone())
+                    .with_text_label(label.into());
+                if let Some(action) = action.filter(|_| self.connected) {
+                    body.add_child(
+                        button
+                            .build()
+                            .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
+                            .finish(),
+                    );
+                } else {
+                    body.add_child(button.disabled().build().finish());
                 }
             }
         }
@@ -2680,6 +2840,130 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("live-thread-history.png"),
         );
     filenames.extend(["live-message-search.png", "live-thread-history.png"].map(str::to_owned));
+    driver = driver
+        .with_step(
+            TestStep::new("open native history and capacity").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.handle_action(&Action::History, ctx));
+            }),
+        )
+        .with_step(
+            TestStep::new("history page preserves protected work")
+                .add_named_assertion(
+                    "bounded ordered export and storage budget",
+                    |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(
+                            panel.read(app, |panel, _| panel.query.history
+                                && panel
+                                    .snapshot
+                                    .as_ref()
+                                    .and_then(|snapshot| snapshot.history.as_ref())
+                                    .is_some_and(|history| !history.records.is_empty()
+                                        && history.records.len() <= 50
+                                        && history.capacity["database"]["hard_limit"]
+                                            .as_u64()
+                                            .is_some()
+                                        && history
+                                            .records
+                                            .windows(2)
+                                            .all(|rows| rows[0]["sequence"].as_u64()
+                                                < rows[1]["sequence"].as_u64())))
+                                && checkpoint_draft(app, window) == "unsent collaboration draft"
+                        )
+                    },
+                )
+                .with_take_screenshot("live-history-capacity.png"),
+        )
+        .with_step(
+            TestStep::new("require explicit native history deletion text")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::Purge, ctx);
+                        panel.fill_control_checkpoint(&["yes"], ctx);
+                        panel.confirm_control(ctx);
+                        assert!(panel.control_checkpoint_rejected());
+                    });
+                })
+                .with_take_screenshot("live-history-purge-confirmation.png"),
+        )
+        .with_step(
+            TestStep::new("change history after the reviewed purge preview").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let project = panel.snapshot.as_ref().unwrap().project.clone();
+                        super::BROKER
+                            .get()
+                            .unwrap()
+                            .operator(
+                                &project,
+                                &warp_agent_bus::Operation::AgentSend {
+                                    to: "capture-worker".into(),
+                                    body: "Preserve work arriving after purge preview".into(),
+                                    subject: None,
+                                    thread_id: None,
+                                    reply_to: None,
+                                    task_id: None,
+                                    request_id: uuid::Uuid::new_v4().to_string(),
+                                },
+                            )
+                            .unwrap();
+                        panel.fill_control_checkpoint(&["DELETE HISTORY"], ctx);
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native purge rejects changed history")
+                .add_named_assertion("original preview is fenced", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.control_checkpoint_rejected())
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-history-purge-stale.png"),
+        )
+        .with_step(
+            TestStep::new("archive only older completed history").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.cancel_control(ctx);
+                    panel.open_control(controls::Kind::ArchiveAged, ctx);
+                    panel.fill_control_checkpoint(&["1"], ctx);
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native aged archive retains recent and uncertain work")
+                .add_named_assertion("archive response and draft preserved", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel.query.history
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .tasks
+                                .iter()
+                                .all(|task| !task.archived)))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-history-archive-aged.png"),
+        );
+    filenames.extend(
+        [
+            "live-history-capacity.png",
+            "live-history-purge-confirmation.png",
+            "live-history-purge-stale.png",
+            "live-history-archive-aged.png",
+        ]
+        .map(str::to_owned),
+    );
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

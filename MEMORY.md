@@ -227,3 +227,5 @@
 - Windows PTY startup must simplify canonical extended-prefix paths before both CreateProcessW and bootstrap environment construction. Broker scope identity stays canonical; PowerShell location-provider paths use the existing dunce helper. Native shared-pane acceptance exposed this boundary.
 
 - History eligibility must query all persisted attempts rather than the 16-attempt task-detail window. Force-cancel/overlap overrides retain unknown effects and cannot authorize archival or purge. Preview/deletion share predicates; referenced message roots survive acknowledged-message cleanup.
+
+- Native history purge pins the original preview sequence and typed DELETE HISTORY intent. Purge selects task/message eligibility before deletions can expose more rows, records an audit event and replays the original result. Reply/thread retention checks use separate indexed lookups rather than one OR join. Native history JSON export is an explicit scoped clipboard page; no automatic filesystem write or eviction.

@@ -153,6 +153,8 @@ pub struct PanelQuery {
     pub message_query: Option<String>,
     pub selected_thread: Option<String>,
     pub message_after: Option<u64>,
+    pub history: bool,
+    pub history_after: Option<u64>,
 }
 impl RunningBroker {
     /// Executable aliases live beside the private broker socket and disappear with the app.
@@ -1213,10 +1215,18 @@ impl Broker {
         let spaces = if query.spaces {
             state.store.execute_controller(&project, &ControllerOperation::SpaceList { cursor: query.space_after.clone(), limit: Some(50) })?
         } else { json!({"spaces": [], "cursor": null}) };
+        let history = if query.history {
+            let page = state.store.execute_controller(&project, &ControllerOperation::HistoryExport {
+                after: same_scope.then_some(query.history_after).flatten(), limit: Some(50),
+            })?;
+            let preview = state.store.execute_controller(&project, &ControllerOperation::PurgePreview)?;
+            Some(json!({"capacity": state.store.capacity(&project)?, "preview": preview,
+                "records": page["records"], "cursor": page["cursor"]}))
+        } else { None };
         Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
-            "event_cursor": events["cursor"], "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))
+            "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {

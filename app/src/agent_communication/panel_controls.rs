@@ -25,6 +25,8 @@ pub(crate) enum Kind {
     ReassignOverride,
     ForceCancel,
     Archive,
+    ArchiveAged,
+    Purge,
     CreateSpace,
     MapWorkspace,
     LeaveSpace,
@@ -44,6 +46,8 @@ impl Kind {
             Self::ReassignOverride => "Reassign with override",
             Self::ForceCancel => "Override cancellation",
             Self::Archive => "Archive",
+            Self::ArchiveAged => "Archive older completed work",
+            Self::Purge => "Purge reviewed history",
             Self::CreateSpace => "Create space",
             Self::MapWorkspace => "Map checkout",
             Self::LeaveSpace => "Leave participation",
@@ -66,6 +70,8 @@ impl Kind {
             Self::ForceCancel | Self::RetryOverride => &["Reason", "Type ALLOW OVERLAP"],
             Self::Accept | Self::Revise => &["Review feedback"],
             Self::Archive => &[],
+            Self::ArchiveAged => &["Completed work older than days (1–3650)"],
+            Self::Purge => &["Type DELETE HISTORY"],
             Self::CreateSpace => &["Space name"],
             Self::MapWorkspace => &[
                 "Space UUID",
@@ -89,6 +95,7 @@ pub(super) struct Form {
     kind: Kind,
     project: String,
     task: Option<Task>,
+    purge_preview: Option<super::PurgePreview>,
     request_id: String,
     fields: Vec<ViewHandle<EditorView>>,
     submitting: bool,
@@ -127,6 +134,32 @@ fn command(
             fields.last().is_some_and(|field| field == "ALLOW OVERLAP"),
             "Type ALLOW OVERLAP to acknowledge that earlier execution may still be writing"
         );
+    }
+    if kind == Kind::ArchiveAged {
+        let days: u64 = fields[0]
+            .trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Enter whole days between 1 and 3650"))?;
+        anyhow::ensure!(
+            (1..=3650).contains(&days),
+            "Enter whole days between 1 and 3650"
+        );
+        return Ok(Command::Controller(ControllerOperation::ArchiveAged {
+            older_than_days: Some(days),
+            request_id,
+        }));
+    }
+    if kind == Kind::Purge {
+        anyhow::ensure!(
+            fields[0] == "DELETE HISTORY",
+            "Type DELETE HISTORY to confirm irreversible deletion"
+        );
+        return Ok(Command::Controller(ControllerOperation::HistoryPurge {
+            expected_sequence: None,
+            archived_tasks: true,
+            acknowledged_messages: true,
+            request_id,
+        }));
     }
     if kind == Kind::Search {
         anyhow::ensure!(fields[0].len() <= 256, "Search text must fit 256 bytes");
@@ -261,7 +294,9 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::Assign
+        Kind::ArchiveAged
+        | Kind::Purge
+        | Kind::Assign
         | Kind::Pool
         | Kind::Search
         | Kind::CreateSpace
@@ -283,7 +318,9 @@ impl CollaborationPanel {
         };
         if !matches!(
             kind,
-            Kind::Assign
+            Kind::ArchiveAged
+                | Kind::Purge
+                | Kind::Assign
                 | Kind::Pool
                 | Kind::Search
                 | Kind::CreateSpace
@@ -296,6 +333,13 @@ impl CollaborationPanel {
         {
             return;
         }
+        if kind == Kind::Purge && (!self.query.history || snapshot.history.is_none()) {
+            return;
+        }
+        let purge_preview = snapshot
+            .history
+            .as_ref()
+            .map(|history| history.preview.clone());
         let project = snapshot.project.clone();
         let task = snapshot.task.clone();
         let fields: Vec<_> = kind
@@ -349,6 +393,7 @@ impl CollaborationPanel {
             kind,
             project,
             task,
+            purge_preview,
             fields,
             request_id: uuid::Uuid::new_v4().to_string(),
             submitting: false,
@@ -409,7 +454,7 @@ impl CollaborationPanel {
             ctx.notify();
             return;
         }
-        let operation = match command(
+        let mut operation = match command(
             form.kind,
             &form.project,
             form.task.as_ref(),
@@ -423,7 +468,17 @@ impl CollaborationPanel {
                 return;
             }
         };
+        if let Command::Controller(ControllerOperation::HistoryPurge {
+            expected_sequence, ..
+        }) = &mut operation
+        {
+            let Some(preview) = &form.purge_preview else {
+                return;
+            };
+            *expected_sequence = Some(preview.sequence);
+        }
         if let Command::Search(query) = operation {
+            self.query.history = false;
             self.query.message_query = Some(query);
             self.query.selected_thread = None;
             self.query.message_after = None;
@@ -497,6 +552,11 @@ impl CollaborationPanel {
             if form.kind.overrides() {
                 body.add_child(builder.span("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.").with_soft_wrap().build().finish());
             }
+            if form.kind == Kind::Purge {
+                if let Some(preview) = &form.purge_preview {
+                    body.add_child(builder.span(format!("Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.", preview.tasks, preview.messages, preview.sequence)).with_soft_wrap().build().finish());
+                }
+            }
             if form.kind == Kind::Archive {
                 body.add_child(
                     builder
@@ -555,7 +615,9 @@ impl CollaborationPanel {
                 );
             }
         } else {
-            let mut kinds = if self.show_spaces {
+            let mut kinds = if self.query.history {
+                vec![Kind::ArchiveAged, Kind::Purge]
+            } else if self.show_spaces {
                 vec![Kind::CreateSpace, Kind::MapWorkspace]
             } else {
                 vec![Kind::Assign, Kind::Pool, Kind::Search]
@@ -698,6 +760,50 @@ mod tests {
             "id".into()
         )
         .is_err());
+        assert!(command(
+            Kind::Purge,
+            "/project",
+            None,
+            &["yes".into()],
+            "purge".into()
+        )
+        .is_err());
+        assert!(matches!(
+            command(
+                Kind::Purge,
+                "/project",
+                None,
+                &["DELETE HISTORY".into()],
+                "purge".into()
+            )
+            .unwrap(),
+            Command::Controller(ControllerOperation::HistoryPurge {
+                expected_sequence: None,
+                ..
+            })
+        ));
+        assert!(command(
+            Kind::ArchiveAged,
+            "/project",
+            None,
+            &["0".into()],
+            "archive".into()
+        )
+        .is_err());
+        assert!(matches!(
+            command(
+                Kind::ArchiveAged,
+                "/project",
+                None,
+                &["30".into()],
+                "archive".into()
+            )
+            .unwrap(),
+            Command::Controller(ControllerOperation::ArchiveAged {
+                older_than_days: Some(30),
+                ..
+            })
+        ));
         let mut injected = fields;
         injected[0] = "worker\nother".into();
         assert!(command(Kind::Assign, "/project", None, &injected, "id".into()).is_err());

@@ -80,3 +80,5 @@ M6 gateway/platform credential storage/real SSH remain pending. MacOS debug capt
 correction is awaiting the next native capture run.
 
 Source `c6f4d6c`, run [36983313934](https://github.com/OthinusG/warp-lite/actions/runs/36983313934): macOS passed all 108 native captures, including shared admission/departure, replacement-risk authorization, task filters, literal search/thread history and opening local evidence from the producing checkout. Visual review is pending. Windows source `8303fd8` passed backend/application compilation and 99 captures, then failed shared-tab admission. Extended-prefix startup directory handling is being corrected; no Windows live-action acceptance is claimed.
+
+Native history/capacity/export-page/aged-archive/purge forms are implemented. Original preview sequence, typed deletion and stale-preview rejection have dedicated backend and retained GUI regressions (112 expected captures). Rust compilation and native visual/action acceptance are pending cloud verification. Local SQLite query-plan checks confirm indexed parent/reply lookups; workflow YAML and capture-diagnostic redaction checks passed.

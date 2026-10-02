@@ -552,6 +552,8 @@ pub enum ControllerOperation {
     },
     PurgePreview,
     HistoryPurge {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_sequence: Option<u64>,
         archived_tasks: bool,
         acknowledged_messages: bool,
         request_id: String,

@@ -207,6 +207,10 @@ including superseded revisions. An overlap override is not proof of completion.
 Age-based archival uses the same requirement. Purge previews and deletion share
 one eligibility predicate, retaining uncertain attempts, prerequisite references,
 unread task messages and parent messages referenced outside the purged task.
+Purge previews return the current project sequence. `HistoryPurge.expected_sequence`
+optionally fences deletion against that reviewed sequence inside the mutation
+transaction; native confirmation always supplies it. A changed sequence requires
+a refreshed preview and new intent. Legacy callers may omit this field.
 Acknowledged standalone messages are eligible only when no reply/thread still
 references them; each purge deletes exactly the eligible set observed before deletion.
 
@@ -341,3 +345,9 @@ and repository metadata plus the next cursor. A private-only one-row page uses
 the empty cursor to advance to shared rows. Workspace admission carries the exact
 reviewed ID, space and root in a trusted native field; validation and preparation
 reject a remapped snapshot. No shell/MCP parameter can select admission.
+
+Native history is an explicit scoped read view. It shows capacity, protected purge
+counts and 50-record ordered export pages. Copying a page exports that exact
+scoped JSON page through the existing clipboard only on explicit action. Archive
+age requires explicit days; purge requires typing DELETE HISTORY and pins the
+original preview sequence/counts. No automatic history eviction occurs.
