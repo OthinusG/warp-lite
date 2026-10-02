@@ -86,3 +86,51 @@ dropped-response reconciliation; draft-safe local wake; offline evidence; app/de
 restart without duplicate ownership. Keep macOS/Windows CI and physical/model
 acceptance separate. Do not advertise production remote task availability from an
 enrollment-only channel.
+
+## Next implementation: device-qualified actors
+
+This section is a design boundary, not a shipped routing claim. Preserve SQLite
+v5 local workspace rows and their unique canonical-root index. Add a v6 migration
+with a v5 backup/sentinel and separate remote workspace, actor-binding and run
+rows; do not reinterpret an existing host path as participant metadata.
+
+- Remote workspaces carry device, granted space, participant checkout identity,
+  optional explicit repository identity and bounded display metadata. Their
+  physical reservation key is device plus checkout, independent of collaboration
+  space; two computers using the same path never become one physical checkout.
+- A remote actor binding records coordinator-assigned agent UUID, authenticated
+  device, remote workspace and app-verified native identity. Existing names may be
+  reclaimed only through the original device/workspace/native binding. Reject a
+  collision with either a host actor or another device before calling the existing
+  registration helper. Ordinary operation arguments cannot choose this binding.
+- Run rows separate the participant native run from a server-issued mutation epoch
+  and its receipt-time expiry/closure. Reconnecting the same verified run resumes
+  its original epoch. Replacement closes that run and uses existing interruption
+  recovery; it cannot convert uncertain ownership into a stopped outcome.
+- Dispatch native operations through Store::execute under the resolved actor and
+  run, after current device grant, space membership, controller ownership and run
+  checks. Authorization precedes replay lookup. No remote frame dispatches local
+  operator, preparation, grant or override APIs.
+- Reconciliation checks only the original actor/epoch/request receipt. An absent
+  receipt under an expired/closed epoch is not permission to invent a new epoch.
+  Retain pending operation content and original identity in bounded participant
+  intent storage; never persist invitation, credential or local terminal capability.
+- Host filesystem APIs remain limited to host workspace bindings. Remote lease
+  paths are bounded normalized relative metadata; participant native code repeats
+  canonical/path/symlink validation in its own checkout. Before remote reserve,
+  the participant also checks its local broker so private/local shared reservations
+  in that checkout still conflict. Unknown reserve outcomes retain their original
+  request/lease until reconciliation or expiry, rather than silently releasing and
+  minting another request.
+- Remote evidence always records the authenticated producing device/workspace.
+  Host verification returns unavailable for private participant content; a reported
+  hash is not host verification. Existing host evidence keeps its original checkout.
+- Presence is a receipt-time lease for each admitted native run. Loss removes claim
+  and wake eligibility, while durable tasks and uncertain attempts remain. A wake
+  names only an existing actor/run/message and is delivered to its enrolled app;
+  that app repeats the existing local native/draft/approval/delayed-Enter guards.
+
+Before production opt-in, real coordinator/participant checks must cover host and
+cross-device name/workspace isolation, unchanged private leases/tasks, dropped
+responses and original-epoch reconciliation, generation/grant revocation before
+replay, stale run replacement, offline evidence and a draft-safe local wake.
