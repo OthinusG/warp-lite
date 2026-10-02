@@ -2067,11 +2067,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 .tasks
                                 .len()
                                 == 2
-                                && snapshot
-                                    .tasks
-                                    .iter()
-                                    .any(|task| task.description
-                                        == "Run the deterministic pool fixture")))
+                                && snapshot.tasks.iter().any(|task| task.assignee.is_empty())))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 },

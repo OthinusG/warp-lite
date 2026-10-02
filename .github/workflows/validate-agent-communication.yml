@@ -112,7 +112,9 @@ jobs:
           # Keep only panic source locations, never the raw application log or payload.
           $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
           New-Item -ItemType Directory -Path $env:WARP_COLLABORATION_CAPTURE -Force | Out-Null
-          @{ source = $env:GITHUB_SHA; exit_code = $captureProcess.ExitCode; panic_locations = $locations } | ConvertTo-Json | Set-Content "$env:WARP_COLLABORATION_CAPTURE/diagnostic.json"
+          python script/test-native-capture-diagnostic.py
+          python script/native-capture-diagnostic.py --log "$env:RUNNER_TEMP/collaboration-capture.stdout.log" --log "$env:RUNNER_TEMP/collaboration-capture.stderr.log" --output "$env:WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code $captureProcess.ExitCode
+          if ($LASTEXITCODE -ne 0) { throw "Capture diagnostics failed" }
           if ($captureProcess.ExitCode -ne 0) {
             Write-Host "Native panic source locations: $($locations -join ', ')"
             throw "Native capture failed: $($captureProcess.ExitCode)"
@@ -227,7 +229,11 @@ jobs:
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
         run: |
-          WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1
+          capture_exit=0
+          WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
+          python3 script/test-native-capture-diagnostic.py
+          python3 script/native-capture-diagnostic.py --log "$RUNNER_TEMP/collaboration-capture.log" --output "$WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code "$capture_exit"
+          test "$capture_exit" -eq 0
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -239,7 +245,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-collaboration-native-captures-macOS
-          path: ${{ runner.temp }}/collaboration-ui-macos/**/*.png
+          path: |
+            ${{ runner.temp }}/collaboration-ui-macos/**/*.png
+            ${{ runner.temp }}/collaboration-ui-macos/diagnostic.json
           if-no-files-found: warn
           retention-days: 7
   soak_phase1:
