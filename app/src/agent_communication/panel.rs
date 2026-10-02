@@ -1533,13 +1533,24 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
-                    workspace.handle_action(&WorkspaceAction::FocusLeftPanel, ctx)
+                    workspace.handle_action(&WorkspaceAction::FocusRightPanel, ctx)
                 });
             }),
         )
         .with_step(
             TestStep::new("live detail scrolling")
                 .with_keystrokes(&["pagedown", "pagedown", "pagedown"])
+                .add_named_assertion(
+                    "live detail scroll reaches lower controls",
+                    |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(
+                            panel.read(app, |panel, _| panel.scroll.scroll_start().as_f32() > 0.)
+                                && checkpoint_draft(app, window) == "unsent collaboration draft"
+                        )
+                    },
+                )
                 .with_take_screenshot("live-detail-end.png"),
         )
         .with_step(

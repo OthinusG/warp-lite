@@ -1298,7 +1298,12 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     }).unwrap();
     issuer.operation = serde_json::from_value(serde_json::json!({"op":"task_retry", "task_id":id,
         "reason":"Explicit recovery", "request_id":request_id()})).unwrap();
-    transport::call(&broker.endpoint, &issuer).unwrap();
+    let error = transport::call(&broker.endpoint, &issuer).unwrap_err();
+    assert_eq!(error.downcast_ref::<warp_agent_bus::DomainError>().unwrap().code, "execution_unknown");
+    let retry = serde_json::from_value(serde_json::json!({"op":"task_retry", "task_id":id,
+        "reason":"Operator authorizes replacement despite unknown effects", "override_uncertain":true,
+        "request_id":request_id()})).unwrap();
+    broker.operator("/project", &retry).unwrap();
     replacement.operation = Operation::TaskStart {
         task_id: id.clone(), revision: 2, expected_version: None, request_id: request_id()
     };
