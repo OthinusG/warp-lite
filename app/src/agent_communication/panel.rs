@@ -40,6 +40,14 @@ struct PanelAgent {
     paused: bool,
     ready: bool,
     readiness_source: Option<String>,
+    #[serde(default)]
+    device: Option<String>,
+    #[serde(default)]
+    workspace: Option<String>,
+    #[serde(default)]
+    last_observed_ms: Option<u64>,
+    #[serde(default)]
+    observation_source: Option<String>,
 }
 #[derive(Deserialize)]
 struct PanelTask {
@@ -603,7 +611,7 @@ impl CollaborationPanel {
                     .iter()
                     .map(|row| {
                         format!(
-                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})",
+                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}",
                             row.agent.name,
                             row.agent.program,
                             if row.online { "online" } else { "offline" },
@@ -633,7 +641,14 @@ impl CollaborationPanel {
                             } else {
                                 "not ready"
                             },
-                            row.readiness_source.as_deref().unwrap_or("unavailable")
+                            row.readiness_source.as_deref().unwrap_or("unavailable"),
+                            row.device.as_ref().filter(|device| device.as_str() != "local")
+                                .map(|device| format!("Remote device {device}"))
+                                .unwrap_or_else(|| "This device".into()),
+                            row.workspace.as_deref().unwrap_or("unavailable"),
+                            row.last_observed_ms.map(|age| format!("{} · {}s ago",
+                                row.observation_source.as_deref().unwrap_or("observation"), age / 1000))
+                                .unwrap_or_else(|| "unavailable".into()),
                         )
                     })
                     .collect(),
@@ -1956,7 +1971,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         .snapshot
                         .as_ref()
                         .is_some_and(|snapshot| snapshot.tasks.len() == 1
-                            && snapshot.agents.iter().any(|agent| !agent.online)))
+                            && snapshot.agents.iter().any(|agent| !agent.online
+                                && agent.device.as_deref() == Some("local")
+                                && agent.workspace.as_deref() == Some(panel.query.project.as_str())
+                                && agent.last_observed_ms.is_none())))
                         && checkpoint_draft(app, window) == "unsent collaboration draft"
                 )
             },

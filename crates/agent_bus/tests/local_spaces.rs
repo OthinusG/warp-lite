@@ -603,6 +603,10 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
         .find(|row| row["agent"]["name"] == "worker")
         .unwrap();
     assert_eq!(worker_row["blocked"], true);
+    assert_eq!(worker_row["device"], "local");
+    assert_eq!(worker_row["workspace"], root);
+    assert!(worker_row["last_observed_ms"].as_u64().is_some());
+    assert_eq!(worker_row["observation_source"], "local observation");
     assert_eq!(
         worker_row["draft"], "present",
         "rich drafts protect delivery too"
@@ -623,6 +627,15 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
     );
     assert_eq!(offline["task_runtime"]["online"], false);
     assert_eq!(offline["task_runtime"]["interrupted"], true);
+    let offline_worker = offline["agents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["agent"]["name"] == "worker")
+        .unwrap();
+    assert!(offline_worker["last_observed_ms"].is_null());
+    assert!(offline_worker["observation_source"].is_null());
+    assert_eq!(offline_worker["workspace"], root);
 
     query.task_state = Some("accepted".into());
     assert!(b.operator_panel(&query).unwrap()["tasks"]

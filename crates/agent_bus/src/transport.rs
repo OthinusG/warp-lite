@@ -78,6 +78,7 @@ struct Live {
     ready: Option<Instant>,
     last_output: Instant,
     last_input: Instant,
+    observed: Instant,
     draft: Draft,
     rich_draft: bool,
     blocked: bool,
@@ -431,6 +432,7 @@ impl Broker {
             ready: None,
             last_output: Instant::now(),
             last_input: Instant::now(),
+            observed: Instant::now(),
             draft: Draft::default(),
             rich_draft: false,
             blocked: false,
@@ -483,7 +485,7 @@ impl Broker {
             {
                 live.generation += 1;
                 live.activity = activity;
-                live.readiness_source = "native";
+                live.readiness_source = "native"; live.observed = Instant::now();
                 live.ready = activity.is_idle().then(Instant::now);
                 if !activity.is_idle() {
                     live.initial_prompt = false;
@@ -506,7 +508,7 @@ impl Broker {
                     live.draft.clear();
                     live.activity = Activity::Working;
                     live.paused = false;
-                    live.readiness_source = "user_submit";
+                    live.readiness_source = "user_submit"; live.observed = Instant::now();
                     live.ready = None;
                 } else {
                     live.draft.invalidate();
@@ -527,12 +529,12 @@ impl Broker {
                 if let Some(activity) = live.draft.input(bytes) {
                     live.activity = activity;
                     live.paused = activity == Activity::Cancelled;
-                    live.readiness_source = "user_input";
+                    live.readiness_source = "user_input"; live.observed = Instant::now();
                     live.ready = None;
                 }
                 live.initial_prompt = false;
                 live.generation += 1;
-                live.last_input = Instant::now();
+                live.last_input = Instant::now(); live.observed = live.last_input;
                 if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
             }
         }
@@ -546,7 +548,7 @@ impl Broker {
                     live.blocked = blocked;
                     live.generation += 1;
                     if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
-                    live.last_input = Instant::now();
+                    live.last_input = Instant::now(); live.observed = live.last_input;
                 }
             }
         }
@@ -558,7 +560,7 @@ impl Broker {
                 .get_mut(terminal)
                 .and_then(|binding| binding.live.as_mut())
             {
-                live.last_output = Instant::now();
+                live.last_output = Instant::now(); live.observed = live.last_output;
             }
         }
     }
@@ -704,10 +706,10 @@ impl Broker {
                         live.delivered.remove(&wake.message_id);
                         live.ready = Some(Instant::now());
                         live.activity = Activity::Idle;
-                        live.readiness_source = "retry";
+                        live.readiness_source = "retry"; live.observed = Instant::now();
                         live.generation += 1;
                     }
-                    else { live.ready = None; live.activity = Activity::Working; live.readiness_source = "peer_submit"; }
+                    else { live.ready = None; live.activity = Activity::Working; live.readiness_source = "peer_submit"; live.observed = Instant::now(); }
                 }
             }
         }
@@ -780,7 +782,7 @@ impl Broker {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
             live.native_activity = Some(activity);
             live.activity = activity;
-            live.readiness_source = "native";
+            live.readiness_source = "native"; live.observed = Instant::now();
             live.ready = activity.is_idle().then(Instant::now);
             live.generation += 1;
             live.initial_prompt = false;
@@ -842,7 +844,7 @@ impl Broker {
             if live.initial_prompt && live.generation == 0 {
                 live.ready = Some(Instant::now());
                 live.activity = Activity::Idle;
-                live.readiness_source = "startup";
+                live.readiness_source = "startup"; live.observed = Instant::now();
             }
             live.initial_prompt = false;
             self.shared.changed.notify_all();
@@ -914,7 +916,7 @@ impl Broker {
             }
             live.ready = Some(Instant::now());
             live.activity = Activity::Idle;
-            live.readiness_source = "model";
+            live.readiness_source = "model"; live.observed = Instant::now();
             live.generation += 1;
             if let Some(wake) = live.wake.take() {
                 live.delivered.remove(&wake.message_id);
@@ -994,7 +996,7 @@ impl Broker {
         if current_transition && matches!(request.operation, Operation::TaskStart { .. }) {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
             live.activity = Activity::Working;
-            live.readiness_source = "task_start";
+            live.readiness_source = "task_start"; live.observed = Instant::now();
             live.ready = None;
             live.generation += 1;
             if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
@@ -1002,7 +1004,7 @@ impl Broker {
         if current_transition && matches!(request.operation, Operation::TaskSubmit { .. } | Operation::TaskFinishCancel { .. } | Operation::TaskFail { .. }) {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
             live.activity = Activity::Idle;
-            live.readiness_source = "task_finished";
+            live.readiness_source = "task_finished"; live.observed = Instant::now();
             live.ready = Some(Instant::now());
             result["instruction"] = json!("Task execution has finished. Before ending your turn, call warp_agent_ready as your final tool action; native completion also restores readiness. Keep polling any other work you are coordinating.");
         }
@@ -1202,7 +1204,15 @@ impl Broker {
                     && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
             let remote_online = state.remote_active && state.remote_presence.get(&agent.id)
                 .is_some_and(|presence| presence.valid(&state.store, &agent.id));
+            let device = agent.terminal.strip_prefix("remote:")
+                .and_then(|qualified| qualified.split_once(':')).map(|(device, _)| device.to_owned())
+                .unwrap_or_else(|| "local".into());
+            let workspace = state.store.physical_root(&agent).ok();
+            let observed = live.map(|live| live.observed.elapsed().as_millis() as u64)
+                .or_else(|| remote_online.then(|| state.remote_presence[&agent.id].age_ms()));
             json!({"agent": agent, "online": live.is_some() || remote_online,
+                "device": device, "workspace": workspace, "last_observed_ms": observed,
+                "observation_source": if live.is_some() { Some("local observation") } else if remote_online { Some("presence receipt") } else { None },
                 "activity": live.map(|live| live.activity),
                 "draft": live.map(|live| if live.rich_draft { "present" } else { live.draft.state() }),
                 "blocked": live.is_some_and(|live| live.blocked),

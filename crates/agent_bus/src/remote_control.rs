@@ -30,6 +30,9 @@ pub(super) struct ActorPresence {
     seen: Instant,
 }
 impl ActorPresence {
+    pub(super) fn age_ms(&self) -> u64 {
+        self.seen.elapsed().as_millis() as u64
+    }
     pub(super) fn mutation_epoch(&self) -> String {
         self.epoch.to_string()
     }

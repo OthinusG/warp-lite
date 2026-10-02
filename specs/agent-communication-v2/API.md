@@ -495,3 +495,14 @@ restoring execution ownership. New start/claim, progress and lease renewal remai
 blocked by unknown execution. Replaced/revoked epochs, overridden outcomes and old
 revisions cannot finalize the current task. Reconnect/heartbeat alone does nothing;
 only the original owner's explicit result/stop operation changes certainty.
+
+
+### Native participant observation projection
+
+Panel agent rows additionally expose device (`local` or the qualified enrolled
+UUID), physical checkout identity and age/source of the last native observation.
+Local ages use the broker's monotonic activity/input/output observations; remote
+ages use validated receipt-time presence. These are presentation facts, independent
+of readiness and task outcome. Offline observations remain unavailable, not a
+fabricated timestamp. Remote actors are labeled by device and never acquire a
+local terminal focus target. Fields remain optional in the native read model.

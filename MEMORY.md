@@ -255,3 +255,5 @@
 - Unknown connectivity does not grant another execution owner. The unchanged original actor/current run may explicitly confirm completion, failure or stopped cancellation on the same unresolved attempt/revision. Shared outcome checks accept only active/unknown attempts with no outcome/finish timestamp; overridden/replaced epochs and revisions stay fenced. Progress/start/claim/renewal do not gain this exception.
 
 - Native history clipboard acceptance is restricted to isolated GitHub runners. Capture the exact page before explicit CopyHistory and compare only that owned fixture result, including scope/cursor/order/linkage and unchanged draft; local capture mode never reads or overwrites the daily user's clipboard.
+
+- Native participant rows show qualified device, physical checkout and monotonic observation age without equating connectivity/activity with readiness or task outcome. Remote ages come from validated receipt leases; offline ages stay unavailable. Local focus remains limited to existing VIEWS matches. Preserve native labels and scroll/wrapping when adding these metadata facts.
