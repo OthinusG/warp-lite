@@ -405,3 +405,19 @@ changed request content is `request_conflict`. An absent receipt returns
 expired or missing original run fails explicitly and cannot authorize a new epoch.
 `reconciled` replies preserve connection/correlation/original mutation identities.
 Participant persistence and wake routing remain unfinished.
+
+
+### Participant durable intents
+
+The participant's private SQLite Store exposes staging, bounded recovery pages,
+confirmed-result retention and explicit removal of resolved remote intents.
+`remote_pending_intents` is additive metadata in schema v6, independent of the
+coordinator task tables. A row pins coordinator/device/space, original actor,
+mutation epoch, request UUID and serialized operation; credentials, invitations and
+terminal capabilities are excluded. A duplicate unchanged stage returns its
+original row, while changed identity/content is `request_conflict`. Unknown outcomes
+cannot be removed, including after restart or expiry. The limits are 1,000 rows,
+16 MiB total payload/result bytes, half a protocol frame per mutation and one frame
+per result. Recovery uses ordered actor/request cursors with 50 rows per page.
+Native routing must stage before sending and record only a matched operation result
+or committed reconciliation receipt. No automatic replay or eviction is enabled.

@@ -29,6 +29,9 @@ mod remote_auth;
 #[path = "remote_actors.rs"]
 mod remote_actors;
 pub use remote_actors::RemoteActor;
+#[path = "remote_pending.rs"]
+mod remote_pending;
+pub use remote_pending::RemoteIntent;
 pub(crate) use remote_actors::RemoteWorkspace;
 pub(crate) use remote_auth::RemotePrincipal;
 
@@ -99,7 +102,8 @@ CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT N
 CREATE TABLE IF NOT EXISTS cursors (device_id TEXT NOT NULL, space_id TEXT NOT NULL, sequence INTEGER NOT NULL, PRIMARY KEY(device_id, space_id));
 CREATE TABLE IF NOT EXISTS remote_workspaces (id TEXT PRIMARY KEY, device TEXT NOT NULL, space_id TEXT NOT NULL, checkout TEXT NOT NULL, label TEXT NOT NULL, repository_id TEXT, created_at INTEGER NOT NULL, UNIQUE(device, checkout));
 CREATE TABLE IF NOT EXISTS remote_actor_bindings (agent TEXT PRIMARY KEY, device TEXT NOT NULL, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, native_id TEXT NOT NULL, current_epoch TEXT, revoked INTEGER NOT NULL DEFAULT 0, UNIQUE(device, native_id));
-CREATE TABLE IF NOT EXISTS remote_runs (epoch TEXT PRIMARY KEY, agent TEXT NOT NULL, native_run TEXT NOT NULL, expires_at INTEGER NOT NULL, closed INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, native_run));";
+CREATE TABLE IF NOT EXISTS remote_runs (epoch TEXT PRIMARY KEY, agent TEXT NOT NULL, native_run TEXT NOT NULL, expires_at INTEGER NOT NULL, closed INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, native_run));
+CREATE TABLE IF NOT EXISTS remote_pending_intents (coordinator TEXT NOT NULL, device TEXT NOT NULL, space TEXT NOT NULL, actor TEXT NOT NULL, epoch TEXT NOT NULL, request_id TEXT NOT NULL, operation TEXT NOT NULL, response TEXT, created_at INTEGER NOT NULL, PRIMARY KEY(coordinator, actor, request_id));";
 
 pub(crate) const TASK_COLUMNS: &str = "id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline";
 

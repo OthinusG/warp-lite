@@ -138,3 +138,22 @@ Before production opt-in, real coordinator/participant checks must cover host an
 cross-device name/workspace isolation, unchanged private leases/tasks, dropped
 responses and original-epoch reconciliation, generation/grant revocation before
 replay, stale run replacement, offline evidence and a draft-safe local wake.
+
+
+## Participant intent storage checkpoint
+
+Reuse the participant's existing private SQLite Store for a separate
+`remote_pending_intents` table. Its rows are not authoritative task state. Before
+sending, atomically retain coordinator/device/space, original actor/epoch/request
+UUID and the serialized mutation. Never include enrollment/credential/capability
+frames. Reusing a key with changed context/content is a conflict. Reopening the app
+must recover the same rows; expiry does not delete unknown outcomes.
+
+Bound retained rows to 1,000 and total payload/result bytes to 16 MiB, with at most
+one protocol frame per payload. Quota rejection must precede network transmission.
+Record a confirmed matching result without changing the original intent, and allow
+explicit removal only after that result is retained. No automatic eviction, epoch
+replacement or ownership synthesis. Focused SQLite checks cover crash/reopen,
+changed content, immutable result, pending removal denial and row/byte limits.
+Production app routing remains gated on secure credentials, native presence/wake
+and the existing draft guards; this table alone does not enable participation.
