@@ -3310,6 +3310,36 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::ReservationUpdate { reservation_id, workspace, expected_owner, expected_expires_at, ttl_seconds, reason, .. } => {
+                text(reason)?;
+                let row = self.reservation_row(workspace, reservation_id)?;
+                ensure!(row.owner == *expected_owner && row.expires_at as u64 == *expected_expires_at,
+                    invalid_state("Reservation changed; refresh and confirm a new intent"));
+                let owner = self.agent(project, &row.owner)?;
+                ensure!(self.physical_root(&owner)? == *workspace, scope_denied("Reservation belongs to another checkout"));
+                if let Some(ttl) = ttl_seconds {
+                    ensure!((1..=RESERVATION_TTL_MAX).contains(ttl), invalid_input("Reservation TTL must be between 1 and 3600 seconds"));
+                    self.authorize(&owner)?;
+                    ensure!(row.expires_at as u64 > now(), invalid_state("Reservation expired; create a new one"));
+                    if let Some(attempt) = &row.attempt_id {
+                        ensure!(self.count("SELECT COUNT(*) AS count FROM attempts WHERE id = ? AND owner = ? AND certainty = 'active' AND outcome IS NULL AND finished_at IS NULL", &[attempt.as_str(), row.owner.as_str()])? == 1,
+                            execution_unknown("Reservation attempt is no longer confirmed active"));
+                    }
+                    let expires_at = now() + ttl * 1000;
+                    diesel::sql_query("UPDATE reservations SET expires_at = ? WHERE id = ?")
+                        .bind::<BigInt, _>(expires_at as i64).bind::<Text, _>(reservation_id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    self.record(project, "reservation_renewed", &actor.id, Some(reservation_id), row.attempt_id.as_deref(),
+                        json!({"path": row.path, "owner": row.owner, "expires_at": expires_at, "reason": reason, "operator": true}))?;
+                    Ok(json!({"renewed": [reservation_id], "expires_at": expires_at}))
+                } else {
+                    diesel::sql_query("DELETE FROM reservations WHERE id = ?").bind::<Text, _>(reservation_id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    self.record(project, "reservation_released", &actor.id, Some(reservation_id), row.attempt_id.as_deref(),
+                        json!({"path": row.path, "owner": row.owner, "reason": reason, "operator": true, "execution_stopped": false}))?;
+                    Ok(json!({"released": [reservation_id], "execution_stopped": false}))
+                }
+            }
             ControllerOperation::DeviceRevoke { device_id, .. } => self.revoke_device(project, device_id),
             ControllerOperation::SpaceCreate { name, .. } => self.space_create(project, actor, name),
             ControllerOperation::SpaceJoin { space_id, agent, .. } => {
@@ -6432,6 +6462,39 @@ mod tests {
             ),
             "invalid_state"
         );
+    }
+
+    #[test]
+    fn operator_reservation_maintenance_is_scoped_fenced_and_preserves_unknown_attempts() {
+        let store = Store::open(":memory:").unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().to_str().unwrap();
+        let issuer = store.register("issuer", "codex", root, "issuer").unwrap();
+        let worker = store.register("worker", "codex", root, "worker").unwrap();
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        store.execute(&worker, "worker-run", &transition(id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let reserved = store.execute(&worker, "worker-run", &Operation::FileReserve {
+            paths: vec!["fixture.rs".into()], mode: "exclusive".into(), task_id: Some(id.into()),
+            attempt_id: None, ttl_seconds: Some(600), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let reservation = store.reservation_by_id(reserved["reservation_ids"][0].as_str().unwrap()).unwrap().unwrap();
+        let intent = |expiry, ttl| ControllerOperation::ReservationUpdate {
+            reservation_id: reservation.id.clone(), workspace: reservation.workspace.clone(), expected_owner: worker.id.clone(),
+            expected_expires_at: expiry, ttl_seconds: ttl, reason: "Reviewed maintenance".into(), request_id: Uuid::new_v4().to_string(),
+        };
+        assert_eq!(code(&store.execute_controller("/foreign", &intent(reservation.expires_at as u64, Some(60))).unwrap_err()), "scope_denied");
+        assert_eq!(code(&store.execute_controller(root, &intent(0, Some(60))).unwrap_err()), "invalid_state");
+        let renewed = store.execute_controller(root, &intent(reservation.expires_at as u64, Some(60))).unwrap();
+        let expiry = renewed["expires_at"].as_u64().unwrap();
+        store.execute_controller(root, &ControllerOperation::TaskForceCancel { task_id: id.into(), reason: "Unknown effects".into(), expected_version: None, request_id: Uuid::new_v4().to_string() }).unwrap();
+        assert_eq!(code(&store.execute_controller(root, &intent(expiry, Some(60))).unwrap_err()), "execution_unknown");
+        let released = store.execute_controller(root, &intent(expiry, None)).unwrap();
+        assert_eq!(released["execution_stopped"], false);
+        assert!(store.reservation_by_id(&reservation.id).unwrap().is_none());
+        let task = store.operator_task(root, id).unwrap();
+        assert_eq!(task.attempts[0].certainty, "unknown");
+        assert!(task.attempts[0].finished_at.is_none());
     }
 
     #[test]

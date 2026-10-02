@@ -27,6 +27,8 @@ pub(crate) enum Kind {
     Archive,
     ArchiveAged,
     Purge,
+    RenewReservation,
+    ReleaseReservation,
     CreateSpace,
     MapWorkspace,
     LeaveSpace,
@@ -48,6 +50,8 @@ impl Kind {
             Self::Archive => "Archive",
             Self::ArchiveAged => "Archive older completed work",
             Self::Purge => "Purge reviewed history",
+            Self::RenewReservation => "Renew reservation",
+            Self::ReleaseReservation => "Release reservation",
             Self::CreateSpace => "Create space",
             Self::MapWorkspace => "Map checkout",
             Self::LeaveSpace => "Leave participation",
@@ -72,6 +76,16 @@ impl Kind {
             Self::Archive => &[],
             Self::ArchiveAged => &["Completed work older than days (1–3650)"],
             Self::Purge => &["Type DELETE HISTORY"],
+            Self::RenewReservation => &[
+                "Reservation UUID from current page",
+                "TTL seconds (1–3600)",
+                "Reason",
+            ],
+            Self::ReleaseReservation => &[
+                "Reservation UUID from current page",
+                "Reason",
+                "Type RELEASE RESERVATION",
+            ],
             Self::CreateSpace => &["Space name"],
             Self::MapWorkspace => &[
                 "Space UUID",
@@ -96,6 +110,7 @@ pub(super) struct Form {
     project: String,
     task: Option<Task>,
     purge_preview: Option<super::PurgePreview>,
+    reservations: Vec<warp_agent_bus::Reservation>,
     request_id: String,
     fields: Vec<ViewHandle<EditorView>>,
     submitting: bool,
@@ -108,6 +123,11 @@ enum Command {
     Agent(Operation),
     Controller(ControllerOperation),
     Search(String),
+    Reservation {
+        id: String,
+        ttl: Option<u64>,
+        reason: String,
+    },
 }
 
 fn command(
@@ -134,6 +154,32 @@ fn command(
             fields.last().is_some_and(|field| field == "ALLOW OVERLAP"),
             "Type ALLOW OVERLAP to acknowledge that earlier execution may still be writing"
         );
+    }
+    if matches!(kind, Kind::RenewReservation | Kind::ReleaseReservation) {
+        uuid::Uuid::parse_str(fields[0].trim())
+            .map_err(|_| anyhow::anyhow!("Enter a reservation UUID from the current page"))?;
+        let (ttl, reason) = if kind == Kind::RenewReservation {
+            let seconds: u64 = fields[1]
+                .trim()
+                .parse()
+                .map_err(|_| anyhow::anyhow!("TTL must be whole seconds between 1 and 3600"))?;
+            anyhow::ensure!(
+                (1..=3600).contains(&seconds),
+                "TTL must be between 1 and 3600 seconds"
+            );
+            (Some(seconds), fields[2].clone())
+        } else {
+            anyhow::ensure!(
+                fields[2] == "RELEASE RESERVATION",
+                "Type RELEASE RESERVATION; this does not stop writes"
+            );
+            (None, fields[1].clone())
+        };
+        return Ok(Command::Reservation {
+            id: fields[0].trim().into(),
+            ttl,
+            reason,
+        });
     }
     if kind == Kind::ArchiveAged {
         let days: u64 = fields[0]
@@ -294,7 +340,9 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::ArchiveAged
+        Kind::RenewReservation
+        | Kind::ReleaseReservation
+        | Kind::ArchiveAged
         | Kind::Purge
         | Kind::Assign
         | Kind::Pool
@@ -318,7 +366,9 @@ impl CollaborationPanel {
         };
         if !matches!(
             kind,
-            Kind::ArchiveAged
+            Kind::RenewReservation
+                | Kind::ReleaseReservation
+                | Kind::ArchiveAged
                 | Kind::Purge
                 | Kind::Assign
                 | Kind::Pool
@@ -340,6 +390,11 @@ impl CollaborationPanel {
             .history
             .as_ref()
             .map(|history| history.preview.clone());
+        let reservations = if matches!(kind, Kind::RenewReservation | Kind::ReleaseReservation) {
+            snapshot.reservations.clone()
+        } else {
+            vec![]
+        };
         let project = snapshot.project.clone();
         let task = snapshot.task.clone();
         let fields: Vec<_> = kind
@@ -394,6 +449,7 @@ impl CollaborationPanel {
             project,
             task,
             purge_preview,
+            reservations,
             fields,
             request_id: uuid::Uuid::new_v4().to_string(),
             submitting: false,
@@ -468,6 +524,26 @@ impl CollaborationPanel {
                 return;
             }
         };
+        if let Command::Reservation { id, ttl, reason } = &operation {
+            let Some(reservation) = form
+                .reservations
+                .iter()
+                .find(|reservation| reservation.id == *id)
+            else {
+                form.error = "Reservation was not on the original page. Close, refresh the page and confirm a new intent.".into();
+                ctx.notify();
+                return;
+            };
+            operation = Command::Controller(ControllerOperation::ReservationUpdate {
+                reservation_id: id.clone(),
+                workspace: reservation.workspace.clone(),
+                expected_owner: reservation.owner.clone(),
+                expected_expires_at: reservation.expires_at,
+                ttl_seconds: *ttl,
+                reason: reason.clone(),
+                request_id: form.request_id.clone(),
+            });
+        }
         if let Command::Controller(ControllerOperation::HistoryPurge {
             expected_sequence, ..
         }) = &mut operation
@@ -503,7 +579,7 @@ impl CollaborationPanel {
         form.submitted_fields = Some(fields);
         form.error.clear();
         ctx.spawn(async move {
-            match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), Command::Search(_) => unreachable!("Search is handled locally") }
+            match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), Command::Search(_) | Command::Reservation { .. } => unreachable!("Local intent is resolved before dispatch") }
         }, move |panel, result, ctx| {
             if panel.form.as_ref().is_none_or(|form| form.request_id != request_id) { return; }
             match result {
@@ -551,6 +627,17 @@ impl CollaborationPanel {
             }
             if form.kind.overrides() {
                 body.add_child(builder.span("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.").with_soft_wrap().build().finish());
+            }
+            if matches!(form.kind, Kind::RenewReservation | Kind::ReleaseReservation) {
+                body.add_child(builder.span("Use an ID from the original reservation page. Renewal requires a confirmed active owner; release removes advisory coordination only and does not stop execution or file writes.").with_soft_wrap().build().finish());
+                let id = form.fields[0].as_ref(app).buffer_text(app);
+                if let Some(reservation) = form
+                    .reservations
+                    .iter()
+                    .find(|reservation| reservation.id == id.trim())
+                {
+                    body.add_child(builder.span(format!("Original checkout {} · path {} · owner {} · expiry {} · attempt {}", reservation.workspace, reservation.path, reservation.owner, reservation.expires_at, reservation.attempt_id.as_deref().unwrap_or("unlinked"))).with_soft_wrap().build().finish());
+                }
             }
             if form.kind == Kind::Purge {
                 if let Some(preview) = &form.purge_preview {
@@ -618,7 +705,12 @@ impl CollaborationPanel {
             let mut kinds = if self.query.history {
                 vec![Kind::ArchiveAged, Kind::Purge]
             } else if self.show_spaces {
-                vec![Kind::CreateSpace, Kind::MapWorkspace]
+                vec![
+                    Kind::CreateSpace,
+                    Kind::MapWorkspace,
+                    Kind::RenewReservation,
+                    Kind::ReleaseReservation,
+                ]
             } else {
                 vec![Kind::Assign, Kind::Pool, Kind::Search]
             };
@@ -804,6 +896,38 @@ mod tests {
                 ..
             })
         ));
+        let reservation_id = uuid::Uuid::new_v4().to_string();
+        assert!(command(
+            Kind::ReleaseReservation,
+            "/project",
+            None,
+            &[reservation_id.clone(), "Reviewed".into(), "yes".into()],
+            "release".into()
+        )
+        .is_err());
+        assert!(matches!(
+            command(
+                Kind::ReleaseReservation,
+                "/project",
+                None,
+                &[
+                    reservation_id.clone(),
+                    "Reviewed".into(),
+                    "RELEASE RESERVATION".into()
+                ],
+                "release".into()
+            )
+            .unwrap(),
+            Command::Reservation { ttl: None, .. }
+        ));
+        assert!(command(
+            Kind::RenewReservation,
+            "/project",
+            None,
+            &[reservation_id, "3601".into(), "Reviewed".into()],
+            "renew".into()
+        )
+        .is_err());
         let mut injected = fields;
         injected[0] = "worker\nother".into();
         assert!(command(Kind::Assign, "/project", None, &injected, "id".into()).is_err());

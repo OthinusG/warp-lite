@@ -644,7 +644,7 @@ impl CollaborationPanel {
         }
         fixture.sections.push(Section {
             title: "File reservations · current checkout · up to 50 records".into(),
-            rows: std::iter::once("Reservations coordinate participants; they do not lock files or prove that writes stopped. Renewal and release require the owning agent's valid attempt.".into())
+            rows: std::iter::once("Reservations coordinate participants; they do not lock files or prove that writes stopped. Agent renewal requires its owning run. Human maintenance in Spaces and workspaces pins the original owner and expiry; explicit release never completes an attempt.".into())
                 .chain(snapshot.reservations.iter().map(|lease| {
                     let expiry = i64::try_from(lease.expires_at).ok()
                         .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
@@ -2961,6 +2961,175 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-history-purge-confirmation.png",
             "live-history-purge-stale.png",
             "live-history-archive-aged.png",
+        ]
+        .map(str::to_owned),
+    );
+    driver = driver
+        .with_step(
+            TestStep::new("prepare native reservation maintenance fixture").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let root = warp_agent_bus::project_root(
+                            crate::workspace::ActiveSession::as_ref(ctx)
+                                .path_if_local(ctx.window_id())
+                                .unwrap(),
+                        )
+                        .unwrap();
+                        let mut request = register_capture_participant(
+                            "capture-reservation-worker",
+                            "capture-reservations",
+                            &root,
+                            None,
+                        )
+                        .unwrap();
+                        request.operation = warp_agent_bus::Operation::FileReserve {
+                            paths: vec!["native-renew-fixture.txt".into()],
+                            mode: "exclusive".into(),
+                            task_id: None,
+                            attempt_id: None,
+                            ttl_seconds: Some(600),
+                            request_id: uuid::Uuid::new_v4().to_string(),
+                        };
+                        warp_agent_bus::transport::call(
+                            &super::BROKER.get().unwrap().endpoint,
+                            &request,
+                        )
+                        .unwrap();
+                        panel.handle_action(&Action::Spaces, ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native reservation fixture appears in original checkout")
+                .add_named_assertion("scoped reservation metadata", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot
+                            .reservations
+                            .iter()
+                            .any(
+                                |lease| lease.path == "native-renew-fixture.txt" && !lease.expired
+                            ))))
+                }),
+        )
+        .with_step(
+            TestStep::new("renew reviewed native reservation").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    let id = panel
+                        .snapshot
+                        .as_ref()
+                        .unwrap()
+                        .reservations
+                        .iter()
+                        .find(|lease| lease.path == "native-renew-fixture.txt")
+                        .unwrap()
+                        .id
+                        .clone();
+                    panel.open_control(controls::Kind::RenewReservation, ctx);
+                    panel.fill_control_checkpoint(
+                        &[&id, "120", "Reviewed active advisory lease"],
+                        ctx,
+                    );
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native renewal commits without touching execution")
+                .add_named_assertion("renewed event and retained draft", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel
+                                .events
+                                .iter()
+                                .any(|event| event.kind == "reservation_renewed"))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-reservation-renewed.png"),
+        )
+        .with_step(
+            TestStep::new("native release requires explicit reservation confirmation")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let id = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .reservations
+                            .iter()
+                            .find(|lease| lease.path == "native-renew-fixture.txt")
+                            .unwrap()
+                            .id
+                            .clone();
+                        panel.open_control(controls::Kind::ReleaseReservation, ctx);
+                        panel.fill_control_checkpoint(
+                            &[&id, "Release advisory coordination", "yes"],
+                            ctx,
+                        );
+                        panel.confirm_control(ctx);
+                        assert!(panel.control_checkpoint_rejected());
+                    });
+                })
+                .with_take_screenshot("live-reservation-release-confirmation.png"),
+        )
+        .with_step(
+            TestStep::new("release reviewed advisory reservation").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    let id = panel
+                        .snapshot
+                        .as_ref()
+                        .unwrap()
+                        .reservations
+                        .iter()
+                        .find(|lease| lease.path == "native-renew-fixture.txt")
+                        .unwrap()
+                        .id
+                        .clone();
+                    panel.fill_control_checkpoint(
+                        &[&id, "Release advisory coordination", "RELEASE RESERVATION"],
+                        ctx,
+                    );
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native release removes only the selected coordination record")
+                .add_named_assertion(
+                    "original uncertain reservation and draft retained",
+                    |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(
+                            panel.read(app, |panel, _| panel.form.is_none()
+                                && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                    .reservations
+                                    .iter()
+                                    .all(|lease| lease.path != "native-renew-fixture.txt")
+                                    && snapshot
+                                        .reservations
+                                        .iter()
+                                        .any(|lease| lease.path == "native-capture-fixture.txt")))
+                                && checkpoint_draft(app, window) == "unsent collaboration draft"
+                        )
+                    },
+                )
+                .with_take_screenshot("live-reservation-released.png"),
+        );
+    filenames.extend(
+        [
+            "live-reservation-renewed.png",
+            "live-reservation-release-confirmation.png",
+            "live-reservation-released.png",
         ]
         .map(str::to_owned),
     );

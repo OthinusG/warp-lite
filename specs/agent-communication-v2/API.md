@@ -351,3 +351,12 @@ counts and 50-record ordered export pages. Copying a page exports that exact
 scoped JSON page through the existing clipboard only on explicit action. Archive
 age requires explicit days; purge requires typing DELETE HISTORY and pins the
 original preview sequence/counts. No automatic history eviction occurs.
+
+Native reservation maintenance uses trusted controller `ReservationUpdate` with
+reservation ID, original owner/checkout/expiry, reason, request UUID and optional
+TTL (1–3600 seconds). A TTL renews only an unexpired reservation with a currently
+authorized owner and active, unfinished linked attempt. No TTL explicitly releases
+the coordination record, including abandoned owners, without completing an attempt
+or stopping writes. The original tuple must still match; foreign domains are
+rejected. Native release requires typing RELEASE RESERVATION. Agent MCP ownership
+and native-run renewal checks remain unchanged.

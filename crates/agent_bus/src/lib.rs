@@ -558,6 +558,16 @@ pub enum ControllerOperation {
         acknowledged_messages: bool,
         request_id: String,
     },
+    ReservationUpdate {
+        reservation_id: String,
+        workspace: String,
+        expected_owner: String,
+        expected_expires_at: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ttl_seconds: Option<u64>,
+        reason: String,
+        request_id: String,
+    },
     InvitationCreate {
         space_ids: Vec<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -583,6 +593,7 @@ impl ControllerOperation {
             | Self::TaskArchive { request_id, .. }
             | Self::ArchiveAged { request_id, .. }
             | Self::HistoryPurge { request_id, .. }
+            | Self::ReservationUpdate { request_id, .. }
             | Self::InvitationCreate { request_id, .. }
             | Self::DeviceRevoke { request_id, .. } => Some(request_id),
             _ => None,
