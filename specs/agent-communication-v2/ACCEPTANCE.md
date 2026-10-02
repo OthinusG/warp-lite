@@ -51,10 +51,10 @@ actual image review before the static UI checkpoint can pass.
 | M5.2 | Attempt-scoped evidence, opened-file SHA-256 and local Git-object tests | Backend verified; file-view integration and remote-unavailable labels pending |
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
-| M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks added; CI pending | Real SSH authentication, changed hosts and remote stdio remain pending |
+| M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
 | M6.2 | No remote gateway/control endpoint | Pending |
 | M6.3 | Device APIs explicitly return feature_unavailable | Enrollment, secure credentials, grants and revocation pending |
-| M6.4 | Typed remote hello/result and bounded frame regressions added; CI pending | Device authentication, live heartbeat, durable spool and event resume pending |
+| M6.4 | Typed remote hello/result and bounded frame regressions passed both OS in run 36951069744; added golden/truncation checks pending | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
 | M6.7 | Local stale run, replay and crash fixtures only | Remote fault injection and reconciliation pending |

@@ -4,6 +4,14 @@
 
 ### Recovered checkpoint for the current continuation
 
+- SSH startup/negotiation source `dd4425f`, run `36951069744`: both OS complete
+  protocol/migration/history suites passed, including real system `ssh -G` and
+  hello/partial-frame checks. Windows first failed the probe while its disposable
+  configuration handle remained open; closing it before OpenSSH reads fixed the
+  actual Windows path. This does not validate real authentication or enrollment.
+  Added fixed hello wire bytes, unknown-feature intersection and truncated frame
+  checks in `d6381b6`; these incremental checks await CI.
+
 - M6.4 negotiation subset: strict typed hello/result frames, incompatible-major
   and missing-required-feature rejection, bounded unique capability names and
   frame limit, fresh per-connection epoch. Reused the existing length-prefixed
