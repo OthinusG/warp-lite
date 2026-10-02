@@ -24,9 +24,10 @@ use std::{
 };
 use uuid::Uuid;
 
-pub(crate) const SCHEMA_VERSION: &str = "4";
+pub(crate) const SCHEMA_VERSION: &str = "5";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":4}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":5}"#;
+pub(crate) const SENTINEL_V4: &str = r#"{"warp_lite_schema_version":4}"#;
 pub(crate) const SENTINEL_V3: &str = r#"{"warp_lite_schema_version":3}"#;
 /// The marker of the superseded normalized schema; upgrading from it adds columns and tables.
 pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
@@ -76,12 +77,24 @@ CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, space_id TEXT NOT NU
 CREATE UNIQUE INDEX IF NOT EXISTS workspaces_root ON workspaces(root);
 CREATE INDEX IF NOT EXISTS workspaces_repository ON workspaces(space_id, repository_id);
 CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
+CREATE TABLE IF NOT EXISTS agent_workspace_bindings (agent TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
 CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT NULL, space_ids TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS cursors (device_id TEXT NOT NULL, space_id TEXT NOT NULL, sequence INTEGER NOT NULL, PRIMARY KEY(device_id, space_id));";
 
 pub(crate) const TASK_COLUMNS: &str = "id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline";
+
+/// App-selected local workspace; native tool arguments cannot construct this binding.
+#[derive(Clone)]
+pub(crate) struct WorkspaceBinding {
+    pub id: String,
+    pub space: String,
+    pub root: String,
+}
+impl WorkspaceBinding {
+    pub fn domain(&self) -> String { format!("space:{}", self.space) }
+}
 
 /// Single-threaded behind the broker mutex; RefCell keeps short diesel borrows from leaking into APIs.
 pub struct Store {
@@ -114,6 +127,7 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "4" => self.upgrade_v4(path),
             Some(version) if version == "3" => self.upgrade_v3(path),
             Some(version) if version == "2" => self.upgrade_v2(path),
             Some(version) => bail!("Unsupported agent bus schema version: {version}"),
@@ -124,6 +138,15 @@ impl Store {
     fn create_schema(&self) -> Result<()> {
         self.connection.borrow_mut().batch_execute(SCHEMA)?;
         Ok(())
+    }
+
+    fn upgrade_v4(&self, path: &str) -> Result<()> {
+        self.backup(path, Some(SENTINEL_V4))?;
+        self.transaction(|| {
+            self.create_schema()?;
+            self.set_legacy_payload(SENTINEL)?;
+            self.set_meta_version()
+        })
     }
 
     fn upgrade_v3(&self, path: &str) -> Result<()> {
@@ -195,7 +218,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -210,6 +233,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V4) {
+            format!("{path}.pre-upgrade-v4")
         } else if expected == Some(SENTINEL_V3) {
             format!("{path}.pre-upgrade-v3")
         } else {
@@ -706,7 +731,91 @@ impl Store {
             .map(AgentRow::agent))
     }
 
-    pub fn register(&self, terminal: &str, program: &str, project: &str, name: &str) -> Result<Agent> {
+    pub(crate) fn workspace_binding(&self, id: &str) -> Result<WorkspaceBinding> {
+        let row = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE id = ?")
+            .bind::<Text, _>(id)
+            .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut()).optional()?
+            .ok_or_else(|| scope_denied("Mapped workspace not found"))?;
+        self.space(&row.space_id)?
+            .ok_or_else(|| scope_denied("Space not found"))?;
+        Ok(WorkspaceBinding {
+            id: row.id,
+            space: row.space_id,
+            root: row.root,
+        })
+    }
+
+    pub(crate) fn authorize_workspace(&self, binding: &WorkspaceBinding) -> Result<()> {
+        let current = self.workspace_binding(&binding.id)?;
+        ensure!(
+            current.space == binding.space && current.root == binding.root,
+            scope_denied("Workspace mapping changed; open a new shared pane")
+        );
+        Ok(())
+    }
+
+    /// Membership is checked before reads, dedup replay and delivery, rather than only at registration.
+    pub(crate) fn authorize(&self, actor: &Agent) -> Result<()> {
+        if !actor.project.starts_with("space:") || actor.program == OPERATOR_PROGRAM {
+            return Ok(());
+        }
+        ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id AND w.space_id=b.space_id JOIN space_members AS m ON m.space_id=b.space_id AND m.agent=b.agent WHERE b.agent=? AND b.revoked=0 AND ?='space:' || b.space_id", &[&actor.id, &actor.project])? == 1,
+            scope_denied("Shared participation was revoked; open a new shared pane"));
+        Ok(())
+    }
+
+    /// Historical provenance remains readable by the operator after membership is revoked.
+    fn physical_root(&self, actor: &Agent) -> Result<String> {
+        if !actor.project.starts_with("space:") {
+            return Ok(actor.project.clone());
+        }
+        diesel::sql_query("SELECT w.root AS value FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id WHERE b.agent=? AND ?='space:' || b.space_id")
+            .bind::<Text, _>(&actor.id).bind::<Text, _>(&actor.project)
+            .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?
+            .map(|row| row.value).ok_or_else(|| scope_denied("Producing workspace unavailable"))
+    }
+
+    pub(crate) fn register_in_workspace(
+        &self,
+        terminal: &str,
+        program: &str,
+        binding: &WorkspaceBinding,
+        name: &str,
+    ) -> Result<Agent> {
+        self.transaction(|| {
+            self.authorize_workspace(binding)?;
+            let domain = binding.domain();
+            if let Some(existing) = self.agent_by_name(&domain, name)? {
+                ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=? AND workspace_id=? AND space_id=?", &[&existing.id, &binding.id, &binding.space])? == 1,
+                    scope_denied("Identity belongs to another workspace"));
+            }
+            let agent = self.register_inner(terminal, program, &domain, name)?;
+            let prior = self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=?", &[&agent.id])?;
+            ensure!(prior == 0 || self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=? AND workspace_id=? AND space_id=?", &[&agent.id, &binding.id, &binding.space])? == 1,
+                scope_denied("Identity belongs to another workspace"));
+            diesel::sql_query("INSERT INTO agent_workspace_bindings(agent, workspace_id, space_id, revoked) VALUES (?,?,?,0) ON CONFLICT(agent) DO UPDATE SET revoked=0")
+                .bind::<Text, _>(&agent.id).bind::<Text, _>(&binding.id).bind::<Text, _>(&binding.space)
+                .execute(&mut *self.connection.borrow_mut())?;
+            self.space_join(&domain, &Self::operator(&domain), &binding.space, &agent.id)?;
+            Ok(agent)
+        })
+    }
+
+    pub fn register(
+        &self,
+        terminal: &str,
+        program: &str,
+        project: &str,
+        name: &str,
+    ) -> Result<Agent> {
+        ensure!(
+            !project.starts_with("space:"),
+            scope_denied("Shared registration requires an app-selected workspace")
+        );
+        self.register_inner(terminal, program, project, name)
+    }
+
+    fn register_inner(&self, terminal: &str, program: &str, project: &str, name: &str) -> Result<Agent> {
         ensure!(
             !program.is_empty() && program.len() <= 64 && program != OPERATOR_PROGRAM,
             invalid_input("Invalid managed program")
@@ -752,6 +861,7 @@ impl Store {
 
     /// Losing a run proves disconnection, not process exit or stopped side effects.
     pub fn recover(&self, actor: &Agent, run: &str) -> Result<()> {
+        self.authorize(actor)?;
         self.transaction(|| {
             let tasks = diesel::sql_query(format!(
                 "SELECT {TASK_COLUMNS} FROM tasks WHERE assignee = ? AND state IN ('running','cancel_requested')"
@@ -832,6 +942,7 @@ impl Store {
     }
 
     pub fn pending(&self, actor: &Agent) -> Result<Vec<Message>> {
+        self.authorize(actor)?;
         Ok(diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 ORDER BY sequence")
             .bind::<Text, _>(&actor.id)
             .load::<MessageRow>(&mut *self.connection.borrow_mut())?
@@ -846,6 +957,7 @@ impl Store {
     }
 
     pub(crate) fn first_pending(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
+        self.authorize(actor)?;
         Ok(diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 AND (? = 0 OR kind NOT IN ('assignment','available')) ORDER BY sequence LIMIT 1")
             .bind::<Text, _>(&actor.id).bind::<Integer, _>(i32::from(skip_delegation))
             .get_result::<MessageRow>(&mut *self.connection.borrow_mut()).optional()?.map(MessageRow::message))
@@ -910,6 +1022,7 @@ impl Store {
 
     /// Shared queue visibility ends for nonparticipants after a successful claim.
     pub fn task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        self.authorize(actor)?;
         let task = self
             .task_row(
                 &format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?)))"),
@@ -1025,7 +1138,9 @@ impl Store {
     }
 
     fn resolve(&self, actor: &Agent, name: &str) -> Result<Agent> {
-        self.agent(&actor.project, name)
+        let recipient = self.agent(&actor.project, name)?;
+        self.authorize(&recipient)?;
+        Ok(recipient)
     }
 
     /// Persisted identity lookup by ID or display name; the transport uses it to admit offline recipients.
@@ -1064,6 +1179,7 @@ impl Store {
     }
 
     pub fn inbox(&self, actor: &Agent, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
+        self.authorize(actor)?;
         let limit = Self::page_limit(limit)?;
         let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 AND sequence > ? ORDER BY sequence LIMIT ?")
             .bind::<Text, _>(&actor.id)
@@ -1193,6 +1309,7 @@ impl Store {
     }
 
     fn execute_inner(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
+        self.authorize(actor)?;
         self.sweep(&actor.project)?;
         match operation {
             Operation::AgentList => return Ok(json!(self.agents(&actor.project)?)),
@@ -1366,7 +1483,7 @@ impl Store {
 
     fn sweep_at(&self, project: &str, now: u64) -> Result<()> {
         // Expired leases whose execution already resolved are dropped; unknown owners keep their warning.
-        diesel::sql_query("DELETE FROM reservations WHERE workspace = ? AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty = 'active'))")
+        diesel::sql_query("DELETE FROM reservations WHERE owner IN (SELECT id FROM agents WHERE project = ?) AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty = 'active'))")
             .bind::<Text, _>(project)
             .bind::<BigInt, _>(now as i64)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -1455,6 +1572,7 @@ impl Store {
             .load::<AgentRow>(&mut *self.connection.borrow_mut())?
             .into_iter()
             .map(AgentRow::agent)
+            .filter(|agent| self.authorize(agent).is_ok())
             .collect())
     }
 
@@ -2652,6 +2770,7 @@ impl Store {
                 ..
             } => {
                 self.budget_available()?;
+                let workspace = self.physical_root(actor)?;
                 ensure!(
                     matches!(mode.as_str(), "exclusive" | "shared"),
                     invalid_input("Reservation mode must be exclusive or shared")
@@ -2663,7 +2782,7 @@ impl Store {
                 let mut normalized = Vec::new();
                 let mut seen = HashSet::new();
                 for path in paths {
-                    let path = crate::normalize_workspace_path(&actor.project, path)?;
+                    let path = crate::normalize_workspace_path(&workspace, path)?;
                     if seen.insert(path.clone()) {
                         normalized.push(path);
                     }
@@ -2710,7 +2829,7 @@ impl Store {
                 }
                 let now_ms = now();
                 let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? ORDER BY created_seq")
-                    .bind::<Text, _>(&actor.project)
+                    .bind::<Text, _>(&workspace)
                     .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
                 let live = rows
                     .iter()
@@ -2727,8 +2846,8 @@ impl Store {
                     for path in &normalized {
                         if paths_overlap(&row.path, path) {
                             return Err(reservation_conflict(&format!(
-                                "Path {} is reserved by {} until {}",
-                                row.path, row.owner, row.expires_at
+                                "Path {} has an active reservation until {}",
+                                row.path, row.expires_at
                             )));
                         }
                     }
@@ -2736,7 +2855,7 @@ impl Store {
                 let expires_at = now_ms + ttl * 1000;
                 let scope = diesel::sql_query("SELECT w.id, w.space_id, w.root, w.repository_id, w.model, w.branch, w.base_commit FROM workspaces AS w JOIN space_members AS member ON member.space_id = w.space_id AND member.agent = ? WHERE w.root = ?")
                     .bind::<Text, _>(&actor.id)
-                    .bind::<Text, _>(&actor.project)
+                    .bind::<Text, _>(&workspace)
                     .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())
                     .optional()?;
                 let mut reservation_ids = Vec::new();
@@ -2744,7 +2863,7 @@ impl Store {
                     let reservation_id = Uuid::new_v4().to_string();
                     diesel::sql_query("INSERT INTO reservations(id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq, space_id, repository_id, workspace_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
                         .bind::<Text, _>(&reservation_id)
-                        .bind::<Text, _>(&actor.project)
+                        .bind::<Text, _>(&workspace)
                         .bind::<Text, _>(path)
                         .bind::<Text, _>(mode)
                         .bind::<Text, _>(&actor.id)
@@ -2752,7 +2871,7 @@ impl Store {
                         .bind::<Nullable<Text>, _>(&attempt_link)
                         .bind::<BigInt, _>(now_ms as i64)
                         .bind::<BigInt, _>(expires_at as i64)
-                        .bind::<BigInt, _>(self.next_sequence(&actor.project)? as i64)
+                        .bind::<BigInt, _>(self.next_sequence(&workspace)? as i64)
                         .bind::<Nullable<Text>, _>(scope.as_ref().map(|scope| scope.space_id.as_str()))
                         .bind::<Nullable<Text>, _>(scope.as_ref().and_then(|scope| scope.repository_id.as_deref()))
                         .bind::<Nullable<Text>, _>(scope.as_ref().map(|scope| scope.id.as_str()))
@@ -2788,7 +2907,7 @@ impl Store {
                 );
                 let mut renewed = Vec::new();
                 for id in reservation_ids {
-                    let row = self.reservation_row(&actor.project, id)?;
+                    let row = self.reservation_row(&self.physical_root(actor)?, id)?;
                     ensure!(row.owner == actor.id, unauthorized("Reservation is owned by another agent"));
                     ensure!(
                         row.expires_at as u64 > now(),
@@ -2828,7 +2947,7 @@ impl Store {
                 for id in reservation_ids {
                     let row = self
                         .reservation_by_id(id)?
-                        .filter(|row| row.workspace == actor.project);
+                        .filter(|row| self.physical_root(actor).is_ok_and(|root| row.workspace == root));
                     let Some(row) = row else { continue };
                     ensure!(row.owner == actor.id, unauthorized("Reservation is owned by another agent"));
                     diesel::sql_query("DELETE FROM reservations WHERE id = ?")
@@ -3273,6 +3392,9 @@ impl Store {
         self.space(space_id)?
             .ok_or_else(|| scope_denied("Space not found"))?;
         let member = self.agent(project, agent)?;
+        diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE agent=? AND space_id=?")
+            .bind::<Text, _>(&member.id).bind::<Text, _>(space_id)
+            .execute(&mut *self.connection.borrow_mut())?;
         let removed = diesel::sql_query("DELETE FROM space_members WHERE space_id = ? AND agent = ?")
             .bind::<Text, _>(space_id)
             .bind::<Text, _>(&member.id)
@@ -3362,6 +3484,9 @@ impl Store {
             .to_str()
             .ok_or_else(|| invalid_input("Workspace root must be valid UTF-8"))?
             .to_owned();
+        diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE workspace_id IN (SELECT id FROM workspaces WHERE root=? AND space_id!=?)")
+            .bind::<Text, _>(&root).bind::<Text, _>(space_id)
+            .execute(&mut *self.connection.borrow_mut())?;
         diesel::sql_query("INSERT INTO workspaces(id, space_id, root, repository_id, model, branch, base_commit, created_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(root) DO UPDATE SET space_id=excluded.space_id, repository_id=excluded.repository_id, model=excluded.model, branch=excluded.branch, base_commit=excluded.base_commit")
             .bind::<Text, _>(Uuid::new_v4().to_string())
             .bind::<Text, _>(space_id)
@@ -3402,7 +3527,7 @@ impl Store {
         evidence_id: &str,
         verified: bool,
     ) -> Result<Value> {
-        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.kind AS kind, evidence.path AS path, evidence.hash AS hash, evidence.commit_id AS commit_id, evidence.base AS base, evidence.head AS head, evidence.device AS device, tasks.project AS project FROM evidence JOIN tasks ON tasks.id = evidence.task_id WHERE evidence.id = ?")
+        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.kind AS kind, evidence.path AS path, evidence.hash AS hash, evidence.commit_id AS commit_id, evidence.base AS base, evidence.head AS head, evidence.device AS device, tasks.project AS project, COALESCE(w.root, producer.project) AS producing_root FROM evidence JOIN tasks ON tasks.id = evidence.task_id LEFT JOIN attempts AS attempt ON attempt.id=evidence.attempt_id LEFT JOIN agents AS producer ON producer.id=attempt.owner LEFT JOIN agent_workspace_bindings AS binding ON binding.agent=producer.id LEFT JOIN workspaces AS w ON w.id=binding.workspace_id WHERE evidence.id = ?")
             .bind::<Text, _>(evidence_id)
             .get_result::<EvidenceCheckRow>(&mut *self.connection.borrow_mut())
             .optional()?;
@@ -3411,12 +3536,14 @@ impl Store {
             .ok_or_else(|| scope_denied("Evidence not found in this project"))?;
         if verified {
             ensure!(row.device.is_none(), invalid_state("Remote evidence cannot be verified as local content"));
+            let root = row.producing_root.as_deref().filter(|root| !root.starts_with("space:"))
+                .ok_or_else(|| invalid_state("Producing workspace unavailable"))?;
             match row.kind.as_str() {
-                "file" | "diff" if row.path.is_some() => verify_file(project, row.path.as_deref().unwrap(), row.hash.as_deref())?,
-                "commit" => verify_commit(project, row.commit_id.as_deref())?,
+                "file" | "diff" if row.path.is_some() => verify_file(root, row.path.as_deref().unwrap(), row.hash.as_deref())?,
+                "commit" => verify_commit(root, row.commit_id.as_deref())?,
                 "diff" => {
-                    verify_commit(project, row.base.as_deref())?;
-                    verify_commit(project, row.head.as_deref())?;
+                    verify_commit(root, row.base.as_deref())?;
+                    verify_commit(root, row.head.as_deref())?;
                 }
                 _ => return Err(invalid_state("Reported test outcomes are not independently verified")),
             }
@@ -3749,7 +3876,7 @@ impl Store {
                  ORDER BY r.workspace, r.created_seq, r.id LIMIT ?",
             )
             .bind::<Text, _>(&actor.id)
-            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(self.physical_root(actor)?)
             .bind::<BigInt, _>(now_ms as i64)
             .bind::<Text, _>(mode)
             .bind::<Text, _>(path)
@@ -3767,8 +3894,8 @@ impl Store {
                 }
                 warnings.push(
                     json!({"kind": "merge_overlap", "reservation_id": row.reservation_id,
-                    "workspace_id": row.workspace_id, "path": row.path, "owner": row.owner,
-                    "task_id": row.task_id, "expires_at": row.expires_at}),
+                    "workspace_id": row.workspace_id, "path": row.path, "owner": self.agent(&actor.project, &row.owner).ok().map(|owner| owner.id),
+                    "task_id": row.task_id.filter(|id| self.operator_task(&actor.project, id).is_ok()), "expires_at": row.expires_at}),
                 );
             }
         }
@@ -3784,8 +3911,10 @@ impl Store {
         include_expired: bool,
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
-        let filter = path.map(|path| crate::normalize_workspace_path(&actor.project, path)).transpose()?;
-        let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? ORDER BY created_seq")
+        let workspace = self.physical_root(actor)?;
+        let filter = path.map(|path| crate::normalize_workspace_path(&workspace, path)).transpose()?;
+        let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? AND owner IN (SELECT id FROM agents WHERE project = ?) ORDER BY created_seq")
+            .bind::<Text, _>(&workspace)
             .bind::<Text, _>(&actor.project)
             .load::<ReservationRow>(&mut *self.connection.borrow_mut())?;
         let now_ms = now();
@@ -4459,6 +4588,8 @@ struct ReservationOverlapRow {
 
 #[derive(QueryableByName)]
 struct EvidenceCheckRow {
+    #[diesel(sql_type = Nullable<Text>)]
+    producing_root: Option<String>,
     #[diesel(sql_type = Text)]
     task_id: String,
     #[diesel(sql_type = Text)]
@@ -7284,7 +7415,8 @@ mod tests {
             .connection
             .borrow_mut()
             .batch_execute(
-                "DROP INDEX workspaces_repository;
+                "DROP TABLE agent_workspace_bindings;
+             DROP INDEX workspaces_repository;
              ALTER TABLE workspaces DROP COLUMN repository_id;
              ALTER TABLE reservations DROP COLUMN space_id;
              ALTER TABLE reservations DROP COLUMN repository_id;
@@ -7471,6 +7603,32 @@ mod tests {
             .execute_controller("/project", &ControllerOperation::DeviceList)
             .unwrap_err();
         assert_eq!(code(&devices), "invalid_state");
+    }
+
+    #[test]
+    fn v4_upgrade_preserves_private_attempts_and_creates_no_shared_admissions() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("bus.sqlite");
+        let path = path.to_str().unwrap();
+        let store = Store::open(path).unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let assigned = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let task_id = assigned["id"].as_str().unwrap();
+        let started = store.execute(&worker, "worker-run", &transition(task_id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let before = json!(store.task(&worker, task_id).unwrap());
+        store.connection.borrow_mut().batch_execute("DROP TABLE agent_workspace_bindings; UPDATE meta SET value='4' WHERE key='schema_version';").unwrap();
+        store.set_legacy_payload(SENTINEL_V4).unwrap();
+        drop(store);
+        let upgraded = Store::open(path).unwrap();
+        assert_eq!(upgraded.meta_version().unwrap().as_deref(), Some(SCHEMA_VERSION));
+        assert_eq!(json!(upgraded.task(&worker, task_id).unwrap()), before);
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings", &[]).unwrap(), 0);
+        assert_eq!(read_legacy_payload(&format!("{path}.pre-upgrade-v4")).unwrap().as_deref(), Some(SENTINEL_V4));
+        assert_eq!(read_legacy_payload(path).unwrap().as_deref(), Some(SENTINEL));
+        assert_eq!(upgraded.execute(&worker, "worker-run", &transition(task_id, 1, &Uuid::new_v4().to_string())).unwrap_err().downcast_ref::<DomainError>().unwrap().code, "invalid_state");
+        assert!(started["attempt_id"].is_string());
+        assert!(upgraded.register("untrusted", "codex", &format!("space:{}", Uuid::new_v4()), "untrusted").is_err());
     }
 
     fn v2_database(path: &str) {

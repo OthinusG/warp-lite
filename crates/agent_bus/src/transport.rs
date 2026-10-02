@@ -58,6 +58,8 @@ pub struct Response {
 }
 struct Terminal {
     capability: String,
+    workspace: Option<crate::storage::WorkspaceBinding>,
+    revoked: bool,
     live: Option<Live>,
 }
 struct Live {
@@ -266,7 +268,7 @@ impl Broker {
         let Some(source) = state.terminals.get(terminal).and_then(|t| t.live.as_ref()) else {
             return vec![];
         };
-        if source.agent.is_none() {
+        if source.agent.as_ref().is_none_or(|actor| state.store.authorize(actor).is_err()) {
             return vec![];
         }
         let mut peers: Vec<_> = state
@@ -275,7 +277,7 @@ impl Broker {
             .filter_map(|(id, binding)| {
                 let live = binding.live.as_ref()?;
                 let agent = live.agent.as_ref()?;
-                (id != terminal && live.project == source.project).then(|| Peer {
+                (id != terminal && live.project == source.project && state.store.authorize(agent).is_ok()).then(|| Peer {
                     terminal: id.clone(),
                     run: live.run.clone(),
                     name: agent.name.clone(),
@@ -301,6 +303,16 @@ impl Broker {
     }
 
     pub fn prepare(&self, terminal: &str) -> Result<String> {
+        self.prepare_binding(terminal, None)
+    }
+
+    /// Only the trusted app selects a mapped workspace for a fresh shared pane.
+    pub fn prepare_in_workspace(&self, terminal: &str, workspace_id: &str) -> Result<String> {
+        let workspace = self.store()?.store.workspace_binding(workspace_id)?;
+        self.prepare_binding(terminal, Some(workspace))
+    }
+
+    fn prepare_binding(&self, terminal: &str, workspace: Option<crate::storage::WorkspaceBinding>) -> Result<String> {
         let capability = format!("{}{}", Uuid::new_v4(), Uuid::new_v4());
         let mut state = self
             .shared
@@ -311,10 +323,14 @@ impl Broker {
             state.terminals.len() < 1000,
             capacity_exceeded("Terminal capacity reached")
         );
+        ensure!(!state.terminals.contains_key(terminal), invalid_state("Terminal is already prepared; open a fresh pane"));
+        if let Some(workspace) = &workspace { state.store.authorize_workspace(workspace)?; }
         state.terminals.insert(
             terminal.into(),
             Terminal {
                 capability: capability.clone(),
+                workspace,
+                revoked: false,
                 live: None,
             },
         );
@@ -339,13 +355,18 @@ impl Broker {
                 .is_none_or(|programs| programs.contains(program)),
             scope_denied("Agent communication is disabled for this program")
         );
-        let binding = state
-            .terminals
-            .get_mut(terminal)
-            .ok_or_else(|| unauthorized("Terminal is not bound"))?;
+        let binding = state.terminals.get(terminal).ok_or_else(|| unauthorized("Terminal is not bound"))?;
+        ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
+        let project = if let Some(workspace) = &binding.workspace {
+            state.store.authorize_workspace(workspace)?;
+            ensure!(crate::project_root(Path::new(project))? == workspace.root,
+                scope_denied("Native directory does not match the selected workspace"));
+            workspace.domain()
+        } else { project.to_owned() };
+        let binding = state.terminals.get_mut(terminal).unwrap();
         binding.live = Some(Live {
             program: program.into(),
-            project: project.into(),
+            project,
             run: Uuid::new_v4().to_string(),
             agent: None,
             waiting: false,
@@ -608,7 +629,7 @@ impl Broker {
                 .get(&wake.terminal)
                 .and_then(|binding| binding.live.as_ref())
                 .is_some_and(|live| {
-                    live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.draft.is_empty() && !live.rich_draft && !live.blocked && live.wake.as_ref() == Some(wake)
+                    live.agent.as_ref().is_some_and(|actor| state.store.authorize(actor).is_ok()) && live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.draft.is_empty() && !live.rich_draft && !live.blocked && live.wake.as_ref() == Some(wake)
                 })
         })
     }
@@ -654,6 +675,10 @@ impl Broker {
                 invalid_input("Native workspace must be absolute")
             );
             let project = crate::project_root(Path::new(directory))?;
+            let workspace = state.terminals.get(&request.terminal).unwrap().workspace.clone();
+            if let Some(workspace) = &workspace {
+                ensure!(project == workspace.root, scope_denied("Native directory does not match the selected workspace"));
+            }
             let live = state
                 .terminals
                 .get_mut(&request.terminal)
@@ -661,7 +686,9 @@ impl Broker {
                 .live
                 .as_mut()
                 .unwrap();
-            if live.agent.is_some() {
+            if workspace.is_some() {
+                // The captured shared domain is immutable, including before first discovery.
+            } else if live.agent.is_some() {
                 ensure!(
                     live.project == project,
                     invalid_state("Native workspace changed; start a fresh managed CLI session")
@@ -739,9 +766,10 @@ impl Broker {
                 invalid_state("Agent name is owned by another live terminal")
             );
             // An offline name is reclaimed explicitly, preserving its pending work across new panes.
-            let agent = state
-                .store
-                .register(&request.terminal, &program, &project, &name)?;
+            let agent = match &state.terminals.get(&request.terminal).unwrap().workspace {
+                Some(workspace) => state.store.register_in_workspace(&request.terminal, &program, workspace, &name)?,
+                None => state.store.register(&request.terminal, &program, &project, &name)?,
+            };
             state.store.recover(&agent, &run)?;
             let live = state
                 .terminals
@@ -789,7 +817,7 @@ impl Broker {
                 .filter_map(|t| t.live.as_ref())
                 .any(|live| {
                     live.agent.as_ref().is_some_and(|agent| {
-                        agent.project == actor.project
+                        state.store.authorize(agent).is_ok() && agent.project == actor.project
                             && (agent.id == recipient || agent.name == recipient)
                     })
                 });
@@ -799,7 +827,7 @@ impl Broker {
             // Offline teammates remain addressable while their program stays enabled.
             let known = state.store.agent(&actor.project, recipient).ok();
             let allowed = known.as_ref().is_some_and(|agent| {
-                state
+                state.store.authorize(agent).is_ok() && state
                     .programs
                     .as_ref()
                     .is_none_or(|programs| programs.contains(&agent.program))
@@ -1017,8 +1045,21 @@ impl Broker {
     }
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
-        let state = self.store()?;
-        state.store.execute_controller(project, operation)
+        let mut state = self.store()?;
+        let result = state.store.execute_controller(project, operation)?;
+        // Removing an admission is permanent for this capability, even if metadata is later restored.
+        let revoked: Vec<_> = state.terminals.iter().filter_map(|(terminal, binding)| {
+            let invalid_workspace = binding.workspace.as_ref().is_some_and(|workspace| state.store.authorize_workspace(workspace).is_err());
+            let invalid_actor = binding.live.as_ref().and_then(|live| live.agent.as_ref()).is_some_and(|actor| state.store.authorize(actor).is_err());
+            (invalid_workspace || invalid_actor).then(|| terminal.clone())
+        }).collect();
+        for terminal in revoked {
+            let binding = state.terminals.get_mut(&terminal).unwrap();
+            binding.revoked = true;
+            binding.live = None;
+        }
+        self.shared.changed.notify_all();
+        Ok(result)
     }
     /// Panel reads span the whole project, unlike caller-scoped agent tools.
     pub fn operator_agents(&self, project: &str) -> Result<Value> {
@@ -1090,6 +1131,8 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
         .terminals
         .get(&request.terminal)
         .ok_or_else(|| unauthorized("Invalid terminal binding"))?;
+    ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
+    if let Some(workspace) = &binding.workspace { state.store.authorize_workspace(workspace)?; }
     ensure!(
         binding.capability == request.capability,
         unauthorized("Invalid terminal capability")
@@ -1104,6 +1147,7 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
             unauthorized("Expired agent run; register again")
         );
     }
+    if let Some(actor) = &live.agent { state.store.authorize(actor)?; }
     // Reads stay available; a fencing epoch rejects every stale mutation before it can commit.
     if request.operation.request_id().is_some() {
         ensure!(

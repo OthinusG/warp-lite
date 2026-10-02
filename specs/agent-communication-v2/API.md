@@ -13,11 +13,22 @@ Status: proposed API, 2026-10-01. This is the contract source for the future imp
 - Local IPC requests declare `protocol_major: 2`. Registration returns the matching
   major, minor and explicit local feature list; the bridge checks them before
   advertising tools. This handshake does not advertise remote connectivity or
-  functional shared-space routing. Missing/unsupported majors fail closed; install
+  a production shared-space admission UI. Missing/unsupported majors fail closed; install
   the matching application and companion together.
 - Text fields remain at most 8192 UTF-8 bytes. Lists and reference metadata have explicit schema bounds; a frame cannot exceed 1 MiB. Unknown fields are rejected at trust boundaries. Pagination defaults to 50 items and caps at 200.
 - Domain errors contain a stable code, safe human message, `retryable` flag and optional current resource version. No request payload, credential or environment dump is included. A retryable transport failure is not proof that a mutation was uncommitted.
 - Deadline inputs are an optional RFC 3339 UTC `start_deadline`, `execution_timeout_seconds` measured from each attempt's committed start, and `review_timeout_seconds` measured from submission. Timeout durations are 1–604800 seconds. Retry/reassignment starts a fresh execution timeout; an expired start deadline must be explicitly replaced or cleared by the issuer, otherwise retry is rejected. The coordinator records the resulting absolute deadlines.
+
+Trusted local admission prepares a fresh terminal/capability with an explicitly
+selected workspace mapping. Its task/message/event namespace is `space:<uuid>`;
+its physical canonical checkout remains immutable internal data. Ordinary panes
+and metadata membership alone remain private. Directory overrides cannot change
+a shared admission, including before discovery. Departure/remapping revokes the
+capability and fences replay/wake without proving the old execution stopped.
+Only a fresh explicit admission in the original checkout can reclaim its identity.
+Physical reservations conflict across private/shared domains, while list results
+and identity/task references remain scoped. Evidence verifies in its immutable
+attempt owner's producing checkout. Backend verification does not enable the UI.
 
 ## Resource shapes
 

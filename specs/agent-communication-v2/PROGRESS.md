@@ -4,6 +4,20 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Implemented local shared routing backend with fresh app-selected terminal
+  admission, schema-v5 immutable workspace bindings, durable revocation, scoped
+  task/message/event grouping, physical reservation conflict privacy and original
+  evidence checkout resolution. Added real authenticated IPC delegation/rework,
+  private-work preservation, directory/reclaim/leave/remap tests and v4 backup
+  migration regression. Local Rust parsing and SQLite admission/revocation checks
+  passed; both-OS Rust CI is pending. Shared-pane UI remains gated.
+- Source `668c604`, run `36947705932`: complete macOS/Windows checks and packaging
+  passed. Source `8c33356`, run `36950239278`: macOS complete checks, packaging and
+  74 native images passed with draft/navigation/scroll assertions. Windows checks
+  and packaging passed, but native capture exited 101 before any image; it is not
+  an accepted screenshot gate. Failure-location diagnostics are being added.
+
+
 - Added opt-in eight-hour deterministic backend soak orchestration: two
   sequential four-hour phases per OS, matching source/OS/duration, compilation
   excluded, metadata-only atomic reports and failure/timeout handling. Local

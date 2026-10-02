@@ -1,7 +1,7 @@
 # Local shared-space routing implementation contract
 
-Status: design checkpoint, not shipped routing. Existing SpaceJoin/WorkspaceMap
-operations and reservation warnings are metadata; they do not merge task scopes.
+Status: backend implementation under verification; production UI admission is gated.
+SpaceJoin/WorkspaceMap alone remain metadata and do not merge existing task scopes.
 Implements M4.1/M4.2, preserving M1/M3/M5 authority and privacy guarantees.
 
 ## Binding and exposure
@@ -39,8 +39,9 @@ continues to require the static screenshot checkpoint.
 
 ## Storage and physical operations
 
-A versioned additive migration must store each scoped identity's producing root
-and workspace ID without exposing absolute roots in peer projections. Preserve
+SQLite v5 stores immutable agent-to-workspace and space bindings plus revocation.
+The existing workspace row already retains its immutable canonical root; no second
+copy of that path is needed. Peer identities expose their domain, not that root. Preserve
 legacy private rows and a separate pre-v4 upgrade backup; advance the downgrade
 sentinel. Construct old-schema fixtures accurately rather than retaining new
 columns while only changing their version marker.
@@ -59,7 +60,8 @@ its records originate in different domains. Cross-checkout warnings require the
 existing explicit repository UUID and current membership; warning metadata cannot
 disclose task references belonging to another private domain.
 
-Evidence snapshots its producing workspace at append time. Verifying a shared
+Evidence retains its immutable attempt owner, whose workspace binding resolves
+the producing checkout even after membership departure. Verifying a shared
 task must resolve that snapshot, not treat `space:<uuid>` as a filesystem root or
 substitute the operator's current checkout. Missing/remote producing content stays
 unavailable, and descriptors never trigger implicit file reads or command runs.
@@ -87,3 +89,9 @@ unavailable, and descriptors never trigger implicit file reads or command runs.
 
 Do not enable shared-space selection in production until these backend checks and
 the actual join/leave preview path are implemented and verified.
+
+Local IPC remains major 2: the existing operation/state contract is unchanged,
+and old private terminal capabilities retain their private domain. Shared admission
+is an internal trusted broker method, never a new native tool argument. No remote
+capability is advertised. `tests/local_spaces.rs` exercises real authenticated IPC;
+GitHub verification and the shared-pane UI remain pending.
