@@ -500,7 +500,6 @@ impl Connection {
         operation: &crate::Operation,
         reconcile: bool,
     ) -> Result<serde_json::Value> {
-        use crate::transport::remote_control::AuthenticationFrame;
         let space = actor
             .actor
             .project
@@ -527,6 +526,66 @@ impl Connection {
             .map_err(|_| invalid_input("Invalid remote actor identity"))?;
         let mutation_epoch = uuid::Uuid::parse_str(&actor.epoch)
             .map_err(|_| invalid_input("Invalid original mutation epoch"))?;
+        self.wire_operation(actor_id, mutation_epoch, operation, reconcile)
+            .await
+    }
+
+    /// Send a previously staged intent without reconstructing or replacing its authority.
+    pub async fn execute_intent(
+        &mut self,
+        intent: &crate::storage::RemoteIntent,
+    ) -> Result<serde_json::Value> {
+        self.intent_request(intent, false).await
+    }
+
+    pub async fn reconcile_intent(
+        &mut self,
+        intent: &crate::storage::RemoteIntent,
+    ) -> Result<serde_json::Value> {
+        self.intent_request(intent, true).await
+    }
+
+    async fn intent_request(
+        &mut self,
+        intent: &crate::storage::RemoteIntent,
+        reconcile: bool,
+    ) -> Result<serde_json::Value> {
+        let space = uuid::Uuid::parse_str(&intent.space)
+            .map_err(|_| invalid_input("Invalid original remote space"))?;
+        ensure!(
+            intent.coordinator == self.coordinator_id.to_string()
+                && self
+                    .principal
+                    .as_ref()
+                    .is_some_and(|(device, _, spaces)| intent.device == device.to_string()
+                        && spaces.contains(&space)),
+            crate::scope_denied("Intent belongs to another coordinator, device or space")
+        );
+        let actor = uuid::Uuid::parse_str(&intent.actor)
+            .map_err(|_| invalid_input("Invalid original remote actor"))?;
+        let epoch = uuid::Uuid::parse_str(&intent.epoch)
+            .map_err(|_| invalid_input("Invalid original mutation epoch"))?;
+        let operation: crate::Operation = serde_json::from_str(&intent.operation)
+            .map_err(|_| invalid_input("Original intent payload is invalid"))?;
+        ensure!(
+            operation.request_id() == Some(intent.request_id.as_str())
+                && uuid::Uuid::parse_str(&intent.request_id).is_ok_and(|id| !id.is_nil())
+                && !actor.is_nil()
+                && !epoch.is_nil(),
+            invalid_input("Original intent identities do not match")
+        );
+        self.wire_operation(actor, epoch, &operation, reconcile)
+            .await
+    }
+
+    async fn wire_operation(
+        &mut self,
+        actor_id: uuid::Uuid,
+        mutation_epoch: uuid::Uuid,
+        operation: &crate::Operation,
+        reconcile: bool,
+    ) -> Result<serde_json::Value> {
+        use crate::transport::remote_control::AuthenticationFrame;
         let frame_id = uuid::Uuid::new_v4();
         let request = if reconcile {
             AuthenticationFrame::Reconcile {

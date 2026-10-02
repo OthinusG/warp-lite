@@ -421,3 +421,9 @@ cannot be removed, including after restart or expiry. The limits are 1,000 rows,
 per result. Recovery uses ordered actor/request cursors with 50 rows per page.
 Native routing must stage before sending and record only a matched operation result
 or committed reconciliation receipt. No automatic replay or eviction is enabled.
+
+`Connection::execute_intent/reconcile_intent` consume the staged row directly,
+checking its original coordinator, authenticated device, granted space, actor,
+epoch and operation/request UUID before framing. They retain all original mutation
+identities and create only a new transport correlation ID. They do not hold a
+participant Store/broker lock across network I/O or automatically replay failures.

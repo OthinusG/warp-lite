@@ -367,6 +367,20 @@ while True:
         let first = connection.execute(&actor, &operation).await.unwrap();
         let replay = connection.execute(&actor, &operation).await.unwrap();
         assert_eq!(first, replay);
+        let store = crate::storage::Store::open(":memory:").unwrap();
+        let intent = store
+            .stage_remote_intent(coordinator, device_id, &actor, &operation)
+            .unwrap();
+        assert_eq!(connection.execute_intent(&intent).await.unwrap(), first);
+        let durable_receipt = connection.reconcile_intent(&intent).await.unwrap();
+        assert_eq!(durable_receipt["result"], first);
+        store.resolve_remote_intent(&intent, &first).unwrap();
+        let mut wrong_authority = intent.clone();
+        wrong_authority.coordinator = uuid::Uuid::new_v4().to_string();
+        assert!(connection.execute_intent(&wrong_authority).await.is_err());
+        let mut wrong_request = intent.clone();
+        wrong_request.request_id = uuid::Uuid::new_v4().to_string();
+        assert!(connection.reconcile_intent(&wrong_request).await.is_err());
         let receipt = connection.reconcile(&actor, &operation).await.unwrap();
         assert_eq!(receipt["status"], "committed");
         assert_eq!(receipt["result"], first);
