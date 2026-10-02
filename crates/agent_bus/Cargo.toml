@@ -16,6 +16,8 @@ rmcp = { workspace = true, features = ["server", "transport-io"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sha2.workspace = true
+rand.workspace = true
+subtle = "=2.6.1"
 schemars.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util", "io-std", "process"] }
 uuid.workspace = true

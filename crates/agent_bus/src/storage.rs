@@ -24,6 +24,9 @@ use std::{
 };
 use uuid::Uuid;
 
+#[path = "remote_auth.rs"]
+mod remote_auth;
+
 pub(crate) const SCHEMA_VERSION: &str = "5";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
 pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":5}"#;
@@ -1411,21 +1414,12 @@ impl Store {
         let actor = Self::operator(project);
         match operation {
             ControllerOperation::SpaceList => return self.space_list(project),
-            ControllerOperation::DeviceList => {
-                return Err(invalid_state(
-                    "Device enrollment requires remote collaboration support",
-                ))
-            }
+            ControllerOperation::DeviceList => return self.device_list(),
             ControllerOperation::PurgePreview => return self.purge_preview(project),
             ControllerOperation::HistoryExport { after, limit } => {
                 return self.history_export(project, *after, *limit)
             }
-            ControllerOperation::InvitationCreate { .. }
-            | ControllerOperation::DeviceRevoke { .. } => {
-                return Err(invalid_state(
-                    "Device enrollment requires remote collaboration support",
-                ))
-            }
+            ControllerOperation::InvitationCreate { .. } => return self.create_invitation(project, operation),
             _ => {}
         }
         let serialized = serde_json::to_string(operation)?;
@@ -1567,13 +1561,12 @@ impl Store {
     }
 
     pub(crate) fn agents(&self, project: &str) -> Result<Vec<Agent>> {
-        Ok(diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE project = ? ORDER BY name")
+        // Release the SQLite borrow before membership checks issue their own queries.
+        let rows = diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE project = ? ORDER BY name")
             .bind::<Text, _>(project)
-            .load::<AgentRow>(&mut *self.connection.borrow_mut())?
-            .into_iter()
-            .map(AgentRow::agent)
-            .filter(|agent| self.authorize(agent).is_ok())
-            .collect())
+            .load::<AgentRow>(&mut *self.connection.borrow_mut())?;
+        Ok(rows.into_iter().map(AgentRow::agent)
+            .filter(|agent| self.authorize(agent).is_ok()).collect())
     }
 
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
@@ -3277,6 +3270,7 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::DeviceRevoke { device_id, .. } => self.revoke_device(project, device_id),
             ControllerOperation::SpaceCreate { name, .. } => self.space_create(project, actor, name),
             ControllerOperation::SpaceJoin { space_id, agent, .. } => {
                 self.space_join(project, actor, space_id, agent)
@@ -7601,8 +7595,8 @@ mod tests {
         assert_eq!(code(&invalid), "invalid_input");
         let devices = store
             .execute_controller("/project", &ControllerOperation::DeviceList)
-            .unwrap_err();
-        assert_eq!(code(&devices), "invalid_state");
+            .unwrap();
+        assert_eq!(devices["devices"], json!([]));
     }
 
     #[test]
