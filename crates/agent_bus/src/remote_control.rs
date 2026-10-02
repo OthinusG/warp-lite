@@ -98,7 +98,7 @@ impl RunningController {
         #[cfg(target_os = "macos")]
         let endpoint = server
             .directory
-            .join(format!("controller-{}.sock", Uuid::new_v4()))
+            .join(format!("r-{}.sock", Uuid::new_v4().simple()))
             .to_string_lossy()
             .into_owned();
         #[cfg(windows)]
@@ -202,9 +202,12 @@ impl Drop for RunningController {
         }
         let _ = self.shutdown.send(true);
         self.listener.abort();
-        if read_descriptor(&self.descriptor).is_ok_and(|descriptor| descriptor.nonce == self.nonce)
-        {
-            let _ = std::fs::remove_file(&self.descriptor);
+        if let Ok(descriptor) = read_descriptor(&self.descriptor) {
+            if descriptor.nonce == self.nonce {
+                #[cfg(target_os = "macos")]
+                let _ = std::fs::remove_file(&descriptor.endpoint);
+                let _ = std::fs::remove_file(&self.descriptor);
+            }
         }
     }
 }

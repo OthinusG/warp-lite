@@ -4,6 +4,14 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `47284a9`, run `36961667419`: macOS gateway source compiled and
+  existing 48 tests passed; the new IPC check exposed a controller socket name
+  exceeding macOS SUN_LEN inside the existing private runtime directory. Shorten
+  only the random basename and remove owned socket files on controller drop.
+- Source `1267827` macOS detail-end PNG reviewed: final reservation warning,
+  human controls and uncertainty guidance are visible with the draft intact.
+  This completes macOS detail scrolling evidence; Windows remains pending.
+
 - Windows capture root cause: surface COPY_SRC was enabled only by the removed
   integration-test build feature, whereas the debug checkpoint uses the existing
   readback path. Enable it for the explicit debug capture environment, and reject
