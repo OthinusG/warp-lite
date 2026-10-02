@@ -152,7 +152,7 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
             .as_array()
             .unwrap()
             .len(),
-        2
+        1
     );
     assert_eq!(
         call(b, &private_issuer, Operation::AgentList)
@@ -160,7 +160,7 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
             .as_array()
             .unwrap()
             .len(),
-        2
+        1
     );
     assert!(call(
         b,
@@ -402,6 +402,6 @@ fn shared_capabilities_fence_directory_reclaim_departure_and_remapping() {
             .as_array()
             .unwrap()
             .len(),
-        1
+        0
     );
 }

@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `e1b2f4d`, run `36958248410`: both OS passed complete storage, migration
+  and enrollment unit tests. Shared IPC reached AgentList correctly after the
+  borrow fix; the new fixture incorrectly counted the caller as its own peer.
+  Native AgentList intentionally excludes the caller. Fix the expected counts,
+  preserving that behavior; delegation/evidence steps still need the rerun.
+
+
 - Shared-space source `efaeb47`, run `36957643422`: both OS compiled all new
   code and passed storage/migration tests, but real IPC AgentList exposed a nested
   RefCell borrow in the new membership filter. Materialize rows and release the
