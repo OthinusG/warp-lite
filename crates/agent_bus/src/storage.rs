@@ -97,8 +97,8 @@ CREATE TABLE IF NOT EXISTS remote_runs (epoch TEXT PRIMARY KEY, agent TEXT NOT N
 pub(crate) const TASK_COLUMNS: &str = "id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline";
 
 /// App-selected local workspace; native tool arguments cannot construct this binding.
-#[derive(Clone)]
-pub(crate) struct WorkspaceBinding {
+#[derive(Clone, Debug)]
+pub struct WorkspaceBinding {
     pub id: String,
     pub space: String,
     pub root: String,
@@ -1445,7 +1445,7 @@ impl Store {
         self.sweep(project)?;
         let actor = Self::operator(project);
         match operation {
-            ControllerOperation::SpaceList => return self.space_list(project),
+            ControllerOperation::SpaceList { cursor, limit } => return self.space_list(project, cursor.as_deref(), *limit),
             ControllerOperation::DeviceList => return self.device_list(),
             ControllerOperation::PurgePreview => return self.purge_preview(project),
             ControllerOperation::HistoryExport { after, limit } => {
@@ -3449,32 +3449,46 @@ impl Store {
     }
 
     /// The private space is implicit and always listed first; members resolve through live agents.
-    fn space_list(&self, _project: &str) -> Result<Value> {
-        let mut spaces = vec![json!({
+    fn space_list(&self, _project: &str, cursor: Option<&str>, limit: Option<u32>) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        if let Some(cursor) = cursor.filter(|cursor| !cursor.is_empty()) { validate_subject(cursor)?; }
+        let mut spaces = if cursor.is_none() { vec![json!({
             "id": Value::Null,
             "name": "Private",
             "device": "local",
             "private": true,
             "members": Vec::<String>::new(),
-        })];
-        let rows = diesel::sql_query("SELECT id, name, device FROM spaces ORDER BY created_at, name")
+            "workspaces": [],
+        })] } else { vec![] };
+        let available = limit as usize - spaces.len();
+        let rows = diesel::sql_query("SELECT id, name, device FROM spaces WHERE name > ? ORDER BY name LIMIT ?")
+            .bind::<Text, _>(cursor.unwrap_or(""))
+            .bind::<BigInt, _>(available as i64 + 1)
             .load::<SpaceRow>(&mut *self.connection.borrow_mut())?;
-        for space in rows {
+        let more = rows.len() > available;
+        let mut next = cursor.unwrap_or("").to_owned();
+        for space in rows.into_iter().take(available) {
+            next = space.name.clone();
             let members: Vec<String> = diesel::sql_query("SELECT member.name AS name FROM space_members AS membership JOIN agents AS member ON member.id = membership.agent WHERE membership.space_id = ? ORDER BY membership.position")
                 .bind::<Text, _>(&space.id)
                 .load::<MemberRow>(&mut *self.connection.borrow_mut())?
                 .into_iter()
                 .filter_map(|row| row.name)
                 .collect();
+            let workspaces: Vec<_> = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE space_id = ? ORDER BY root")
+                .bind::<Text, _>(&space.id).load::<WorkspaceRow>(&mut *self.connection.borrow_mut())?
+                .into_iter().map(|row| json!({"id": row.id, "space_id": row.space_id, "root": row.root,
+                    "repository_id": row.repository_id, "model": row.model, "branch": row.branch, "base_commit": row.base_commit})).collect();
             spaces.push(json!({
                 "id": space.id,
                 "name": space.name,
                 "device": space.device,
                 "private": false,
                 "members": members,
+                "workspaces": workspaces,
             }));
         }
-        Ok(json!({"spaces": spaces}))
+        Ok(json!({"spaces": spaces, "cursor": more.then_some(next)}))
     }
 
     fn workspace_map(
@@ -3501,16 +3515,7 @@ impl Store {
         if let Some(base_commit) = base_commit {
             validate_subject(base_commit)?;
         }
-        let root = std::fs::canonicalize(root.trim())
-            .map_err(|_| invalid_input("Workspace root must be an existing directory"))?;
-        ensure!(
-            root.is_dir(),
-            invalid_input("Workspace root must be an existing directory")
-        );
-        let root = root
-            .to_str()
-            .ok_or_else(|| invalid_input("Workspace root must be valid UTF-8"))?
-            .to_owned();
+        let root = crate::project_root(std::path::Path::new(root.trim()))?;
         diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE workspace_id IN (SELECT id FROM workspaces WHERE root=? AND space_id!=?)")
             .bind::<Text, _>(&root).bind::<Text, _>(space_id)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -7530,7 +7535,7 @@ mod tests {
             )
             .unwrap();
         let joined = store
-            .execute_controller("/project", &ControllerOperation::SpaceList)
+            .execute_controller("/project", &ControllerOperation::SpaceList { cursor: None, limit: None })
             .unwrap();
         let spaces = joined["spaces"].as_array().unwrap();
         assert!(spaces[0]["id"].is_null());
@@ -7559,7 +7564,7 @@ mod tests {
             )
             .unwrap();
         let left = store
-            .execute_controller("/project", &ControllerOperation::SpaceList)
+            .execute_controller("/project", &ControllerOperation::SpaceList { cursor: None, limit: None })
             .unwrap();
         assert!(left["spaces"][1]["members"].as_array().unwrap().is_empty());
         let missing = store

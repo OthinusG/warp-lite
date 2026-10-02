@@ -95,3 +95,15 @@ and old private terminal capabilities retain their private domain. Shared admiss
 is an internal trusted broker method, never a new native tool argument. No remote
 capability is advertised. `tests/local_spaces.rs` exercises real authenticated IPC;
 GitHub verification and the shared-pane UI remain pending.
+
+## Native admission implementation checkpoint
+
+The native panel previews explicit spaces, mapped canonical checkouts, repository
+identities and participants before opening a new local tab. Pass the reviewed
+workspace ID, space ID and root as a trusted NewTerminalOptions field, never as
+a shell environment selector. Validate that immutable snapshot again during
+broker preparation; a remap between review and terminal creation fails closed.
+Normal tabs, saved layouts and restored sessions remain private until explicitly
+joined again. Leaving revokes a selected shared identity and its wake authority
+without moving private work or claiming external execution stopped.
+Native production/read/action checks remain required for this checkpoint.

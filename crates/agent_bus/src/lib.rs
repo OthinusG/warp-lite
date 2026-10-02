@@ -8,7 +8,7 @@ pub mod session;
 pub mod storage;
 pub mod transport;
 
-pub use storage::Store;
+pub use storage::{Store, WorkspaceBinding};
 
 use std::{fmt, path::Path, time::Duration};
 
@@ -491,7 +491,12 @@ impl Operation {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControllerOperation {
-    SpaceList,
+    SpaceList {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     SpaceCreate {
         name: String,
         request_id: String,

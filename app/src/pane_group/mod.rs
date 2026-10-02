@@ -785,6 +785,8 @@ pub struct NewTerminalOptions {
     pub is_shared_session_creator: IsSharedSessionCreator,
     /// The AI conversation to restore when the terminal is created.
     pub conversation_restoration: Option<ConversationRestorationInNewPaneType>,
+    /// Explicit reviewed admission for this new pane; never restored from shell environment.
+    pub communication_workspace: Option<warp_agent_bus::WorkspaceBinding>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1323,6 +1325,7 @@ impl PaneGroup {
                         // TODO(CORE-3187): On Windows, support WSL directory restoration.
                         Some(cwd).filter(|p| p.exists()),
                         HashMap::new(),
+                        None,
                         uuid.as_bytes(),
                         IsSharedSessionCreator::No,
                         resources,
@@ -1618,6 +1621,7 @@ impl PaneGroup {
                 let (terminal_view, terminal_manager) = PaneGroup::create_session(
                     startup_directory,
                     HashMap::new(),
+                    None,
                     uuid.0.as_slice(),
                     IsSharedSessionCreator::No,
                     resources,
@@ -3435,6 +3439,7 @@ impl PaneGroup {
         let (view, terminal_manager) = PaneGroup::create_session(
             options.initial_directory,
             options.env_vars,
+            options.communication_workspace.as_ref(),
             uuid.as_bytes(),
             options.is_shared_session_creator,
             resources,
@@ -5475,6 +5480,7 @@ impl PaneGroup {
     fn create_session(
         startup_directory: Option<PathBuf>,
         mut env_vars: HashMap<OsString, OsString>,
+        communication_workspace: Option<&warp_agent_bus::WorkspaceBinding>,
         terminal_session_uuid: &[u8],
         is_shared_session: IsSharedSessionCreator,
         resources: TerminalViewResources,
@@ -5492,7 +5498,7 @@ impl PaneGroup {
     ) {
         add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
         #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
-        let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), ctx);
+        let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), communication_workspace, ctx);
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "remote_tty")] {
@@ -5782,6 +5788,7 @@ impl PaneGroup {
         let (view, terminal_manager) = PaneGroup::create_session(
             startup_directory,
             HashMap::new(),
+            None,
             uuid.as_bytes(),
             IsSharedSessionCreator::No,
             resources,
@@ -5909,6 +5916,7 @@ impl PaneGroup {
         let (view, terminal_manager) = PaneGroup::create_session(
             startup_directory,
             env_vars,
+            None,
             uuid.as_bytes(),
             IsSharedSessionCreator::No,
             resources,

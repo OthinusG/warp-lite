@@ -21985,6 +21985,31 @@ impl TypedActionView for Workspace {
                     self.unpin_tab_group(group_id, ctx);
                 }
             }
+            OpenCollaborationWorkspace { workspace_id, space_id, root } => {
+                #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+                {
+                    let binding = warp_agent_bus::WorkspaceBinding { id: workspace_id.clone(), space: space_id.clone(), root: root.clone() };
+                    let valid = crate::agent_communication::AgentCommunication::as_ref(ctx).preferences.enabled
+                        && crate::agent_communication::BROKER.get().is_some_and(|broker| broker.validate_workspace(&binding).is_ok())
+                        && warp_agent_bus::project_root(std::path::Path::new(root)).is_ok_and(|canonical| canonical == *root);
+                    if valid {
+                        self.add_tab_with_pane_layout(
+                            PanesLayout::SingleTerminal(Box::new(NewTerminalOptions {
+                                initial_directory: Some(PathBuf::from(root)),
+                                communication_workspace: Some(binding), hide_homepage: true,
+                                ..Default::default()
+                            })), Arc::new(HashMap::new()), Some("Collaboration".into()), ctx,
+                        );
+                    } else {
+                        self.toast_stack.update(ctx, |stack, ctx| {
+                            stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
+                                "Could not open a shared pane. Enable communication, refresh the mapping and confirm its current space and directory.".into()), ctx);
+                        });
+                    }
+                }
+                #[cfg(not(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm"))))]
+                let _ = (workspace_id, space_id, root);
+            }
             AddDefaultTab => {
                 let effective_mode = AISettings::as_ref(ctx).default_session_mode(ctx);
                 match effective_mode {

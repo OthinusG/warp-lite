@@ -309,3 +309,13 @@ IDs and optimistic versions. Live visual/action acceptance remains required.
 ## Native local operator intent
 
 Native task controls reuse inline EditorView fields and existing text buttons. Bind each form to its original scope, task revision/version and stable request UUID. Assignment requires explicit recipient/description/acceptance; cancellation and review require reasons. Archive only terminal tasks. Uncertain force cancellation/retry/reassignment require typing ALLOW OVERLAP and preserve recorded uncertainty. Reject context changes before submission, retain failed intent without changing its version or request UUID, and use the same Broker operator/controller functions as protocol tests. No native interrupt is claimed. Local agent focus dispatches the existing workspace terminal focus action.
+
+## Space preview pagination and admission
+
+`space_list` accepts optional `cursor` (last unique name) and `limit` (existing
+1–200 bound, default 50). Omitted fields preserve old requests. The implicit
+private row appears only on the first page; responses include mapped workspaces
+and repository metadata plus the next cursor. A private-only one-row page uses
+the empty cursor to advance to shared rows. Workspace admission carries the exact
+reviewed ID, space and root in a trusted native field; validation and preparation
+reject a remapped snapshot. No shell/MCP parameter can select admission.

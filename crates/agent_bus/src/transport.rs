@@ -144,6 +144,8 @@ pub struct PanelQuery {
     pub selected_task: Option<String>,
     pub event_after: Option<u64>,
     pub wait: bool,
+    pub spaces: bool,
+    pub space_after: Option<String>,
 }
 impl RunningBroker {
     /// Executable aliases live beside the private broker socket and disappear with the app.
@@ -333,6 +335,15 @@ impl Broker {
     pub fn prepare_in_workspace(&self, terminal: &str, workspace_id: &str) -> Result<String> {
         let workspace = self.store()?.store.workspace_binding(workspace_id)?;
         self.prepare_binding(terminal, Some(workspace))
+    }
+
+    /// Admit exactly the scope reviewed by the user; remapping cannot change that intent.
+    pub fn prepare_bound_workspace(&self, terminal: &str, binding: &crate::WorkspaceBinding) -> Result<String> {
+        self.prepare_binding(terminal, Some(binding.clone()))
+    }
+
+    pub fn validate_workspace(&self, binding: &crate::WorkspaceBinding) -> Result<()> {
+        self.store()?.store.authorize_workspace(binding)
     }
 
     fn prepare_binding(&self, terminal: &str, workspace: Option<crate::storage::WorkspaceBinding>) -> Result<String> {
@@ -1121,13 +1132,24 @@ impl Broker {
     /// refreshes volatile readiness, which deliberately does not enter durable history.
     pub fn operator_panel(&self, query: &PanelQuery) -> Result<Value> {
         let mut state = self.store()?;
-        let project = query.terminal.as_ref()
+        let binding = query.terminal.as_ref().and_then(|terminal| state.terminals.get(terminal));
+        let admission = match binding {
+            Some(binding) if binding.revoked => "revoked",
+            Some(binding) if binding.workspace.as_ref().is_some_and(|workspace| workspace.root != query.project) => "directory_mismatch",
+            Some(binding) if binding.workspace.as_ref().is_some_and(|workspace| state.store.authorize_workspace(workspace).is_err()) => "revoked",
+            Some(binding) if binding.workspace.is_some() => "shared",
+            _ => "private",
+        };
+        let project = binding.and_then(|binding| binding.workspace.as_ref())
+            .filter(|workspace| workspace.root == query.project)
+            .map(crate::WorkspaceBinding::domain)
+            .or_else(|| query.terminal.as_ref()
             .and_then(|terminal| state.terminals.get(terminal))
             .filter(|binding| !binding.revoked)
             .and_then(|binding| binding.live.as_ref())
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
-            .map(|agent| agent.project.clone())
+            .map(|agent| agent.project.clone()))
             .unwrap_or_else(|| query.project.clone());
         let same_scope = query.scope.as_deref() == Some(project.as_str());
         let after = same_scope.then_some(query.event_after).flatten();
@@ -1164,10 +1186,13 @@ impl Broker {
             let (online, interrupted) = task_runtime(&state, task);
             json!({"online": online, "interrupted": interrupted})
         });
-        Ok(json!({"project": project, "agents": agents, "agent_cursor": agent_cursor,
+        let spaces = if query.spaces {
+            state.store.execute_controller(&project, &ControllerOperation::SpaceList { cursor: query.space_after.clone(), limit: Some(50) })?
+        } else { json!({"spaces": [], "cursor": null}) };
+        Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
-            "event_cursor": events["cursor"]}))
+            "event_cursor": events["cursor"], "spaces": spaces["spaces"], "space_cursor": spaces["cursor"]}))
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {

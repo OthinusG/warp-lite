@@ -23,6 +23,9 @@ pub(crate) enum Kind {
     ReassignOverride,
     ForceCancel,
     Archive,
+    CreateSpace,
+    MapWorkspace,
+    LeaveSpace,
 }
 impl Kind {
     pub(super) fn label(self) -> &'static str {
@@ -37,6 +40,9 @@ impl Kind {
             Self::ReassignOverride => "Reassign with override",
             Self::ForceCancel => "Override cancellation",
             Self::Archive => "Archive",
+            Self::CreateSpace => "Create space",
+            Self::MapWorkspace => "Map checkout",
+            Self::LeaveSpace => "Leave participation",
         }
     }
     fn labels(self) -> &'static [&'static str] {
@@ -47,6 +53,13 @@ impl Kind {
             Self::ForceCancel | Self::RetryOverride => &["Reason", "Type ALLOW OVERLAP"],
             Self::Accept | Self::Revise => &["Review feedback"],
             Self::Archive => &[],
+            Self::CreateSpace => &["Space name"],
+            Self::MapWorkspace => &[
+                "Space UUID",
+                "Canonical checkout root",
+                "Repository UUID (optional; explicit logical overlap group)",
+            ],
+            Self::LeaveSpace => &["Agent name to remove"],
             _ => &["Reason"],
         }
     }
@@ -77,15 +90,20 @@ enum Command {
 
 fn command(
     kind: Kind,
+    project: &str,
     task: Option<&Task>,
     fields: &[String],
     request_id: String,
 ) -> anyhow::Result<Command> {
     anyhow::ensure!(fields.len() == kind.labels().len(), "Invalid form");
     anyhow::ensure!(
-        fields.iter().all(|field| !field.trim().is_empty()
-            && field.len() <= 8192
-            && !field.chars().any(char::is_control)),
+        fields
+            .iter()
+            .enumerate()
+            .all(|(index, field)| (kind == Kind::MapWorkspace && index == 2
+                || !field.trim().is_empty())
+                && field.len() <= 8192
+                && !field.chars().any(char::is_control)),
         "Complete every field using plain text (up to 8192 bytes)"
     );
     if kind.overrides() {
@@ -106,6 +124,36 @@ fn command(
             execution_timeout_seconds: None,
             review_timeout_seconds: None,
         }));
+    }
+    match kind {
+        Kind::CreateSpace => {
+            return Ok(Command::Controller(ControllerOperation::SpaceCreate {
+                name: fields[0].clone(),
+                request_id,
+            }))
+        }
+        Kind::MapWorkspace => {
+            return Ok(Command::Controller(ControllerOperation::WorkspaceMap {
+                space_id: fields[0].clone(),
+                root: fields[1].clone(),
+                repository_id: (!fields[2].trim().is_empty()).then(|| fields[2].clone()),
+                model: "independent_worktrees".into(),
+                branch: None,
+                base_commit: None,
+                request_id,
+            }))
+        }
+        Kind::LeaveSpace => {
+            let space_id = project.strip_prefix("space:").ok_or_else(|| {
+                anyhow::anyhow!("Open a shared pane before leaving participation")
+            })?;
+            return Ok(Command::Controller(ControllerOperation::SpaceLeave {
+                space_id: space_id.into(),
+                agent: fields[0].clone(),
+                request_id,
+            }));
+        }
+        _ => {}
     }
     let task = task.ok_or_else(|| anyhow::anyhow!("Select a task first"))?;
     let task_id = task.id.clone();
@@ -155,7 +203,7 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::Assign => unreachable!(),
+        Kind::Assign | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace => unreachable!(),
     })
 }
 
@@ -168,11 +216,13 @@ impl CollaborationPanel {
         let Some(snapshot) = &self.snapshot else {
             return;
         };
-        if kind != Kind::Assign
-            && snapshot
-                .task
-                .as_ref()
-                .is_none_or(|task| self.query.selected_task.as_ref() != Some(&task.id))
+        if !matches!(
+            kind,
+            Kind::Assign | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace
+        ) && snapshot
+            .task
+            .as_ref()
+            .is_none_or(|task| self.query.selected_task.as_ref() != Some(&task.id))
         {
             return;
         }
@@ -291,6 +341,7 @@ impl CollaborationPanel {
         }
         let operation = match command(
             form.kind,
+            &form.project,
             form.task.as_ref(),
             &fields,
             form.request_id.clone(),
@@ -371,6 +422,12 @@ impl CollaborationPanel {
                         .finish(),
                 );
             }
+            if form.kind == Kind::MapWorkspace {
+                body.add_child(builder.span("This mapping applies only to new explicitly joined panes. Changing a checkout's space revokes its earlier shared admissions. Existing private work remains private; matching Git remotes never joins projects.").with_soft_wrap().build().finish());
+            }
+            if form.kind == Kind::LeaveSpace {
+                body.add_child(builder.span("Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.").with_soft_wrap().build().finish());
+            }
             for (label, field) in form.kind.labels().iter().zip(&form.fields) {
                 body.add_child(builder.span(*label).with_soft_wrap().build().finish());
                 if form.submitting {
@@ -412,7 +469,19 @@ impl CollaborationPanel {
                 );
             }
         } else {
-            let mut kinds = vec![Kind::Assign];
+            let mut kinds = if self.show_spaces {
+                vec![Kind::CreateSpace, Kind::MapWorkspace]
+            } else {
+                vec![Kind::Assign]
+            };
+            if self.show_spaces
+                && self
+                    .snapshot
+                    .as_ref()
+                    .is_some_and(|snapshot| snapshot.project.starts_with("space:"))
+            {
+                kinds.push(Kind::LeaveSpace);
+            }
             if let Some(task) = self
                 .snapshot
                 .as_ref()
@@ -494,11 +563,12 @@ mod tests {
             "Focused check passes".into(),
         ];
         assert!(
-            matches!(command(Kind::Assign, None, &fields, "original-request".into()).unwrap(), Command::Agent(Operation::TaskAssign { request_id, .. }) if request_id == "original-request")
+            matches!(command(Kind::Assign, "/project", None, &fields, "original-request".into()).unwrap(), Command::Agent(Operation::TaskAssign { request_id, .. }) if request_id == "original-request")
         );
-        assert!(command(Kind::Assign, None, &fields[..2], "id".into()).is_err());
+        assert!(command(Kind::Assign, "/project", None, &fields[..2], "id".into()).is_err());
         assert!(command(
             Kind::ForceCancel,
+            "/project",
             None,
             &["Investigated".into(), "yes".into()],
             "id".into()
@@ -506,6 +576,6 @@ mod tests {
         .is_err());
         let mut injected = fields;
         injected[0] = "worker\nother".into();
-        assert!(command(Kind::Assign, None, &injected, "id".into()).is_err());
+        assert!(command(Kind::Assign, "/project", None, &injected, "id".into()).is_err());
     }
 }

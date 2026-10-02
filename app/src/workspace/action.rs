@@ -232,6 +232,11 @@ pub enum WorkspaceAction {
     /// Unpins the active tab's group.
     UnpinActiveTabGroup,
     AddDefaultTab,
+    OpenCollaborationWorkspace {
+        workspace_id: String,
+        space_id: String,
+        root: String,
+    },
     AddTerminalTab {
         hide_homepage: bool,
     },
@@ -865,6 +870,7 @@ impl WorkspaceAction {
             | ToggleTabColor { .. }
             | ToggleTabGroupColor { .. }
             | AddDefaultTab
+            | OpenCollaborationWorkspace { .. }
             | AddTerminalTab { .. }
             | AddTabWithShell { .. }
             | AddGetStartedTab

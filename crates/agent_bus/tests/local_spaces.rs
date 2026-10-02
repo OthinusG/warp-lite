@@ -117,6 +117,83 @@ fn leases() -> Operation {
 }
 
 #[test]
+fn reviewed_workspace_is_pinned_and_visible_before_agent_discovery() {
+    let fixture = tempfile::tempdir().unwrap();
+    std::fs::create_dir(fixture.path().join(".git")).unwrap();
+    let nested = fixture.path().join("src");
+    std::fs::create_dir(&nested).unwrap();
+    let root = warp_agent_bus::project_root(&nested).unwrap();
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let b = &server.broker;
+    let first = space(b, &root, "Alpha reviewed");
+    let second = space(b, &root, "Beta remapped");
+    let workspace = map(b, nested.to_str().unwrap(), &first);
+    let reviewed = warp_agent_bus::WorkspaceBinding {
+        id: workspace.clone(),
+        space: first.clone(),
+        root: root.clone(),
+    };
+    b.validate_workspace(&reviewed).unwrap();
+    b.prepare_bound_workspace("pending-shared", &reviewed)
+        .unwrap();
+    let snapshot = b
+        .operator_panel(&warp_agent_bus::transport::PanelQuery {
+            project: root.clone(),
+            terminal: Some("pending-shared".into()),
+            spaces: true,
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(snapshot["project"], reviewed.domain());
+    assert_eq!(snapshot["admission"], "shared");
+    assert_eq!(snapshot["spaces"][1]["workspaces"][0]["root"], root);
+    let mut cursor = None;
+    let mut names = Vec::new();
+    loop {
+        let page = b
+            .control(
+                &root,
+                &ControllerOperation::SpaceList {
+                    cursor,
+                    limit: Some(1),
+                },
+            )
+            .unwrap();
+        assert_eq!(page["spaces"].as_array().unwrap().len(), 1);
+        names.push(page["spaces"][0]["name"].as_str().unwrap().to_owned());
+        cursor = page["cursor"].as_str().map(str::to_owned);
+        if cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(names, ["Private", "Alpha reviewed", "Beta remapped"]);
+    map(b, &root, &second);
+    assert!(b.validate_workspace(&reviewed).is_err());
+    assert!(b
+        .prepare_bound_workspace("stale-review", &reviewed)
+        .is_err());
+    let revoked = b
+        .operator_panel(&warp_agent_bus::transport::PanelQuery {
+            project: root.clone(),
+            terminal: Some("pending-shared".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(revoked["project"], reviewed.domain());
+    assert_eq!(revoked["admission"], "revoked");
+    b.prepare("ordinary-private").unwrap();
+    assert_eq!(
+        b.operator_panel(&warp_agent_bus::transport::PanelQuery {
+            project: root.clone(),
+            terminal: Some("ordinary-private".into()),
+            ..Default::default()
+        })
+        .unwrap()["project"],
+        root
+    );
+}
+
+#[test]
 fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
     let first = tempfile::tempdir().unwrap();
     let second = tempfile::tempdir().unwrap();

@@ -21,7 +21,7 @@ use warp_agent_bus::{
 use warpui::r#async::Timer;
 use warpui::{Entity, EntityId, ModelContext, SingletonEntity, ViewHandle, WeakViewHandle};
 
-static BROKER: OnceLock<Broker> = OnceLock::new();
+pub(crate) static BROKER: OnceLock<Broker> = OnceLock::new();
 static VIEWS: OnceLock<Mutex<HashMap<EntityId, (String, WeakViewHandle<TerminalView>)>>> =
     OnceLock::new();
 pub(crate) struct AgentCommunication {
@@ -479,14 +479,23 @@ impl AgentCommunication {
 pub(crate) fn prepare(
     env: &mut HashMap<OsString, OsString>,
     directory: Option<&Path>,
+    workspace: Option<&warp_agent_bus::WorkspaceBinding>,
     ctx: &warpui::AppContext,
 ) -> Option<String> {
     let broker = BROKER.get()?;
     let terminal = env.get(&OsString::from(TERMINAL))?.to_str()?.to_owned();
-    let capability = broker.prepare(&terminal).ok()?;
+    let settings = AgentCommunication::as_ref(ctx);
+    let capability = if let Some(workspace) = workspace {
+        if !settings.preferences.enabled
+            || directory.and_then(|root| project_root(root).ok()).as_deref() != Some(workspace.root.as_str()) {
+            return None;
+        }
+        broker.prepare_bound_workspace(&terminal, workspace).ok()?
+    } else {
+        broker.prepare(&terminal).ok()?
+    };
     env.insert(ENDPOINT.into(), broker.endpoint.clone().into());
     env.insert(CAPABILITY.into(), capability.into());
-    let settings = AgentCommunication::as_ref(ctx);
     if settings.preferences.enabled {
         if let Some(installed) = settings
             .preferences

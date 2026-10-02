@@ -54,6 +54,24 @@ struct TaskRuntime {
     online: bool,
     interrupted: bool,
 }
+#[derive(Clone, Deserialize)]
+struct WorkspacePreview {
+    id: String,
+    space_id: String,
+    root: String,
+    repository_id: Option<String>,
+    model: String,
+    branch: Option<String>,
+    base_commit: Option<String>,
+}
+#[derive(Deserialize)]
+struct SpacePreview {
+    id: Option<String>,
+    name: String,
+    private: bool,
+    members: Vec<String>,
+    workspaces: Vec<WorkspacePreview>,
+}
 #[derive(Deserialize)]
 struct Snapshot {
     project: String,
@@ -65,6 +83,9 @@ struct Snapshot {
     task_runtime: Option<TaskRuntime>,
     events: Vec<Event>,
     event_cursor: Option<u64>,
+    admission: String,
+    spaces: Vec<SpacePreview>,
+    space_cursor: Option<String>,
 }
 
 pub(crate) struct CollaborationPanel {
@@ -86,6 +107,10 @@ pub(crate) struct CollaborationPanel {
     form: Option<controls::Form>,
     control_buttons: [MouseStateHandle; 8],
     focus_buttons: HashMap<String, MouseStateHandle>,
+    show_spaces: bool,
+    workspace_preview: Option<WorkspacePreview>,
+    workspace_buttons: HashMap<String, MouseStateHandle>,
+    scope_buttons: [MouseStateHandle; 5],
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +129,11 @@ pub(crate) enum Action {
     ConfirmControl,
     CancelControl,
     FocusAgent(String),
+    Spaces,
+    PreviewWorkspace(String),
+    ConfirmWorkspace,
+    FirstSpaces,
+    NextSpaces,
 }
 
 impl CollaborationPanel {
@@ -134,6 +164,10 @@ impl CollaborationPanel {
             form: None,
             control_buttons: Default::default(),
             focus_buttons: Default::default(),
+            show_spaces: false,
+            workspace_preview: None,
+            workspace_buttons: Default::default(),
+            scope_buttons: Default::default(),
         }
     }
 
@@ -162,6 +196,8 @@ impl CollaborationPanel {
             self.snapshot = None;
             self.connected = false;
             self.form = None;
+            self.show_spaces = false;
+            self.workspace_preview = None;
             self.events.clear();
             self.query = Default::default();
             self.scroll = Default::default();
@@ -207,6 +243,7 @@ impl CollaborationPanel {
                     if panel.query.scope.as_deref() != Some(snapshot.project.as_str()) {
                         panel.events.clear();
                         panel.query = Default::default();
+                        panel.query.spaces = panel.show_spaces;
                     }
                     panel.query.scope = Some(snapshot.project.clone());
                     for event in snapshot.events.drain(..) {
@@ -225,8 +262,14 @@ impl CollaborationPanel {
                     }
                     panel.focus_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
                     for row in &snapshot.agents { panel.focus_buttons.entry(row.agent.id.clone()).or_default(); }
+                    panel.workspace_buttons.retain(|id, _| snapshot.spaces.iter().flat_map(|space| &space.workspaces).any(|workspace| &workspace.id == id));
+                    for workspace in snapshot.spaces.iter().flat_map(|space| &space.workspaces) { panel.workspace_buttons.entry(workspace.id.clone()).or_default(); }
                     panel.connected = true;
-                    panel.status = "Connected to the local coordinator. Execution and presence are separate.".into();
+                    panel.status = match snapshot.admission.as_str() {
+                        "revoked" => "Participation revoked. Existing effects may still be running; review the mapping and open a fresh shared pane.",
+                        "directory_mismatch" => "This pane changed checkout. Its shared native connection is unavailable in this directory; open a fresh pane for the reviewed workspace.",
+                        _ => "Connected to the local coordinator. Execution and presence are separate.",
+                    }.into();
                     panel.snapshot = Some(snapshot);
                 }
                 Err(error) => {
@@ -264,6 +307,52 @@ impl CollaborationPanel {
                 "Only explicitly participating agents in this scope can collaborate.".into(),
             ],
         });
+        if self.show_spaces {
+            fixture.state = "space preview".into();
+            fixture.sections.push(Section { title: "New shared sessions only".into(), rows: vec![
+                "Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.".into(),
+                "Saved layouts and restored sessions begin private until explicitly joined again. Leaving shared participation revokes coordination access; it does not stop a CLI or file writes.".into(),
+            ] });
+            if let Some(workspace) = &self.workspace_preview {
+                fixture.sections.push(Section { title: "Reviewed workspace admission".into(), rows: vec![
+                    format!("Space {} · workspace {} · {}", workspace.space_id, workspace.id, workspace.root),
+                    format!("Repository {} · model {} · branch {} · base {}", workspace.repository_id.as_deref().unwrap_or("not linked"), workspace.model, workspace.branch.as_deref().unwrap_or("unspecified"), workspace.base_commit.as_deref().unwrap_or("unspecified")),
+                    "Confirmation opens one new local tab in exactly this reviewed mapping. A changed mapping fails closed.".into(),
+                ] });
+            }
+            for space in &snapshot.spaces {
+                fixture.sections.push(Section {
+                    title: format!(
+                        "{} · {}",
+                        space.name,
+                        space.id.as_deref().unwrap_or("private")
+                    ),
+                    rows: vec![if space.private {
+                        "Ordinary new panes remain isolated by canonical project root.".into()
+                    } else {
+                        format!(
+                            "Participants: {}",
+                            if space.members.is_empty() {
+                                "none yet".into()
+                            } else {
+                                space.members.join(", ")
+                            }
+                        )
+                    }]
+                    .into_iter()
+                    .chain(space.workspaces.iter().map(|workspace| {
+                        format!(
+                            "{} · repository {} · {}",
+                            workspace.root,
+                            workspace.repository_id.as_deref().unwrap_or("not linked"),
+                            workspace.model
+                        )
+                    }))
+                    .collect(),
+                });
+            }
+            return fixture;
+        }
         if let Some(task) = &snapshot.task {
             fixture.state = "task detail".into();
             fixture.sections.extend([
@@ -450,6 +539,53 @@ impl TypedActionView for CollaborationPanel {
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         if !self.preview {
             match action {
+                Action::Spaces => {
+                    self.show_spaces = true;
+                    self.query.spaces = true;
+                    self.query.selected_task = None;
+                }
+                Action::PreviewWorkspace(id) => {
+                    self.workspace_preview = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| {
+                            snapshot
+                                .spaces
+                                .iter()
+                                .flat_map(|space| &space.workspaces)
+                                .find(|workspace| &workspace.id == id)
+                        })
+                        .cloned();
+                    self.scroll = Default::default();
+                    ctx.notify();
+                    return;
+                }
+                Action::ConfirmWorkspace => {
+                    if !self.connected || Self::current_context(ctx) != self.context {
+                        return;
+                    }
+                    if let Some(workspace) = &self.workspace_preview {
+                        ctx.dispatch_typed_action(
+                            &crate::workspace::WorkspaceAction::OpenCollaborationWorkspace {
+                                workspace_id: workspace.id.clone(),
+                                space_id: workspace.space_id.clone(),
+                                root: workspace.root.clone(),
+                            },
+                        );
+                    }
+                    return;
+                }
+                Action::FirstSpaces => {
+                    self.query.space_after = None;
+                    self.workspace_preview = None;
+                }
+                Action::NextSpaces => {
+                    self.query.space_after = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.space_cursor.clone());
+                    self.workspace_preview = None;
+                }
                 Action::OpenControl(kind) => {
                     self.open_control(*kind, ctx);
                     return;
@@ -493,7 +629,12 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::SelectTask(id) => self.query.selected_task = Some(id.clone()),
-                Action::Back => self.query.selected_task = None,
+                Action::Back => {
+                    self.query.selected_task = None;
+                    self.show_spaces = false;
+                    self.query.spaces = false;
+                    self.workspace_preview = None;
+                }
                 Action::NextTasks => {
                     self.query.task_after = self
                         .snapshot
@@ -631,7 +772,15 @@ impl View for CollaborationPanel {
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
-                if self.query.selected_task.is_some() {
+                header.add_child(
+                    builder
+                        .button(ButtonVariant::Text, self.scope_buttons[0].clone())
+                        .with_text_label("Spaces and workspaces".into())
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
+                        .finish(),
+                );
+                if self.query.selected_task.is_some() || self.show_spaces {
                     header.add_child(
                         builder
                             .button(ButtonVariant::Text, self.page_buttons[0].clone())
@@ -731,6 +880,54 @@ impl View for CollaborationPanel {
                     .with_padding_left(8.)
                     .finish(),
                 );
+            }
+        }
+        if !self.preview && self.show_spaces {
+            if let Some(snapshot) = &self.snapshot {
+                for (index, label, action) in [
+                    (1, "First space page", Some(Action::FirstSpaces)),
+                    (
+                        2,
+                        "Next space page",
+                        snapshot.space_cursor.as_ref().map(|_| Action::NextSpaces),
+                    ),
+                    (
+                        3,
+                        "Confirm new shared pane",
+                        self.workspace_preview
+                            .as_ref()
+                            .map(|_| Action::ConfirmWorkspace),
+                    ),
+                ] {
+                    if let Some(action) = action {
+                        body.add_child(
+                            builder
+                                .button(ButtonVariant::Text, self.scope_buttons[index].clone())
+                                .with_text_label(label.into())
+                                .build()
+                                .on_click(move |ctx, _, _| {
+                                    ctx.dispatch_typed_action(action.clone())
+                                })
+                                .finish(),
+                        );
+                    }
+                }
+                for workspace in snapshot.spaces.iter().flat_map(|space| &space.workspaces) {
+                    let id = workspace.id.clone();
+                    body.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.workspace_buttons[&id].clone())
+                            .with_text_label(format!(
+                                "Review {}",
+                                id.chars().take(8).collect::<String>()
+                            ))
+                            .build()
+                            .on_click(move |ctx, _, _| {
+                                ctx.dispatch_typed_action(Action::PreviewWorkspace(id.clone()))
+                            })
+                            .finish(),
+                    );
+                }
             }
         }
         if !self.preview && self.form.is_none() && self.snapshot.is_some() {
