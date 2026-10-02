@@ -609,3 +609,14 @@ Tools Panel integration points:
 - Production native remote opt-in, secure credential persistence, participant
   MCP routing, guarded wake and physical checkout conflict guards remain unfinished.
   Physical cross-device and vendor model acceptance remain unavailable.
+
+
+- c3250f2 / run 37010078182 completed successfully on both OSes, including
+  replacement connection ownership and old-frame write denial after absent
+  receipt reconciliation. Added a follow-up assertion that old session cleanup
+  preserves the replacement connection's fresh presence lease; CI pending.
+- b1bf828 native capture rerun 37009716224 is building both review apps;
+  86e154c full repository rerun 37010763280 is checking both application variants.
+- 54fe996 native enrollment/profiles source is pushed on its isolated validation
+  ref; full two-platform build and focused application checks run 37011624211.
+  Enrollment UI and production remote participation are not yet connected.

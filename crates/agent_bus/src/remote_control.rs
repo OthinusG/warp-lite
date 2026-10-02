@@ -1647,6 +1647,12 @@ mod tests {
                 receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
                 else { panic!("Expected fenced absent receipt") };
             assert_eq!(result["status"], "not_committed");
+            send(&mut replacement, &AuthenticationFrame::ActorHeartbeat {
+                connection_epoch: replacement_epoch, actor_id: Uuid::parse_str(&actor.id).unwrap(), mutation_epoch,
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::ActorHeartbeatResult { .. } =
+                receive(&mut replacement, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected replacement native presence") };
             send(&mut client, &AuthenticationFrame::Operation {
                 connection_epoch, frame_id: Uuid::new_v4(),
                 actor_id: Uuid::parse_str(&actor.id).unwrap(), mutation_epoch, operation: absent.clone(),
@@ -1666,6 +1672,8 @@ mod tests {
                 assert!(connection_order(&state, native, order - 1).is_err());
                 assert!(owns_connection(&state, native, connection_epoch).is_err());
                 assert!(owns_connection(&state, native, replacement_epoch).is_ok());
+                assert_eq!(state.remote_presence[&actor.id].connection, replacement_epoch);
+                assert!(state.remote_presence[&actor.id].valid(&state.store, &actor.id));
             }
 
             server
