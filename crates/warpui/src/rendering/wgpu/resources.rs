@@ -855,9 +855,12 @@ fn create_surface_config(
     config.format = config.format.remove_srgb_suffix();
 
     let caps = surface.get_capabilities(adapter);
-    // The isolated debug checkpoint uses the same readback path as integration tests.
+    // The harness clears its launcher variable before window creation to protect workers.
+    // Its retained real-display flag identifies the readback path for the entire run.
     let capture = cfg!(feature = "integration_tests")
-        || (cfg!(debug_assertions) && std::env::var_os("WARP_COLLABORATION_CAPTURE").is_some());
+        || (cfg!(debug_assertions)
+            && std::env::var("WARPUI_USE_REAL_DISPLAY_IN_INTEGRATION_TESTS")
+                .is_ok_and(|value| value == "1"));
     if capture && caps.usages.contains(wgpu::TextureUsages::COPY_SRC) {
         config.usage |= wgpu::TextureUsages::COPY_SRC;
     }

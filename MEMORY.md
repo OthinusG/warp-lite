@@ -201,3 +201,5 @@
 - macOS controller sockets share the existing /tmp broker runtime directory; the full Unix socket path must remain below SUN_LEN. Use a short random basename, not a long descriptive prefix, and remove only the nonce-owned socket on controller drop.
 
 - SSH participant sessions must verify the expected durable coordinator UUID before sending enrollment/authentication secrets, and derive connection epochs from server replies. Own and kill only the SSH child, drain stderr without persistence, and keep one-time credentials in memory until platform secure storage succeeds. Real-child stdio fixtures do not prove real SSH or platform credential acceptance.
+
+- The native capture harness clears WARP_COLLABORATION_CAPTURE before app window creation so worker children take normal entrypoints. GPU readback configuration must use the retained WARPUI_USE_REAL_DISPLAY_IN_INTEGRATION_TESTS flag (debug-only), rather than the cleared launcher variable.

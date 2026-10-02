@@ -4,6 +4,16 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `25c80ed`, run `36961960929`: both OS gateway/backend checks passed;
+  macOS native capture passed. Windows no longer panicked in wgpu, but its readback
+  callback produced no PNGs. The capture harness deliberately clears its launcher
+  environment variable before window creation, so the COPY_SRC guard still read
+  false. Reuse the retained real-display integration flag instead; no new capture
+  configuration or production renderer setting is needed. Native rerun pending.
+- Full source `6a53a71`, run `36959134811`, passed both OS protocol suites,
+  default/platform app checks and release review packaging. Newer gateway/client
+  and renderer changes still need their exact-source full application validation.
+
 - Source `07b12ef`, run `36962746574`: both OS full backend suites passed,
   including the owned-child/stdio participant session fixture: expected
   coordinator authority, authentication, explicit-space heartbeat and rejection
