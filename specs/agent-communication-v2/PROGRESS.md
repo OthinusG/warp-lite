@@ -4,6 +4,12 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `47284a9`, run `36961667419`: Windows full backend validation passed,
+  including the new real controller/gateway enrollment/authentication/heartbeat/
+  live revocation and restart identity check. macOS is rerunning the socket-name
+  correction. New source `25c80ed`, run `36961960929`, also tests clean CLI failure
+  framing, bounded/private discovery and stale controller ownership; pending.
+
 - Source `47284a9`, run `36961667419`: macOS gateway source compiled and
   existing 48 tests passed; the new IPC check exposed a controller socket name
   exceeding macOS SUN_LEN inside the existing private runtime directory. Shorten

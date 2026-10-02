@@ -35,7 +35,7 @@ actual image review before the static UI checkpoint can pass.
 | M1.4 | `migration_preserves_v1_data_with_backup_and_restore`, migration failures, downgrade sentinel, SQLite-full rollback | Backend verified; native old-binary release gate remains distinct |
 | M1.5 | `request_replay_conflicts_and_epoch_expiry`, retention and quota tests | Backend verified |
 | M2.1 | Native panel source, persisted selection, nine fixed fixtures | Fixture app test and rendered checkpoint required |
-| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Final detail-end revision and Windows capture pending; Windows readback failed 101 because COPY_SRC was gated by the old integration feature; debug capture correction pending |
+| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Detail-end revision reviewed in source 1267827; Windows capture pending; Windows readback failed 101 because COPY_SRC was gated by the old integration feature; debug capture correction pending |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression passed both OS in run 36950035983; native interrupt unsupported-state UI pending |
@@ -52,8 +52,8 @@ actual image review before the static UI checkpoint can pass.
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
-| M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; real IPC check pending CI | Application opt-in and remote task dispatch pending |
-| M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Live controller IPC CI and secure participant storage pending |
+| M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; Windows real IPC enrollment/authentication/heartbeat/revocation passed in run 36961667419; macOS path-limit fix rerun pending | Application opt-in and remote task dispatch pending |
+| M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Windows controller IPC passed in run 36961667419; macOS corrected socket and secure participant storage pending |
 | M6.4 | Typed remote hello/result and bounded frame regressions passed both OS including golden/truncation checks in run 36951776747 | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
