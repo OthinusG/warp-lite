@@ -97,3 +97,10 @@ For faster isolated capture, dispatch `protocol_only=true,capture_ui=true`: both
 OS protocol suites and debug UI builds/captures run, while application checks and
 release packages stay skipped. This is screenshot evidence, not full app build
 acceptance. No real-model task execution or daily application installation occurs.
+
+Visual review of all 72 macOS source-`8c33356` fixture combinations completed:
+320/600px, light/dark, 1/1.25 zoom, all nine states. Text, status/help and pinned
+controls wrap without overlap or horizontal truncation. Narrow enlarged agent/task
+lists and detail extend below the viewport and require scrolling; end-of-detail
+proof remains pending from the three-Page-Down revision. Windows remains pending.
+Diagnostic contact sheets are local review aids, not replacement native artifacts.

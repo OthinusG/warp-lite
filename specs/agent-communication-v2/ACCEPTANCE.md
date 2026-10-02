@@ -35,7 +35,7 @@ actual image review before the static UI checkpoint can pass.
 | M1.4 | `migration_preserves_v1_data_with_backup_and_restore`, migration failures, downgrade sentinel, SQLite-full rollback | Backend verified; native old-binary release gate remains distinct |
 | M1.5 | `request_replay_conflicts_and_epoch_expiry`, retention and quota tests | Backend verified |
 | M2.1 | Native panel source, persisted selection, nine fixed fixtures | Fixture app test and rendered checkpoint required |
-| M2.2 | Signed `8ea58e2` debug review app completed 72 native macOS PNGs twice; narrow/wide detail inspected | Complete image review, scrolling/keyboard/focus and Windows render pending; native capture bypasses the accessibility-automation limitation |
+| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Final detail-end revision and Windows capture pending; Windows startup failed 101 without staged debug runtime assets |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression passed both OS in run 36950035983; native interrupt unsupported-state UI pending |
