@@ -220,7 +220,14 @@ fn remote_error(error: crate::DomainError) -> anyhow::Error {
         | "reservation_conflict"
         | "dependency_blocked"
         | "dependency_cycle" => error.code.as_str(),
-        _ => "invalid_input",
+        _ => {
+            return crate::domain(
+                "invalid_input",
+                "Remote collaboration request was rejected",
+                false,
+                None,
+            )
+        }
     };
     crate::domain(
         code,
