@@ -231,3 +231,5 @@
 - Native history purge pins the original preview sequence and typed DELETE HISTORY intent. Purge selects task/message eligibility before deletions can expose more rows, records an audit event and replays the original result. Reply/thread retention checks use separate indexed lookups rather than one OR join. Native history JSON export is an explicit scoped clipboard page; no automatic filesystem write or eviction.
 
 - Human reservation maintenance pins the original page owner, checkout and expiry. Renewal requires a current authorized owner and confirmed active linked attempt; explicit advisory release retains uncertain attempts and never claims OS execution stopped. Existing agent MCP ownership/run checks stay intact.
+
+- Native task list projection intentionally contains only id/state/revision/version/assignee. Checks requiring description, archive markers or attempts must use the existing selected-task/history-export full records rather than inventing summary fields. The Rust compiler caught this in retained GUI fixtures; local Rust verification remains GitHub-only.
