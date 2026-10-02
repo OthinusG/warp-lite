@@ -1,7 +1,9 @@
 //! Participant receipts are durable intents, never a second task engine or credential store.
 use super::*;
 
+#[cfg(test)]
 const MAX_ROWS: i64 = 1000;
+#[cfg(test)]
 const MAX_BYTES: i64 = 16 * 1024 * 1024;
 const COLUMNS: &str = "coordinator, device, space, actor, epoch, request_id, operation, response";
 
@@ -27,6 +29,7 @@ pub struct RemoteIntent {
 
 impl Store {
     /// Persist the verified original mutation before any network write; unknown outcomes remain.
+    #[cfg(test)]
     pub fn stage_remote_intent(
         &self,
         coordinator: Uuid,
@@ -114,6 +117,7 @@ impl Store {
     }
 
     /// Retain only a matched successful operation/committed reconciliation result.
+    #[cfg(test)]
     pub fn resolve_remote_intent(&self, intent: &RemoteIntent, result: &Value) -> Result<()> {
         let response = serde_json::to_string(result)?;
         ensure!(
@@ -141,6 +145,7 @@ impl Store {
     }
 
     /// Only explicit consumption of a retained result may remove an intent.
+    #[cfg(test)]
     pub fn forget_resolved_remote_intent(
         &self,
         coordinator: &str,
@@ -158,6 +163,7 @@ impl Store {
         })
     }
 
+    #[cfg(test)]
     fn remote_intent_budget(&self, extra: i64, new_row: bool) -> Result<()> {
         ensure!(
             !new_row

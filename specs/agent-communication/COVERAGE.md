@@ -1,5 +1,12 @@
 # Native MCP Coverage
 
+Scope update (2026-10-03): this document records the original local collaboration
+behavior/coverage. The active remote product is [SSH Remote project management](../agent-communication-v2/PLAN.md):
+SSH/SFTP only, remote Linux/macOS/Windows and local macOS/Windows GUI. Local
+handshake/eligibility evidence does not establish remote Agent execution or wake.
+The former enrolled-device remote architecture is superseded; see
+[the source cutover inventory](../agent-communication-v2/CUTOVER.md).
+
 Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client support is the eligibility boundary. MCP server mode alone does not qualify. No shell fallback or third-party MCP adapter is included. Dormant native prompts are woken through Warpai's existing per-agent submission strategies once the common readiness signal or installed completion hook establishes idle state.
 
 `Eligible` means that native local MCP support is established by vendor documentation or installed CLI help. It does not mean authenticated live-agent communication has passed. Every row still needs the end-to-end acceptance below in a patched Warpai build.

@@ -35,9 +35,10 @@ pub use remote_pending::RemoteIntent;
 pub(crate) use remote_actors::RemoteWorkspace;
 pub(crate) use remote_auth::RemotePrincipal;
 
-pub(crate) const SCHEMA_VERSION: &str = "6";
+pub(crate) const SCHEMA_VERSION: &str = "7";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":6}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":7}"#;
+pub(crate) const SENTINEL_V6: &str = r#"{"warp_lite_schema_version":6}"#;
 pub(crate) const SENTINEL_V5: &str = r#"{"warp_lite_schema_version":5}"#;
 pub(crate) const SENTINEL_V4: &str = r#"{"warp_lite_schema_version":4}"#;
 pub(crate) const SENTINEL_V3: &str = r#"{"warp_lite_schema_version":3}"#;
@@ -149,6 +150,7 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "6" => self.upgrade_additive(path, SENTINEL_V6),
             Some(version) if version == "5" => self.upgrade_additive(path, SENTINEL_V5),
             Some(version) if version == "4" => self.upgrade_additive(path, SENTINEL_V4),
             Some(version) if version == "3" => self.upgrade_v3(path),
@@ -241,7 +243,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 || payload == SENTINEL_V6 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -256,6 +258,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V6) {
+            format!("{path}.pre-upgrade-v6")
         } else if expected == Some(SENTINEL_V5) {
             format!("{path}.pre-upgrade-v5")
         } else if expected == Some(SENTINEL_V4) {
@@ -419,6 +423,28 @@ impl Store {
     }
 
     fn set_meta_version(&self) -> Result<()> {
+        // Version 7 is also an authority cutover: older writers must refuse this store.
+        // Preserve unknown effects and original intents instead of inventing cancellation.
+        let unfinished = diesel::sql_query("SELECT id,task_id,revision,owner,run,certainty,outcome,started_at,finished_at FROM attempts WHERE finished_at IS NULL AND certainty='active' AND owner IN (SELECT agent FROM remote_actor_bindings)")
+            .load::<AttemptRow>(&mut *self.connection.borrow_mut())?;
+        for attempt in unfinished {
+            diesel::sql_query("UPDATE attempts SET certainty='unknown' WHERE id=?")
+                .bind::<Text, _>(&attempt.id).execute(&mut *self.connection.borrow_mut())?;
+            diesel::sql_query("UPDATE tasks SET version=version+1 WHERE id=?")
+                .bind::<Text, _>(&attempt.task_id).execute(&mut *self.connection.borrow_mut())?;
+            let project = diesel::sql_query("SELECT project AS value FROM tasks WHERE id=?")
+                .bind::<Text, _>(&attempt.task_id)
+                .get_result::<ValueRow>(&mut *self.connection.borrow_mut())?.value;
+            self.record(&project, "task_execution_unknown", &attempt.owner,
+                Some(&attempt.task_id), Some(&attempt.id),
+                json!({"revision": attempt.revision, "reason": "legacy_device_retired", "execution_stopped": false}))?;
+        }
+        self.connection.borrow_mut().batch_execute(
+            "UPDATE devices SET revoked=1, generation=generation+1 WHERE revoked=0;
+             UPDATE invitations SET consumed=1;
+             UPDATE remote_actor_bindings SET revoked=1;
+             UPDATE remote_runs SET closed=1;",
+        )?;
         diesel::sql_query("INSERT INTO meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
             .bind::<Text, _>(SCHEMA_VERSION)
             .execute(&mut *self.connection.borrow_mut())?;

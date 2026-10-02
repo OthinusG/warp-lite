@@ -967,33 +967,6 @@ fn process_alive(pid: u32) -> bool {
     }
 }
 
-pub fn descriptor_path() -> Result<PathBuf> {
-    #[cfg(target_os = "macos")]
-    let root = PathBuf::from(
-        std::env::var_os("HOME")
-            .ok_or_else(|| coordinator_unavailable("Local app data directory unavailable"))?,
-    )
-    .join("Library/Application Support");
-    #[cfg(windows)]
-    let root = PathBuf::from(
-        std::env::var_os("LOCALAPPDATA")
-            .ok_or_else(|| coordinator_unavailable("Local app data directory unavailable"))?,
-    );
-    let profile = std::env::var("WARP_DATA_PROFILE").unwrap_or_else(|_| "daily".into());
-    ensure!(
-        !profile.is_empty()
-            && profile.len() <= 64
-            && profile
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_'),
-        invalid_input("Invalid application profile")
-    );
-    Ok(root
-        .join("Warpai/remote")
-        .join(profile)
-        .join("controller.json"))
-}
-
 /// Framed bytes only; application authentication remains on the controller, never in argv.
 pub async fn gateway<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     descriptor: &Path,
@@ -1031,29 +1004,6 @@ pub async fn gateway<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
             .map_err(|_| coordinator_unavailable("Controller close timed out"))??;
     }
     output.shutdown().await?;
-    Ok(())
-}
-
-/// Emit a framed, redacted failure instead of mixing diagnostics into protocol stdout.
-pub async fn gateway_stdio() -> Result<()> {
-    let result = match descriptor_path() {
-        Ok(path) => gateway(&path, tokio::io::stdin(), tokio::io::stdout()).await,
-        Err(error) => Err(error),
-    };
-    if result.is_err() {
-        let error = coordinator_unavailable("Coordinator application is unavailable")
-            .downcast::<DomainError>()
-            .unwrap();
-        send(
-            &mut tokio::io::stdout(),
-            &AuthenticationFrame::Error { error },
-            Instant::now() + DEADLINE,
-        )
-        .await?;
-        return Err(coordinator_unavailable(
-            "Coordinator application is unavailable",
-        ));
-    }
     Ok(())
 }
 
@@ -1292,7 +1242,8 @@ mod tests {
             .to_owned();
         let invitation = server
             .broker
-            .control(
+            .store().unwrap().store
+            .execute_controller(
                 "/fixture",
                 &ControllerOperation::InvitationCreate {
                     space_ids: vec![space.clone()],
@@ -1678,7 +1629,8 @@ mod tests {
 
             server
                 .broker
-                .control(
+                .store().unwrap().store
+                .execute_controller(
                     "/fixture",
                     &ControllerOperation::DeviceRevoke {
                         device_id: device_id.to_string(),

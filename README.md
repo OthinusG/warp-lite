@@ -54,6 +54,30 @@ Automatic delivery preserves user drafts and does not answer permission requests
 
 The source is maintained directly in this repository. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [receiver state audit](specs/agent-communication/RECEIVER-STATES.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
+### SSH Remote project management: planned
+
+The current remote roadmap is a local Warpai GUI managing project environments
+over SSH, with SFTP file browsing/transfers, remote terminals, remotely installed
+CLI agents and project-scoped task/status views. Commands, file edits, tests and
+Git operations run on the selected remote machine. Remote environments target
+Linux, macOS and Windows; the desktop application remains macOS/Windows. A small
+repository-owned companion replaces the requirement for another full Warpai GUI.
+
+The existing Tab/Pane sidebar remains the Agent/session management entrypoint.
+Task, message and history details reuse an on-demand collaboration panel; no
+parallel Agent dashboard or mandatory manual task board is planned.
+
+This is proposed work, not a capability in the published release. SFTP is the only
+planned transfer protocol; FTP/FTPS and cross-host device federation are excluded.
+The previous invitation/device-grant design is superseded. The current source
+removes its native enrollment worker and production gateway/client; schema v7
+retains legacy history and unresolved requests while revoking device authority.
+This cutover does not implement SSH Remote; companion, files and sessions remain
+pending. See the revised [implementation plan](specs/agent-communication-v2/PLAN.md),
+[product behavior](specs/agent-communication-v2/PRODUCT.md),
+[source removal inventory](specs/agent-communication-v2/CUTOVER.md) and
+[pending acceptance gates](specs/agent-communication-v2/ACCEPTANCE.md).
+
 ## Why
 
 Upstream Warp is excellent, but includes a large agentic-development and cloud surface that some users do not want in their terminal. This fork keeps the terminal core and progressively removes or disables the product surfaces around AI, cloud sync, billing, onboarding, telemetry, and account login.
@@ -283,7 +307,8 @@ Known caveat: full `cargo fmt --check` can currently fail because the repository
 
 ## Independent Build and Release
 
-`validate-agent-communication.yml` checks committed source on macOS and Windows and uploads a macOS review package. No build replays patches or fetches upstream source. Linux is outside the target scope.
+`validate-agent-communication.yml` checks committed source on macOS and Windows and uploads a macOS review package. No build replays patches or fetches upstream source. Linux is an approved remote
+companion/project target; Linux desktop builds remain outside the target scope.
 
 Dispatch `release-macos.yml` with an existing repository version tag. It tests and builds that exact tag, packages `Warpai.app.zip` and `Warpai.dmg`, and creates a release without overwriting older assets. `release-windows-x64.yml` then reads the tag from that successful run's release-target artifact, checks out the same tag, and attaches the Windows installer and portable ZIP. The Windows workflow can also be dispatched for an explicit existing release. Release publishing remains separate from validation.
 
@@ -327,7 +352,8 @@ No. There is no login gate, no sign-up prompt, and no Warpai/Firebase account fl
 Telemetry removal is an explicit product goal: historical telemetry call sites have been cleaned up, and upstream changes that would reintroduce telemetry or outbound network calls are rejected during syncs. Auditing continues before claiming perfect network silence — see [Current Shipped State](#current-shipped-state) for the honest status.
 
 **Does warpai work on Linux or Windows?**
-macOS and Windows x64 are the only target platforms. Linux implementations and tests are outside the maintained product scope.
+Desktop targets are macOS and Windows x64. Planned SSH remote projects and their
+companion also target Linux; Linux desktop/UI remains outside the product scope.
 
 **Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
 Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.

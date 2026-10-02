@@ -1,3 +1,77 @@
+# SSH Remote Acceptance and Historical Evidence
+
+Date: 2026-10-03. Current scope: SSH/SFTP-only, local GUI macOS/Windows, remote environments Linux/macOS/Windows. All V01–V24 gates below are **pending**. Existing local protocol/native screenshot evidence is reusable regression evidence, not SSH Remote acceptance. No document update executes or deletes code.
+
+## R0 cutover checkpoint — 2026-10-03
+
+Source changes are described in [IMPLEMENTATION.md](IMPLEMENTATION.md). Local
+Rust syntax parsing (rustfmt emit only), SQLite schema/cutover SQL, workflow YAML
+and diff whitespace checks passed. These are static checks, not Rust compilation.
+New checks cover read-only legacy profiles, cleanup without credential reads,
+retired controller/gateway refusal and v6 backup/unknown-attempt/intent retention.
+Exact-source GitHub protocol and application checks are pending. V01/V02/V18
+and R0 remain pending; no SSH/process/SFTP/GUI gate is claimed.
+
+## Current gate matrix
+
+| Gate | Behavior / package | Smallest runnable success check | Required failure/boundary check |
+| --- | --- | --- | --- |
+| V01 Source/cutover inventory | SR37/SR38; R0/R7 | Trace D01–D16 to reachable code/callers; verify no obsolete active endpoint after removal | Old enroll/device/grant frames cannot write; unrelated terminal/local features remain |
+| V02 Upstream reuse/provenance | SR07/SR38; R0/R2 | Launch source-built compatible companion via audited existing client without remote GUI | Missing server/cloud-only installer/version mismatch rejected; no Oz/account fallback |
+| V03 SSH trust/authentication | SR02–SR04; R1 | Controlled SSH account login and fingerprint review on each local OS | Unknown/changed host, bad auth, cancelled prompt and jump-host failure; no auto-trust |
+| V04 Environment/project identity | SR05/SR06/SR34; R1 | Same verified root across two managed tabs resolves one project; roots/accounts/hosts separate | Alias retarget, case/path collision and restored capability fail closed |
+| V05 Capability reporting | SR04/SR07/SR10/SR39; R1/R2 | SSH+SFTP-only endpoint works; GUI separately reports absent helper/MCP | Missing SFTP, unsupported platform/shell/feature and unavailable helper give actionable states |
+| V06 Companion deployment | SR07/SR38/SR39; R2 | Explicit install owned checksummed helper and activate matching version on approved remote targets | Wrong hash/platform/permission, partial upload and activation failure preserve old binary/project |
+| V07 Service/process authority | SR20/SR24/SR33; R2/R4 | Two GUI attachments share one writer/project service; remote MCP is private/current-run | Duplicate writer, wrong account/root/boot/attachment, stale capability and process replacement denied |
+| V08 Event/receipt recovery | SR33/SR36; R2/R7 | Drop task response, reconnect behind fence, read exact receipt/cursor without duplicate transition | Changed content/request identity, absent receipt under old connection, expired run, stale cursor and disk full |
+| V09 Remote Explorer | SR09/SR11/SR16; R3 | Controlled SSH/SFTP list/open refresh matches actual remote tree including Unicode/space names | Denied directory, invalid encoding, large/binary file, malformed filename and symlink cycle |
+| V10 Transfer bytes/progress | SR10/SR14/SR17; R3 | Upload/download owned binary and directory batch; compare complete source/destination bytes/hash | Overwrite refusal, source changes, disk full and per-file errors never show complete |
+| V11 Transfer interruption | SR15/SR17/SR33; R3/R7 | Interrupt controlled transfer, reconcile partial and resume safely or restart owned temporary file | Lost rename reply, destination replacement, cancellation during final commit and cleanup failure |
+| V12 Edit/containment/conflict | SR12/SR13/SR16/SR31; R3 | Remote text edit/save with original fingerprint and confirmed changed remote file | Concurrent Agent edit, path/junction/symlink escape, link replacement, Windows case/drive and unsupported atomic overwrite |
+| V13 Real remote terminal | SR18/SR19; R4 | Native GUI terminal reports remote cwd/process marker; command changes only remote owned fixture | Local same-named root untouched; resize, Unicode/IME, paste, Ctrl-C and interactive program regression |
+| V14 Session close/stop | SR20–SR22; R4 | Existing sidebar actions detach/close/stop exact owned session, including retained detached row and distinct exit observation | Unreachable/unknown process is not stopped; identical PID/name/new run cannot receive old stop |
+| V15 Protected reconnect/input | SR22/SR26/SR35; R4/R5 | Seed local/remote draft, disconnect/reconnect exact retained run and preserve input | Replacement run, delayed Enter, stale attachment, approval/busy and unsupported reattach fail closed |
+| V16 Remote Agent/MCP | SR23–SR26; R5 | Two deterministic remote CLIs load native MCP with distinct project/run bindings and exchange messages | Other root/account/host, local daemon/credential leakage and missing remote CLI/provider state |
+| V17 Task engine remote regression | SR27–SR31/SR33; R5 | Same Store handles claim/start/progress/submit/rework/accept and visible dependencies/leases | Claim race, stale attempt/version, cancel-submit race, unknown reassign and cycle all rejected |
+| V18 Legacy migration/removal | SR08/SR36/SR37; R0/R7 | Open v6 history/preferences, retain unknown intents, export and deliberate cleanup/backup restore | Old credentials/profiles cannot enable a project; locked cleanup, partial migration and downgrade writer are safe |
+| V19 GUI-driven remote task | SR18/SR24/SR28/SR32; R5 | Issuer assigns tiny edit/test, receiver runs remotely, submits, revises and receives acceptance through actual GUI | Verify remote process/root/files/evidence and unchanged local fixture, not just MCP handshake |
+| V20 Actual vendor execution | SR23/SR26/SR40; R5/R7 | Known eligible installed vendor versions perform both task roles on release candidate | Approval/draft/background daemon/version matrix; unavailable credentials/budget explicitly unverified |
+| V21 Static remote GUI | SR01/SR06/SR34/SR35; R1/R3/R6 | Review editable native fixtures for Connections/Projects/Explorer/Transfers, existing Tab/Pane status/actions and on-demand tasks/messages on both local OSes | Narrow/wide, light/dark, 125% text, multiple panes/tab, detached run, closed-panel updates, keyboard labels/focus; no duplicate Agent manager |
+| V22 Integrated GUI actions | SR27/SR32/SR34/SR35; R6 | Live sidebar/task data shares scoped projections; explicit task→exact session and sidebar→task links; producing-location evidence Open | Rapid scope switch/removal, replaced/missing run link, closed task panel, late response and version conflict never redirect actions or steal focus |
+| V23 Eight-hour end-to-end soak | SR15/SR19/SR22/SR33/SR36; R7 | Controlled SSH/helper/terminal/task/transfer reconnect/restart for eight hours with bounded reports | Queue/storage pressure, local sleep, remote service loss, preserved drafts/unknown outcomes and bounded memory |
+| V24 Exact-source build/release | SR38–SR40; R7 | GitHub builds/checks local default/platform/apps and every claimed remote helper artifact from final SHA | Provenance/version/compatibility manifest and install/remove smoke; missing platform evidence excludes claim |
+
+Each gate records source SHA, executable versions, local OS, remote OS/architecture, fixture versus physical status, test name, result and artifact. Use whitelisted metadata and owned screenshots; do not retain credentials, raw authentication logs or arbitrary transcripts. Code inspection can complete an inventory but cannot pass a runtime gate.
+
+## Platform and runtime matrix
+
+| Local GUI | Remote project | Required coverage | Current SSH Remote status |
+| --- | --- | --- | --- |
+| macOS | Linux | Companion target/build, actual controlled SSH/SFTP, remote PTY/files/Agents/tasks | Pending |
+| macOS | macOS | Same-host isolated SSH fixture where available plus real remote confirmation | Pending |
+| macOS | Windows | Windows OpenSSH/SFTP/ConPTY/path behavior through local GUI | Pending; no physical Windows SSH host supplied |
+| Windows | Linux | Controlled remote SSH/SFTP/helper fixture and native Windows GUI | Pending |
+| Windows | macOS | Controlled/physical remote endpoint plus Windows GUI paths/lifecycle | Pending |
+| Windows | Windows | Windows-to-Windows SSH/SFTP/session/file fixture | Pending; physical acceptance unavailable |
+
+Initial helper artifact candidates: Linux x86_64/aarch64, macOS arm64/x86_64 and Windows x64. Pin Linux libc/distribution/shell baselines before implementation. A candidate is not a support claim. Windows ARM64 and other targets need their own evidence before inclusion. Linux remote helper builds/fixtures are authorized; Linux desktop builds are excluded.
+
+Local GitHub runners, containers and loopback SSH are controlled runtime evidence and must be labeled accordingly. Physical cross-device SSH results and real vendor model execution are separate rows. The user supplied no Windows physical host or model budget; do not invoke paid model turns or fabricate acceptance. This does not block controlled implementations/tests.
+
+## Product-to-gate coverage
+
+- SR01–SR08: V01–V07, V18, V21/V22.
+- SR09–SR17: V05, V09–V12, V21–V23.
+- SR18–SR22: V07/V13–V15, V19, V23.
+- SR23–SR33: V07/V08/V15–V20/V22/V23.
+- SR34–SR40: V01/V02/V18/V20–V24.
+
+R0 exit: V01/V02/V18. R1: V03/V04/V05. R2: V06/V07/V08/V17. R3: V09–V12. R4: V13–V15. R5: V16/V17/V19/V20. R6: V21/V22. R7: every gate applicable to a published capability. A blocked vendor/physical row limits the release claim rather than turning unfinished engineering into completion.
+
+## Historical M0–M7 evidence — not current implementation instructions
+
+The chronology below is intentionally retained, including original failures and later superseding results. Its unchecked states and IDs refer to the archived design/date, not the new R0–R7 plan. In particular, old enrolled-device tests do not validate remote process launch, SFTP transfer, SSH task execution or the new GUI. Preserve the source-specific boundaries recorded here.
+
 # Per-package verification ledger
 
 Date: 2026-10-02. This ledger separates executable backend checks from native UI,

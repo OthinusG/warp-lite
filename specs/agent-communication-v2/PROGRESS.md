@@ -1,3 +1,41 @@
+# Current direction: SSH Remote project management
+
+Date: 2026-10-03. Documentation scope correction completed; remote implementation
+and CUTOVER source deletion remain pending. Current PLAN uses R0–R7 and current
+acceptance uses V01–V24. Earlier M0–M7/C01–C14 entries below are chronology only.
+
+Confirmed by the user: SFTP over SSH only; remote Linux/macOS/Windows; local
+macOS/Windows GUI. Agent processes, commands, tests and file IO execute remotely.
+One local GUI manages project files/transfers/terminals/Agents/tasks. Full remote
+Warpai GUI, enrolled devices, invitation/grant federation and FTP/FTPS are excluded.
+
+Documentation changes: rewritten PLAN/PRODUCT/TECH/API, detailed CUTOVER D01–D16,
+new pending acceptance matrix, retired remote gateway/routing pointers and archived
+previous architecture. AGENTS/README/MEMORY align with the confirmed scope.
+Existing local engine/UI/security work stays reusable; old device source is not
+yet deleted and no existing CI result proves the new product complete.
+
+The inherited remote_server client/transport/file-tree/SFTP upload is a reuse
+candidate. Its Oz/cloud installer, Unix detection and compatible server source
+must be audited before deployment. No remote environment was changed by writing
+these specifications.
+
+Documentation verification: all 24 inspected Markdown files have valid local
+links; SR01–SR40, R0–R7 (61 tasks), D01–D16 and V01–V24 are unique/complete.
+Tracked changes are Markdown only and git diff --check passes. Rust compilation,
+remote runtime tests and code removal were not executed for this documentation task.
+
+GUI ownership revision (2026-10-03), approved by the user: existing Tab/Pane
+sidebar owns Agent/session status and lifecycle actions. R6 now reuses the
+collaboration panel for compact on-demand tasks/messages/history, preserving saved
+selection and keeping fresh profiles closed. CUTOVER D14 removes duplicate roster
+and session controls after sidebar parity while retaining data APIs/attribution.
+V14/V21/V22 require exact task/session links, detached rows, shared projections
+and background updates that preserve focus with the task view closed. No new
+dashboard or mandatory task board is planned; source changes remain pending.
+
+## Historical progress follows
+
 # Agent Collaboration v2 Implementation Progress
 
 ## Active continuation — 2026-10-02
@@ -661,3 +699,28 @@ Tools Panel integration points:
 - macOS secure storage must distinguish errSecItemNotFound from access/locked
   errors. The shared provider now preserves other errors, with a focused status
   classification check. Native Keychain/DPAPI runtime acceptance remains pending.
+
+
+## Product direction correction — 2026-10-02
+
+The user clarified SSH Remote project execution as the intended remote product.
+Current M6 machine-to-machine native collaboration is a different scope; its
+production UI/routing implementation is suspended pending specification alignment.
+Local Warpai should manage remote project environments; agents execute commands
+and file operations remotely and communicate within the selected remote scope.
+Existing source and validation evidence are retained rather than removed.
+Source b529062 is pushed on an isolated ref with full two-platform validation
+run 37019498133; that run validates existing changes, not SSH Remote support.
+
+
+## 2026-10-03 SSH Remote R0 source cutover
+
+Removed native enrollment worker and enrollment-only busy gates; legacy profile
+metadata moves to a read-only namespace with UUID-owned deletion-only credential
+cleanup and a visible pending state. Production excludes the old device SSH
+client/controller/presence route. Retired remote-stdio returns a fixed refusal and
+all five device controller operations are blocked before replay. Schema v7 keeps
+v6 backup/history/pending intents, revokes old grants/runs and preserves unfinished
+execution as unknown. Legacy runtime fixtures remain test-only. Local parsing,
+SQL, YAML and whitespace checks passed; GitHub Rust checks remain pending.
+R1–R7 and R0's independently source-built server gate are still unimplemented.

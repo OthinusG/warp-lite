@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     match std::env::args().nth(1).as_deref() {
         Some("mcp") => { Bridge::from_env()?.serve(warp_agent_bus::mcp::legacy_transport(rmcp::transport::stdio()).await?).await?.waiting().await?; }
         Some("remote-stdio") => {
-            warp_agent_bus::transport::remote_control::gateway_stdio().await?;
+            warp_agent_bus::transport::retired_remote_stdio().await?;
         }
         Some("instructions") => println!("{INSTRUCTIONS}"),
         Some("forward") => {

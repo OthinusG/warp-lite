@@ -115,7 +115,7 @@ impl View for CommunicationSettingsView {
                         .get(&row.command)
                         .is_some_and(|entry| entry.active),
                 );
-                let checkbox = if model.busy || model.remote_enrolling() || row.installed.is_none() {
+                let checkbox = if model.busy || row.installed.is_none() {
                     checkbox.disabled()
                 } else {
                     checkbox
@@ -146,10 +146,15 @@ impl View for CommunicationSettingsView {
             }
         }
         body.add_child(builder.paragraph(model.status.clone()).build().finish());
+        if model.preferences.legacy_remote_profiles.iter().any(|profile| profile.cleanup_pending) {
+            body.add_child(builder.paragraph(
+                "Legacy device access is disabled. Unlock secure storage and restart Warpai to retry credential cleanup.".to_owned(),
+            ).build().finish());
+        }
         let refresh = builder
             .button(ButtonVariant::Text, self.refresh.clone())
             .with_text_label("Refresh agents / retry cleanup".to_owned());
-        let refresh = if model.busy || model.remote_enrolling() {
+        let refresh = if model.busy {
             refresh.disabled()
         } else {
             refresh

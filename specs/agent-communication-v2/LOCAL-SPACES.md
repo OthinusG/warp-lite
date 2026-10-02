@@ -1,5 +1,7 @@
 # Local shared-space routing implementation contract
 
+Scope note (2026-10-03): preserve these implemented local space semantics and historical evidence. New SSH Remote project scope is private by selected remote root; it does not require device grants or cross-host grouping. Use PLAN.md, TECH.md and CUTOVER D13 for the current delivery.
+
 Status: backend implementation under verification; production UI admission is gated.
 SpaceJoin/WorkspaceMap alone remain metadata and do not merge existing task scopes.
 Implements M4.1/M4.2, preserving M1/M3/M5 authority and privacy guarantees.

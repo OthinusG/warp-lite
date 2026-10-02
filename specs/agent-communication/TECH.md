@@ -1,5 +1,12 @@
 # Native CLI Agent Communication
 
+Scope update (2026-10-03): this document records the original local collaboration
+behavior/coverage. The active remote product is [SSH Remote project management](../agent-communication-v2/PLAN.md):
+SSH/SFTP only, remote Linux/macOS/Windows and local macOS/Windows GUI. Local
+handshake/eligibility evidence does not establish remote Agent execution or wake.
+The former enrolled-device remote architecture is superseded; see
+[the source cutover inventory](../agent-communication-v2/CUTOVER.md).
+
 The proposed next implementation is specified in [the reliability and remote collaboration plan](../agent-communication-v2/PLAN.md). That plan describes future work; the current implementation and historical decisions remain documented below.
 
 ## Context

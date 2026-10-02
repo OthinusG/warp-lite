@@ -1,6 +1,16 @@
-# Collaboration panel static checkpoint
+# Historical local collaboration panel static checkpoint
 
-Date: 2026-10-02. Status: static native checkpoint accepted; live integration now permitted.
+Date: 2026-10-02. Status: historical local static checkpoint accepted. This permits only the originally reviewed local integration. SSH Remote Connections/Projects/Explorer/Transfers, existing Tab/Pane Agent status/actions and on-demand task/message states require a new V21 checkpoint before live integration; see PLAN.md and ACCEPTANCE.md.
+
+## Current GUI ownership gate
+
+The existing left Tab/Pane sidebar is the sole Agent/session management surface.
+Reuse its native CLI icon/status, row/context actions and pane navigation. The
+collaboration panel becomes an on-demand task/message/history view; no duplicate
+Agent roster/session controls or mandatory board. New V21/V22 fixtures cover
+multiple panes, detached retained runs, exact task/session cross-links, shared
+status/task badges and background updates with the task view closed. Existing
+Agent-section captures below remain historical and do not approve duplicate UI.
 
 ## Visual authority
 

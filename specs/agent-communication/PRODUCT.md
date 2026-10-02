@@ -1,5 +1,12 @@
 # Native CLI Agent Communication
 
+Scope update (2026-10-03): this document records the original local collaboration
+behavior/coverage. The active remote product is [SSH Remote project management](../agent-communication-v2/PLAN.md):
+SSH/SFTP only, remote Linux/macOS/Windows and local macOS/Windows GUI. Local
+handshake/eligibility evidence does not establish remote Agent execution or wake.
+The former enrolled-device remote architecture is superseded; see
+[the source cutover inventory](../agent-communication-v2/CUTOVER.md).
+
 ## Summary
 
 All CLI agent sessions managed by Warpai running in Warpai can exchange messages, assign tasks, submit results, and accept or request changes. Warpai owns local routing and durable task state. External messaging products are not required.

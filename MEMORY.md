@@ -2,7 +2,7 @@
 
 ## Product Boundary
 
-- User platform decision on 2026-10-01: macOS and Windows are the only target platforms. Linux implementations and tests may be dropped; avoid new Linux compatibility work and Linux CI jobs. This does not require an unrelated wholesale rewrite of inherited platform code.
+- Current platform scope (user correction 2026-10-03): local desktop GUI targets macOS/Windows; SSH Remote environments and the repository-owned companion target Linux/macOS/Windows. Linux helper builds and focused remote tests are authorized; Linux desktop/UI remains excluded. This supersedes the broader Linux exclusion recorded on 2026-10-01.
 
 - Warpai is an independently maintained AGPL local-first terminal derived from warp-lite and Warp, targeting macOS and Windows.
 - The default product excludes AI agents, telemetry, cloud account/login, billing, and related platform surfaces.
@@ -284,3 +284,80 @@
   (-25300) to NotFound. Treating locked/denied access as absence lets enrollment
   overwrite a credential after unlock. Shared error conversion retains other
   failures; the focused regression uses status codes without reading user keys.
+
+
+## SSH Remote product correction — 2026-10-02
+
+The user clarified that the intended remote feature is a project environment
+managed by the local Warpai app over SSH: agent processes, commands and file
+operations execute on the remote machine, and agents in that remote environment
+communicate. The existing v2 M6 design instead requires participating native apps
+on separate machines with enrolled devices, grants and a coordinator; it does not
+satisfy SSH Remote project execution. Stop extending that production routing
+until the specifications are realigned. Preserve reusable local task/history/UI
+and SSH framing work; do not equate a shared SSH host with automatic cross-project
+access. The follow-up on 2026-10-03 resolved remote scope: Linux/macOS/Windows with SSH/SFTP only; no remote desktop GUI requirement.
+
+
+## SSH Remote specifications and cutover — 2026-10-03
+
+The user requested a documentation rewrite, including engineering work and explicit
+removal of already-developed excess features. Active PLAN/PRODUCT/TECH/API now
+describe SSH project execution, SFTP files/transfers and one local GUI for remote
+terminals/Agents/tasks. R0–R7 and V01–V24 replace historical M0–M7/C01–C14 as
+current gates. Previous machine-collaboration specs are archived; ACCEPTANCE and
+PROGRESS retain historical source-specific evidence. No code was removed or remote
+service enabled during this documentation task.
+
+CUTOVER D01–D16 plans retirement of invitations/device grants, paired-native-app
+gateway, enrollment worker/profiles/keys and obsolete device actor/spool roles.
+Keep local task/history/UI, secure-storage fixes, private IPC permissions, original
+receipt fencing and draft-safe wake. Legacy unknown intents/attempts/history must
+remain read-only/exportable; no automatic identity migration or schema downgrade.
+
+Existing remote_server client/transport/protobuf/file-tree/SFTP-upload source is a
+reuse candidate, not a complete verified SSH Remote backend. Its installer names
+upstream Oz/cloud downloads and platform detection lacks Windows remote support.
+Audit compatible server source and replace deployment with reviewed repository
+artifacts before enabling. No FTP/FTPS dependency or workflow is needed.
+
+
+## SSH Remote GUI ownership discussion — 2026-10-03
+
+The user pointed out that the existing left vertical Tab sidebar already serves
+as the Agent/session management surface and asked why another Agent/task GUI is
+needed. The sidebar already renders CLI icons/status and tab/pane naming/close
+controls. Do not justify a duplicate Agent dashboard merely from backend roster
+availability. Recommended design: existing sidebar owns session navigation/state
+and session actions; the collaboration panel owns project-level task/message
+relationships, evidence and durable history, with links back to those sessions.
+The user approved this direction and requested its application to the plan.
+PLAN/PRODUCT/TECH/API/CUTOVER/ACCEPTANCE and the UI checkpoint now define the
+sidebar as the sole session manager and the collaboration panel as on-demand
+task/message/history detail. Keep existing saved panel selection; fresh profiles
+default closed, and events never open/focus it. Preserve actor/session read APIs,
+assignee pickers and attribution while retiring duplicate Agent roster/controls.
+Exact task/session links and detached runs use the same project/sidebar hierarchy.
+These are specification changes; source implementation/removal remains pending.
+
+
+## SSH Remote cutover implementation — 2026-10-03
+
+- R0 checkpoint removes the native device-enrollment worker and its setup busy
+  gates. Old `remote_profiles` deserialize as `legacy_remote_profiles`; only
+  saved UUID-owned secure keys are removed. Cleanup never reads credential
+  values and failed platform deletion stays visible/pending. Metadata is retained.
+- Production builds exclude the old SSH device client/controller and presence
+  routing. `remote-stdio` emits a fixed, non-retryable compatibility refusal;
+  Broker::control rejects all five retired device operations before replay.
+  Historical controller fixtures remain library-test-only until R0/R7 replacement.
+- Schema v7 backs up v6 to `.pre-upgrade-v6`, revokes legacy authorization and
+  marks unfinished remote attempts unknown without a finish/outcome. Original
+  pending intents, receipts, actor/evidence provenance and local work survive.
+  This supersedes old notes describing enrollment as the active remote direction.
+- The inherited remote_server crate has no source-built server executable and
+  its installer downloads Oz. R1–R7 need a repository-owned server using the
+  existing protobuf control substrate; a device gateway cannot substitute for it.
+- Checkpoint scope/verification: specs/agent-communication-v2/IMPLEMENTATION.md.
+  Local Rust parsing, SQL and whitespace checks passed; exact-source GitHub
+  protocol/application/runtime acceptance is pending. SSH Remote is not delivered.

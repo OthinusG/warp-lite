@@ -836,3 +836,27 @@ fn native_delivery_observations_never_acknowledge_or_start_tasks() {
     assert_eq!(panel["task_runtime"]["online"], false);
     assert!(panel["task_runtime"]["delivery_phase"].is_null());
 }
+
+#[test]
+fn retired_device_controls_cannot_issue_or_replay_authority() {
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let operations = [
+        ControllerOperation::DeviceList,
+        ControllerOperation::InvitationCreate { space_ids: vec![id()], ttl_seconds: None, request_id: id() },
+        ControllerOperation::DeviceRevoke { device_id: id(), request_id: id() },
+        ControllerOperation::DeviceGrantUpdate { device_id: id(), expected_generation: 1,
+            space_id: id(), mode: Some("write".into()), request_id: id() },
+        ControllerOperation::RemoteWorkspaceMap { device_id: Uuid::new_v4(), expected_generation: 1,
+            space_id: Uuid::new_v4(), checkout_id: Uuid::new_v4(), label: "Legacy".into(),
+            repository_id: None, request_id: id() },
+    ];
+    for operation in operations {
+        for _ in 0..2 {
+            let error = server.broker.control("/fixture", &operation).unwrap_err();
+            assert_eq!(error.downcast_ref::<warp_agent_bus::DomainError>().unwrap().code, "feature_unavailable");
+        }
+    }
+    server.broker.control("/fixture", &ControllerOperation::SpaceCreate {
+        name: "Local spaces still work".into(), request_id: id(),
+    }).unwrap();
+}

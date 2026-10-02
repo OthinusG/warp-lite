@@ -1,7 +1,6 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 pub(crate) mod setup;
-mod remote_credentials;
-mod remote_settings;
+mod legacy_remote_credentials;
 pub(crate) mod panel;
 use crate::terminal::{
     cli_agent_sessions::{
@@ -21,6 +20,7 @@ use warp_agent_bus::{
     transport::{Broker, RunningBroker, CAPABILITY, ENDPOINT, TERMINAL},
 };
 use warpui::r#async::Timer;
+use warpui_extras::secure_storage::AppContextExt;
 use warpui::{Entity, EntityId, ModelContext, SingletonEntity, ViewHandle, WeakViewHandle};
 
 pub(crate) static BROKER: OnceLock<Broker> = OnceLock::new();
@@ -35,9 +35,6 @@ pub(crate) struct AgentCommunication {
     preferences_path: PathBuf,
     pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
     notified: HashMap<String, String>,
-    pub(crate) remote_status: String,
-    remote_pending: Option<std::sync::mpsc::Receiver<anyhow::Result<remote_settings::Enrollment>>>,
-    remote_cancel: Option<tokio::sync::watch::Sender<bool>>,
 }
 impl Entity for AgentCommunication {
     type Event = ();
@@ -136,10 +133,17 @@ impl AgentCommunication {
         }
         Self::schedule(ctx);
         let preferences_path = directory.join("agent-communication-settings.json");
-        let preferences = match std::fs::read(&preferences_path) {
+        let mut preferences: setup::Preferences = match std::fs::read(&preferences_path) {
             Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
             Err(_) => setup::Preferences::default(),
         };
+        for profile in &mut preferences.legacy_remote_profiles {
+            if profile.cleanup_pending {
+                profile.cleanup_pending = legacy_remote_credentials::remove(
+                    ctx.secure_storage(), profile.coordinator, profile.device,
+                ).is_err();
+            }
+        }
         let mut model = Self {
             _server: server,
             preferences,
@@ -149,9 +153,6 @@ impl AgentCommunication {
             preferences_path,
             pending: None,
             notified: HashMap::new(),
-            remote_status: String::new(),
-            remote_pending: None,
-            remote_cancel: None,
         };
         model.configure(None, None, ctx);
         model
@@ -199,11 +200,8 @@ impl AgentCommunication {
         command: Option<String>,
         ctx: &mut ModelContext<Self>,
     ) {
-        if self.busy || (self.remote_pending.is_some() && enabled != Some(false)) {
+        if self.busy {
             return;
-        }
-        if enabled == Some(false) {
-            self.cancel_remote_enrollment(ctx);
         }
         let mut preferences = self.preferences.clone();
         if let Some(enabled) = enabled {
@@ -414,7 +412,6 @@ impl AgentCommunication {
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(250)), |model, _, ctx| {
-            model.poll_remote_enrollment(ctx);
             if let Some(result) = model
                 .pending
                 .as_ref()

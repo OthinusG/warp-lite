@@ -871,6 +871,69 @@ mod tests {
     }
 
     #[test]
+    fn v6_cutover_preserves_history_and_pending_intents_but_revokes_authority() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("bus.sqlite");
+        let path = database.to_str().unwrap();
+        let store = Store::open(path).unwrap();
+        let domain_id = space(&store);
+        let principal = device(&store, &[domain_id]);
+        let workspace = store.map_remote_workspace(&principal, domain_id, Uuid::new_v4(), "legacy", None).unwrap();
+        let actor = store.register_remote_actor(&principal, &workspace,
+            Uuid::new_v4(), Uuid::new_v4(), "codex", "legacy-worker").unwrap();
+        let domain = format!("space:{domain_id}");
+        let task = store.execute(&Store::operator(&domain), OPERATOR_EPOCH, &Operation::TaskAssign {
+            to: actor.actor.name.clone(), description: "Legacy running work".into(),
+            acceptance: "Retain uncertain effects".into(), reviewer: None, dependencies: vec![],
+            start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None,
+            request_id: id(),
+        }).unwrap();
+        let task_id = task["id"].as_str().unwrap();
+        let start = Operation::TaskStart { task_id: task_id.into(), revision: 1,
+            expected_version: None, request_id: id() };
+        let started = store.execute(&actor.actor, &actor.epoch, &start).unwrap();
+        let coordinator = store.coordinator_id().unwrap();
+        let pending = store.stage_remote_intent(coordinator, Uuid::parse_str(&principal.device).unwrap(), &actor,
+            &Operation::AgentSend { to: "legacy-worker".into(), body: "Retained intent".into(),
+                subject: None, thread_id: None, reply_to: None, task_id: None, request_id: id() }).unwrap();
+        let host = store.register("local", "codex", directory.path().to_str().unwrap(), "local").unwrap();
+        let host_lease = store.execute(&host, "local-run", &reserve()).unwrap();
+        let before = store.operator_task(&domain, task_id).unwrap();
+        store.connection.borrow_mut().batch_execute("UPDATE meta SET value='6' WHERE key='schema_version'").unwrap();
+        store.set_legacy_payload(SENTINEL_V6).unwrap();
+        drop(store);
+        let upgraded = Store::open(path).unwrap();
+        assert_eq!(upgraded.meta_version().unwrap().as_deref(), Some(SCHEMA_VERSION));
+        assert_eq!(read_legacy_payload(&format!("{path}.pre-upgrade-v6")).unwrap().as_deref(), Some(SENTINEL_V6));
+        let after = upgraded.operator_task(&domain, task_id).unwrap();
+        assert_eq!(after.state, "running");
+        assert_eq!(after.description, before.description);
+        assert_eq!(after.version, before.version + 1);
+        assert_eq!(after.attempts[0].certainty, "unknown");
+        assert!(after.attempts[0].finished_at.is_none());
+        assert!(after.attempts[0].outcome.is_none());
+        assert!(upgraded.authorize_remote(&principal, &domain_id.to_string(), true).is_err());
+        assert!(upgraded.resolve_remote_run(&principal, &actor.actor.id, &actor.epoch, true).is_err());
+        assert!(upgraded.execute(&actor.actor, &actor.epoch, &start).is_err());
+        let retained = upgraded.remote_intent(&pending.coordinator, &pending.actor, &pending.request_id).unwrap().unwrap();
+        assert_eq!(retained.operation, pending.operation);
+        assert!(retained.response.is_none());
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM reservations", &[]).unwrap(), 1);
+        assert!(host_lease["reservation_ids"].is_array());
+        assert_eq!(upgraded.execute(&host, "local-run", &Operation::AgentList).unwrap().as_array().unwrap().len(), 1);
+        let mut backup = SqliteConnection::establish(&format!("{path}.pre-upgrade-v6")).unwrap();
+        let saved = diesel::sql_query("SELECT id,task_id,revision,owner,run,certainty,outcome,started_at,finished_at FROM attempts WHERE id=?")
+            .bind::<Text, _>(started["attempt_id"].as_str().unwrap())
+            .get_result::<AttemptRow>(&mut backup).unwrap();
+        assert_eq!(saved.certainty, "active");
+        assert!(saved.finished_at.is_none());
+        drop(upgraded);
+        let reopened = Store::open(path).unwrap();
+        assert_eq!(reopened.operator_task(&domain, task_id).unwrap().version, after.version);
+        assert!(reopened.remote_intent(&pending.coordinator, &pending.actor, &pending.request_id).unwrap().is_some());
+    }
+
+    #[test]
     fn v5_upgrade_keeps_host_state_and_creates_no_remote_admissions() {
         let directory = tempfile::tempdir().unwrap();
         let database = directory.path().join("bus.sqlite");

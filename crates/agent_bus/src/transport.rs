@@ -27,9 +27,9 @@ pub(crate) mod windows_pipe;
 use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 #[path = "remote_control.rs"]
-pub mod remote_control;
+pub(crate) mod remote_control;
 use crate::readiness::{Activity, Draft};
 
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
@@ -108,12 +108,18 @@ struct State {
     store: Store,
     terminals: HashMap<String, Terminal>,
     programs: Option<HashSet<String>>,
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     remote_active: bool,
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     remote_owner: Option<Uuid>,
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     remote_presence: HashMap<String, remote_control::ActorPresence>,
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     remote_connection_sequence: u64,
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     remote_native_connections: HashMap<String, (u64, Uuid)>,
 }
+#[cfg(all(test, any(target_os = "macos", windows)))]
 impl State {
     fn expire_remote_presence(&mut self) -> Result<()> {
         let expired: Vec<_> = self.remote_presence.iter()
@@ -225,10 +231,15 @@ impl RunningBroker {
                 store,
                 terminals: HashMap::new(),
                 programs: None,
+                #[cfg(all(test, any(target_os = "macos", windows)))]
                 remote_active: false,
+                #[cfg(all(test, any(target_os = "macos", windows)))]
                 remote_owner: None,
+                #[cfg(all(test, any(target_os = "macos", windows)))]
                 remote_presence: HashMap::new(),
+                #[cfg(all(test, any(target_os = "macos", windows)))]
                 remote_connection_sequence: 0,
+                #[cfg(all(test, any(target_os = "macos", windows)))]
                 remote_native_connections: HashMap::new(),
             }),
             changed: Condvar::new(),
@@ -1117,6 +1128,7 @@ impl Broker {
     fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
         let mut state = self.shared.state.lock()
             .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
+        #[cfg(all(test, any(target_os = "macos", windows)))]
         state.expire_remote_presence()?;
         Ok(state)
     }
@@ -1136,6 +1148,11 @@ impl Broker {
 
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
+        ensure!(!matches!(operation,
+            ControllerOperation::InvitationCreate { .. } | ControllerOperation::DeviceList
+            | ControllerOperation::DeviceRevoke { .. } | ControllerOperation::DeviceGrantUpdate { .. }
+            | ControllerOperation::RemoteWorkspaceMap { .. }),
+            crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None));
         let mut state = self.store()?;
         let result = state.store.execute_controller(project, operation)?;
         // Removing an admission is permanent for this capability, even if metadata is later restored.
@@ -1228,14 +1245,18 @@ impl Broker {
                 .filter_map(|binding| binding.live.as_ref())
                 .find(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH
                     && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
+            #[cfg(all(test, any(target_os = "macos", windows)))]
             let remote_online = state.remote_active && state.remote_presence.get(&agent.id)
                 .is_some_and(|presence| presence.valid(&state.store, &agent.id));
+            #[cfg(not(all(test, any(target_os = "macos", windows))))]
+            let remote_online = false;
             let device = agent.terminal.strip_prefix("remote:")
                 .and_then(|qualified| qualified.split_once(':')).map(|(device, _)| device.to_owned())
                 .unwrap_or_else(|| "local".into());
             let workspace = state.store.physical_root(&agent).ok();
-            let observed = live.map(|live| live.observed.elapsed().as_millis() as u64)
-                .or_else(|| remote_online.then(|| state.remote_presence[&agent.id].age_ms()));
+            let observed = live.map(|live| live.observed.elapsed().as_millis() as u64);
+            #[cfg(all(test, any(target_os = "macos", windows)))]
+            let observed = observed.or_else(|| remote_online.then(|| state.remote_presence[&agent.id].age_ms()));
             json!({"agent": agent, "online": live.is_some() || remote_online,
                 "device": device, "workspace": workspace, "last_observed_ms": observed,
                 "observation_source": if live.is_some() { Some("local observation") } else if remote_online { Some("presence receipt") } else { None },
@@ -1316,14 +1337,19 @@ fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
                 .as_ref()
                 .is_some_and(|agent| agent.id == task.assignee)
         });
+    #[cfg(all(test, any(target_os = "macos", windows)))]
     let remote = state.remote_presence.get(&task.assignee)
         .filter(|presence| state.remote_active && presence.valid(&state.store, &task.assignee));
+    #[cfg(all(test, any(target_os = "macos", windows)))]
+    let (remote_online, remote_executing) = (remote.is_some(), remote.is_some_and(|presence|
+        presence.executing(&state.store, &task.assignee, task.executing_run.as_deref())));
+    #[cfg(not(all(test, any(target_os = "macos", windows))))]
+    let (remote_online, remote_executing) = (false, false);
     (
-        live.is_some() || remote.is_some(),
+        live.is_some() || remote_online,
         matches!(task.state.as_str(), "running" | "cancel_requested")
             && !live.is_some_and(|live| task.executing_run.as_deref() == Some(live.run.as_str()))
-            && !remote.is_some_and(|presence| presence.executing(&state.store,
-                &task.assignee, task.executing_run.as_deref())),
+            && !remote_executing,
     )
 }
 fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> Result<&'a Live> {
@@ -1479,4 +1505,20 @@ pub fn call(endpoint: &str, request: &Request) -> Result<Value> {
                 .result
                 .ok_or_else(|| anyhow!("Missing broker result"))
         })
+}
+
+/// Old clients receive a clean refusal; no legacy descriptor or service is opened.
+pub async fn retired_remote_stdio() -> Result<()> {
+    let error = DomainError {
+        code: "feature_unavailable".into(),
+        message: "Device federation has been retired; SSH projects are not available in this build".into(),
+        retryable: false,
+        version: None,
+    };
+    let bytes = serde_json::to_vec(&json!({"type": "error", "error": error}))?;
+    let mut output = tokio::io::stdout();
+    output.write_all(&(bytes.len() as u32).to_be_bytes()).await?;
+    output.write_all(&bytes).await?;
+    output.shutdown().await?;
+    Err(crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None))
 }

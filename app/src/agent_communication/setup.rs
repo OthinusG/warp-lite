@@ -17,41 +17,24 @@ const END: &str = "# END WARP LITE COMMUNICATION";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct RemoteProfile {
+pub(super) struct LegacyRemoteProfile {
     pub alias: String,
     pub coordinator: Uuid,
     pub device: Uuid,
     pub generation: u64,
     pub spaces: Vec<Uuid>,
+    #[serde(default = "cleanup_pending")]
+    pub cleanup_pending: bool,
 }
-impl RemoteProfile {
-    pub(super) fn validate(&self) -> Result<()> {
-        warp_agent_bus::remote::validate_alias(&self.alias)?;
-        ensure!(
-            !self.coordinator.is_nil()
-                && !self.device.is_nil()
-                && self.generation > 0
-                && !self.spaces.is_empty()
-                && self.spaces.len() <= 32
-                && self.spaces.iter().all(|id| !id.is_nil())
-                && self
-                    .spaces
-                    .iter()
-                    .collect::<std::collections::HashSet<_>>()
-                    .len()
-                    == self.spaces.len(),
-            "Invalid reviewed connection metadata"
-        );
-        Ok(())
-    }
-}
+fn cleanup_pending() -> bool { true }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Preferences {
     pub enabled: bool,
     pub selected: BTreeMap<String, Installed>,
-    #[serde(default)]
-    pub(super) remote_profiles: Vec<RemoteProfile>,
+    // Legacy metadata is retained for export/cleanup, never used for SSH admission.
+    #[serde(default, alias = "remote_profiles", skip_serializing_if = "Vec::is_empty")]
+    pub(super) legacy_remote_profiles: Vec<LegacyRemoteProfile>,
 }
 impl Preferences {
     pub fn programs(&self) -> std::collections::HashSet<String> {
@@ -842,6 +825,35 @@ fn listed_entry(text: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection() {
+        let profile = serde_json::json!({
+            "alias": "old-host", "coordinator": Uuid::new_v4(), "device": Uuid::new_v4(),
+            "generation": 1, "spaces": [Uuid::new_v4()],
+        });
+        let preferences: Preferences = serde_json::from_value(serde_json::json!({
+            "enabled": true, "selected": {}, "remote_profiles": [profile.clone()],
+        })).unwrap();
+        assert!(preferences.enabled);
+        assert_eq!(preferences.legacy_remote_profiles.len(), 1);
+        assert!(preferences.legacy_remote_profiles[0].cleanup_pending);
+        let encoded = serde_json::to_value(&preferences).unwrap();
+        assert!(encoded.get("remote_profiles").is_none());
+        assert_eq!(encoded["legacy_remote_profiles"][0]["alias"], "old-host");
+        assert_eq!(encoded["selected"], serde_json::json!({}));
+        let roundtrip: Preferences = serde_json::from_value(encoded).unwrap();
+        assert!(roundtrip.legacy_remote_profiles[0].cleanup_pending);
+        let old: Preferences = serde_json::from_value(serde_json::json!({
+            "enabled": false, "selected": {},
+        })).unwrap();
+        assert!(old.legacy_remote_profiles.is_empty());
+        for field in ["credential", "invitation", "capability", "private_key"] {
+            let mut injected = profile.clone();
+            injected[field] = serde_json::json!("synthetic");
+            assert!(serde_json::from_value::<LegacyRemoteProfile>(injected).is_err());
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn qodercn_discovery_and_native_scope_contract_use_the_shell_path() {
@@ -919,7 +931,7 @@ mod tests {
         let preferences = Preferences {
             enabled: true,
             selected: BTreeMap::from([("qodercn".into(), selected)]),
-            remote_profiles: vec![],
+            legacy_remote_profiles: vec![],
         };
         assert!(preferences.programs().contains("qodercn"));
         assert!(!preferences.programs().contains("qoder"));

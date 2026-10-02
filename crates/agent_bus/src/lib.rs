@@ -2,8 +2,8 @@
 pub mod launch;
 pub mod mcp;
 pub mod readiness;
-#[cfg(any(target_os = "macos", windows))]
-pub mod remote;
+#[cfg(all(test, any(target_os = "macos", windows)))]
+mod remote;
 pub mod session;
 pub mod storage;
 pub mod transport;

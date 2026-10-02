@@ -1,148 +1,196 @@
-# Agent Collaboration Implementation Plan
+# Warpai SSH Remote and File Management Plan
 
-Date: 2026-10-01. Baseline: `7d2eac7` (source repair `632bd1c`). Status updated 2026-10-02: M1 has recorded acceptance; later packages are partially implemented. See [PROGRESS.md](PROGRESS.md) and the [per-package verification ledger](ACCEPTANCE.md) for current evidence and remaining gates. Unchecked packages are not accepted.
+Date: 2026-10-03. Status: revised product plan; SSH Remote is not implemented or accepted. This revision supersedes the former M6 machine-to-machine collaboration direction. Existing source remains unchanged by this documentation task. No item below becomes complete merely because an earlier gateway test passed.
 
-## Reading order and scope
+## 1. Outcome and reading order
 
-1. [PRODUCT.md](PRODUCT.md): user-visible behavior, B01–B30.
-2. [TECH.md](TECH.md): architecture, migration, failure handling and acceptance tests.
-3. [API.md](API.md): state transitions, operations and transport contracts.
-4. This file: execution order, work packages, release gates and estimates.
+Build a local Warpai GUI that manages SSH remote project environments: browse/edit/transfer remote files, open remote terminals, launch remote CLI agents, show their state and tasks, and control their sessions. Agent commands, file operations, tests and Git operations execute on the selected remote machine. Agents in the same selected remote project communicate through the existing collaboration semantics. The remote machine does not need a full Warpai GUI.
 
-This plan covers the seven previously identified gaps plus remote communication. Existing implementation and earlier acceptance records remain in [the v1 specification](../agent-communication/TECH.md) and [coverage record](../agent-communication/COVERAGE.md). The new documents do not declare those gaps implemented. No production code or external service is changed by writing this plan.
+Read [PRODUCT.md](PRODUCT.md) for behavior SR01–SR40, [TECH.md](TECH.md) for architecture and validation, [API.md](API.md) for contracts, [CUTOVER.md](CUTOVER.md) for actual source dispositions, and [ACCEPTANCE.md](ACCEPTANCE.md) for evidence. [PROGRESS.md](PROGRESS.md) retains chronology. The previous M0–M7 documents are preserved under [legacy-machine-collaboration](legacy-machine-collaboration/README.md); their IDs describe historical evidence only.
 
-## Coverage and priorities
+### GUI ownership and default experience
 
-| Gap | Deliverable | Behavior | Work packages |
-| --- | --- | --- | --- |
-| Real execution acceptance | Reproducible two-agent tasks, wake/rework evidence, version matrix | B07–B12, B30 | M0, M7 |
-| Collaboration visibility | Native panel, blocked reasons, event timeline, user controls | B02–B06 | M1, M2 |
-| Cancellation/failure/timeouts | Explicit outcomes, fenced attempts, controlled retry/reassignment | B09–B12 | M1, M3 |
-| File/worktree conflicts | Advisory reservations and explicit workspace grouping | B16–B17 | M4 |
-| Dependencies/task scheduling | Cycle-checked dependencies and atomic claims | B13–B15 | M3 |
-| Threads/structured evidence | Reply history, search, provenance-bearing result references | B18–B20 | M1, M5 |
-| Long-running history | Row-based storage, pagination, archival, bounded retry retention | B21, B29 | M1, M5 |
-| Remote communication | Enrolled devices, SSH channel, project grants, reconciliation | B22–B28 | M4, M6, M7 |
+The existing left Tab/Pane sidebar is the sole Agent/session management surface. Extend its native rows and context actions; do not add a parallel Agent dashboard, roster tab or independently managed session list. The terminal remains the interaction/approval surface. The existing collaboration panel becomes an on-demand project task/message/history view, closed by default on fresh profiles; preserve an existing user's saved panel selection. Background task events never open it or steal focus.
 
-Priority: first prove the existing execution path (M0); establish durable contracts (M1); make local operation visible and controllable (M2/M3); add collaboration scope and evidence (M4/M5); then connect machines (M6). Release local improvements before remote availability if their gates pass.
+| Surface | Owns | Does not own |
+| --- | --- | --- |
+| Existing Tab/Pane sidebar | Session navigation, CLI/run status, remote host/project identity, concise attention/task badges, rename/focus/reconnect/stop/detach actions | Full task dependencies, review/evidence history or another task state machine |
+| Terminal/editor | Agent dialogue, commands, native approvals and protected drafts | Task completion inferred from arbitrary output |
+| On-demand collaboration panel | Task/message relationships, selected task detail, evidence and durable history; links to owning sessions | A duplicate Agent roster, session navigation/control dashboard or mandatory manual workflow |
+| Connections/Projects and Transfers | SSH/SFTP setup, root selection, deployment and explicit file operations | A second Agent manager |
+
+A tab may contain multiple panes and an Agent run may survive a detached view. Preserve existing Tab/Pane granularity: status attaches to its actual pane/run, with only concise aggregation at the tab. Retained detached sessions are reachable in the same project sidebar hierarchy, not a separate manager. Task-to-session links resolve exact project/actor/run; tab-to-task links open the task view only on explicit user action. Sidebar badges and task details use the same authoritative task/runtime projections.
+
+Keep dependency/review/history/replay safeguards in the backend. Show a compact active-task list/detail by default when the user opens the task view; reveal attempts, dependencies, archive/export/purge and risk overrides on demand. Two Agents exchanging messages must not require creating a board or manually stepping through every task stage.
+
+## 2. Confirmed scope decisions
+
+| Area | Current planning decision | Consequence |
+| --- | --- | --- |
+| Local application | macOS and Windows GUI | Preserve default Lite and warp_platform builds and terminal guardrails |
+| SSH project | One authenticated SSH account, one explicitly selected canonical remote root | Same host does not automatically expose every project or account |
+| Files over SSH | SFTP is the default transfer protocol; remote helper may provide scoped listing/edit metadata | SFTP is distinct from FTP/FTPS |
+| FTP/FTPS | Explicitly excluded by the user | The requested file transfer is SFTP over SSH; no additional FTP profiles, passwords, TLS/data-channel machinery or insecure fallback |
+| Agent execution | Remote installed vendor CLI, remote runtime and remote provider authentication | Do not copy local API keys, home directories or CLI configurations |
+| Task authority | Remote project collaboration service, reusing warp-agent-bus; local GUI reads projections | Agents in that project need no second native app; no duplicate authoritative local task database |
+| Remote component | Small repository-owned companion/service launched for a managed SSH project | No cloud account, public listener, system service or privileged installer |
+| Remote platforms | Linux, macOS and Windows, confirmed by the user | Linux is a remote service/project target only; local desktop builds remain macOS/Windows |
+| Session continuity | Explicit lifecycle policy and capability report | No claim that closing local SSH stops the remote process; reattachment requires proven remote ownership |
+| Cross-host collaboration | Removed from this delivery | No enrolled devices, invitation flow, writable coordinator federation or cross-host task routing |
+| Arbitrary manual SSH tabs | Continue working as ordinary terminals | They do not silently become managed remote projects or gain MCP/task access |
+
+The user confirmed SFTP-only file transfer and Linux/macOS/Windows remote support on 2026-10-03. These supersede the earlier provisional FTP and remote-platform questions. Align AGENTS.md, packages, artifact targets and acceptance matrix with these decisions.
+
+## 3. Current implementation: what exists and what is missing
+
+- Retain the implemented local task engine, SQLite migration/backup/ledger, dependencies, claims, cancellation/retry fencing, messages/threads, evidence, reservations and bounded history.
+- Retain native collaboration panel and task controls. Both-platform historical native capture gates include 115 states, clipboard export, participant metadata and draft/focus checks; these are local gates, not SSH Remote gates.
+- Existing upstream SSH detection, remote-server client/transport, remote file tree and SFTP upload are reuse candidates. The installer still refers to upstream Oz/download infrastructure, platform detection assumes uname, and the client contract does not prove an independently packaged compatible server exists. Audit these before reuse.
+- Existing new remote modules implement enrolled-device/coordinator exchange. They do not start agents in remote project environments, provide a file-transfer manager or supply the desired SSH GUI.
+- New enrollment/profile/credential helpers are partly implemented, but their product flow is superseded. Preserve shared secure-storage fixes; do not finish the obsolete Devices/grants UI.
+- SSH Remote connections GUI, remote project identity, scoped companion deployment, remote PTY management, transfer queue, remote-agent discovery/MCP binding, remote task projection and complete fault handling are new engineering work. Session UI reuses the existing sidebar; a second Agent/session dashboard is explicitly excluded.
+
+## 4. Execution order and release gates
+
+Use Specify → Plan → Task → Execute → Verify. This document supplies the revised task sequence; code changes begin only after the relevant contracts and static UI states are concrete. The plan does not authorize parallel agents automatically.
 
 ```mermaid
 flowchart LR
-    M0["M0: Real execution baseline"] --> M1["M1: Contracts and storage"]
-    M1 --> M2["M2: Panel and timeline"]
-    M1 --> M3["M3: Task control and dependencies"]
-    M3 --> M4["M4: Workspaces and reservations"]
-    M1 --> M5["M5: Threads, evidence and history"]
-    M2 --> M6["M6: SSH remote collaboration"]
-    M4 --> M6
-    M5 --> M6
-    M6 --> M7["M7: Cross-platform release acceptance"]
+    R0["R0: Audit and cutover"] --> R1["R1: SSH connection and project identity"]
+    R1 --> R2["R2: Scoped remote companion"]
+    R1 --> R3["R3: File browser and transfers"]
+    R2 --> R4["R4: Remote terminals and session control"]
+    R2 --> R5["R5: Remote agents and collaboration"]
+    R4 --> R5
+    R3 --> R6["R6: Unified live GUI"]
+    R5 --> R6
+    R6 --> R7["R7: Faults, cleanup and release"]
 ```
 
-## Work packages
+File browsing and terminal foundations may be developed independently after identity/security contracts stabilize; live integrated UI still follows static screenshot acceptance. File-transfer work cannot substitute for SSH project/agent work. A usable file-manager preview is not completion of the full product.
 
-Each package produces a reviewable commit/PR with updated specifications, focused tests and an acceptance record. Start sequentially with one owner; independent work is possible after shared contracts stabilize, but this plan does not authorize spawning agents automatically.
+### R0 — Source audit, scope correction and safe removal
 
-### M0 — Establish a real execution baseline
+- [ ] **R0.1** Freeze old product additions; inspect all remote entrypoints/callers using CodeGraph, record source SHA and actual reachable behavior. Follow CUTOVER D01–D16.
+- [ ] **R0.2** Prove what upstream remote-server/file-tree/SSH paths do in Lite and on both local OSes. Locate the server implementation/artifact source; do not assume a client crate is a distributable server.
+- [ ] **R0.3** Define the typed remote environment/project/connection identities and ownership before extending storage. Document all remote-vs-local path call sites and proposed migrations.
+- [ ] **R0.4** Disable/remove app enrollment worker, invitation/device UI plans and obsolete gateway entrypoints only after a schema/compatibility fixture is in place. Preserve local task/operator APIs and shared secure-storage hardening.
+- [ ] **R0.5** Fence legacy credentials and profiles; expose old metadata only for export/removal. Do not automatically turn a device profile into a trusted SSH project.
+- [ ] **R0.6** Inventory legacy device tables, actors, cursors and unresolved intents; retain unknown work/history and original backups. Implement read-only legacy interpretation before deleting active writes.
+- [ ] **R0.7** Replace obsolete tests with same-invariant tests for the new service, while retaining migration fixtures. Verify no cloud installer/login/billing dependency becomes reachable.
+- **Exit:** V01, V02 and V18. Removal has a concrete dependency map and restores neither old authorization nor old mutations. Source removal is future work; writing this plan does not delete code.
 
-- [x] **M0.1:** Verify the prior repair workflow result and package provenance; install a matching review build into a separate test location. Do not assume a downloaded companion updates the installed app. Verified `e08b2ed` from run `36877709716`; see `PROGRESS.md`.
-- [ ] **M0.2:** Move the useful parts of temporary native probes into a focused, credential-free acceptance harness. Give it a disposable repository, exact executable paths, recorded versions, bounded runtime and cleanup of only its own children. User startup/permission prompts remain observable.
-- [ ] **M0.3:** Run deterministic fixture tasks through the actual Warpai UI: issuer assigns a tiny source edit and test; receiver wakes, calls TaskStart, edits, tests and submits; issuer requests one revision, then accepts. Capture task IDs, states, evidence and receiver screen activity, not raw secrets or unrelated transcripts.
-- [ ] **M0.4:** Exercise busy, draft, approval, manual pause, process replacement, receiver crash and app restart. Classify each failure as bridge, lifecycle, PTY, model compliance or configuration; fix the shared cause before adding feature layers.
-- [ ] **M0.5:** Cover both roles for each locally installed eligible CLI using a known-good counterpart; include Codex shared-daemon isolation, QoderCN separately from Qoder and Antigravity discovery fallback. Record absent vendors as unverified. Repeat real execution on Windows before claiming Windows native acceptance.
-- **Exit:** C01/C02 in TECH pass for tested versions; no claim of universal model obedience. Unavailable credentials or machines block the corresponding release claim, not unrelated design work.
+### R1 — Connections GUI, SSH authentication and remote project identity
 
-### M1 — Durable storage, events and versioned contracts
+- [ ] **R1.1** Static native Connections/Projects UI: empty, authenticating, host verification, ready, failed, reconnecting and disabled states; narrow/wide, themes and text scaling.
+- [ ] **R1.2** SSH profiles: display name, alias or host/user/port, jump-host configuration reference, optional identity-file reference, default remote root; store metadata only. Reuse system OpenSSH configuration without displaying private key contents.
+- [ ] **R1.3** Separate interactive authentication/host-key review from clean machine protocol pipes. Unknown host offers fingerprint review; changed host is blocked. Never auto-answer trust/password prompts or disable verification.
+- [ ] **R1.4** Validate system ssh/sftp presence, safe arguments, timeouts and cancellation. Keep interactive terminal, file transfer and control status independent. An established terminal does not prove SFTP/helper availability.
+- [ ] **R1.5** Resolve account/server identity and canonical remote project root remotely; names/aliases/identical path text do not establish equality. Record root display spelling separately from canonical identity.
+- [ ] **R1.6** Open remote projects explicitly; show remote banner on tabs/explorer/agent/task actions. Restore layouts without auto-running old commands or reviving agent capabilities.
+- [ ] **R1.7** Select a project; discover available capabilities and remote OS/shell. Reject unsupported targets with specific guidance. Include approved Linux helper targets without adding a Linux desktop UI.
+- **Exit:** V03/V04/V05. No execution/file request silently falls back to the local machine.
 
-- [x] **M1.1:** Translate API.md into serde operation contracts and schema-derived MCP tools. Preserve the existing twelve tool names and required fields; add optional fields/new tools with explicit feature negotiation.
-- [x] **M1.2:** Add versioned SQLite migrations and normalized task, attempt, message, event and idempotency rows. Use existing Diesel/SQLite. Keep runtime terminal bindings in memory and separate from durable collaboration identities.
-- [x] **M1.3:** Add atomic event emission with each mutation, paginated read APIs, stable error codes, attempt fencing and optimistic versions for new control operations. Record observed delivery phases separately from authoritative task outcomes.
-- [x] **M1.4:** Migrate a v1 snapshot with a tested backup/restore path and downgrade guard. Include full-capacity, malformed, interrupted and disk-full fixtures. Do not drop the only copy of old data.
-- [x] **M1.5:** Implement bounded mutation epochs and deduplication retention so cleanup cannot make an old request execute again. Add non-destructive capacity reporting.
-- **Exit:** C03/C04/C10 pass on macOS and Windows; old-data migration and stale replay rejection are proven before the new UI writes data.
+### R2 — Repository-owned remote companion and durable project service
 
-### M2 — Native collaboration panel
+- [ ] **R2.1** Audit and reuse remote_server protocol/client/manager where they meet the new boundary. Preserve one framing implementation per selected control protocol; do not combine JSON and protobuf implicitly.
+- [ ] **R2.2** Build a small compatible remote companion from this repository. Include versions, capabilities, remote root identity, PTY/session controls and collaboration dispatch; no model runtime or native GUI requirement.
+- [ ] **R2.3** Package provenance and checksum manifest in GitHub artifacts. Replace upstream Oz/cloud download dependency with the reviewed repository artifact. Offer explicit deployment destination and version; support manual path selection.
+- [ ] **R2.4** Upload/install only owned companion files in a user-private directory, validate platform/hash, activate atomically, preserve previous compatible version. No sudo, global PATH edit, shell startup edits or SSH-server/firewall changes.
+- [ ] **R2.5** Start a scoped per-account/per-project service through SSH. Define single-instance lock and attach ownership; duplicate local connections reuse the same project authority or fail visibly rather than create two writers.
+- [ ] **R2.6** Private remote IPC for same-account agent MCP; fresh per-launch credentials scoped to exact project/run. The SSH account is the remote trust boundary; distinguish GUI operator access from agent capabilities.
+- [ ] **R2.7** Keep authoritative task data on the remote project service and local data private. Persist snapshots/cursors/pending GUI mutations locally as projections/intents only.
+- [ ] **R2.8** Define shutdown, bounded session retention and reconnect behavior. Service loss fences new work; retained attempts remain unknown until exact owners reconcile.
+- **Exit:** V06/V07/V08/V17. An ordinary remote machine with no full Warpai GUI can host the project; no unreviewed upstream download is required.
 
-- [x] **M2.1:** Add `Agent collaboration` to the existing Tools Panel and persisted panel selection. Build fixed fixtures for all B02/B04/B06 states using existing components and themes.
-- [x] **M2.2:** Review macOS/Windows screenshots at narrow/wide widths, light/dark themes and increased text size; verify keyboard navigation, focus restoration, accessibility labels and long-content wrapping. Fix static states before live integration.
-- [ ] **M2.3:** Subscribe to local event updates, with paginated task/agent queries and a recoverable cursor. Show current space/device, task detail, timeline and why work is waiting. Do not poll full history every UI frame.
-- [ ] **M2.4:** Wire human operations through the authenticated local controller using a distinct operator principal. Add local-terminal focus and stale/offline states; enable controls only when their APIs have shipped.
-- **Exit:** C05 plus existing terminal regression checks; typing in a terminal cannot be interrupted by panel refresh or delayed actions.
+### R3 — Remote file browser, safe edit and transfer manager
 
-### M3 — Task control and dependencies
+- [ ] **R3.1** Static Explorer/Files/Transfers states: loading, empty, permission denied, stale, symlink, large directory, conflict, progress, paused, cancelled and partial failure.
+- [ ] **R3.2** SFTP listing/stat/read/create-directory/rename/delete/upload/download within selected root; preserve Unicode/spaces, directory navigation, sorting and explicit refresh. Do not parse human-readable ls output as the API.
+- [ ] **R3.3** Resolve remote path containment on the server. Symlink traversal, Windows drives/UNC/case and Unix path semantics belong to the remote filesystem; reject escapes and invalid names without local PathBuf canonicalization.
+- [ ] **R3.4** Open bounded text remotely in existing editor/viewer; show provenance/encoding/read-only/binary/large-file states. Save against original remote fingerprint/version, detect concurrent Agent/editor changes, and present reload/compare/explicit overwrite.
+- [ ] **R3.5** Queue file/directory uploads and downloads with progress, cancel/retry and bounded concurrency. Review transfer endpoints and overwrite targets; transfer only explicitly selected content.
+- [ ] **R3.6** Temporary sibling files plus atomic rename where available; unknown commit/unsupported atomic save visible. Resume only after source/destination identity verification; unsupported resume restarts a fresh owned partial file, never appends blindly.
+- [ ] **R3.7** File-only SFTP connections work even when the project helper/Agent integration is unavailable. Share the verified SSH identity, expose SFTP capability failures and never offer an FTP fallback. Support binary transfer and folder batches without requiring Agent participation.
+- [ ] **R3.8** Transfer history stores bounded metadata, not credentials/file contents; failed/cancelled transfers never count as complete. Lost delete/rename responses reconcile destination/source state before retry.
+- [ ] **R3.9** Show overlapping active Agent reservations before GUI save/upload/delete; warn that advisory reservations are not filesystem locks. Never imply external writers are prevented.
+- **Exit:** V09–V12. Actual bytes verified on controlled endpoints; connection type/capabilities remain truthful. No FTP/FTPS implementation or tests are part of this package.
 
-- [ ] **M3.1:** Implement failure, cancellation request/confirmation, deadlines and interrupted-attempt recovery. Keep cancellation state separate from process liveness. Surface unsupported native interrupt behavior honestly.
-- [ ] **M3.2:** Add explicit retry/reassignment with new attempt IDs and concurrency checks. Preserve prior evidence. Require acknowledged stop, observed exit or explicit human override before overlapping ownership is possible.
-- [ ] **M3.3:** Add dependency edges, cycle validation and accepted-prerequisite checks in the same transaction as start/claim. Resolve failed prerequisites visibly. Use stable FIFO eligibility; omit an automatic model-ranking system.
-- [ ] **M3.4:** Add unassigned tasks with explicit eligible participants, atomic claim, one active delegated attempt per agent and deterministic wake of an eligible idle candidate. Re-evaluate eligibility when presence/dependencies change; claiming remains the authority.
-- [ ] **M3.5:** Update MCP cooperation instructions and panel controls; observe missing model acknowledgements without faking execution or silently looping prompts.
-- **Exit:** C06/C07; race tests cover start/cancel, submit/cancel, review/retry, claim/claim and dependent-start/prerequisite change.
+### R4 — Remote terminal and session lifecycle
 
-### M4 — Collaboration spaces and file reservations
+- [ ] **R4.1** Reuse terminal block renderer/input/PTY abstractions and audited upstream SSH lifecycle. Open shell in the exact remote root, with remote shell/environment and visible host/project identity.
+- [ ] **R4.2** Support multiple remote terminals, tabs/splits, resize, paste, IME, Unicode, Ctrl-C and interactive programs. Local cwd/environment must not masquerade as remote context.
+- [ ] **R4.3** Separate session ID, process run ID, SSH connection epoch and terminal attachment. Remote helper verifies ownership for input/resize/interrupt/close.
+- [ ] **R4.4** Implement close tab/detach and disconnect as retaining managed remote sessions; Stop requests exit for the exact run. Project/profile removal reviews active sessions with explicit Stop or Leave running. Prompt only when an action will abandon/stop active work; report stop requested versus observed exit.
+- [ ] **R4.5** On network loss protect local draft and stop delayed submission. Reattach only to the same verifiably surviving remote process if the service supports it; otherwise show ended/unknown and require explicit new launch.
+- [ ] **R4.6** Bounded terminal buffers/backpressure; interactive output cannot starve heartbeats/tasks/transfers. Do not retain raw terminal transcripts in task diagnostics.
+- **Exit:** V13/V14/V15. Real remote process location and lifecycle are proven, including failed/replaced attachments.
 
-- [ ] **M4.1:** Introduce explicit collaboration spaces and local workspace mappings. Default each existing canonical project to its private space. Existing worktrees do not become connected merely because their Git remote matches.
-- [ ] **M4.2:** Add join/leave controls with a preview of exposed participants and scope. Begin with new sessions in the shared space; keep active private tasks in their original space.
-- [ ] **M4.3:** Add expiring exact-file/subtree reservations using checkout identity, platform path semantics and task/attempt ownership. Reject overlapping exclusive reservations in one checkout; warn on logical overlap in distinct worktrees.
-- [ ] **M4.4:** Show conflicts, renewal, release and abandoned-owner handling in MCP and UI. Expiry releases a coordination record, never asserts that OS file writes have stopped. No automatic git checkout, reset, merge or branch deletion.
-- **Exit:** C08; test symlinks, path escapes, macOS/Windows case behavior, device-qualified workspaces and worktree opt-in isolation.
+### R5 — Remote Agent launch, MCP and project-local communication
 
-### M5 — Threads, evidence and sustainable history
+- [ ] **R5.1** Discover installed eligible CLI versions remotely, separately from local discovery. Show missing CLI/provider authentication/permissions; do not install vendors or copy local authentication automatically.
+- [ ] **R5.2** GUI launch and terminal-recognized managed launches bind the remote native process to the selected project and remote MCP endpoint. Preserve vendor adapters and separate Qoder/QoderCN identities.
+- [ ] **R5.3** Two remotely running agents register distinct actor/run identities and exchange messages/tasks through the reused Store/MCP operations. Same project groups across managed SSH tabs; other roots/users/hosts remain isolated.
+- [ ] **R5.4** Expose supported native lifecycle states with source/age; connected, idle, task-ready, permission-blocked, draft-protected and unknown remain distinct. Unsupported remote adapters cannot advertise automatic wake.
+- [ ] **R5.5** Adapt guarded delivery to remote terminal ownership: local draft/focus guard plus verified remote run/readiness/approval/input guard; recheck before prompt and delayed Enter. Persist claimed/submitted separately from acknowledgement/start.
+- [ ] **R5.6** Keep dependencies, claim FIFO, attempt/version fencing, rework/review, deadlines and cancellation in the existing task engine. Cancellation targets only the owned remote process; unknown execution blocks silent reassignment.
+- [ ] **R5.7** Remote path reservations/evidence validate on the producing remote project. File references open explicitly over that project's authenticated file path; never substitute local same-named files.
+- [ ] **R5.8** Run deterministic assign→remote edit→remote test→submit→rework→accept through the actual GUI. Record remote process/root and file evidence, not just bridge registration.
+- **Exit:** V16/V17/V19/V20. Vendor/model versions without runtime resources remain unverified; deterministic fixtures cannot claim vendor compliance.
 
-- [ ] **M5.1:** Add subjects, reply/thread/task linkage and cursor-based thread retrieval/search. Preserve immutable original messages and append follow-up corrections.
-- [ ] **M5.2:** Add bounded evidence descriptors for files, commits, diffs and test outcomes. Validate repository-relative paths and distinguish reported from locally verified evidence. Resolve local references through existing file viewing; remote metadata is not fetched content.
-- [ ] **M5.3:** Implement archival, filtered export, explicit purge previews, retry cleanup and disk-budget reporting. Retain unresolved work and dependency/retry references. Validate search after migration and archive transitions.
-- [ ] **M5.4:** Benchmark representative history on both platforms; tune indexed queries before adding caches or services. Add practical message rate/backpressure limits and actionable quota errors.
-- **Exit:** C09/C10; no secret capture, silent data eviction or resurrection of old mutations after cleanup.
+### R6 — Unified GUI and task management
 
-### M6 — Remote coordination over SSH
+- [ ] **R6.1** Static UI acceptance precedes live data: Connections/Projects, Explorer, Transfers, existing Tab/Pane sidebar status/actions and on-demand collaboration task/message detail using existing themes/components. No duplicate Agent/Session dashboard.
+- [ ] **R6.2** Bind remote tree, sidebar Agent/session rows, terminals, on-demand tasks/messages/history and transfers to exact environment/project. Independent tabs retain their own scope; all session status and task badges share the authoritative projections.
+- [ ] **R6.3** Reuse the collaboration panel for a compact active-task list/detail and messages, closed by default on fresh profiles. Keep assign/cancel/review where relevant; reveal retry/reassign/attempts/dependencies/archive/search/export/purge on demand. Preserve saved selection, show stale cache and disable unsafe writes offline; never require manual GUI steps for Agent-to-Agent communication.
+- [ ] **R6.4** Extend existing Tab/Pane rows and context actions for focus/rename/status/reconnect/stop/detach. Represent retained detached sessions in the same project hierarchy without duplicate entries. Add explicit task→exact owning session and sidebar→current task links; missing/replaced runs remain unavailable, never focus another same-named agent.
+- [ ] **R6.5** Reconnect diagnostics show SSH/authentication/helper/SFTP/MCP readiness separately with actionable remediation. Connection removal preserves task history and does not assert unreachable processes stopped.
+- [ ] **R6.6** Scope/generation-fence all async callbacks. Project switching/connection removal must discard stale file/task/Agent UI results without stealing focus or losing drafts.
+- [ ] **R6.7** Native screenshot/keyboard/accessibility review at narrow/wide widths, themes and 125% text. Include long host/path names, multiple Agent panes in one tab, mixed local/remote panes, retained detached runs, concurrent transfer/task activity, task/session cross-links and preserved drafts with the task panel closed.
+- **Exit:** V21/V22. No sample data is presented as live, and refresh/late responses never redirect an action to a different environment.
 
-- [ ] **M6.1:** Validate the system OpenSSH remote-stdio path on macOS and Windows, including executable discovery, authentication, known hosts, spaces in install paths and clean protocol stdout. Keep authentication UI separate from protocol traffic.
-- [ ] **M6.2:** Add the narrow `warp-agent remote-stdio` gateway and authenticated local app control endpoint. Both host and participant applications must be running; the gateway is not a model or shell-command execution API.
-- [ ] **M6.3:** Add one-time enrollment, device credentials in platform secure storage, explicit space grants and revocation. Keep terminal capabilities on their originating machine. Fail closed on missing/locked secure storage.
-- [ ] **M6.4:** Implement hello/version negotiation, bound device identity, presence epochs, heartbeats, event resume and durable pending operations. Authoritative task state exists only on the coordinator; participant caches are read projections.
-- [ ] **M6.5:** Route shared-space MCP operations to the coordinator, and route wake notifications back to the receiving app's existing guarded terminal path. Reuse local operations and state machine rather than implementing a second remote task engine.
-- [ ] **M6.6:** Add Devices/Connection status within communication settings, workspace mapping, grant review, reconnect diagnostics and connection removal. SSH/server prerequisites remain explicit; do not silently install services or open firewall ports.
-- [ ] **M6.7:** Exercise packet loss, duplicate frames, coordinator crash, participant sleep, device revoke, incompatible versions and unknown execution. Reconcile attempts before resuming; no automatic leader election or task migration on disconnect.
-- **Exit:** C11–C14, including physical macOS↔Windows validation and a real remote model task with review/rework. A local tunnel alone does not satisfy this gate.
+### R7 — Faults, migration, removal and final delivery
 
-### M7 — Release and operating acceptance
+- [ ] **R7.1** Controlled SSH/SFTP fixtures and dropped-response injection: auth rejection, changed host, SFTP negotiation error, packet loss, helper crash, service restart, local sleep, partial transfer and disk full.
+- [ ] **R7.2** Original mutation receipts and connection fences: lost task/launch/file response, duplicate frames, replacement, stale callback, expired run and interruption. Never blindly repeat arbitrary commands.
+- [ ] **R7.3** Backup/restore and schema-v6 legacy cutover: unresolved old intents, unknown attempts, revoked grants, orphan profiles and secure-key removal failure. Preserve all task/evidence history.
+- [ ] **R7.4** Complete CUTOVER deletion items and prove no old enroll/auth/grant/device endpoint remains active. Remove obsolete worker APIs/test expectations only after new boundaries and migrations are covered.
+- [ ] **R7.5** GitHub-only Rust protocol/app/default/platform checks, native captures and packages from exact final committed source. Include companion artifacts for every approved remote target; desktop cross-build alone does not prove them.
+- [ ] **R7.6** Eight-hour controlled SSH/session/task/transfer/reconnect soak. Preserve drafts, queues and bounded memory; distinguish old backend-only soak from new end-to-end evidence.
+- [ ] **R7.7** Real supported vendor-role matrix and physical-device matrix when resources exist. No paid turns without budget; unavailable combinations stay unverified and are excluded from release claims.
+- [ ] **R7.8** Document prerequisites, supported protocols/OS/CLI versions, companion install/remove, data locations, export/backup/restore and session close semantics. Update README/MEMORY and v1 coverage wording.
+- [ ] **R7.9** Push complete tracked source and build through existing standalone GitHub workflows after final gates pass. Do not include .codegraph, secrets, generated captures or daily-profile files.
+- **Exit:** V01–V24 pass for claimed capabilities. Report engineering completion separately from unavailable physical/vendor acceptance.
 
-- [ ] **M7.1:** Run both OS protocol/migration suites, default and `warp_platform` checks, focused application tests, UI snapshots and packaging from committed source on GitHub.
-- [ ] **M7.2:** Repeat the installed-client matrix on release-candidate artifacts, including both roles per available client, background-service modes and daily profiles. Separate handshake evidence from executed-task evidence.
-- [ ] **M7.3:** Run an eight-hour reconnect/restart/history soak using deterministic clients, plus bounded real-model acceptance. Verify shutdown cleanup, no stale writes, queue capacity recovery and preserved unsent drafts.
-- [ ] **M7.4:** Publish capability/version support records, connection prerequisites, backup/restore instructions, known limitations and privacy behavior. Update README, MEMORY and both specification sets so proposed and shipped behavior remain distinct.
-- **Exit:** all applicable acceptance rows pass; missing platforms/vendors remain explicitly unsupported/unverified. Release packaging uses the existing standalone workflows; feature work does not reintroduce synchronization scripts.
+## 5. Legacy work mapping
 
-## Delivery boundaries and estimates
+| Old package | New disposition |
+| --- | --- |
+| M0 native real-execution baseline | Reuse owned harness and versions; add remote process/file-location proof under R5/R7 |
+| M1 durable contracts/storage | Keep foundation and migrations; add environment identity without schema downgrade |
+| M2 native collaboration panel | Keep task/message/history views on demand; remove duplicate Agent navigation/session controls after sidebar migration in R6/CUTOVER D14 |
+| M3 task controls/dependencies | Keep shared domain logic; validate remote run/process outcomes in R5 |
+| M4 local spaces/reservations | Keep existing local behavior/data; remote project is isolated by default, cross-project grouping deferred |
+| M5 history/threads/evidence | Keep; extend producing-location semantics and explicit remote fetch |
+| M6 enrolled-device coordination | Superseded; remove invitation/grant/dual-app flows, reuse only audited primitives |
+| M7 release acceptance | Keep build/provenance discipline; replace remote gates with V01–V24 |
 
-These are planning ranges for one experienced implementation owner, including focused verification; they are not calendar promises. Real-device access, model credentials, native CLI behavior changes and GitHub queue time can extend elapsed delivery.
+## 6. Completion definition and implementation constraints
 
-| Package | Engineering days | Dependencies | Independently reviewable outcome |
-| --- | ---: | --- | --- |
-| M0 | 3–5 | Prior repair artifact | Honest real-execution baseline and shared fixes |
-| M1 | 5–8 | M0 | Durable contract/storage foundation |
-| M2 | 4–6 | M1; static fixture can start earlier | Readable native status and timeline |
-| M3 | 5–8 | M1; controls integrated in M2 | Local task control and dependencies |
-| M4 | 4–6 | M3 | Explicit worktree collaboration and conflict signals |
-| M5 | 4–6 | M1 | Context/evidence and sustainable history |
-| M6 | 8–12 | M2–M5 | Single-coordinator remote collaboration |
-| M7 | 4–6 | M0–M6 | Cross-platform release acceptance |
-| Total | 37–57 | Sequential baseline | Local and remote feature set |
+Every task requires a code change or documented reuse, one minimal runnable feature check, failure/boundary checks where meaningful, and exact-source evidence in ACCEPTANCE. Unchecked work remains pending. Static and backend tests do not establish real SSH, remote filesystem correctness or model task execution.
 
-Local preview: M0–M3. Local collaboration release: M0–M5 with local acceptance gates. Remote preview/release: M6/M7. Do not defer a failed safety or data-migration gate to a later milestone to hit an estimate.
+Use existing terminal/file-view components, system OpenSSH and installed dependencies first. If upstream client/server or SFTP primitives cannot meet verified contracts, record the missing capability before introducing a dependency; do not recreate a generic transport/plugin platform. No broad core-terminal refactor, automatic repository sync, git reset/merge, cloud account, telemetry, public server or provider SDK runtime.
 
-## Implementation rules and release gates
+Retain unknown execution and retry request identity. Bound IO/queues/search/history. Never store secret values in source, logs, preferences, docs or memory. Compile/test Rust on GitHub only. Validate documentation/scripts/workflows locally where appropriate. Preserve unrelated worktree changes.
 
-- Write direct repository source. No patch replay, upstream synchronization or restoration scripts.
-- Use pinned dependencies and existing native UI/storage/process primitives. Add a dependency only after a concrete missing primitive is demonstrated and reviewed.
-- Compile/test Rust on GitHub only, per the project requirement. Local documentation checks, native probes and visual/runtime acceptance use existing or GitHub-built binaries.
-- Changes to task contracts include serialization/migration/concurrency tests in the same package. New tool schemas come from the serde contract rather than duplicated hand-maintained definitions.
-- Deliver behavior and tests together; keep features disabled until their dependencies are ready. Remote participation is a separate explicit opt-in under communication settings.
-- Exact execution of arbitrary model side effects cannot be guaranteed by message deduplication. Every milestone preserves truthful unknown/interrupted outcomes.
-- Rollout and rollback are separate: disabling a feature revokes access; reverting a database requires a deliberate restore/export procedure.
+## 7. Planning risks and unresolved constraints
 
-## Planning decisions and remaining prerequisites
+- Linux remote service support is authorized; packaging, libc/architecture baselines and SSH/SFTP availability still need explicit compatibility records. Desktop macOS/Windows support is unchanged.
+- SFTP alone is authorized. Do not introduce FTP/FTPS dependencies, settings or insecure transfer fallback.
+- Existing upstream remote_server setup downloads Oz and currently lacks Windows remote platform detection. A working inherited terminal path is not proof that the needed companion is available independently.
+- Managed session detach/reattachment requires owned remote PTY/process retention and bounded replay; prove it on each remote target rather than infer it from SSH reconnect or assume tmux exists.
+- Safe remote wake needs native remote adapter evidence. Rendered TUI text alone cannot clear approval/draft guards.
+- File write/rename atomicity and resume vary by server. Negotiate and show capability limits; do not silently claim transactional file operations across SFTP servers.
+- No physical Windows SSH host or model-call budget was supplied. Continue implementation/controlled CI while preserving explicit unverified release rows.
 
-Decided: native Warpai UI style; macOS/Windows only; single coordinator per shared space; SSH first; explicit workspace mapping; advisory reservations; local execution authority; no model/cloud SDK runtime dependency.
-
-Before M0/M7 live acceptance, provide participating devices, installed/authenticated CLIs and a bounded test budget. Before M6 acceptance, provide SSH reachability and an SSH server on the chosen host. These are execution prerequisites, not missing requirements that prevent implementation of the local layers. Headless workers, coordinator failover, automatic source synchronization, binary attachments, model cost routing and standardized external A2A endpoints remain separate future scopes.
+No calendar estimate is carried forward from the old 37–57-day machine-collaboration plan. Re-estimate after R0/R1 prove reuse feasibility and protocol/platform scope; old estimates measure a different product.
