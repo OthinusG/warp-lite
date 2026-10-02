@@ -2948,8 +2948,19 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && panel.query.history
                             && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
                                 .tasks
-                                .iter()
-                                .all(|task| !task.archived)))
+                                .len()
+                                == 2
+                                && snapshot.history.as_ref().is_some_and(|history| history
+                                    .capacity["tasks"]["used"]
+                                    == 2
+                                    && history.records.iter().any(|record| record["type"]
+                                        == "task"
+                                        && record["data"]["archived"] == false
+                                        && record["data"]["attempts"]
+                                            .as_array()
+                                            .is_some_and(|attempts| attempts.iter().any(
+                                                |attempt| attempt["certainty"] == "unknown"
+                                            ))))))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 })
