@@ -26,11 +26,15 @@ use uuid::Uuid;
 
 #[path = "remote_auth.rs"]
 mod remote_auth;
+#[path = "remote_actors.rs"]
+mod remote_actors;
+pub(crate) use remote_actors::{RemoteActor, RemoteWorkspace};
 pub(crate) use remote_auth::RemotePrincipal;
 
-pub(crate) const SCHEMA_VERSION: &str = "5";
+pub(crate) const SCHEMA_VERSION: &str = "6";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":5}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":6}"#;
+pub(crate) const SENTINEL_V5: &str = r#"{"warp_lite_schema_version":5}"#;
 pub(crate) const SENTINEL_V4: &str = r#"{"warp_lite_schema_version":4}"#;
 pub(crate) const SENTINEL_V3: &str = r#"{"warp_lite_schema_version":3}"#;
 /// The marker of the superseded normalized schema; upgrading from it adds columns and tables.
@@ -85,7 +89,10 @@ CREATE TABLE IF NOT EXISTS agent_workspace_bindings (agent TEXT PRIMARY KEY, wor
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
 CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT NULL, space_ids TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS cursors (device_id TEXT NOT NULL, space_id TEXT NOT NULL, sequence INTEGER NOT NULL, PRIMARY KEY(device_id, space_id));";
+CREATE TABLE IF NOT EXISTS cursors (device_id TEXT NOT NULL, space_id TEXT NOT NULL, sequence INTEGER NOT NULL, PRIMARY KEY(device_id, space_id));
+CREATE TABLE IF NOT EXISTS remote_workspaces (id TEXT PRIMARY KEY, device TEXT NOT NULL, space_id TEXT NOT NULL, checkout TEXT NOT NULL, label TEXT NOT NULL, repository_id TEXT, created_at INTEGER NOT NULL, UNIQUE(device, checkout));
+CREATE TABLE IF NOT EXISTS remote_actor_bindings (agent TEXT PRIMARY KEY, device TEXT NOT NULL, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, native_id TEXT NOT NULL, current_epoch TEXT, revoked INTEGER NOT NULL DEFAULT 0, UNIQUE(device, native_id));
+CREATE TABLE IF NOT EXISTS remote_runs (epoch TEXT PRIMARY KEY, agent TEXT NOT NULL, native_run TEXT NOT NULL, expires_at INTEGER NOT NULL, closed INTEGER NOT NULL DEFAULT 0, UNIQUE(agent, native_run));";
 
 pub(crate) const TASK_COLUMNS: &str = "id, project, issuer, assignee, reviewer, description, acceptance, state, revision, version, result, evidence, created_seq, archived, start_deadline, execution_timeout, review_timeout, execution_deadline, review_deadline";
 
@@ -131,7 +138,8 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
-            Some(version) if version == "4" => self.upgrade_v4(path),
+            Some(version) if version == "5" => self.upgrade_additive(path, SENTINEL_V5),
+            Some(version) if version == "4" => self.upgrade_additive(path, SENTINEL_V4),
             Some(version) if version == "3" => self.upgrade_v3(path),
             Some(version) if version == "2" => self.upgrade_v2(path),
             Some(version) => bail!("Unsupported agent bus schema version: {version}"),
@@ -144,8 +152,8 @@ impl Store {
         Ok(())
     }
 
-    fn upgrade_v4(&self, path: &str) -> Result<()> {
-        self.backup(path, Some(SENTINEL_V4))?;
+    fn upgrade_additive(&self, path: &str, sentinel: &str) -> Result<()> {
+        self.backup(path, Some(sentinel))?;
         self.transaction(|| {
             self.create_schema()?;
             self.set_legacy_payload(SENTINEL)?;
@@ -222,7 +230,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -237,6 +245,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V5) {
+            format!("{path}.pre-upgrade-v5")
         } else if expected == Some(SENTINEL_V4) {
             format!("{path}.pre-upgrade-v4")
         } else if expected == Some(SENTINEL_V3) {
@@ -777,6 +787,10 @@ impl Store {
         if !actor.project.starts_with("space:") || actor.program == OPERATOR_PROGRAM {
             return Ok(());
         }
+        if let Some(authorized) = self.remote_authorized(actor)? {
+            ensure!(authorized, scope_denied("Remote participation was revoked"));
+            return Ok(());
+        }
         ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id AND w.space_id=b.space_id JOIN space_members AS m ON m.space_id=b.space_id AND m.agent=b.agent WHERE b.agent=? AND b.revoked=0 AND ?='space:' || b.space_id", &[&actor.id, &actor.project])? == 1,
             scope_denied("Shared participation was revoked; open a new shared pane"));
         Ok(())
@@ -787,6 +801,7 @@ impl Store {
         if !actor.project.starts_with("space:") {
             return Ok(actor.project.clone());
         }
+        if let Some(root) = self.remote_physical_root(actor)? { return Ok(root); }
         diesel::sql_query("SELECT w.root AS value FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id WHERE b.agent=? AND ?='space:' || b.space_id")
             .bind::<Text, _>(&actor.id).bind::<Text, _>(&actor.project)
             .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?
@@ -2790,7 +2805,7 @@ impl Store {
                 let mut normalized = Vec::new();
                 let mut seen = HashSet::new();
                 for path in paths {
-                    let path = crate::normalize_workspace_path(&workspace, path)?;
+                    let path = self.reservation_path(actor, &workspace, path)?;
                     if seen.insert(path.clone()) {
                         normalized.push(path);
                     }
@@ -3401,6 +3416,7 @@ impl Store {
         self.space(space_id)?
             .ok_or_else(|| scope_denied("Space not found"))?;
         let member = self.agent(project, agent)?;
+        self.revoke_remote_actor(agent, space_id)?;
         diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE agent=? AND space_id=?")
             .bind::<Text, _>(&member.id).bind::<Text, _>(space_id)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -3921,7 +3937,7 @@ impl Store {
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
         let workspace = self.physical_root(actor)?;
-        let filter = path.map(|path| crate::normalize_workspace_path(&workspace, path)).transpose()?;
+        let filter = path.map(|path| self.reservation_path(actor, &workspace, path)).transpose()?;
         let rows = diesel::sql_query("SELECT id, workspace, path, mode, owner, task_id, attempt_id, created_at, expires_at, created_seq FROM reservations WHERE workspace = ? AND owner IN (SELECT id FROM agents WHERE project = ?) ORDER BY created_seq")
             .bind::<Text, _>(&workspace)
             .bind::<Text, _>(&actor.project)

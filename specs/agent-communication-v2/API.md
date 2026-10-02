@@ -76,6 +76,18 @@ the session terminates only its owned child. Enrollment returns credentials in
 memory so the application can persist them through platform secure storage; this
 client alone does not enable production participation or reconnect/replay.
 
+Device-qualified routing storage uses additive SQLite v6 tables separate from
+host workspace roots. A remote workspace is keyed by enrolled device plus an
+app-verified checkout UUID; its display path is never opened on the coordinator.
+An actor is qualified by its original device/workspace/native UUID, and cannot
+reclaim a host or another device's name. Each native run receives a durable
+seven-day mutation epoch; reconnect keeps that epoch, while replacement closes
+old runs and preserves interrupted attempts. Leaving/remapping fences old runs
+permanently. Run tombstones are bounded at 10,000 and are not silently pruned into
+new execution authority. This storage subset does not expose remote operation
+frames or enable production task routing. Participant local reservation checking,
+remote evidence provenance, repository warnings and wake remain integration gates.
+
 ## Resource shapes
 
 Local workspace mappings may carry an optional opaque UUID `repository_id`,

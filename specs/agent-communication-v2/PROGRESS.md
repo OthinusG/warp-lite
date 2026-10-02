@@ -4,6 +4,14 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Added SQLite v6 device-qualified workspace/actor/run storage with a v5 backup
+  and downgrade sentinel, immutable participant checkout identities, original-run
+  resume, replacement/leave/remap fences and existing interruption recovery.
+  Host filesystem roots remain separate; remote relative leases use opaque
+  device/checkout keys. Added cross-device/name/run/migration checks; CI pending.
+  Remote operation frames, participant lease mirroring, evidence/device metadata,
+  repository warnings and production UI are not enabled by this subset.
+
 - Source `25c80ed`, run `36961960929`: both OS gateway/backend checks passed;
   macOS native capture passed. Windows no longer panicked in wgpu, but its readback
   callback produced no PNGs. The capture harness deliberately clears its launcher
