@@ -168,6 +168,14 @@ Reuse established SSH authentication and known-host verification. A setup connec
 
 SSH authenticates access to the host account. Application enrollment additionally binds a stable device ID to explicit space grants. The host app creates a random 256-bit, single-use invitation valid for five minutes; the participant supplies it over the already authenticated SSH channel. The host returns a distinct device credential, stored only through platform secure storage, and stores a one-way verifier. Neither invitation nor credential is placed in argv, configuration, MCP tool arguments, logs or repository files. The app supplies the connection handshake in memory; use workspace `rand`/OS randomness for generation and `sha2` for high-entropy credential verifiers. Promote the already locked `subtle` 2.6.1 dependency to a direct dependency only for constant-time verifier comparison; do not implement a custom cryptographic primitive. Verify generation, comparison and revocation in the security tests.
 
+Windows local IPC must use a protected DACL granting only the current process
+user SID access, with remote clients rejected and handles not inherited. Do not
+rely on the default pipe descriptor: it grants Everyone/Anonymous read access
+([Microsoft named-pipe security](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights)).
+Reuse one constructor for every native and controller pipe instance; verify the
+actual kernel DACL and current-user connection on the Windows runner. The
+application credential/grant checks remain mandatory inside that OS boundary.
+
 The gateway connects to a separately authenticated local controller endpoint. The app publishes a private runtime descriptor containing its endpoint/PID/protocol version, with local per-user permissions, and validates the gateway/enrolled principal before admitting operations. The existing per-terminal MCP endpoint must not gain public prepare/activate/grant APIs. Same-OS-user compromise remains the existing trust boundary; a remote enrolled device is restricted to its own identities and granted spaces.
 
 Enrollment, grant changes, workspace mapping and revocation are operator actions, never agent tools. Closing/disabling a connection increments its revocation generation and invalidates sessions. A device may announce only its own mapped native agents; the local controller remains responsible for authenticating native MCP sessions. Coordinator validation never accepts sender/device identity from a free-form task field.

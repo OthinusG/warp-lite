@@ -19,7 +19,10 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 #[cfg(windows)]
-use tokio::net::windows::named_pipe::{ClientOptions, ServerOptions};
+use tokio::net::windows::named_pipe::ClientOptions;
+#[cfg(windows)]
+#[path = "windows_pipe.rs"]
+pub(crate) mod windows_pipe;
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
@@ -159,9 +162,7 @@ impl RunningBroker {
             #[cfg(unix)]
             let listener = UnixListener::bind(&endpoint)?;
             #[cfg(windows)]
-            let listener = ServerOptions::new()
-                .first_pipe_instance(true)
-                .create(&endpoint)?;
+            let listener = windows_pipe::create(&endpoint, true)?;
             listener
         };
         #[cfg(unix)]
@@ -201,7 +202,7 @@ impl RunningBroker {
                             {
                                 listener.connect().await?;
                                 // Keep a listening instance alive before handing off the connected pipe.
-                                let next = ServerOptions::new().create(&endpoint)?;
+                                let next = windows_pipe::create(&endpoint, false).map_err(std::io::Error::other)?;
                                 Ok::<_, std::io::Error>(std::mem::replace(&mut listener, next))
                             }
                         } => match connection { Ok(stream) => stream, Err(_) => break },

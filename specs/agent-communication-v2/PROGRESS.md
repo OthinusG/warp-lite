@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Added a current-user-only protected Windows pipe DACL for every native listener
+  instance, rejecting remote clients and inherited handles. Reused the locked
+  Windows bindings and Tokio constructor. A native kernel DACL/current-user
+  connection regression is pending CI. This boundary is required before a
+  separate controller endpoint carries enrollment responses.
+
+
 - Source `1267827`, run `36958662888`: both OS complete protocol, migration,
   history and enrollment suites passed. Real authenticated shared IPC exercised
   delegation/start/file evidence in its producing checkout/submit/rework/accept,

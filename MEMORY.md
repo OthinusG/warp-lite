@@ -191,3 +191,5 @@
 
 - SQLite RefCell borrows can live through chained iterator adapters after load; materialize rows before filtering with authorization queries. Shared AgentList exposed this on both OS real-IPC tests.
 - Remote invitation retries must persist only the safe receipt, not the raw one-time invitation. Replay cannot redisplay the secret. Enrollment uses OS-random 256-bit credentials, SHA-256 verifiers and locked subtle constant-time comparison; participant persistence must use the existing platform secure storage when gateway wiring lands.
+
+- Windows named-pipe defaults include Everyone/Anonymous read access. Native/control listeners should use a protected current-user SID DACL, reject network clients and disallow handle inheritance; inspect the actual kernel DACL in Windows CI. This OS boundary complements capabilities/device grants and does not replace them.
