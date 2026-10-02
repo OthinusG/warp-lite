@@ -192,7 +192,14 @@ fn capture_surface_texture(
         return Err(format!("Invalid texture dimensions: {width}x{height}"));
     }
 
+    if !texture.usage().contains(wgpu::TextureUsages::COPY_SRC) {
+        return Err("Surface does not support frame readback".into());
+    }
     let format = resources.surface_config.borrow().format;
+    if !matches!(format, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb
+        | wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
+        return Err("Surface format does not support RGBA frame capture".into());
+    }
     let bytes_per_pixel = 4u32;
     let unpadded_bytes_per_row = width * bytes_per_pixel;
     let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;

@@ -4,6 +4,11 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Windows capture root cause: surface COPY_SRC was enabled only by the removed
+  integration-test build feature, whereas the debug checkpoint uses the existing
+  readback path. Enable it for the explicit debug capture environment, and reject
+  unsupported texture usage/format before encoding. Native capture rerun pending.
+
 - Source `fc603e4`, run `36959995622`: macOS and Windows protocol validation
   passed, including the Windows kernel DACL/current-user connection check.
 - Source `1267827`, capture run `36958662888`: macOS native capture passed;

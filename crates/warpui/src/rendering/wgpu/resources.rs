@@ -855,10 +855,10 @@ fn create_surface_config(
     config.format = config.format.remove_srgb_suffix();
 
     let caps = surface.get_capabilities(adapter);
-    // COPY_SRC is only needed to support integration test frame capture via
-    // request_frame_capture. It is not required for normal rendering.
-    #[cfg(feature = "integration_tests")]
-    if caps.usages.contains(wgpu::TextureUsages::COPY_SRC) {
+    // The isolated debug checkpoint uses the same readback path as integration tests.
+    let capture = cfg!(feature = "integration_tests")
+        || (cfg!(debug_assertions) && std::env::var_os("WARP_COLLABORATION_CAPTURE").is_some());
+    if capture && caps.usages.contains(wgpu::TextureUsages::COPY_SRC) {
         config.usage |= wgpu::TextureUsages::COPY_SRC;
     }
 

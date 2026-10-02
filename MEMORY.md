@@ -195,3 +195,5 @@
 - Windows named-pipe defaults include Everyone/Anonymous read access. Native/control listeners should use a protected current-user SID DACL, reject network clients and disallow handle inheritance; inspect the actual kernel DACL in Windows CI. This OS boundary complements capabilities/device grants and does not replace them.
 
 - Enrollment controller discovery is non-secret and nonce-owned; reuse the broker runtime and mutex, and invalidate device generations when participation stops/restarts. A gateway only relays framed bytes and never opens the database. Enrollment/heartbeat IPC does not establish remote native task routing or production opt-in.
+
+- Windows native screenshot readback needs surface COPY_SRC independently of the old integration_tests feature. Enable only for the explicit debug collaboration capture or integration tests; reject unsupported usage/format before GPU copy encoding.
