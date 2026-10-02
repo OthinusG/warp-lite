@@ -482,6 +482,26 @@ mod tests {
                 .count(),
             1
         );
+        let confirmation = Operation::TaskSubmit {
+            task_id: task_id.into(),
+            revision: 1,
+            result: "Original execution completed".into(),
+            evidence: "Original owned checks passed".into(),
+            evidence_ids: vec![],
+            attempt_id: Some(after.attempts[0].id.clone()),
+            expected_version: Some(after.version),
+            request_id: id(),
+        };
+        let resolved = store
+            .resolve_remote_run(&principal, &actor.actor.id, &actor.epoch, true)
+            .unwrap();
+        store
+            .execute(&resolved, &actor.epoch, &confirmation)
+            .unwrap();
+        assert_eq!(
+            store.operator_task(&domain, task_id).unwrap().state,
+            "submitted"
+        );
     }
 
     #[test]

@@ -482,3 +482,16 @@ With no explicit `after`, remote event reads resume from that device/space's dur
 confirmed cursor (zero before the first confirmation). Replies include
 `confirmed_cursor` and current `high_water`. SQLite reopening preserves that cursor;
 reads and transport reconnects never advance it without an explicit confirmation.
+
+
+### Original-owner outcome confirmation after transient loss
+
+An unknown attempt with no outcome/finish timestamp may be explicitly finalized
+only by its unchanged authenticated actor, original current mutation run and current
+task revision. Submit, failure and cancellation-stop confirmation validate those
+identities and the original attempt/version; they retain their existing task-state
+preconditions. This confirms an outcome on the same attempt without creating or
+restoring execution ownership. New start/claim, progress and lease renewal remain
+blocked by unknown execution. Replaced/revoked epochs, overridden outcomes and old
+revisions cannot finalize the current task. Reconnect/heartbeat alone does nothing;
+only the original owner's explicit result/stop operation changes certainty.

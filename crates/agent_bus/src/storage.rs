@@ -980,6 +980,15 @@ impl Store {
             .collect())
     }
 
+    /// The original owner may confirm an outcome, but uncertainty grants no new execution rights.
+    fn confirmable_attempts(&self, task: &Task, actor: &Agent, run: &str) -> Result<Vec<Attempt>> {
+        Ok(diesel::sql_query("SELECT id,task_id,revision,owner,run,certainty,outcome,started_at,finished_at FROM attempts WHERE task_id=? AND owner=? AND run=? AND revision=? AND certainty IN ('active','unknown') AND outcome IS NULL AND finished_at IS NULL ORDER BY rowid")
+            .bind::<Text,_>(&task.id).bind::<Text,_>(&actor.id).bind::<Text,_>(run)
+            .bind::<Integer,_>(task.revision as i32)
+            .load::<AttemptRow>(&mut *self.connection.borrow_mut())?
+            .into_iter().map(AttemptRow::attempt).collect())
+    }
+
     fn unresolved_attempts(&self, task_id: &str, revision: Option<u32>) -> Result<Vec<Attempt>> {
         Ok(diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? AND certainty != 'finished' AND (outcome IS NULL OR (certainty = 'unknown' AND revision = COALESCE(?, -1))) ORDER BY rowid")
             .bind::<Text, _>(task_id)
@@ -1902,7 +1911,7 @@ impl Store {
                 }
                 ensure!(task.state == "running", invalid_state("Task is not running"));
                 let attempt = self
-                    .active_attempts(&task.id)?
+                    .confirmable_attempts(&task, actor, run)?
                     .into_iter()
                     .find(|attempt| {
                         attempt.owner == actor.id
@@ -2295,7 +2304,7 @@ impl Store {
                     task.state == "cancel_requested",
                     invalid_state("Task has no pending cancellation")
                 );
-                let active = self.active_attempts(&task.id)?;
+                let active = self.confirmable_attempts(&task, actor, run)?;
                 if let Some(expected) = attempt_id {
                     let attempt = active
                         .iter()
@@ -2363,7 +2372,7 @@ impl Store {
                 }
                 ensure!(task.state == "running", invalid_state("Task is not running"));
                 let attempt = self
-                    .active_attempts(&task.id)?
+                    .confirmable_attempts(&task, actor, run)?
                     .into_iter()
                     .find(|attempt| {
                         attempt.owner == actor.id
@@ -5193,6 +5202,56 @@ mod tests {
             )
             .unwrap();
         assert_eq!(store.pending(&actor(&store, "worker")).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn unknown_outcomes_require_the_unchanged_original_owner_attempt_and_run() {
+        for outcome in ["submitted", "failed", "cancelled"] {
+            let store = Store::open(":memory:").unwrap();
+            let issuer = actor(&store, "issuer");
+            let worker = actor(&store, "worker");
+            let assigned = store.execute(&issuer, "issuer-run", &assign(&issuer,
+                "worker", None, &Uuid::new_v4().to_string())).unwrap();
+            let task_id = assigned["id"].as_str().unwrap();
+            store.execute(&worker, "original-run", &transition(task_id, 1,
+                &Uuid::new_v4().to_string())).unwrap();
+            if outcome == "cancelled" {
+                store.execute(&issuer, "issuer-run", &Operation::TaskCancel {
+                    task_id: task_id.into(), reason: "Confirm the original stop".into(),
+                    expected_version: None, request_id: Uuid::new_v4().to_string(),
+                }).unwrap();
+            }
+            diesel::sql_query("UPDATE attempts SET certainty='unknown' WHERE task_id=?")
+                .bind::<Text,_>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+            let task = store.task(&worker, task_id).unwrap();
+            let attempt_id = Some(task.attempts[0].id.clone());
+            let request_id = Uuid::new_v4().to_string();
+            let operation = match outcome {
+                "submitted" => Operation::TaskSubmit { task_id: task_id.into(), revision: 1,
+                    result: "Original work completed".into(), evidence: "Original checks passed".into(),
+                    attempt_id, expected_version: Some(task.version), evidence_ids: vec![], request_id },
+                "failed" => Operation::TaskFail { task_id: task_id.into(), revision: 1,
+                    reason: "Original work failed".into(), attempt_id,
+                    expected_version: Some(task.version), evidence_ids: vec![], request_id },
+                _ => Operation::TaskFinishCancel { task_id: task_id.into(), revision: 1,
+                    reason: "Original execution stopped".into(), attempt_id,
+                    expected_version: Some(task.version), request_id },
+            };
+            assert!(store.execute(&worker, "replacement-run", &operation).is_err());
+            assert!(store.execute(&issuer, "issuer-run", &operation).is_err());
+            diesel::sql_query("UPDATE attempts SET outcome='overridden' WHERE task_id=?")
+                .bind::<Text,_>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+            assert!(store.execute(&worker, "original-run", &operation).is_err());
+            diesel::sql_query("UPDATE attempts SET outcome=NULL WHERE task_id=?")
+                .bind::<Text,_>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+            let result = store.execute(&worker, "original-run", &operation).unwrap();
+            assert_eq!(store.execute(&worker, "original-run", &operation).unwrap(), result);
+            let finished = store.task(&worker, task_id).unwrap();
+            assert_eq!(finished.state, outcome);
+            assert_eq!(finished.attempts[0].certainty, "finished");
+            assert_eq!(finished.attempts[0].outcome.as_deref(), Some(outcome));
+            assert!(finished.attempts[0].finished_at.is_some());
+        }
     }
 
     #[test]
