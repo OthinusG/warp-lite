@@ -47,6 +47,11 @@ const MAX_PENDING_PER_AGENT: i64 = 1000;
 const CONTROL_MESSAGE_RESERVE: i64 = 100;
 const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
+// Overrides preserve uncertainty across revisions; history cleanup cannot imply execution stopped.
+const CERTAIN_TASK: &str = "NOT EXISTS (SELECT 1 FROM attempts WHERE task_id = tasks.id AND (finished_at IS NULL OR certainty = 'unknown'))";
+const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent JOIN messages AS reply ON reply.project = parent.project AND (reply.reply_to = parent.id OR reply.thread_id = parent.id) WHERE parent.task_id = tasks.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))";
+const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND (reply.reply_to = messages.id OR reply.thread_id = messages.id))";
+
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
 /// The operator principal's deterministic identity; it is never stored in the agents table.
 pub(crate) const OPERATOR_EPOCH: &str = "operator";
@@ -67,6 +72,7 @@ CREATE INDEX IF NOT EXISTS messages_recipient ON messages(recipient, acknowledge
 CREATE INDEX IF NOT EXISTS messages_project ON messages(project, sequence);
 CREATE INDEX IF NOT EXISTS messages_thread ON messages(project, thread_id, sequence);
 CREATE INDEX IF NOT EXISTS messages_task ON messages(task_id);
+CREATE INDEX IF NOT EXISTS messages_reply ON messages(project, reply_to);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project TEXT NOT NULL, sequence INTEGER NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, resource TEXT, attempt TEXT, observed_at INTEGER, imported INTEGER NOT NULL, payload TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS events_project_seq ON events(project, sequence);
 CREATE INDEX IF NOT EXISTS events_resource_seq ON events(project, resource, sequence);
@@ -3657,6 +3663,10 @@ impl Store {
             self.unresolved_dependents(&task.id)?.is_empty(),
             invalid_state("Other tasks still depend on this one")
         );
+        ensure!(
+            self.count(&format!("SELECT COUNT(*) AS count FROM tasks WHERE id = ? AND {CERTAIN_TASK}"), &[task.id.as_str()])? == 1,
+            execution_unknown("Unfinished or uncertain attempts must remain in active history")
+        );
         task.archived = true;
         task.version += 1;
         self.update_task_state(&task)?;
@@ -3694,7 +3704,7 @@ impl Store {
         );
         let cutoff = now().saturating_sub(days * 24 * 60 * 60 * 1000);
         let rows = diesel::sql_query(format!(
-            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND archived = 0 AND state IN ('accepted','failed','expired','cancelled') AND updated_at < ? ORDER BY created_seq"
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND archived = 0 AND state IN ('accepted','failed','expired','cancelled') AND updated_at < ? AND {CERTAIN_TASK} ORDER BY created_seq"
         ))
         .bind::<Text, _>(project)
         .bind::<BigInt, _>(cutoff as i64)
@@ -3723,11 +3733,11 @@ impl Store {
 
     fn purge_preview(&self, project: &str) -> Result<Value> {
         let tasks = self.count(
-            "SELECT COUNT(*) AS count FROM tasks WHERE project = ? AND archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0)",
+            &format!("SELECT COUNT(*) AS count FROM tasks WHERE project = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK}"),
             &[project],
         )?;
         let messages = self.count(
-            "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks))",
+            &format!("SELECT COUNT(*) AS count FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE}"),
             &[project],
         )?;
         Ok(json!({"tasks": tasks, "messages": messages}))
@@ -3748,7 +3758,7 @@ impl Store {
         let mut purged_tasks = Vec::new();
         if archived_tasks {
             let rows = diesel::sql_query(format!(
-                "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) ORDER BY created_seq"
+                "SELECT {TASK_COLUMNS} FROM tasks WHERE project = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK} ORDER BY created_seq"
             ))
             .bind::<Text, _>(project)
             .load::<TaskRow>(&mut *self.connection.borrow_mut())?;
@@ -3781,7 +3791,7 @@ impl Store {
         }
         let mut purged_messages = 0;
         if acknowledged_messages {
-            purged_messages = diesel::sql_query("DELETE FROM messages WHERE project = ? AND acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks))")
+            purged_messages = diesel::sql_query(format!("DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE})"))
                 .bind::<Text, _>(project)
                 .execute(&mut *self.connection.borrow_mut())? as u64;
         }
@@ -7020,6 +7030,85 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&empty), "invalid_input");
+    }
+
+    #[test]
+    fn history_retains_unknown_attempts_even_outside_the_detail_window() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let assigned = store.execute(&issuer, "run-issuer", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = assigned["id"].as_str().unwrap();
+        store.execute(&worker, "run-worker", &transition(id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute_controller("/project", &ControllerOperation::TaskForceCancel {
+            task_id: id.into(), reason: "Accept uncertainty".into(), expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        // Hide the original uncertainty behind more than one detail page of completed attempts.
+        for revision in 2..=18 {
+            diesel::sql_query("INSERT INTO attempts (id, task_id, revision, owner, run, certainty, outcome, finished_at) VALUES (?, ?, ?, ?, 'fixture', 'finished', 'submitted', 1)")
+                .bind::<Text, _>(Uuid::new_v4().to_string()).bind::<Text, _>(id)
+                .bind::<Integer, _>(revision).bind::<Text, _>(&worker.id)
+                .execute(&mut *store.connection.borrow_mut()).unwrap();
+        }
+        assert!(store.operator_task("/project", id).unwrap().attempts.iter().all(|a| a.finished_at.is_some()));
+        let error = store.execute_controller("/project", &ControllerOperation::TaskArchive {
+            task_id: id.into(), request_id: Uuid::new_v4().to_string(),
+        }).unwrap_err();
+        assert_eq!(code(&error), "execution_unknown");
+        diesel::sql_query("UPDATE tasks SET updated_at = 0 WHERE id = ?")
+            .bind::<Text, _>(id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        let aged = store.execute_controller("/project", &ControllerOperation::ArchiveAged {
+            older_than_days: Some(1), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        assert!(aged["archived"].as_array().unwrap().is_empty());
+        // Rows archived by an older binary must also survive the new purge guard.
+        diesel::sql_query("UPDATE tasks SET archived = 1 WHERE id = ?")
+            .bind::<Text, _>(id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE task_id = ?")
+            .bind::<Text, _>(id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        assert_eq!(store.purge_preview("/project").unwrap()["tasks"], 0);
+        let purge = store.history_purge("/project", &Store::operator("/project"), true, true).unwrap();
+        assert!(purge["purged_tasks"].as_array().unwrap().is_empty());
+        assert_eq!(store.count("SELECT COUNT(*) AS count FROM attempts WHERE task_id = ?", &[id]).unwrap(), 18);
+    }
+
+    #[test]
+    fn purge_preserves_thread_roots_and_cross_task_replies() {
+        let store = Store::open(":memory:").unwrap();
+        let alice = actor(&store, "alice");
+        let bob = actor(&store, "bob");
+        let assigned = store.execute(&alice, "run-alice", &assign(&alice, "bob", None, &Uuid::new_v4().to_string())).unwrap();
+        let task_id = assigned["id"].as_str().unwrap();
+        let root = store.execute(&alice, "run-alice", &Operation::AgentSend {
+            to: "bob".into(), body: "original task context".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: Some(task_id.into()),
+            request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let root_id = root["id"].as_str().unwrap();
+        let reply = store.execute(&bob, "run-bob", &Operation::AgentSend {
+            to: "alice".into(), body: "retained correction".into(), subject: None,
+            thread_id: None, reply_to: Some(root_id.into()), task_id: None,
+            request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        // Model a legacy archived task with acknowledged parents and an unread standalone reply.
+        diesel::sql_query("UPDATE tasks SET archived = 1, state = 'cancelled' WHERE id = ?")
+            .bind::<Text, _>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE task_id = ?")
+            .bind::<Text, _>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        assert_eq!(store.purge_preview("/project").unwrap()["tasks"], 0);
+        assert!(store.history_purge("/project", &Store::operator("/project"), true, true).unwrap()["purged_tasks"].as_array().unwrap().is_empty());
+        // The same references protect standalone acknowledged roots after task linkage is removed.
+        diesel::sql_query("UPDATE messages SET task_id = NULL WHERE id = ?")
+            .bind::<Text, _>(root_id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        assert_eq!(store.purge_preview("/project").unwrap()["messages"], 0);
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE id = ?")
+            .bind::<Text, _>(reply["id"].as_str().unwrap()).execute(&mut *store.connection.borrow_mut()).unwrap();
+        assert_eq!(store.purge_preview("/project").unwrap()["messages"], 1);
+        assert_eq!(store.history_purge("/project", &Store::operator("/project"), false, true).unwrap()["purged_messages"], 1);
+        let thread = store.thread_get(&alice, root_id, None, None).unwrap();
+        assert_eq!(thread["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(thread["messages"][0]["body"], "original task context");
     }
 
     #[test]

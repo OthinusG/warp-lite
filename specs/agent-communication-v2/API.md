@@ -200,6 +200,16 @@ current result. Old events that never recorded those values remain historical
 metadata; missing prior text is not fabricated. Read pages may return fewer rows
 than their requested limit to stay within the negotiated frame bound.
 
+## History retention safety
+
+Archival requires every attempt to have a recorded finish and known certainty,
+including superseded revisions. An overlap override is not proof of completion.
+Age-based archival uses the same requirement. Purge previews and deletion share
+one eligibility predicate, retaining uncertain attempts, prerequisite references,
+unread task messages and parent messages referenced outside the purged task.
+Acknowledged standalone messages are eligible only when no reply/thread still
+references them; each purge deletes exactly the eligible set observed before deletion.
+
 ## Evidence descriptor
 
 `kind` is one of `file`, `commit`, `diff`, `test`. All descriptors identify the producing workspace and task attempt through authenticated context.
