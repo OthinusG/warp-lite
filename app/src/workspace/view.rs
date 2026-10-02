@@ -21985,6 +21985,18 @@ impl TypedActionView for Workspace {
                     self.unpin_tab_group(group_id, ctx);
                 }
             }
+            CollaborationAdmissionFailed => {
+                self.toast_stack.update(ctx, |stack, ctx| {
+                    stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
+                        "Shared participation was not admitted. Refresh the workspace mapping and confirm a new pane; this terminal has no shared communication access.".into()), ctx);
+                });
+            }
+            CollaborationEvidenceUnavailable => {
+                self.toast_stack.update(ctx, |stack, ctx| {
+                    stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
+                        "Evidence content is unavailable in its original local checkout. Refresh the reference or inspect its metadata; remote content is not downloaded automatically.".into()), ctx);
+                });
+            }
             OpenCollaborationWorkspace { workspace_id, space_id, root } => {
                 #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
                 {

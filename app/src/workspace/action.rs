@@ -237,6 +237,8 @@ pub enum WorkspaceAction {
         space_id: String,
         root: String,
     },
+    CollaborationAdmissionFailed,
+    CollaborationEvidenceUnavailable,
     AddTerminalTab {
         hide_homepage: bool,
     },
@@ -1052,6 +1054,8 @@ impl WorkspaceAction {
             | StartNewConversation { .. }
             | UndoRevertInCodeReviewPane { .. }
             | JumpToLatestToast
+            | CollaborationAdmissionFailed
+            | CollaborationEvidenceUnavailable
             | NavigatePrevPaneOrPanel
             | NavigateNextPaneOrPanel
             | ToggleProjectExplorer

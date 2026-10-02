@@ -221,3 +221,5 @@
 - Native capture diagnostics copy only failed step names found in the committed capture source, plus exit status and source SHA. Raw stdout/stderr remain runner-local. This makes both-platform GUI failures diagnosable without exporting application payloads or credentials.
 
 - Trusted local operator thread/search reads may inspect the selected domain; native actor reads remain participant-scoped. Keep the operator program reserved at registration, retain original message bodies and append replies rather than editing history. Panel search state stays transient and bounded to existing 50-record pages.
+
+- Local evidence viewing and verification share the producing-checkout lookup. File viewing rechecks current canonical containment and file type, refuses remote descriptors, and never substitutes the active pane's same-named file. Opening current content is distinct from hash verification. Late file-open callbacks require the original selected task/pane and enabled communication.

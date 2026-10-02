@@ -3553,6 +3553,30 @@ impl Store {
         }))
     }
 
+    fn evidence_reference(&self, project: &str, evidence_id: &str) -> Result<EvidenceCheckRow> {
+        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.kind AS kind, evidence.path AS path, evidence.hash AS hash, evidence.commit_id AS commit_id, evidence.base AS base, evidence.head AS head, evidence.device AS device, tasks.project AS project, COALESCE(w.root, producer.project) AS producing_root FROM evidence JOIN tasks ON tasks.id = evidence.task_id LEFT JOIN attempts AS attempt ON attempt.id=evidence.attempt_id LEFT JOIN agents AS producer ON producer.id=attempt.owner LEFT JOIN agent_workspace_bindings AS binding ON binding.agent=producer.id LEFT JOIN workspaces AS w ON w.id=binding.workspace_id WHERE evidence.id = ?")
+            .bind::<Text, _>(evidence_id)
+            .get_result::<EvidenceCheckRow>(&mut *self.connection.borrow_mut())
+            .optional()?;
+        row
+            .filter(|row| row.project == project)
+            .ok_or_else(|| scope_denied("Evidence not found in this project"))
+    }
+
+    /// Resolve only local file content from the producing checkout, with current path checks.
+    pub(crate) fn local_evidence_file(&self, project: &str, evidence_id: &str) -> Result<std::path::PathBuf> {
+        let row = self.evidence_reference(project, evidence_id)?;
+        ensure!(row.device.is_none() && row.kind == "file", invalid_state("Evidence has no local file content"));
+        let root = row.producing_root.as_deref().filter(|root| !root.starts_with("space:") && !root.starts_with("remote:"))
+            .ok_or_else(|| invalid_state("Producing workspace unavailable"))?;
+        let relative = row.path.as_deref().ok_or_else(|| invalid_state("Evidence path unavailable"))?;
+        let normalized = crate::normalize_workspace_path(root, relative)?;
+        let root = std::path::Path::new(root).canonicalize().map_err(|_| invalid_state("Producing workspace unavailable"))?;
+        let file = root.join(normalized).canonicalize().map_err(|_| invalid_state("Evidence content unavailable"))?;
+        ensure!(file.starts_with(&root) && file.is_file(), scope_denied("Evidence is not a file inside its producing checkout"));
+        Ok(file)
+    }
+
     /// Verification is an explicit local operator read, never a model's provenance claim.
     fn evidence_verify(
         &self,
@@ -3561,13 +3585,7 @@ impl Store {
         evidence_id: &str,
         verified: bool,
     ) -> Result<Value> {
-        let row = diesel::sql_query("SELECT evidence.task_id AS task_id, evidence.kind AS kind, evidence.path AS path, evidence.hash AS hash, evidence.commit_id AS commit_id, evidence.base AS base, evidence.head AS head, evidence.device AS device, tasks.project AS project, COALESCE(w.root, producer.project) AS producing_root FROM evidence JOIN tasks ON tasks.id = evidence.task_id LEFT JOIN attempts AS attempt ON attempt.id=evidence.attempt_id LEFT JOIN agents AS producer ON producer.id=attempt.owner LEFT JOIN agent_workspace_bindings AS binding ON binding.agent=producer.id LEFT JOIN workspaces AS w ON w.id=binding.workspace_id WHERE evidence.id = ?")
-            .bind::<Text, _>(evidence_id)
-            .get_result::<EvidenceCheckRow>(&mut *self.connection.borrow_mut())
-            .optional()?;
-        let row = row
-            .filter(|row| row.project == project)
-            .ok_or_else(|| scope_denied("Evidence not found in this project"))?;
+        let row = self.evidence_reference(project, evidence_id)?;
         if verified {
             ensure!(row.device.is_none(), invalid_state("Remote evidence cannot be verified as local content"));
             let root = row.producing_root.as_deref().filter(|root| !root.starts_with("space:"))

@@ -1084,6 +1084,11 @@ impl Broker {
         self.shared.changed.notify_all();
         result
     }
+    /// Trusted explicit file-view intent; remote references never resolve on this device.
+    pub fn local_evidence_file(&self, project: &str, evidence_id: &str) -> Result<std::path::PathBuf> {
+        self.store()?.store.local_evidence_file(project, evidence_id)
+    }
+
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
         let mut state = self.store()?;

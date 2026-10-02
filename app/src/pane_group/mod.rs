@@ -5499,6 +5499,10 @@ impl PaneGroup {
         add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
         #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
         let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), communication_workspace, ctx);
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        if communication_workspace.is_some() && agent_terminal.is_none() {
+            ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::CollaborationAdmissionFailed);
+        }
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "remote_tty")] {

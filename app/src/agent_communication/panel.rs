@@ -119,6 +119,7 @@ pub(crate) struct CollaborationPanel {
     show_messages: bool,
     thread_buttons: HashMap<String, MouseStateHandle>,
     message_page_buttons: [MouseStateHandle; 3],
+    evidence_buttons: HashMap<String, MouseStateHandle>,
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +142,7 @@ pub(crate) enum Action {
     PreviewWorkspace(String),
     ConfirmWorkspace,
     FirstSpaces,
+    OpenEvidence(String),
     OpenThread(String),
     FirstMessages,
     NextMessages,
@@ -188,6 +190,7 @@ impl CollaborationPanel {
             show_messages: false,
             thread_buttons: Default::default(),
             message_page_buttons: Default::default(),
+            evidence_buttons: Default::default(),
         }
     }
 
@@ -281,6 +284,8 @@ impl CollaborationPanel {
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
+                    panel.evidence_buttons.retain(|id, _| snapshot.task.as_ref().is_some_and(|task| task.evidence_records.iter().any(|evidence| &evidence.id == id)));
+                    if let Some(task) = &snapshot.task { for evidence in &task.evidence_records { panel.evidence_buttons.entry(evidence.id.clone()).or_default(); } }
                     panel.thread_buttons.retain(|id, _| snapshot.messages.iter().any(|message| message.thread_id.as_ref().unwrap_or(&message.id) == id));
                     for message in &snapshot.messages { panel.thread_buttons.entry(message.thread_id.as_ref().unwrap_or(&message.id).clone()).or_default(); }
                     panel.agent_task_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
@@ -659,6 +664,39 @@ impl TypedActionView for CollaborationPanel {
                             },
                         );
                     }
+                    return;
+                }
+                Action::OpenEvidence(id) => {
+                    if !self.connected || Self::current_context(ctx) != self.context {
+                        return;
+                    }
+                    let Some(snapshot) = &self.snapshot else {
+                        return;
+                    };
+                    let Some(task) = snapshot.task.as_ref().filter(|task| {
+                        self.query.selected_task.as_ref() == Some(&task.id)
+                            && task.evidence_records.iter().any(|evidence| {
+                                &evidence.id == id
+                                    && evidence.kind == "file"
+                                    && evidence.device.is_none()
+                            })
+                    }) else {
+                        return;
+                    };
+                    let Some(broker) = super::BROKER.get().cloned() else {
+                        return;
+                    };
+                    let project = snapshot.project.clone();
+                    let task_id = task.id.clone();
+                    let context = self.context.clone();
+                    let evidence_id = id.clone();
+                    ctx.spawn(async move { broker.local_evidence_file(&project, &evidence_id) }, move |panel, result, ctx| {
+                        if Self::current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !super::AgentCommunication::as_ref(ctx).preferences.enabled { return; }
+                        match result {
+                            Ok(full_path) => ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::OpenFileInNewTab { full_path, line_and_column: None }),
+                            Err(_) => ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::CollaborationEvidenceUnavailable),
+                        }
+                    });
                     return;
                 }
                 Action::OpenThread(id) => {
@@ -1077,6 +1115,35 @@ impl View for CollaborationPanel {
                                 ctx.dispatch_typed_action(Action::FilterTaskAssignee(Some(
                                     id.clone(),
                                 )))
+                            })
+                            .finish(),
+                    );
+                }
+            }
+        }
+        if !self.preview {
+            if let Some(task) = self
+                .snapshot
+                .as_ref()
+                .and_then(|snapshot| snapshot.task.as_ref())
+                .filter(|task| self.query.selected_task.as_ref() == Some(&task.id))
+            {
+                for evidence in task
+                    .evidence_records
+                    .iter()
+                    .filter(|evidence| evidence.kind == "file" && evidence.device.is_none())
+                {
+                    let id = evidence.id.clone();
+                    body.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.evidence_buttons[&id].clone())
+                            .with_text_label(format!(
+                                "Open local file evidence {}",
+                                id.chars().take(8).collect::<String>()
+                            ))
+                            .build()
+                            .on_click(move |ctx, _, _| {
+                                ctx.dispatch_typed_action(Action::OpenEvidence(id.clone()))
                             })
                             .finish(),
                     );
@@ -1993,6 +2060,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     let saved_view = original_view.clone();
     let shared_client = std::sync::Arc::new(std::sync::Mutex::new(None));
     let prepared_client = shared_client.clone();
+    let shared_terminal_view = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let file_source_view = shared_terminal_view.clone();
     driver = driver
         .with_step(
             TestStep::new("create native shared space").with_action(|app, window, _| {
@@ -2148,15 +2217,72 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         .unwrap()["id"]
                         .as_str()
                         .unwrap();
-                    *prepared_client.lock().unwrap() = Some(
-                        register_capture_participant(
-                            "capture-shared-worker",
-                            "shared-capture-worker",
-                            &root,
-                            Some(workspace),
-                        )
-                        .unwrap(),
+                    let mut participant = register_capture_participant(
+                        "capture-shared-worker",
+                        "shared-capture-worker",
+                        &root,
+                        Some(workspace),
+                    )
+                    .unwrap();
+                    let domain = format!(
+                        "space:{}",
+                        spaces["spaces"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .find(|space| space["name"] == "Native reviewed collaboration")
+                            .unwrap()["id"]
+                            .as_str()
+                            .unwrap()
                     );
+                    let task = broker
+                        .operator(
+                            &domain,
+                            &warp_agent_bus::Operation::TaskAssign {
+                                to: "shared-capture-worker".into(),
+                                description: "Inspect the owned evidence source".into(),
+                                acceptance: "Open its original producing file".into(),
+                                reviewer: None,
+                                dependencies: vec![],
+                                start_deadline: None,
+                                execution_timeout_seconds: None,
+                                review_timeout_seconds: None,
+                                request_id: uuid::Uuid::new_v4().to_string(),
+                            },
+                        )
+                        .unwrap();
+                    let task_id = task["id"].as_str().unwrap().to_owned();
+                    participant.operation = warp_agent_bus::Operation::TaskStart {
+                        task_id: task_id.clone(),
+                        revision: 1,
+                        expected_version: None,
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                    };
+                    warp_agent_bus::transport::call(&broker.endpoint, &participant).unwrap();
+                    std::fs::write(
+                        std::path::Path::new(&root).join("capture-evidence.rs"),
+                        "// Owned native evidence fixture.\npub fn capture_value() -> u32 { 42 }\n",
+                    )
+                    .unwrap();
+                    participant.operation = warp_agent_bus::Operation::EvidenceAdd {
+                        task_id,
+                        kind: "file".into(),
+                        attempt_id: None,
+                        path: Some("capture-evidence.rs".into()),
+                        hash: None,
+                        commit: None,
+                        repository: None,
+                        branch: None,
+                        base: None,
+                        head: None,
+                        command: None,
+                        outcome: None,
+                        exit_code: None,
+                        summary: Some("Owned native source reference".into()),
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                    };
+                    warp_agent_bus::transport::call(&broker.endpoint, &participant).unwrap();
+                    *prepared_client.lock().unwrap() = Some(participant);
                 },
             ),
         )
@@ -2172,6 +2298,100 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .agents
                             .iter()
                             .any(|row| row.online && row.agent.name == "shared-capture-worker"))))
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("select shared file evidence detail").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    let id = panel.snapshot.as_ref().unwrap().tasks[0].id.clone();
+                    panel.handle_action(&Action::SelectTask(id), ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("shared evidence retains producing checkout")
+                .add_named_assertion("local file descriptor is reported", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.task.as_ref())
+                        .is_some_and(|task| task.evidence_records.len() == 1
+                            && task.evidence_records[0].path.as_deref()
+                                == Some("capture-evidence.rs")
+                            && !task.evidence_records[0].verified)))
+                })
+                .with_take_screenshot("live-evidence-shared-detail.png"),
+        )
+        .with_step(
+            TestStep::new("open original local evidence in native viewer").with_action(
+                move |app, window, _| {
+                    *file_source_view.lock().unwrap() = app.read(|ctx| {
+                        crate::workspace::ActiveSession::as_ref(ctx).terminal_view_id(window)
+                    });
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let id = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .task
+                            .as_ref()
+                            .unwrap()
+                            .evidence_records[0]
+                            .id
+                            .clone();
+                        panel.handle_action(&Action::OpenEvidence(id), ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native evidence source is opened")
+                .add_named_assertion("existing code viewer has the owned file", |app, window| {
+                    let views = app
+                        .views_of_type::<crate::code::view::CodeView>(window)
+                        .unwrap_or_default();
+                    warpui::async_assert!(views.iter().any(|view| view.read(app, |view, ctx| view
+                        .local_path(ctx)
+                        .is_some_and(|path| path
+                            .file_name()
+                            .is_some_and(|name| name == "capture-evidence.rs")))))
+                })
+                .with_take_screenshot("live-evidence-file-open.png"),
+        )
+        .with_step(
+            TestStep::new("restore originating shared pane after file view").with_action(
+                move |app, window, _| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    let terminal_view_id = shared_terminal_view.lock().unwrap().unwrap();
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(
+                            &WorkspaceAction::FocusTerminalViewInWorkspace { terminal_view_id },
+                            ctx,
+                        )
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("shared pane is restored before departure").add_named_assertion(
+                "shared admission is current",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.connected
+                        && panel
+                            .snapshot
+                            .as_ref()
+                            .is_some_and(|snapshot| snapshot.admission == "shared"
+                                && snapshot
+                                    .agents
+                                    .iter()
+                                    .any(|row| row.agent.name == "shared-capture-worker"))))
                 },
             ),
         )
@@ -2250,6 +2470,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-workspace-shared-tab.png",
             "live-workspace-private-retained.png",
             "live-workspace-departure.png",
+            "live-evidence-shared-detail.png",
+            "live-evidence-file-open.png",
         ]
         .map(str::to_owned),
     );

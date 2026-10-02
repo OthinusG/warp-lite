@@ -369,6 +369,11 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
         .unwrap();
         let evidence_id = evidence["evidence_id"].as_str().unwrap();
         assert_eq!(
+            b.local_evidence_file(&domain, evidence_id).unwrap(),
+            second.path().join("source.txt").canonicalize().unwrap()
+        );
+        assert!(b.local_evidence_file(&root1, evidence_id).is_err());
+        assert_eq!(
             b.control(
                 &domain,
                 &ControllerOperation::EvidenceVerify {

@@ -320,6 +320,8 @@ Native task filters reuse the operator task query's state, assignee and include-
 
 Native message search uses the existing literal substring operation, capped at 256 query bytes and 50 results per page. Thread buttons retrieve the immutable root and replies with existing sequence cursors. The trusted local operator may inspect threads within its selected domain; ordinary native agents retain participant-only thread/search visibility. The reserved operator program cannot be registered through native participation. Search text and result content are transient panel state, never capture diagnostics or telemetry. Changing panes, disabling communication or leaving the message view clears the read intent; no search action acknowledges messages or changes task state.
 
+An explicit native local-file evidence action resolves its descriptor through the same producing-checkout lookup used by operator verification, then rechecks canonical containment and that the target is a file. It dispatches the existing code-view action only if the selected task and pane remain current and communication is enabled. Remote references are never treated as coordinator file paths. Opening current content does not verify a reported hash. Unavailable content receives native guidance rather than falling back to a same-named file in the viewing checkout. A shared admission rejected after preflight similarly produces native guidance while withholding shared communication access.
+
 ## Space preview pagination and admission
 
 `space_list` accepts optional `cursor` (last unique name) and `limit` (existing
