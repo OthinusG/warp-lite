@@ -416,6 +416,22 @@ impl CollaborationPanel {
                         .collect(),
                 },
                 Section {
+                    title: "Scheduling and deadlines".into(),
+                    rows: {
+                        let deadline = |value: Option<u64>| value.and_then(|value| i64::try_from(value).ok())
+                            .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
+                            .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+                            .unwrap_or_else(|| "not set".into());
+                        vec![
+                            format!("Start by {} · execution deadline {} · review deadline {}", deadline(task.start_deadline), deadline(task.execution_deadline), deadline(task.review_deadline)),
+                            format!("Execution timeout {} · review timeout {} · review overdue {}", task.execution_timeout_seconds.map(|seconds| format!("{seconds}s")).unwrap_or_else(|| "not set".into()), task.review_timeout_seconds.map(|seconds| format!("{seconds}s")).unwrap_or_else(|| "not set".into()), task.review_overdue),
+                            format!("Eligible pool participants: {}", if task.eligible.is_empty() { "assigned task".into() } else { task.eligible.join(", ") }),
+                            "Expiry changes coordination state; it does not stop a process or assert that file writes ended.".into(),
+                            if task.history_truncated { "Earlier attempts or review feedback are outside this bounded detail. Use history retrieval for older records.".into() } else { "All retained attempt and feedback records fit this detail.".into() },
+                        ]
+                    },
+                },
+                Section {
                     title: "Result and review".into(),
                     rows: task
                         .result
@@ -444,11 +460,19 @@ impl CollaborationPanel {
                                 } else {
                                     "agent-reported"
                                 },
-                                if evidence.device.is_some() {
-                                    " · remote metadata; content not fetched"
-                                } else {
-                                    ""
-                                }
+                                [
+                                    evidence.commit.as_ref().map(|value| format!("commit {value}")),
+                                    evidence.hash.as_ref().map(|value| format!("hash {value}")),
+                                    evidence.repository.as_ref().map(|value| format!("repository {value}")),
+                                    evidence.branch.as_ref().map(|value| format!("branch {value}")),
+                                    evidence.base.as_ref().map(|value| format!("base {value}")),
+                                    evidence.head.as_ref().map(|value| format!("head {value}")),
+                                    evidence.command.as_ref().map(|value| format!("command {value}")),
+                                    evidence.outcome.as_ref().map(|value| format!("outcome {value}")),
+                                    evidence.exit_code.map(|value| format!("exit {value}")),
+                                    evidence.summary.as_ref().map(|value| format!("summary {value}")),
+                                    evidence.device.as_ref().map(|value| format!("device {value}; remote metadata, content not fetched")),
+                                ].into_iter().flatten().map(|value| format!(" · {value}")).collect::<String>()
                             )
                         }))
                         .collect(),
@@ -1823,6 +1847,87 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         ]
         .map(str::to_owned),
     );
+    driver = driver
+        .with_step(
+            TestStep::new("create native pool with deadline policy").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::Pool, ctx);
+                        panel.fill_control_checkpoint(
+                            &[
+                                "capture-worker",
+                                "Run the deterministic pool fixture",
+                                "Record the outcome",
+                                "",
+                                "2030-01-01T09:00:00Z",
+                                "60",
+                                "120",
+                                "",
+                            ],
+                            ctx,
+                        );
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native pool created without invented execution").add_named_assertion(
+                "unclaimed pool and draft retained",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .tasks
+                                .len()
+                                == 2
+                                && snapshot
+                                    .tasks
+                                    .iter()
+                                    .any(|task| task.description
+                                        == "Run the deterministic pool fixture")))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("open native pool scheduling detail").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    let id = panel
+                        .snapshot
+                        .as_ref()
+                        .unwrap()
+                        .tasks
+                        .iter()
+                        .find(|task| task.assignee.is_empty())
+                        .unwrap()
+                        .id
+                        .clone();
+                    panel.handle_action(&Action::SelectTask(id), ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("pool detail retains eligible participants and timeouts")
+                .add_named_assertion("explicit policy is persisted", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.task.as_ref())
+                        .is_some_and(|task| task.eligible.len() == 1
+                            && task.attempts.is_empty()
+                            && task.start_deadline.is_some()
+                            && task.execution_timeout_seconds == Some(60)
+                            && task.review_timeout_seconds == Some(120))))
+                })
+                .with_take_screenshot("live-pool-policy.png"),
+        );
+    filenames.push("live-pool-policy.png".into());
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

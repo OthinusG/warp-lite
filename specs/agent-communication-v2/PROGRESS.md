@@ -576,3 +576,11 @@ Tools Panel integration points:
 - Fixed fixtures for all B02/B04/B06 states can be built from captured
   projections; screenshot review (narrow/wide, light/dark, text size) remains
   real-device acceptance under C05.
+
+
+## Native shared admission and scheduling checkpoint (2026-10-02)
+
+- Source `3d66017`, run `36970488111`: both target OS protocol/history, default/platform application checks and release packaging passed.
+- Source `15460de`, run `36976343320`: both applications compiled; native capture failed after 94 images. Action acceptance exposed ordinary retry treating a force-cancellation override as authorization for replacement execution. The shared retry/reassignment guard is being corrected and revalidated; no acceptance is claimed for this run.
+- Shared scope preview/create/map/leave controls and reviewed new-tab admission are implemented. Source `00c86d0` runs `36977526463`; native shared admission driver source `f822201` runs `36977759626`. Both are validation checkpoints, not completed M4 acceptance. The retained driver now additionally covers pool creation and deadline policy.
+- Eight-hour backend soak dispatched on fixed baseline `3d66017`, run `36977886213`. This is an in-progress backend stability check, not real vendor or physical-device acceptance and not yet a passed soak.

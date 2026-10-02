@@ -310,6 +310,10 @@ IDs and optimistic versions. Live visual/action acceptance remains required.
 
 Native task controls reuse inline EditorView fields and existing text buttons. Bind each form to its original scope, task revision/version and stable request UUID. Assignment requires explicit recipient/description/acceptance; cancellation and review require reasons. Archive only terminal tasks. Uncertain force cancellation/retry/reassignment require typing ALLOW OVERLAP and preserve recorded uncertainty. Reject context changes before submission, retain failed intent without changing its version or request UUID, and use the same Broker operator/controller functions as protocol tests. No native interrupt is claimed. Local agent focus dispatches the existing workspace terminal focus action.
 
+A force-cancellation override acknowledges cancellation risk for its current revision; it is not permission for a later replacement execution. Retry or reassignment of that revision still requires its own explicit operator override while an attempt remains unknown, including an attempt with an overridden outcome. The authorized replacement increments revision and preserves the earlier unknown attempt.
+
+Native assignment and pool forms expose explicit prerequisites, eligible names, optional start deadlines, execution/review timeouts and reviewer selection through the existing task operations. Details show persisted deadline policy, overdue review, eligible participants, truncated history and complete evidence descriptors; metadata never implies fetched remote content.
+
 ## Space preview pagination and admission
 
 `space_list` accepts optional `cursor` (last unique name) and `limit` (existing

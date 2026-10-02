@@ -14,6 +14,7 @@ use warpui::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
     Assign,
+    Pool,
     Cancel,
     Accept,
     Revise,
@@ -31,6 +32,7 @@ impl Kind {
     pub(super) fn label(self) -> &'static str {
         match self {
             Self::Assign => "Assign task",
+            Self::Pool => "Create pool task",
             Self::Cancel => "Request cancellation",
             Self::Accept => "Accept result",
             Self::Revise => "Request revision",
@@ -47,7 +49,16 @@ impl Kind {
     }
     fn labels(self) -> &'static [&'static str] {
         match self {
-            Self::Assign => &["Recipient agent name", "Description", "Acceptance criteria"],
+            Self::Assign | Self::Pool => &[
+                "Recipient or eligible names (comma-separated for pool)",
+                "Description",
+                "Acceptance criteria",
+                "Prerequisite task IDs (comma-separated; optional)",
+                "Start by (e.g. 2026-10-03T09:00:00Z; optional)",
+                "Execution timeout in seconds (optional)",
+                "Review timeout in seconds (optional)",
+                "Reviewer name (optional; defaults to issuer)",
+            ],
             Self::Reassign => &["New recipient agent name", "Reason"],
             Self::ReassignOverride => &["New recipient agent name", "Reason", "Type ALLOW OVERLAP"],
             Self::ForceCancel | Self::RetryOverride => &["Reason", "Type ALLOW OVERLAP"],
@@ -100,7 +111,8 @@ fn command(
         fields
             .iter()
             .enumerate()
-            .all(|(index, field)| (kind == Kind::MapWorkspace && index == 2
+            .all(|(index, field)| ((kind == Kind::MapWorkspace && index == 2)
+                || (matches!(kind, Kind::Assign | Kind::Pool) && index >= 3)
                 || !field.trim().is_empty())
                 && field.len() <= 8192
                 && !field.chars().any(char::is_control)),
@@ -112,17 +124,55 @@ fn command(
             "Type ALLOW OVERLAP to acknowledge that earlier execution may still be writing"
         );
     }
-    if kind == Kind::Assign {
-        return Ok(Command::Agent(Operation::TaskAssign {
-            to: fields[0].clone(),
-            description: fields[1].clone(),
-            acceptance: fields[2].clone(),
-            reviewer: None,
-            request_id,
-            dependencies: vec![],
-            start_deadline: None,
-            execution_timeout_seconds: None,
-            review_timeout_seconds: None,
+    if matches!(kind, Kind::Assign | Kind::Pool) {
+        let names = |value: &str| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        let seconds = |value: &str| -> anyhow::Result<Option<u64>> {
+            if value.trim().is_empty() {
+                return Ok(None);
+            }
+            let seconds: u64 = value
+                .trim()
+                .parse()
+                .map_err(|_| anyhow::anyhow!("Timeout must be a whole number of seconds"))?;
+            anyhow::ensure!(seconds > 0, "Timeout must be positive");
+            Ok(Some(seconds))
+        };
+        let dependencies = names(&fields[3]);
+        let start_deadline = (!fields[4].trim().is_empty()).then(|| fields[4].trim().to_owned());
+        let execution_timeout_seconds = seconds(&fields[5])?;
+        let review_timeout_seconds = seconds(&fields[6])?;
+        let reviewer = (!fields[7].trim().is_empty()).then(|| fields[7].trim().to_owned());
+        return Ok(Command::Agent(if kind == Kind::Pool {
+            Operation::TaskCreatePool {
+                eligible: names(&fields[0]),
+                description: fields[1].clone(),
+                acceptance: fields[2].clone(),
+                reviewer,
+                request_id,
+                dependencies,
+                start_deadline,
+                execution_timeout_seconds,
+                review_timeout_seconds,
+            }
+        } else {
+            Operation::TaskAssign {
+                to: fields[0].trim().to_owned(),
+                description: fields[1].clone(),
+                acceptance: fields[2].clone(),
+                reviewer,
+                request_id,
+                dependencies,
+                start_deadline,
+                execution_timeout_seconds,
+                review_timeout_seconds,
+            }
         }));
     }
     match kind {
@@ -203,7 +253,9 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::Assign | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace => unreachable!(),
+        Kind::Assign | Kind::Pool | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace => {
+            unreachable!()
+        }
     })
 }
 
@@ -218,7 +270,7 @@ impl CollaborationPanel {
         };
         if !matches!(
             kind,
-            Kind::Assign | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace
+            Kind::Assign | Kind::Pool | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace
         ) && snapshot
             .task
             .as_ref()
@@ -472,7 +524,7 @@ impl CollaborationPanel {
             let mut kinds = if self.show_spaces {
                 vec![Kind::CreateSpace, Kind::MapWorkspace]
             } else {
-                vec![Kind::Assign]
+                vec![Kind::Assign, Kind::Pool]
             };
             if self.show_spaces
                 && self
@@ -561,11 +613,38 @@ mod tests {
             "worker".into(),
             "Edit the fixture".into(),
             "Focused check passes".into(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
         ];
         assert!(
             matches!(command(Kind::Assign, "/project", None, &fields, "original-request".into()).unwrap(), Command::Agent(Operation::TaskAssign { request_id, .. }) if request_id == "original-request")
         );
         assert!(command(Kind::Assign, "/project", None, &fields[..2], "id".into()).is_err());
+        let mut scheduled = fields.clone();
+        scheduled[0] = "worker, helper".into();
+        scheduled[3] = "prerequisite-a, prerequisite-b".into();
+        scheduled[4] = "2030-01-01T09:00:00Z".into();
+        scheduled[5] = "60".into();
+        scheduled[6] = "120".into();
+        scheduled[7] = "reviewer".into();
+        assert!(
+            matches!(command(Kind::Pool, "/project", None, &scheduled, "pool-intent".into()).unwrap(),
+            Command::Agent(Operation::TaskCreatePool { eligible, dependencies, start_deadline, execution_timeout_seconds: Some(60), review_timeout_seconds: Some(120), reviewer: Some(reviewer), .. })
+                if eligible == ["worker", "helper"] && dependencies == ["prerequisite-a", "prerequisite-b"]
+                    && start_deadline.as_deref() == Some("2030-01-01T09:00:00Z") && reviewer == "reviewer")
+        );
+        scheduled[5] = "0".into();
+        assert!(command(
+            Kind::Pool,
+            "/project",
+            None,
+            &scheduled,
+            "bad-timeout".into()
+        )
+        .is_err());
         assert!(command(
             Kind::ForceCancel,
             "/project",

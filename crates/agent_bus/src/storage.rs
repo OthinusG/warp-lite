@@ -969,9 +969,10 @@ impl Store {
             .collect())
     }
 
-    fn unresolved_attempts(&self, task_id: &str) -> Result<Vec<Attempt>> {
-        Ok(diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? AND certainty != 'finished' AND outcome IS NULL ORDER BY rowid")
+    fn unresolved_attempts(&self, task_id: &str, revision: Option<u32>) -> Result<Vec<Attempt>> {
+        Ok(diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? AND certainty != 'finished' AND (outcome IS NULL OR (certainty = 'unknown' AND revision = COALESCE(?, -1))) ORDER BY rowid")
             .bind::<Text, _>(task_id)
+            .bind::<Nullable<Integer>, _>(revision.map(|revision| revision as i32))
             .load::<AttemptRow>(&mut *self.connection.borrow_mut())?
             .into_iter().map(AttemptRow::attempt).collect())
     }
@@ -3125,7 +3126,7 @@ impl Store {
             }
             "running" => {
                 let active = self.active_attempts(&task.id)?;
-                if actor.program == OPERATOR_PROGRAM && active.is_empty() && self.unresolved_attempts(&task.id)?.is_empty() && !task.attempts.is_empty() {
+                if actor.program == OPERATOR_PROGRAM && active.is_empty() && self.unresolved_attempts(&task.id, None)?.is_empty() && !task.attempts.is_empty() {
                     return self.mark_cancelled(task, actor, reason, false);
                 }
                 task.state = "cancel_requested".into();
@@ -3163,7 +3164,7 @@ impl Store {
                     )
                 );
                 ensure!(
-                    self.unresolved_attempts(&task.id)?.is_empty() && !task.attempts.is_empty(),
+                    self.unresolved_attempts(&task.id, None)?.is_empty() && !task.attempts.is_empty(),
                     execution_unknown("Execution is still owned by a live attempt; confirm the stop or use the explicit override")
                 );
                 self.mark_cancelled(task, actor, reason, false)
@@ -3180,7 +3181,7 @@ impl Store {
         reason: &str,
         override_uncertain: bool,
     ) -> Result<Task> {
-        let unresolved = self.unresolved_attempts(&task.id)?;
+        let unresolved = self.unresolved_attempts(&task.id, None)?;
         ensure!(unresolved.is_empty() || override_uncertain,
             execution_unknown("Confirm stopped execution or use the explicit operator override"));
         for attempt in unresolved {
@@ -3238,7 +3239,8 @@ impl Store {
         override_uncertain: bool,
         reason: &str,
     ) -> Result<()> {
-        let active = self.unresolved_attempts(&task.id)?;
+        // Cancellation overrides do not authorize a later execution grant.
+        let active = self.unresolved_attempts(&task.id, Some(task.revision))?;
         if active.is_empty() {
             return Ok(());
         }
@@ -3617,7 +3619,7 @@ impl Store {
                 Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
             }
             "running" | "cancel_requested" => {
-                let override_uncertain = self.unresolved_attempts(&task.id)?.len() > 0 || task.attempts.is_empty();
+                let override_uncertain = self.unresolved_attempts(&task.id, None)?.len() > 0 || task.attempts.is_empty();
                 Ok(json!(self.mark_cancelled(task, actor, reason, override_uncertain)?))
             }
             _ => Err(invalid_state("Task cannot be force-cancelled from its current state")),
@@ -5132,7 +5134,12 @@ mod tests {
         assert!(fenced.attempts[0].finished_at.is_none());
         let retry: Operation = serde_json::from_value(json!({"op":"task_retry", "task_id":task_id,
             "reason":"Restart after explicit override", "request_id":Uuid::new_v4().to_string()})).unwrap();
-        store.execute(&issuer, "issuer-run", &retry).unwrap();
+        let unsafe_retry = store.execute(&issuer, "issuer-run", &retry).unwrap_err();
+        assert_eq!(code(&unsafe_retry), "execution_unknown");
+        let retry: Operation = serde_json::from_value(json!({"op":"task_retry", "task_id":task_id,
+            "reason":"Explicitly authorize overlapping replacement", "override_uncertain":true,
+            "expected_version":fenced.version, "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &retry).unwrap();
         let restarted = store.execute(&worker, "run-2", &transition(&task_id, 2, &Uuid::new_v4().to_string())).unwrap();
         assert_eq!(restarted["state"], "running");
         assert_eq!(restarted["version"], 6);
