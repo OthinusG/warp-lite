@@ -223,3 +223,5 @@
 - Trusted local operator thread/search reads may inspect the selected domain; native actor reads remain participant-scoped. Keep the operator program reserved at registration, retain original message bodies and append replies rather than editing history. Panel search state stays transient and bounded to existing 50-record pages.
 
 - Local evidence viewing and verification share the producing-checkout lookup. File viewing rechecks current canonical containment and file type, refuses remote descriptors, and never substitutes the active pane's same-named file. Opening current content is distinct from hash verification. Late file-open callbacks require the original selected task/pane and enabled communication.
+
+- Windows PTY startup must simplify canonical extended-prefix paths before both CreateProcessW and bootstrap environment construction. Broker scope identity stays canonical; PowerShell location-provider paths use the existing dunce helper. Native shared-pane acceptance exposed this boundary.

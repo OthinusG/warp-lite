@@ -115,9 +115,11 @@ pub enum PtySpawnError {
 }
 
 pub(super) fn spawn(
-    options: PtyOptions,
+    mut options: PtyOptions,
     event_loop_tx: mio_channel::Sender<writeable_pty::Message>,
 ) -> Result<PtySpawnInfo, PtySpawnError> {
+    // PowerShell's location provider needs ordinary Windows paths, including for the bootstrap env.
+    options.start_dir = options.start_dir.map(|path| dunce::simplified(&path).to_path_buf());
     let conpty_api = unsafe { ConptyApi::load() }?;
     let environment_block = get_shell_environment_variables(&options);
 

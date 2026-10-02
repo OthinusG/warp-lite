@@ -78,3 +78,5 @@ reclaim/departure/remap/dedup fences and v4→v5 backup migration. Enrollment te
 passed single-use/expiry/hash-only receipts/grants/revocation. M4 admission UI and
 M6 gateway/platform credential storage/real SSH remain pending. MacOS debug capture passed; Windows failed in readback validation. COPY_SRC
 correction is awaiting the next native capture run.
+
+Source `c6f4d6c`, run [36983313934](https://github.com/OthinusG/warp-lite/actions/runs/36983313934): macOS passed all 108 native captures, including shared admission/departure, replacement-risk authorization, task filters, literal search/thread history and opening local evidence from the producing checkout. Visual review is pending. Windows source `8303fd8` passed backend/application compilation and 99 captures, then failed shared-tab admission. Extended-prefix startup directory handling is being corrected; no Windows live-action acceptance is claimed.
