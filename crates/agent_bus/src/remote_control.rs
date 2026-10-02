@@ -575,6 +575,48 @@ mod tests {
     use crate::ControllerOperation;
 
     #[test]
+    fn discovery_rejects_unbounded_and_foreign_descriptors() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("controller.json");
+        let descriptor = Descriptor {
+            endpoint: {
+                #[cfg(target_os = "macos")]
+                {
+                    directory
+                        .path()
+                        .join("controller.sock")
+                        .to_string_lossy()
+                        .into_owned()
+                }
+                #[cfg(windows)]
+                {
+                    format!(r"\\.\pipe\warp-agent-controller-{}", Uuid::new_v4())
+                }
+            },
+            pid: std::process::id(),
+            protocol_major: 2,
+            coordinator_id: Uuid::new_v4(),
+            nonce: Uuid::new_v4(),
+        };
+        publish(&path, &descriptor).unwrap();
+        assert!(read_descriptor(&path).is_ok());
+        assert!(publish(&path, &descriptor).is_err());
+        std::fs::write(&path, vec![b' '; 4097]).unwrap();
+        assert!(read_descriptor(&path).is_err());
+        std::fs::remove_file(&path).unwrap();
+        #[cfg(target_os = "macos")]
+        {
+            let target = directory.path().join("target.json");
+            publish(&target, &descriptor).unwrap();
+            std::os::unix::fs::symlink(&target, &path).unwrap();
+            assert!(read_descriptor(&path).is_err());
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o644)).unwrap();
+            assert!(read_descriptor(&target).is_err());
+        }
+    }
+
+    #[test]
     fn gateway_enrollment_revoke_and_disable_use_real_local_ipc() {
         let directory = tempfile::tempdir().unwrap();
         let database = directory.path().join("bus.sqlite");
@@ -582,7 +624,9 @@ mod tests {
         let server = RunningBroker::start(&database).unwrap();
         let controller = RunningController::start(&server, &descriptor).unwrap();
         assert!(RunningController::start(&server, &descriptor).is_err());
-        let coordinator = read_descriptor(&descriptor).unwrap().coordinator_id;
+        let discovered = read_descriptor(&descriptor).unwrap();
+        let coordinator = discovered.coordinator_id;
+        let previous_owner = discovered.nonce;
         let space = server
             .broker
             .control(
@@ -742,6 +786,7 @@ mod tests {
             read_descriptor(&descriptor).unwrap().coordinator_id,
             coordinator
         );
+        assert!(active(&server.broker, previous_owner).is_err());
         drop(controller);
         drop(server);
         let restarted = RunningBroker::start(&database).unwrap();
