@@ -360,3 +360,20 @@ the coordination record, including abandoned owners, without completing an attem
 or stopping writes. The original tuple must still match; foreign domains are
 rejected. Native release requires typing RELEASE RESERVATION. Agent MCP ownership
 and native-run renewal checks remain unchanged.
+
+## Authenticated gateway dispatch
+
+After authentication, `actor_announce` binds the app's verified native session/run
+UUIDs to an existing device-qualified workspace tuple. The coordinator supplies
+actor and mutation epoch; frame fields cannot select a different enrolled device.
+`operation` carries a correlation UUID, connection epoch, assigned actor/run and
+an existing agent `Operation`. Every call rechecks current device generation,
+space grants and run before using the single Store engine and request ledger.
+Read operations require read access; acknowledgement and transitions require write.
+Agent registration, readiness and wait are excluded until guarded remote presence
+and wake integration is implemented. Controller operations are never accepted.
+`events` resumes a 50-record default, 200-record maximum space event page under
+current read grants. Replies keep the connection/correlation epoch separate from
+the original mutation epoch. Unknown transport outcomes require original-intent
+reconciliation rather than fresh request IDs. Production application opt-in and
+participant persistence/wake remain separate unfinished gates.

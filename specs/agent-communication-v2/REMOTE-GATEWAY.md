@@ -1,8 +1,11 @@
 # Remote gateway implementation checkpoint
 
 Status: enrollment/storage and SSH negotiation are verified subsets. An enrollment-only
-controller and byte relay are implemented with real IPC checks pending CI. There
-is no production application opt-in or remote task routing yet. This document
+controller and byte relay are verified with real IPC. Authenticated actor announcement,
+original-epoch task dispatch and granted event pages now use the same coordinator
+Store; extended real-IPC duplicate/revocation checks are pending CI. Production
+application opt-in, participant routing/persistence and guarded remote wake remain
+unfinished. This document
 fixes those remaining boundaries; it does not accept M6.
 
 ## Endpoint and lifetime

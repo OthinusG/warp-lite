@@ -1,8 +1,10 @@
-//! Separate, explicitly started local enrollment controller. No operator or PTY API is exposed.
+//! Explicitly started authenticated agent controller. No operator or PTY API is exposed.
 use super::{receive, send, Broker, RunningBroker};
 use crate::{
-    coordinator_unavailable, domain, invalid_input, invalid_state, remote::NegotiationFrame,
-    storage::RemotePrincipal, DomainError,
+    coordinator_unavailable, domain, invalid_input, invalid_state,
+    remote::NegotiationFrame,
+    storage::{RemotePrincipal, RemoteWorkspace},
+    Agent, DomainError, Operation,
 };
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
@@ -50,6 +52,47 @@ pub enum AuthenticationFrame {
     },
     HeartbeatResult {
         connection_epoch: Uuid,
+    },
+    ActorAnnounce {
+        connection_epoch: Uuid,
+        workspace_id: Uuid,
+        space_id: Uuid,
+        checkout_id: Uuid,
+        native_session: Uuid,
+        native_run: Uuid,
+        program: String,
+        name: String,
+    },
+    ActorAnnounced {
+        connection_epoch: Uuid,
+        actor: Agent,
+        mutation_epoch: Uuid,
+        expires_at: u64,
+    },
+    Operation {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        actor_id: Uuid,
+        mutation_epoch: Uuid,
+        operation: Operation,
+    },
+    OperationResult {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        mutation_epoch: Uuid,
+        result: serde_json::Value,
+    },
+    Events {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        space_id: Uuid,
+        after: Option<u64>,
+        limit: Option<u32>,
+    },
+    EventsResult {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        result: serde_json::Value,
     },
     Goodbye {
         connection_epoch: Uuid,
@@ -337,6 +380,131 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                 )?;
                 AuthenticationFrame::HeartbeatResult {
                     connection_epoch: epoch,
+                }
+            }
+            AuthenticationFrame::ActorAnnounce {
+                connection_epoch,
+                workspace_id,
+                space_id,
+                checkout_id,
+                native_session,
+                native_run,
+                program,
+                name,
+            } => {
+                ensure!(
+                    connection_epoch == epoch,
+                    invalid_input("Connection epoch does not match")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
+                let state = active(broker, owner)?;
+                let workspace = RemoteWorkspace {
+                    id: workspace_id.to_string(),
+                    device: principal.device.clone(),
+                    space: space_id.to_string(),
+                    checkout: checkout_id.to_string(),
+                };
+                let registered = state
+                    .store
+                    .register_remote_actor(
+                        principal,
+                        &workspace,
+                        native_session,
+                        native_run,
+                        &program,
+                        &name,
+                    )
+                    .map_err(crate::classify_storage)?;
+                AuthenticationFrame::ActorAnnounced {
+                    connection_epoch: epoch,
+                    actor: registered.actor,
+                    mutation_epoch: Uuid::parse_str(&registered.epoch)?,
+                    expires_at: registered.expires_at,
+                }
+            }
+            AuthenticationFrame::Operation {
+                connection_epoch,
+                frame_id,
+                actor_id,
+                mutation_epoch,
+                operation,
+            } => {
+                ensure!(
+                    connection_epoch == epoch && !frame_id.is_nil(),
+                    invalid_input("Invalid connection or correlation epoch")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
+                ensure!(
+                    !matches!(
+                        operation,
+                        Operation::AgentRegister { .. }
+                            | Operation::AgentReady
+                            | Operation::AgentWait
+                    ),
+                    domain(
+                        "feature_unavailable",
+                        "Guarded remote readiness is not available on this channel",
+                        false,
+                        None
+                    )
+                );
+                let write = !matches!(
+                    operation,
+                    Operation::AgentList
+                        | Operation::AgentInbox { .. }
+                        | Operation::TaskList { .. }
+                        | Operation::TaskGet { .. }
+                        | Operation::TaskHistory { .. }
+                        | Operation::ThreadGet { .. }
+                        | Operation::MessageSearch { .. }
+                        | Operation::FileReservations { .. }
+                );
+                let state = active(broker, owner)?;
+                let run = mutation_epoch.to_string();
+                let actor = state.store.resolve_remote_run(
+                    principal,
+                    &actor_id.to_string(),
+                    &run,
+                    write,
+                )?;
+                let result = state.store.execute(&actor, &run, &operation)?;
+                broker.shared.changed.notify_all();
+                AuthenticationFrame::OperationResult {
+                    connection_epoch: epoch,
+                    frame_id,
+                    mutation_epoch,
+                    result,
+                }
+            }
+            AuthenticationFrame::Events {
+                connection_epoch,
+                frame_id,
+                space_id,
+                after,
+                limit,
+            } => {
+                ensure!(
+                    connection_epoch == epoch && !frame_id.is_nil(),
+                    invalid_input("Invalid connection or correlation epoch")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
+                let state = active(broker, owner)?;
+                state
+                    .store
+                    .authorize_remote(principal, &space_id.to_string(), false)?;
+                let result = state
+                    .store
+                    .events(&format!("space:{space_id}"), after, limit)?;
+                AuthenticationFrame::EventsResult {
+                    connection_epoch: epoch,
+                    frame_id,
+                    result,
                 }
             }
             AuthenticationFrame::Goodbye { connection_epoch } => {
@@ -742,6 +910,23 @@ mod tests {
             else {
                 panic!("Expected enrollment")
             };
+            let checkout = Uuid::new_v4();
+            let workspace = server
+                .broker
+                .store()
+                .unwrap()
+                .store
+                .map_remote_workspace(
+                    &RemotePrincipal {
+                        device: device_id.to_string(),
+                        generation: 1,
+                    },
+                    Uuid::parse_str(&space).unwrap(),
+                    checkout,
+                    "Owned gateway checkout",
+                    None,
+                )
+                .unwrap();
             send(
                 &mut client,
                 &AuthenticationFrame::Authenticate { credential },
@@ -773,6 +958,99 @@ mod tests {
             else {
                 panic!("Expected heartbeat")
             };
+            let mut actors = Vec::new();
+            for name in ["remote-issuer", "remote-worker"] {
+                send(
+                    &mut client,
+                    &AuthenticationFrame::ActorAnnounce {
+                        connection_epoch,
+                        workspace_id: Uuid::parse_str(&workspace.id).unwrap(),
+                        space_id: Uuid::parse_str(&space).unwrap(),
+                        checkout_id: checkout,
+                        native_session: Uuid::new_v4(),
+                        native_run: Uuid::new_v4(),
+                        program: "codex".into(),
+                        name: name.into(),
+                    },
+                    Instant::now() + DEADLINE,
+                )
+                .await
+                .unwrap();
+                let AuthenticationFrame::ActorAnnounced {
+                    actor,
+                    mutation_epoch,
+                    ..
+                } = receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
+                else {
+                    panic!("Expected assigned remote actor")
+                };
+                assert_eq!(actor.project, format!("space:{space}"));
+                actors.push((actor, mutation_epoch));
+            }
+            let request_id = Uuid::new_v4().to_string();
+            let operation = || AuthenticationFrame::Operation {
+                connection_epoch,
+                frame_id: Uuid::new_v4(),
+                actor_id: Uuid::parse_str(&actors[0].0.id).unwrap(),
+                mutation_epoch: actors[0].1,
+                operation: Operation::TaskAssign {
+                    to: actors[1].0.name.clone(),
+                    description: "Exercise the original coordinator engine".into(),
+                    acceptance: "Duplicate transport frames create one durable task".into(),
+                    reviewer: None,
+                    request_id: request_id.clone(),
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                },
+            };
+            let mut original = None;
+            for _ in 0..2 {
+                send(&mut client, &operation(), Instant::now() + DEADLINE)
+                    .await
+                    .unwrap();
+                let AuthenticationFrame::OperationResult {
+                    result,
+                    mutation_epoch,
+                    ..
+                } = receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
+                else {
+                    panic!("Expected task operation result")
+                };
+                assert_eq!(mutation_epoch, actors[0].1);
+                if let Some(prior) = &original {
+                    assert_eq!(&result, prior);
+                } else {
+                    original = Some(result);
+                }
+            }
+            send(
+                &mut client,
+                &AuthenticationFrame::Events {
+                    connection_epoch,
+                    frame_id: Uuid::new_v4(),
+                    space_id: Uuid::parse_str(&space).unwrap(),
+                    after: None,
+                    limit: Some(2),
+                },
+                Instant::now() + DEADLINE,
+            )
+            .await
+            .unwrap();
+            let AuthenticationFrame::EventsResult { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE)
+                    .await
+                    .unwrap()
+            else {
+                panic!("Expected scoped event page")
+            };
+            assert_eq!(result["events"].as_array().unwrap().len(), 2);
+            assert!(result["cursor"].as_u64().is_some());
             server
                 .broker
                 .control(
@@ -783,16 +1061,9 @@ mod tests {
                     },
                 )
                 .unwrap();
-            send(
-                &mut client,
-                &AuthenticationFrame::Heartbeat {
-                    connection_epoch,
-                    space_id: Uuid::parse_str(&space).unwrap(),
-                },
-                Instant::now() + DEADLINE,
-            )
-            .await
-            .unwrap();
+            send(&mut client, &operation(), Instant::now() + DEADLINE)
+                .await
+                .unwrap();
             let AuthenticationFrame::Error { error } =
                 receive(&mut client, Instant::now() + DEADLINE)
                     .await
