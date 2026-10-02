@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- M6.4 negotiation subset: strict typed hello/result frames, incompatible-major
+  and missing-required-feature rejection, bounded unique capability names and
+  frame limit, fresh per-connection epoch. Reused the existing length-prefixed
+  Tokio codec; added partial-I/O, malformed/unknown/oversized/deadline/redaction
+  tests. Negotiation alone grants no device or operation authority. CI pending;
+  authentication, spool/resume and gateway wiring remain unimplemented.
+
 - M6.1 startup spike: native system OpenSSH path, bounded host alias, fixed
   remote gateway command, strict known-host checks and noninteractive pipes;
   disable forwarding, local commands and shared control sockets. Local macOS

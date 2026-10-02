@@ -54,7 +54,7 @@ actual image review before the static UI checkpoint can pass.
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks added; CI pending | Real SSH authentication, changed hosts and remote stdio remain pending |
 | M6.2 | No remote gateway/control endpoint | Pending |
 | M6.3 | Device APIs explicitly return feature_unavailable | Enrollment, secure credentials, grants and revocation pending |
-| M6.4 | Local protocol major/features negotiation exists | Remote hello, device epochs, heartbeat, spool and resume pending |
+| M6.4 | Typed remote hello/result and bounded frame regressions added; CI pending | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
 | M6.7 | Local stale run, replay and crash fixtures only | Remote fault injection and reconciliation pending |

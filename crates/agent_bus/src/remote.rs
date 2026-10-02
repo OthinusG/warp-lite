@@ -1,11 +1,105 @@
 //! System SSH startup for the internal collaboration channel.
 use crate::{domain, invalid_input};
 use anyhow::{ensure, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     process::Stdio,
 };
 use tokio::process::Command;
+
+const PROTOCOL_MAJOR: u16 = 2;
+const FEATURES: &[&str] = &[
+    "task_control",
+    "dependencies",
+    "threads",
+    "reservations",
+    "evidence_refs",
+    "event_resume",
+];
+
+/// Negotiation is unauthenticated metadata and grants no operation authority.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NegotiationFrame {
+    Hello {
+        protocol_major: u16,
+        protocol_minor: u16,
+        features: Vec<String>,
+        max_frame_bytes: u32,
+    },
+    HelloResult {
+        protocol_major: u16,
+        protocol_minor: u16,
+        features: Vec<String>,
+        max_frame_bytes: u32,
+        coordinator_id: uuid::Uuid,
+        connection_epoch: uuid::Uuid,
+        presence_lease_ms: u32,
+    },
+}
+
+impl NegotiationFrame {
+    /// Refuse semantic downgrade before enrolling or admitting any operation.
+    pub fn negotiate(self, coordinator_id: uuid::Uuid) -> Result<Self> {
+        let Self::Hello {
+            protocol_major,
+            protocol_minor: _,
+            features,
+            max_frame_bytes,
+        } = self
+        else {
+            return Err(invalid_input("Expected the initial hello frame"));
+        };
+        ensure!(
+            protocol_major == PROTOCOL_MAJOR,
+            domain(
+                "protocol_incompatible",
+                "Upgrade both applications to compatible collaboration versions",
+                false,
+                None
+            )
+        );
+        ensure!(
+            (4096..=crate::MAX_FRAME as u32).contains(&max_frame_bytes)
+                && features.len() <= 32
+                && features.iter().all(|feature| !feature.is_empty()
+                    && feature.len() <= 64
+                    && feature.bytes().all(|byte| byte.is_ascii_lowercase()
+                        || byte.is_ascii_digit()
+                        || byte == b'_'))
+                && features
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    == features.len(),
+            invalid_input("Invalid collaboration negotiation limits or features")
+        );
+        ensure!(
+            FEATURES
+                .iter()
+                .all(|required| features.iter().any(|feature| feature == required)),
+            domain(
+                "feature_unavailable",
+                "Upgrade the peer to support required shared-space semantics",
+                false,
+                None
+            )
+        );
+        Ok(Self::HelloResult {
+            protocol_major: PROTOCOL_MAJOR,
+            protocol_minor: 0,
+            features: FEATURES
+                .iter()
+                .map(|feature| (*feature).to_owned())
+                .collect(),
+            max_frame_bytes,
+            coordinator_id,
+            connection_epoch: uuid::Uuid::new_v4(),
+            presence_lease_ms: 30_000,
+        })
+    }
+}
 
 const GATEWAY_COMMAND: &str = "warp-agent remote-stdio";
 const SSH_OPTIONS: &[&str] = &[

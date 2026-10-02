@@ -1,6 +1,129 @@
 use super::*;
 use std::{ffi::OsStr, time::Duration};
 
+fn hello() -> NegotiationFrame {
+    NegotiationFrame::Hello {
+        protocol_major: PROTOCOL_MAJOR,
+        protocol_minor: 9,
+        features: FEATURES
+            .iter()
+            .map(|feature| (*feature).to_owned())
+            .collect(),
+        max_frame_bytes: 65536,
+    }
+}
+
+#[test]
+fn negotiation_rejects_downgrade_and_never_grants_identity() {
+    use serde_json::{json, Value};
+    let coordinator = uuid::Uuid::new_v4();
+    let first = serde_json::to_value(hello().negotiate(coordinator).unwrap()).unwrap();
+    let second = serde_json::to_value(hello().negotiate(coordinator).unwrap()).unwrap();
+    assert_eq!(first["type"], "hello_result");
+    assert_eq!(first["protocol_minor"], 0);
+    assert_eq!(first["max_frame_bytes"], 65536);
+    assert_eq!(first["coordinator_id"], coordinator.to_string());
+    assert_eq!(first["features"], json!(FEATURES));
+    assert_ne!(first["connection_epoch"], second["connection_epoch"]);
+    assert!(first.get("device_id").is_none());
+    assert!(first.get("grants").is_none());
+    assert!(serde_json::from_value::<NegotiationFrame>(first)
+        .unwrap()
+        .negotiate(coordinator)
+        .is_err());
+    for (field, replacement, code) in [
+        ("protocol_major", json!(99), "protocol_incompatible"),
+        ("features", json!([]), "feature_unavailable"),
+        (
+            "features",
+            json!(["task_control", "task_control"]),
+            "invalid_input",
+        ),
+        ("features", json!(["bad feature"]), "invalid_input"),
+        ("max_frame_bytes", json!(0), "invalid_input"),
+        (
+            "max_frame_bytes",
+            json!(crate::MAX_FRAME + 1),
+            "invalid_input",
+        ),
+    ] {
+        let mut value: Value = serde_json::to_value(hello()).unwrap();
+        value[field] = replacement;
+        let error = serde_json::from_value::<NegotiationFrame>(value)
+            .unwrap()
+            .negotiate(coordinator)
+            .err()
+            .unwrap();
+        assert_eq!(
+            error.downcast_ref::<crate::DomainError>().unwrap().code,
+            code
+        );
+    }
+    let mut unknown = serde_json::to_value(hello()).unwrap();
+    unknown["terminal_capability"] = json!("must-not-be-forwarded");
+    assert!(serde_json::from_value::<NegotiationFrame>(unknown).is_err());
+    assert!(serde_json::from_value::<NegotiationFrame>(json!({"type":"execute_command"})).is_err());
+}
+
+#[tokio::test]
+async fn bounded_hello_frames_handle_partial_io_and_reject_untrusted_payloads() {
+    use crate::transport::{receive, send};
+    use std::time::Instant;
+    use tokio::io::AsyncWriteExt;
+    let payload = serde_json::to_vec(&hello()).unwrap();
+    let mut framed = (payload.len() as u32).to_be_bytes().to_vec();
+    framed.extend_from_slice(&payload);
+    let (mut reader, mut writer) = tokio::io::duplex(64);
+    let fragmented = tokio::spawn(async move {
+        for chunk in framed.chunks(3) {
+            writer.write_all(chunk).await.unwrap();
+            tokio::task::yield_now().await;
+        }
+    });
+    let frame: NegotiationFrame = receive(&mut reader, Instant::now() + Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!(serde_json::to_vec(&frame).unwrap(), payload);
+    fragmented.await.unwrap();
+    for size in [0, crate::MAX_FRAME as u32 + 1] {
+        let mut header = std::io::Cursor::new(size.to_be_bytes());
+        assert!(
+            receive::<NegotiationFrame>(&mut header, Instant::now() + Duration::from_secs(1))
+                .await
+                .is_err()
+        );
+    }
+    for invalid in [
+        b"not-json".as_slice(),
+        b"{\"type\":\"execute_command\",\"credential\":\"do-not-echo\"}".as_slice(),
+    ] {
+        let mut bytes = (invalid.len() as u32).to_be_bytes().to_vec();
+        bytes.extend_from_slice(invalid);
+        let error = receive::<NegotiationFrame>(
+            &mut std::io::Cursor::new(bytes),
+            Instant::now() + Duration::from_secs(1),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert!(!error.to_string().contains("do-not-echo"));
+    }
+    let (mut stalled, _held_open) = tokio::io::duplex(16);
+    assert!(
+        receive::<NegotiationFrame>(&mut stalled, Instant::now() + Duration::from_millis(25))
+            .await
+            .is_err()
+    );
+    let oversized = "x".repeat(crate::MAX_FRAME + 1);
+    assert!(send(
+        &mut tokio::io::sink(),
+        &oversized,
+        Instant::now() + Duration::from_secs(1)
+    )
+    .await
+    .is_err());
+}
+
 #[test]
 fn ssh_arguments_preserve_paths_and_reject_option_or_shell_injection() {
     let directory = tempfile::tempdir().unwrap();

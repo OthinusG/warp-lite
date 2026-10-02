@@ -182,6 +182,15 @@ The example contains identifiers only. Device authentication is a separate initi
 | `reconcile_attempt` | Compare known attempt owner/state to current local run after reconnect; never implicitly creates a new owner |
 | `goodbye` / `revoked` | Close a session and invalidate its presence; running effects may still be unknown |
 
+Initial negotiation frames use `type: hello`, integer `protocol_major` /
+`protocol_minor`, a `features` array (at most 32 unique ASCII capability names,
+1–64 bytes each), and `max_frame_bytes` (4096–1048576). `hello_result` adds
+UUID `coordinator_id` / fresh `connection_epoch` and `presence_lease_ms: 30000`;
+the frame maximum is the smaller advertised limit and minor version is the
+smaller supported version. Unknown frame types/fields and duplicate capabilities
+are rejected. Required semantic features must all be present. Negotiation grants
+no identity, enrollment or operation authority; authentication is still required.
+
 The negotiated minor version enables only intersecting capabilities (`task_control`, `dependencies`, `threads`, `reservations`, `evidence_refs`, `event_resume`). Do not infer compatibility from an app version string alone. Required feature absence prevents entering that shared space and produces actionable guidance.
 
 Device/space enrollment changes use a separate operator request path and are persisted before success is returned. Reusing an invitation, revoked credential, prior connection epoch or another device's agent ID is rejected. A gateway must not expose prepare/activate for arbitrary terminal IDs.
