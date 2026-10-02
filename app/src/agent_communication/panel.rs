@@ -1039,9 +1039,13 @@ fn checkpoint_draft(app: &warpui::App, window: warpui::WindowId) -> String {
     })
 }
 
-/// Deterministic native IPC participants only: no vendor executable or model call.
 #[cfg(debug_assertions)]
-fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
+fn register_capture_participant(
+    terminal: &str,
+    name: &str,
+    root: &str,
+    workspace: Option<&str>,
+) -> anyhow::Result<warp_agent_bus::transport::Request> {
     use warp_agent_bus::{
         transport::{self, Request},
         Operation,
@@ -1050,8 +1054,10 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .get()
         .ok_or_else(|| anyhow::anyhow!("No capture broker"))?;
     broker.set_programs(Some(["codex".to_owned()].into_iter().collect()));
-    let terminal = "capture-native-worker";
-    let capability = broker.prepare(terminal)?;
+    let capability = match workspace {
+        Some(workspace) => broker.prepare_in_workspace(terminal, workspace)?,
+        None => broker.prepare(terminal)?,
+    };
     broker.activate(terminal, "codex", root, true)?;
     let mut request = Request {
         protocol_major: transport::PROTOCOL_MAJOR,
@@ -1061,13 +1067,23 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         defer_initial_ready: false,
         native_activity: None,
         directory: Some(root.into()),
-        operation: Operation::AgentRegister {
-            name: "capture-worker".into(),
-        },
+        operation: Operation::AgentRegister { name: name.into() },
     };
     request.run = transport::call(&broker.endpoint, &request)?["run"]
         .as_str()
         .map(str::to_owned);
+    Ok(request)
+}
+
+/// Deterministic native IPC participants only: no vendor executable or model call.
+#[cfg(debug_assertions)]
+fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
+    use warp_agent_bus::{transport, Operation};
+    let broker = super::BROKER
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("No capture broker"))?;
+    let terminal = "capture-native-worker";
+    let mut request = register_capture_participant(terminal, "capture-worker", root, None)?;
     let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(
         "../../../specs/agent-communication-v2/panel-fixtures.json"
     ))?;
@@ -1683,6 +1699,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     let mapping_root = shared_root.clone();
     let original_view = std::sync::Arc::new(std::sync::Mutex::new(None));
     let saved_view = original_view.clone();
+    let shared_client = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let prepared_client = shared_client.clone();
     driver = driver
         .with_step(
             TestStep::new("create native shared space").with_action(|app, window, _| {
@@ -1809,6 +1827,101 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("live-workspace-shared-tab.png"),
         )
         .with_step(
+            TestStep::new("register deterministic shared participant").with_action(
+                move |app, window, _| {
+                    let root = app.read(|ctx| {
+                        warp_agent_bus::project_root(
+                            crate::workspace::ActiveSession::as_ref(ctx)
+                                .path_if_local(window)
+                                .unwrap(),
+                        )
+                        .unwrap()
+                    });
+                    let broker = super::BROKER.get().unwrap();
+                    let spaces = broker
+                        .control(
+                            &root,
+                            &warp_agent_bus::ControllerOperation::SpaceList {
+                                cursor: None,
+                                limit: None,
+                            },
+                        )
+                        .unwrap();
+                    let workspace = spaces["spaces"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .flat_map(|space| space["workspaces"].as_array().unwrap())
+                        .find(|workspace| workspace["root"] == root)
+                        .unwrap()["id"]
+                        .as_str()
+                        .unwrap();
+                    *prepared_client.lock().unwrap() = Some(
+                        register_capture_participant(
+                            "capture-shared-worker",
+                            "shared-capture-worker",
+                            &root,
+                            Some(workspace),
+                        )
+                        .unwrap(),
+                    );
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("shared participant is visible").add_named_assertion(
+                "online mapped participant",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot
+                            .agents
+                            .iter()
+                            .any(|row| row.online && row.agent.name == "shared-capture-worker"))))
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remove shared participation through native form").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.handle_action(&Action::Spaces, ctx);
+                        panel.open_control(controls::Kind::LeaveSpace, ctx);
+                        panel.fill_control_checkpoint(&["shared-capture-worker"], ctx);
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("shared departure fences original capability")
+                .add_named_assertion(
+                    "revoked participant cannot read or rejoin",
+                    move |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        let closed = panel.read(app, |panel, _| panel.form.is_none());
+                        let revoked = if closed {
+                            let mut request =
+                                shared_client.lock().unwrap().as_ref().unwrap().clone();
+                            request.operation = warp_agent_bus::Operation::AgentList;
+                            warp_agent_bus::transport::call(
+                                &super::BROKER.get().unwrap().endpoint,
+                                &request,
+                            )
+                            .is_err()
+                        } else {
+                            false
+                        };
+                        warpui::async_assert!(closed && revoked)
+                    },
+                )
+                .with_take_screenshot("live-workspace-departure.png"),
+        )
+        .with_step(
             TestStep::new("return to original private pane").with_action(move |app, window, _| {
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -1844,6 +1957,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-workspace-reviewed.png",
             "live-workspace-shared-tab.png",
             "live-workspace-private-retained.png",
+            "live-workspace-departure.png",
         ]
         .map(str::to_owned),
     );
