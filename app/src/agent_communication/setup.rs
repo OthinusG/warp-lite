@@ -2,6 +2,7 @@
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use uuid::Uuid;
 use std::{
     collections::BTreeMap,
     io::Write,
@@ -14,12 +15,43 @@ pub const SERVER: &str = "warp-lite-communication";
 const START: &str = "# BEGIN WARP LITE COMMUNICATION";
 const END: &str = "# END WARP LITE COMMUNICATION";
 
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RemoteProfile {
+    pub alias: String,
+    pub coordinator: Uuid,
+    pub device: Uuid,
+    pub generation: u64,
+    pub spaces: Vec<Uuid>,
+}
+impl RemoteProfile {
+    pub(super) fn validate(&self) -> Result<()> {
+        warp_agent_bus::remote::validate_alias(&self.alias)?;
+        ensure!(
+            !self.coordinator.is_nil()
+                && !self.device.is_nil()
+                && self.generation > 0
+                && !self.spaces.is_empty()
+                && self.spaces.len() <= 32
+                && self.spaces.iter().all(|id| !id.is_nil())
+                && self
+                    .spaces
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    == self.spaces.len(),
+            "Invalid reviewed connection metadata"
+        );
+        Ok(())
+    }
+}
+
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Preferences {
     pub enabled: bool,
     pub selected: BTreeMap<String, Installed>,
     #[serde(default)]
-    pub(super) remote_profiles: Vec<super::remote_settings::Profile>,
+    pub(super) remote_profiles: Vec<RemoteProfile>,
 }
 impl Preferences {
     pub fn programs(&self) -> std::collections::HashSet<String> {

@@ -1,42 +1,10 @@
 //! Native enrollment persists only reviewed connection metadata after secure credential verification.
-use super::{remote_credentials, setup, AgentCommunication};
+use super::{remote_credentials, setup, setup::RemoteProfile as Profile, AgentCommunication};
 use anyhow::{anyhow, ensure, Result};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use warp_agent_bus::{remote::Connection, transport::remote_control::AuthenticationFrame};
 use warpui::ModelContext;
 use warpui_extras::secure_storage::AppContextExt;
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct Profile {
-    pub alias: String,
-    pub coordinator: Uuid,
-    pub device: Uuid,
-    pub generation: u64,
-    pub spaces: Vec<Uuid>,
-}
-impl Profile {
-    pub(super) fn validate(&self) -> Result<()> {
-        warp_agent_bus::remote::validate_alias(&self.alias)?;
-        ensure!(
-            !self.coordinator.is_nil()
-                && !self.device.is_nil()
-                && self.generation > 0
-                && !self.spaces.is_empty()
-                && self.spaces.len() <= 32
-                && self.spaces.iter().all(|id| !id.is_nil())
-                && self
-                    .spaces
-                    .iter()
-                    .collect::<std::collections::HashSet<_>>()
-                    .len()
-                    == self.spaces.len(),
-            "Invalid reviewed connection metadata"
-        );
-        Ok(())
-    }
-}
 
 // No Debug/Serialize: this value is transferred in memory and consumed by the native secure provider.
 pub(super) struct Enrollment {

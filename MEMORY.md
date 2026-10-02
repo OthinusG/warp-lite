@@ -267,3 +267,6 @@
 
 
 - Native remote enrollment transfers credential results only in memory to the existing secure provider. Persist reviewed non-secret profile metadata only after readback; preserve older settings with an empty profile list. Cancel network futures through an owned watch channel and drop their SSH child; dropping only the result receiver leaves an unnecessary child alive until timeout. Metadata persistence alone must not enable remote MCP participation.
+
+
+- app/agent_communication/setup.rs is included verbatim by the bridge integration tests without the native UI modules. Keep serialized connection profile types in setup.rs (or another UI-independent source), and keep secure provider/ModelContext/SSH worker orchestration in remote_settings.rs. A setup preference reference to its native sibling breaks both OS bridge tests.
