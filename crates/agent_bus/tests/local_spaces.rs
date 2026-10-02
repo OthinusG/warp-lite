@@ -798,14 +798,21 @@ fn native_delivery_observations_never_acknowledge_or_start_tasks() {
         assert_eq!(event["payload"]["execution_implied"], false);
         assert!(event["payload"].get("body").is_none());
     }
-    call(
+    let ack_error = call(
         b,
         &worker,
         Operation::AgentAck {
             message_id: delivered.unwrap(),
         },
     )
-    .unwrap();
+    .unwrap_err();
+    assert_eq!(
+        ack_error
+            .downcast_ref::<warp_agent_bus::DomainError>()
+            .unwrap()
+            .code,
+        "invalid_state"
+    );
     assert_eq!(b.operator_task(&root, &task).unwrap()["state"], "queued");
     drop(server);
     let reopened = RunningBroker::start(&database).unwrap();

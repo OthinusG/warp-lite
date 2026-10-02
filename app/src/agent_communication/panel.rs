@@ -48,6 +48,10 @@ struct PanelAgent {
     last_observed_ms: Option<u64>,
     #[serde(default)]
     observation_source: Option<String>,
+    #[serde(default)]
+    delivery_phase: Option<String>,
+    #[serde(default)]
+    delivery_retained: Option<bool>,
 }
 #[derive(Deserialize)]
 struct PanelTask {
@@ -490,7 +494,8 @@ impl CollaborationPanel {
                         "Task {} · {} · revision {} · version {}",
                         task.id, task.state, task.revision, task.version
                     ),
-                    rows: vec![
+                    rows: {
+                        let mut rows = vec![
                         format!(
                             "Issuer: {} · assignee: {} · reviewer: {}",
                             task.issuer, task.assignee, task.reviewer
@@ -513,11 +518,15 @@ impl CollaborationPanel {
                                 )
                             })
                             .unwrap_or_default(),
-                        snapshot.task_runtime.as_ref().and_then(|runtime| runtime.delivery_phase.as_deref()
-                            .map(|phase| format!("Native prompt {} · receiver acknowledgement and TaskStart remain separate{}",
-                                phase, if runtime.delivery_retained == Some(false) { " · delivery history could not be retained" } else { "" })))
-                            .unwrap_or_default(),
-                    ],
+                        ];
+                        if let Some(runtime) = &snapshot.task_runtime {
+                            if let Some(phase) = &runtime.delivery_phase {
+                                rows.push(format!("Native prompt {} · receiver acknowledgement and TaskStart remain separate{}",
+                                    phase, if runtime.delivery_retained == Some(false) { " · delivery history could not be retained" } else { "" }));
+                            }
+                        }
+                        rows
+                    },
                 },
                 Section {
                     title: "Description".into(),
@@ -619,7 +628,7 @@ impl CollaborationPanel {
                     .iter()
                     .map(|row| {
                         format!(
-                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}",
+                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{}",
                             row.agent.name,
                             row.agent.program,
                             if row.online { "online" } else { "offline" },
@@ -657,6 +666,8 @@ impl CollaborationPanel {
                             row.last_observed_ms.map(|age| format!("{} · {}s ago",
                                 row.observation_source.as_deref().unwrap_or("observation"), age / 1000))
                                 .unwrap_or_else(|| "unavailable".into()),
+                            row.delivery_phase.as_ref().map(|phase| format!("\nLast native prompt {} · acknowledgement remains separate{}",
+                                phase, if row.delivery_retained == Some(false) { " · history record unavailable" } else { "" })).unwrap_or_default(),
                         )
                     })
                     .collect(),

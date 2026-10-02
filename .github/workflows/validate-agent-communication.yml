@@ -189,6 +189,7 @@ jobs:
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warp --lib remote_credentials_fail_closed_and_preserve_other_devices --locked
+          cargo test -p warpui_extras --lib --features secure_storage keychain_access_errors_do_not_prove_missing_credentials --locked
           cargo test -p warp --lib remote_profile_metadata_excludes_secrets_and_validates_reviewed_identity --locked
           cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
           cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked

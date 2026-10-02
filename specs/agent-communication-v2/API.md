@@ -551,7 +551,8 @@ optional task/revision. Payloads contain only these identities and explicit
 acknowledgement_implied=false / execution_implied=false; never prompt bodies,
 drafts, capabilities or credentials. Repeated completion callbacks cannot emit
 another observation. These events do not change task state/version, attempts or
-message acknowledgement. A successful AgentAck still does not imply TaskStart.
+message acknowledgement. Task notifications reject AgentAck with invalid_state;
+ordinary message acknowledgement still does not imply TaskStart.
 
 Claim requires the delivery observation to commit before input submission. If
 recording the actual submission/cancellation later fails, retain that failure in

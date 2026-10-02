@@ -278,3 +278,9 @@
 
 - Native claimed/submitted/cancelled prompt observations belong to the event history, with original receiver/run/message/task revision metadata only. Never infer AgentAck, TaskStart or execution from a PTY submission. Commit the claimed observation before input, expose failed completion audit retention, and never reconstruct live delivery authority from persisted observations after restart.
 - SSH children reuse session::without_terminal_binding and strip VIBE_MCP_SERVERS. Removing originating capability/endpoint/native-launch environment prevents user SSH SendEnv rules from forwarding local MCP bindings; retain ordinary system SSH authentication environment.
+
+
+- macOS SecureStorage must map only Security.framework errSecItemNotFound
+  (-25300) to NotFound. Treating locked/denied access as absence lets enrollment
+  overwrite a credential after unlock. Shared error conversion retains other
+  failures; the focused regression uses status codes without reading user keys.

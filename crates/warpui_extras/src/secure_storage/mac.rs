@@ -51,12 +51,38 @@ impl SecureStorage {
         let keychain = SecKeychain::default()?;
         keychain
             .find_generic_password(&self.service_name, key)
-            .map_err(|_| Error::NotFound)
+            .map_err(Into::into)
     }
 }
 
 impl From<security_framework::base::Error> for Error {
     fn from(value: security_framework::base::Error) -> Self {
-        Error::Unknown(anyhow!(value))
+        // Only errSecItemNotFound proves absence; locked storage must fail closed.
+        if value.code() == -25300 {
+            Error::NotFound
+        } else {
+            Error::Unknown(anyhow!(value))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn keychain_access_errors_do_not_prove_missing_credentials() {
+        use security_framework::base::Error as KeychainError;
+
+        assert!(matches!(
+            Error::from(KeychainError::from_code(-25300)),
+            Error::NotFound
+        ));
+        for code in [-25293, -25308, -128] {
+            assert!(matches!(
+                Error::from(KeychainError::from_code(code)),
+                Error::Unknown(_)
+            ));
+        }
     }
 }

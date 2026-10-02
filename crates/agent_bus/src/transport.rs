@@ -1239,6 +1239,8 @@ impl Broker {
             json!({"agent": agent, "online": live.is_some() || remote_online,
                 "device": device, "workspace": workspace, "last_observed_ms": observed,
                 "observation_source": if live.is_some() { Some("local observation") } else if remote_online { Some("presence receipt") } else { None },
+                "delivery_phase": live.and_then(|live| live.delivery.as_ref()).map(|(_, phase, _)| *phase),
+                "delivery_retained": live.and_then(|live| live.delivery.as_ref()).map(|(_, _, retained)| *retained),
                 "activity": live.map(|live| live.activity),
                 "draft": live.map(|live| if live.rich_draft { "present" } else { live.draft.state() }),
                 "blocked": live.is_some_and(|live| live.blocked),

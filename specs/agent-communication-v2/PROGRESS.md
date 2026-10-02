@@ -649,3 +649,15 @@ Tools Panel integration points:
 - SSH children now reuse the existing launcher binding scrubber and remove Vibe
   MCP configuration. Argument/environment checks ensure native capabilities and
   endpoints stay on the originating machine. Exact-source CI pending.
+
+
+- Native capture sources 2ebdfdf / run 37012541720 and 497de9e / run
+  37013071649 passed both target OS suites, native builds and all 115 assertions.
+  Both-platform 2ebdfdf screenshots reviewed for participant metadata, history
+  capacity/export and thread readability; drafts remain intact.
+- e4bc0e6 / run 37016574533 passed new delivery phase checks but failed a test
+  expecting AgentAck to accept a task notification. Preserve the established
+  invalid_state boundary and correct the assertion; exact-source rerun pending.
+- macOS secure storage must distinguish errSecItemNotFound from access/locked
+  errors. The shared provider now preserves other errors, with a focused status
+  classification check. Native Keychain/DPAPI runtime acceptance remains pending.
