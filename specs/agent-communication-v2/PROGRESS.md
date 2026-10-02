@@ -4,6 +4,18 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `bd593d9`, run `36973482638`: both complete backend suites passed,
+  including live-panel pagination/cursor/scope/presence checks. macOS debug UI
+  compiled and static capture passed; Windows debug compilation is still running.
+- Added native operator forms for assignment, cancellation, review, retry,
+  reassignment, explicit uncertain-execution override and archival. Forms retain
+  original version/request UUID and reject modified replay. Submission never
+  schedules a later focus change; the result callback only refreshes data.
+  Added deterministic native live/action capture extension (96 images), including
+  typed-override rejection, unknown-effect cancellation and guarded retry. Native
+  build/action/image acceptance and the rest of M2/M3/M4/M5 integration are pending.
+
+
 - Live panel read integration added: ordinary Tools Panel entry, bounded background
   event wait, explicit agent/task pages, task selection, original attempts/evidence,
   readiness/draft/approval/offline metadata and a 200-event view tail. Context and

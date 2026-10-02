@@ -1,5 +1,7 @@
 //! Native collaboration projection; explicit sample mode retains the accepted fixtures.
 use crate::appearance::Appearance;
+#[path = "panel_controls.rs"]
+mod controls;
 use serde::Deserialize;
 use std::{collections::HashMap, time::Duration};
 use warp_agent_bus::{transport::PanelQuery, Agent, Event, Task};
@@ -80,6 +82,10 @@ pub(crate) struct CollaborationPanel {
     task_buttons: HashMap<String, MouseStateHandle>,
     page_buttons: [MouseStateHandle; 4],
     generation: u64,
+    connected: bool,
+    form: Option<controls::Form>,
+    control_buttons: [MouseStateHandle; 8],
+    focus_buttons: HashMap<String, MouseStateHandle>,
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +100,10 @@ pub(crate) enum Action {
     FirstTasks,
     NextAgents,
     FirstAgents,
+    OpenControl(controls::Kind),
+    ConfirmControl,
+    CancelControl,
+    FocusAgent(String),
 }
 
 impl CollaborationPanel {
@@ -120,6 +130,10 @@ impl CollaborationPanel {
             task_buttons: Default::default(),
             page_buttons: Default::default(),
             generation: 0,
+            connected: false,
+            form: None,
+            control_buttons: Default::default(),
+            focus_buttons: Default::default(),
         }
     }
 
@@ -146,6 +160,8 @@ impl CollaborationPanel {
             self.generation += 1;
             self.context = context.clone();
             self.snapshot = None;
+            self.connected = false;
+            self.form = None;
             self.events.clear();
             self.query = Default::default();
             self.scroll = Default::default();
@@ -207,10 +223,14 @@ impl CollaborationPanel {
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
+                    panel.focus_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
+                    for row in &snapshot.agents { panel.focus_buttons.entry(row.agent.id.clone()).or_default(); }
+                    panel.connected = true;
                     panel.status = "Connected to the local coordinator. Execution and presence are separate.".into();
                     panel.snapshot = Some(snapshot);
                 }
                 Err(error) => {
+                    panel.connected = false;
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
                     panel.status = format!("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.");
@@ -430,6 +450,48 @@ impl TypedActionView for CollaborationPanel {
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         if !self.preview {
             match action {
+                Action::OpenControl(kind) => {
+                    self.open_control(*kind, ctx);
+                    return;
+                }
+                Action::ConfirmControl => {
+                    self.confirm_control(ctx);
+                    return;
+                }
+                Action::CancelControl => {
+                    self.cancel_control(ctx);
+                    return;
+                }
+                Action::FocusAgent(id) => {
+                    if Self::current_context(ctx) != self.context {
+                        return;
+                    }
+                    let Some(row) = self.snapshot.as_ref().and_then(|snapshot| {
+                        snapshot
+                            .agents
+                            .iter()
+                            .find(|row| &row.agent.id == id && row.online)
+                    }) else {
+                        return;
+                    };
+                    let target = super::VIEWS
+                        .get()
+                        .and_then(|views| views.lock().ok())
+                        .and_then(|views| {
+                            views
+                                .iter()
+                                .find(|(_, (terminal, _))| terminal == &row.agent.terminal)
+                                .and_then(|(id, (_, view))| view.upgrade(ctx).map(|_| *id))
+                        });
+                    if let Some(terminal_view_id) = target {
+                        ctx.dispatch_typed_action(
+                            &crate::workspace::WorkspaceAction::FocusTerminalViewInWorkspace {
+                                terminal_view_id,
+                            },
+                        );
+                    }
+                    return;
+                }
                 Action::SelectTask(id) => self.query.selected_task = Some(id.clone()),
                 Action::Back => self.query.selected_task = None,
                 Action::NextTasks => {
@@ -564,6 +626,9 @@ impl View for CollaborationPanel {
                 .finish(),
         );
         let mut body = Flex::column().with_spacing(12.);
+        if !self.preview && self.form.is_some() {
+            body.add_child(self.render_controls(app));
+        }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
                 if self.query.selected_task.is_some() {
@@ -616,7 +681,10 @@ impl View for CollaborationPanel {
                         ("First task page", Some(Action::FirstTasks), 0),
                         (
                             "Next task page",
-                            snapshot.task_cursor.map(|_| Action::NextTasks),
+                            snapshot
+                                .task_cursor
+                                .filter(|_| snapshot.tasks.len() == 50)
+                                .map(|_| Action::NextTasks),
                             1,
                         ),
                         ("First agent page", Some(Action::FirstAgents), 2),
@@ -664,6 +732,38 @@ impl View for CollaborationPanel {
                     .finish(),
                 );
             }
+        }
+        if !self.preview && self.form.is_none() && self.snapshot.is_some() {
+            if let Some(snapshot) = &self.snapshot {
+                for row in &snapshot.agents {
+                    if row.online
+                        && super::VIEWS
+                            .get()
+                            .and_then(|views| views.lock().ok())
+                            .is_some_and(|views| {
+                                views
+                                    .values()
+                                    .any(|(terminal, _)| terminal == &row.agent.terminal)
+                            })
+                    {
+                        let id = row.agent.id.clone();
+                        body.add_child(
+                            builder
+                                .button(ButtonVariant::Text, self.focus_buttons[&id].clone())
+                                .with_text_label(format!(
+                                    "Focus {}",
+                                    row.agent.name.chars().take(12).collect::<String>()
+                                ))
+                                .build()
+                                .on_click(move |ctx, _, _| {
+                                    ctx.dispatch_typed_action(Action::FocusAgent(id.clone()))
+                                })
+                                .finish(),
+                        );
+                    }
+                }
+            }
+            body.add_child(self.render_controls(app));
         }
         let scroll = ClippedScrollable::vertical(
             self.scroll.clone(),
@@ -716,6 +816,63 @@ fn checkpoint_draft(app: &warpui::App, window: warpui::WindowId) -> String {
             .input()
             .read(ctx, |input, ctx| input.buffer_text(ctx))
     })
+}
+
+/// Deterministic native IPC participants only: no vendor executable or model call.
+#[cfg(debug_assertions)]
+fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
+    use warp_agent_bus::{
+        transport::{self, Request},
+        Operation,
+    };
+    let broker = super::BROKER
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("No capture broker"))?;
+    broker.set_programs(Some(["codex".to_owned()].into_iter().collect()));
+    let terminal = "capture-native-worker";
+    let capability = broker.prepare(terminal)?;
+    broker.activate(terminal, "codex", root, true)?;
+    let mut request = Request {
+        protocol_major: transport::PROTOCOL_MAJOR,
+        terminal: terminal.into(),
+        capability,
+        run: None,
+        defer_initial_ready: false,
+        native_activity: None,
+        directory: Some(root.into()),
+        operation: Operation::AgentRegister {
+            name: "capture-worker".into(),
+        },
+    };
+    request.run = transport::call(&broker.endpoint, &request)?["run"]
+        .as_str()
+        .map(str::to_owned);
+    let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(
+        "../../../specs/agent-communication-v2/panel-fixtures.json"
+    ))?;
+    let description = fixtures[2]
+        .sections
+        .iter()
+        .find(|section| section.title == "Description")
+        .and_then(|section| section.rows.first())
+        .cloned()
+        .unwrap_or_else(|| "Verify the native capture fixture".into());
+    let task = broker.operator(root, &Operation::TaskAssign {
+        to: "capture-worker".into(), description,
+        acceptance: "The deterministic native IPC check passes and the unsent terminal draft remains intact.".into(),
+        reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
+        start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None,
+    })?;
+    request.operation = Operation::TaskStart {
+        task_id: task["id"].as_str().unwrap().into(),
+        revision: 1,
+        expected_version: None,
+        request_id: uuid::Uuid::new_v4().to_string(),
+    };
+    transport::call(&broker.endpoint, &request)?;
+    broker.input_guard(terminal, true, true);
+    broker.end(terminal);
+    Ok(())
 }
 
 /// Captures only fixed fixtures in an isolated debug profile; never enables live operations.
@@ -990,6 +1147,315 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         "detail-scrolled.png".to_owned(),
         "detail-restored.png".to_owned(),
     ]);
+    driver = driver
+        .with_step(
+            TestStep::new("wait for local live context").add_named_assertion(
+                "context ready",
+                |app, window| {
+                    warpui::async_assert!(app.read(|ctx| !super::AgentCommunication::as_ref(ctx)
+                        .busy
+                        && crate::workspace::ActiveSession::as_ref(ctx)
+                            .path_if_local(window)
+                            .is_some()))
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("enable isolated live projection").with_action(|app, window, _| {
+                app.update(|ctx| {
+                    super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                        model.preferences.enabled = true;
+                        ctx.notify();
+                    });
+                });
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.preview = false;
+                    panel.refresh(ctx);
+                    CollaborationPanel::schedule(ctx);
+                    ctx.notify();
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("live empty projection")
+                .add_named_assertion("empty snapshot with draft", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
+                            |snapshot| snapshot.tasks.is_empty() && snapshot.agents.is_empty()
+                        )) && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-empty.png"),
+        )
+        .with_step(
+            TestStep::new("seed deterministic live IPC work").with_action(|app, window, _| {
+                let root = app.read(|ctx| {
+                    warp_agent_bus::project_root(
+                        crate::workspace::ActiveSession::as_ref(ctx)
+                            .path_if_local(window)
+                            .unwrap(),
+                    )
+                    .unwrap()
+                });
+                seed_live_checkpoint(&root).unwrap();
+            }),
+        )
+        .with_step(TestStep::new("live tasks projection").add_named_assertion(
+            "native task and offline identity",
+            |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(
+                    panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.tasks.len() == 1
+                            && snapshot.agents.iter().any(|agent| !agent.online)))
+                        && checkpoint_draft(app, window) == "unsent collaboration draft"
+                )
+            },
+        ));
+    filenames.push("live-empty.png".into());
+    for detail in [false, true] {
+        if detail {
+            driver = driver
+                .with_step(
+                    TestStep::new("select live task").with_action(|app, window, _| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        panel.update(app, |panel, ctx| {
+                            let id = panel.snapshot.as_ref().unwrap().tasks[0].id.clone();
+                            panel.handle_action(&Action::SelectTask(id), ctx);
+                        });
+                    }),
+                )
+                .with_step(
+                    TestStep::new("live original attempt detail").add_named_assertion(
+                        "uncertain execution remains running",
+                        |app, window| {
+                            let panel =
+                                app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                            warpui::async_assert!(panel.read(app, |panel, _| panel
+                                .snapshot
+                                .as_ref()
+                                .is_some_and(|snapshot| snapshot
+                                    .task
+                                    .as_ref()
+                                    .is_some_and(|task| task.state == "running")
+                                    && snapshot.task_runtime.as_ref().is_some_and(
+                                        |runtime| !runtime.online && runtime.interrupted
+                                    ))))
+                        },
+                    ),
+                );
+        }
+        for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
+            for width in [320, 600] {
+                for zoom in [1.0, 1.25] {
+                    let theme = theme.clone();
+                    let filename = format!(
+                        "live-{}-{theme_name}-{width}-{zoom}.png",
+                        if detail { "detail" } else { "tasks" }
+                    );
+                    filenames.push(filename.clone());
+                    driver = driver.with_step(
+                        TestStep::new(filename.clone())
+                            .with_action(move |app, window, _| {
+                                app.update(|ctx| {
+                                    let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                                    Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                                        appearance.set_theme(colors, ctx)
+                                    });
+                                    ctx.set_zoom_factor(zoom);
+                                    ResizableData::as_ref(ctx)
+                                        .get_all_handles(window)
+                                        .unwrap()
+                                        .left_panel_width
+                                        .lock()
+                                        .unwrap()
+                                        .set_size(width as f32);
+                                });
+                                let panel =
+                                    app.views_of_type::<CollaborationPanel>(window).unwrap()[0]
+                                        .clone();
+                                panel.update(app, |panel, ctx| {
+                                    panel.scroll = Default::default();
+                                    ctx.notify();
+                                });
+                            })
+                            .with_take_screenshot(filename),
+                    );
+                }
+            }
+        }
+    }
+    driver = driver
+        .with_step(
+            TestStep::new("focus live detail").with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| {
+                    workspace.handle_action(&WorkspaceAction::FocusLeftPanel, ctx)
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("live detail scrolling")
+                .with_keystrokes(&["pagedown", "pagedown", "pagedown"])
+                .with_take_screenshot("live-detail-end.png"),
+        )
+        .with_step(
+            TestStep::new("live escape restores original draft")
+                .with_keystrokes(&["escape"])
+                .add_named_assertion("draft and terminal focus preserved", |app, window| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    warpui::async_assert!(
+                        workspace.update(app, |workspace, ctx| workspace
+                            .active_tab_pane_group()
+                            .is_self_or_child_focused(ctx))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        );
+    filenames.push("live-detail-end.png".into());
+    driver = driver
+        .with_step(
+            TestStep::new("reject unconfirmed execution override")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::ForceCancel, ctx);
+                        panel.fill_control_checkpoint(
+                            &["Investigated the disconnected fixture", "yes"],
+                            ctx,
+                        );
+                        panel.confirm_control(ctx);
+                    });
+                })
+                .add_named_assertion("typed confirmation required", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.control_checkpoint_rejected()
+                            && panel
+                                .snapshot
+                                .as_ref()
+                                .and_then(|snapshot| snapshot.task.as_ref())
+                                .is_some_and(|task| task.state == "running"))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-override-confirmation.png"),
+        )
+        .with_step(
+            TestStep::new("confirm native operator override").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.fill_control_checkpoint(
+                        &["Investigated the disconnected fixture", "ALLOW OVERLAP"],
+                        ctx,
+                    );
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("operator cancellation preserves unknown effects")
+                .add_named_assertion("cancelled without claiming stopped", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.form.is_none()
+                            && panel
+                                .snapshot
+                                .as_ref()
+                                .and_then(|snapshot| snapshot.task.as_ref())
+                                .is_some_and(|task| task.state == "cancelled"
+                                    && task
+                                        .attempts
+                                        .iter()
+                                        .any(|attempt| attempt.certainty == "unknown"
+                                            && attempt.finished_at.is_none())))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-cancelled.png"),
+        )
+        .with_step(
+            TestStep::new("normal retry cannot overlap unknown execution").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::Retry, ctx);
+                        panel.fill_control_checkpoint(&["Retry the deterministic fixture"], ctx);
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("retry blocked by execution uncertainty")
+                .add_named_assertion("unknown execution rejected", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .control_checkpoint_rejected()
+                        && panel
+                            .snapshot
+                            .as_ref()
+                            .and_then(|snapshot| snapshot.task.as_ref())
+                            .is_some_and(|task| task.state == "cancelled")))
+                })
+                .with_take_screenshot("live-retry-blocked.png"),
+        )
+        .with_step(
+            TestStep::new("explicit retry override").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.cancel_control(ctx);
+                    panel.open_control(controls::Kind::RetryOverride, ctx);
+                    panel.fill_control_checkpoint(
+                        &["Reviewed previous unknown execution", "ALLOW OVERLAP"],
+                        ctx,
+                    );
+                    panel.confirm_control(ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native retry retains earlier attempt")
+                .add_named_assertion(
+                    "new revision with original unknown attempt",
+                    |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(
+                            panel.read(app, |panel, _| panel.form.is_none()
+                                && panel
+                                    .snapshot
+                                    .as_ref()
+                                    .and_then(|snapshot| snapshot.task.as_ref())
+                                    .is_some_and(|task| task.revision == 2
+                                        && matches!(task.state.as_str(), "queued" | "blocked")
+                                        && task
+                                            .attempts
+                                            .iter()
+                                            .any(|attempt| attempt.certainty == "unknown")))
+                                && checkpoint_draft(app, window) == "unsent collaboration draft"
+                        )
+                    },
+                )
+                .with_take_screenshot("live-retried.png"),
+        );
+    filenames.extend(
+        [
+            "live-override-confirmation.png",
+            "live-cancelled.png",
+            "live-retry-blocked.png",
+            "live-retried.png",
+        ]
+        .map(str::to_owned),
+    );
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

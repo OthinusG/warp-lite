@@ -1151,7 +1151,7 @@ impl Broker {
                     && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
             json!({"agent": agent, "online": live.is_some(),
                 "activity": live.map(|live| live.activity),
-                "draft": live.map(|live| live.draft.state()),
+                "draft": live.map(|live| if live.rich_draft { "present" } else { live.draft.state() }),
                 "blocked": live.is_some_and(|live| live.blocked),
                 "paused": live.is_some_and(|live| live.paused),
                 "ready": live.is_some_and(|live| live.ready.is_some()),
@@ -1188,7 +1188,9 @@ fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
     let live = state
         .terminals
         .values()
+        .filter(|binding| !binding.revoked)
         .filter_map(|binding| binding.live.as_ref())
+        .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
         .find(|live| {
             live.agent
                 .as_ref()

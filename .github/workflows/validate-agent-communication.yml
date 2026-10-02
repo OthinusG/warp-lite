@@ -7,7 +7,7 @@ on:
         type: boolean
         default: false
       capture_ui:
-        description: 'Run the isolated native static capture harness after packaging'
+        description: 'Run the isolated native static and live capture harness after packaging'
         type: boolean
         default: false
       soak:
@@ -118,7 +118,7 @@ jobs:
             throw "Native capture failed: $($captureProcess.ExitCode)"
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
-          if ($images.Count -ne 74 -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected 74 nonempty native PNGs" }
+          if ($images.Count -ne 96 -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected 96 nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && inputs.capture_ui }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -183,6 +183,7 @@ jobs:
         run: |
           cargo test -p warp --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warp --lib collaboration_fixtures_cover_required_states_and_long_content --locked
+          cargo test -p warp --lib native_intent_requires_explicit_fields_and_typed_override --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
@@ -231,7 +232,7 @@ jobs:
           import os
           from pathlib import Path
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
-          assert len(images) == 74 and all(image.stat().st_size > 0 for image in images), 'Expected 74 nonempty native PNGs'
+          assert len(images) == 96 and all(image.stat().st_size > 0 for image in images), 'Expected 96 nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures
         if: ${{ always() && inputs.capture_ui }}

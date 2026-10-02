@@ -131,3 +131,21 @@ truthful-state rows are accepted against those native artifacts. Vertical scroll
 is intentional for long content; final reservations, human controls and uncertainty
 guidance are reachable. Live integration must retain this visual system and receive
 its own data/interaction capture; static screenshots do not validate live behavior.
+
+## Live read capture gate (pending)
+
+The harness now adds 18 captures to the accepted 74 static captures: an actual
+empty broker projection; task and original-attempt details at both widths, themes
+and zooms; and detail-end scrolling. A deterministic native IPC client registers,
+starts an operator-assigned task and disconnects in the isolated broker profile.
+No vendor executable, model or filesystem edit is involved. Assert the receiver
+is offline while task state remains running with interrupted/unknown execution,
+then restore terminal focus and the original unsent draft. The workflow requires
+all 92 nonempty PNGs. These new live assertions/captures require exact-source CI
+and image review before M2.3 acceptance.
+
+The operator revision extends the gate to 96 PNGs, adding a typed-override form,
+actual controller cancellation with unknown effects, a rejected normal retry and
+an explicitly confirmed retry. Verify a new revision retains the previous unknown
+attempt, with no false stopped outcome and no terminal draft loss. Source and
+platform render/action acceptance are pending.

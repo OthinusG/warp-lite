@@ -305,3 +305,7 @@ content or polling complete history each render. Offline identity is retained.
 Disablement removes the live projection; opening/refreshing never takes terminal
 focus. All human mutations remain separate operator calls with stable request
 IDs and optimistic versions. Live visual/action acceptance remains required.
+
+## Native local operator intent
+
+Native task controls reuse inline EditorView fields and existing text buttons. Bind each form to its original scope, task revision/version and stable request UUID. Assignment requires explicit recipient/description/acceptance; cancellation and review require reasons. Archive only terminal tasks. Uncertain force cancellation/retry/reassignment require typing ALLOW OVERLAP and preserve recorded uncertainty. Reject context changes before submission, retain failed intent without changing its version or request UUID, and use the same Broker operator/controller functions as protocol tests. No native interrupt is claimed. Local agent focus dispatches the existing workspace terminal focus action.

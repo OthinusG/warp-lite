@@ -211,3 +211,5 @@
 - Collaboration static gate passed on both native target platforms (source 3d66017, run 36970541930): 74 captures each, all fixture combinations reviewed, detail end reachable and draft/focus preserved. Live integration is now permitted but needs separate native data/action verification.
 
 - Native panel reads use the broker's existing condition variable off the UI thread with 50-item pages, a 200-event view tail and scoped sequence cursors. A one-second timeout refreshes volatile readiness independently of durable history. Scope/pane changes reset selection and cursors; callbacks also check a local generation before applying results.
+
+- Native human task forms retain the original scope, revision/version and request UUID. After submission, changed fields require a new explicit intent; do not retry an old ID with new content or silently substitute a version. Uncertain ownership requires typed ALLOW OVERLAP and still records unknown effects. Async mutation callbacks refresh data without a delayed focus change.

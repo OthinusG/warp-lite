@@ -465,10 +465,18 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
         .find(|row| row["agent"]["name"] == "worker")
         .unwrap();
     assert_eq!(worker_row["blocked"], true);
+    assert_eq!(
+        worker_row["draft"], "present",
+        "rich drafts protect delivery too"
+    );
     query.event_after = snapshot["event_cursor"].as_u64();
     assert!(query.event_after.is_some());
     let unchanged = b.operator_panel(&query).unwrap();
     assert!(unchanged["events"].as_array().unwrap().is_empty());
+    b.expire_epoch("panel-worker");
+    let expired = b.operator_panel(&query).unwrap();
+    assert_eq!(expired["task_runtime"]["online"], false);
+    assert_eq!(expired["task_runtime"]["interrupted"], true);
     b.end("panel-worker");
     let offline = b.operator_panel(&query).unwrap();
     assert_eq!(
