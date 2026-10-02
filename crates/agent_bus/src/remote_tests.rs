@@ -306,3 +306,16 @@ while True:
         connection.heartbeat(space).await.unwrap();
     });
 }
+
+#[test]
+fn peer_errors_never_preserve_reflected_credentials_or_unknown_codes() {
+    for code in ["device_revoked", "untrusted_peer_value"] {
+        let error = remote_error(crate::DomainError {
+            code: code.into(), message: "sensitive-fixture-reflection".into(), retryable: true, version: None,
+        });
+        assert!(!error.to_string().contains("sensitive-fixture-reflection"));
+        let safe = error.downcast_ref::<crate::DomainError>().unwrap();
+        assert_eq!(safe.code, if code == "device_revoked" { code } else { "invalid_input" });
+        assert!(!safe.retryable);
+    }
+}

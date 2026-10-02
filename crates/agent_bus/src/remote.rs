@@ -198,6 +198,29 @@ enum HelloResponse {
     Authentication(crate::transport::remote_control::AuthenticationFrame),
 }
 
+// SSH stderr and peer messages can contain reflected credentials; retain only known codes.
+fn remote_error(error: crate::DomainError) -> anyhow::Error {
+    let code = match error.code.as_str() {
+        "invalid_input"
+        | "invalid_state"
+        | "unauthorized"
+        | "scope_denied"
+        | "device_revoked"
+        | "protocol_incompatible"
+        | "feature_unavailable"
+        | "capacity_exceeded"
+        | "storage_full"
+        | "coordinator_unavailable" => error.code.as_str(),
+        _ => "invalid_input",
+    };
+    crate::domain(
+        code,
+        "Remote collaboration request was rejected",
+        code == "coordinator_unavailable",
+        None,
+    )
+}
+
 impl Connection {
     pub fn coordinator_id(&self) -> uuid::Uuid {
         self.coordinator_id
@@ -306,7 +329,7 @@ impl Connection {
             .await
             .map_err(|_| crate::coordinator_unavailable("SSH channel is unavailable"))?;
         match response {
-            AuthenticationFrame::Error { error } => Err(error.into()),
+            AuthenticationFrame::Error { error } => Err(remote_error(error)),
             response => Ok(response),
         }
     }
@@ -326,8 +349,12 @@ impl Connection {
             .exchange(&AuthenticationFrame::Enroll { invitation, name })
             .await?;
         ensure!(
-            matches!(&response, AuthenticationFrame::EnrollResult { .. }),
-            invalid_input("Unexpected enrollment response")
+            matches!(&response, AuthenticationFrame::EnrollResult { device_id, credential, generation, space_ids }
+                if !device_id.is_nil() && *generation > 0 && !credential.is_empty() && credential.len() <= 512
+                    && !space_ids.is_empty() && space_ids.len() <= 32
+                    && space_ids.iter().all(|space| !space.is_nil())
+                    && space_ids.iter().collect::<std::collections::HashSet<_>>().len() == space_ids.len()),
+            invalid_input("Invalid enrollment response")
         );
         Ok(response)
     }
@@ -350,7 +377,9 @@ impl Connection {
             return Err(invalid_input("Unexpected authentication response"));
         };
         ensure!(
-            generation > 0
+            !device_id.is_nil()
+                && generation > 0
+                && space_ids.iter().all(|space| !space.is_nil())
                 && connection_epoch == self.connection_epoch
                 && !space_ids.is_empty()
                 && space_ids.len() <= 32
