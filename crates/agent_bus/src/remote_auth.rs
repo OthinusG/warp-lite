@@ -194,9 +194,17 @@ impl Store {
             "SELECT id,name,verifier,generation,revoked FROM devices ORDER BY created_at,id",
         )
         .load::<DeviceRow>(&mut *self.connection.borrow_mut())?;
-        Ok(
-            json!({"devices": rows.into_iter().map(|row| json!({"id": row.id, "name": row.name, "generation": row.generation, "revoked": row.revoked != 0})).collect::<Vec<_>>()}),
-        )
+        let mut devices = Vec::new();
+        for row in rows {
+            let spaces = diesel::sql_query(
+                "SELECT space_id AS value FROM device_spaces WHERE device_id=? ORDER BY space_id",
+            )
+            .bind::<Text, _>(&row.id)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+            devices.push(json!({"id": row.id, "name": row.name, "generation": row.generation, "revoked": row.revoked != 0,
+                "space_ids": spaces.into_iter().map(|space| space.value).collect::<Vec<_>>()}));
+        }
+        Ok(json!({"devices": devices}))
     }
     pub(super) fn revoke_device(&self, project: &str, device: &str) -> Result<Value> {
         let row = self
@@ -400,8 +408,9 @@ mod tests {
             assert!(store.authenticate_remote(bad).is_err());
         }
         let mut unique = HashSet::new();
+        let subject = id();
         for _ in 0..100 {
-            assert!(unique.insert(secret(&id()).unwrap()));
+            assert!(unique.insert(secret(&subject).unwrap()));
         }
     }
 }

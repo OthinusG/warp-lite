@@ -30,6 +30,16 @@ Physical reservations conflict across private/shared domains, while list results
 and identity/task references remain scoped. Evidence verifies in its immutable
 attempt owner's producing checkout. Backend verification does not enable the UI.
 
+Invitation controller receipts persist only ID/grants/expiry. A new committed
+request delivers its 256-bit invitation once, in memory; replay returns the same
+receipt with `invitation: null, secret_available: false`. Lost secret delivery
+requires creating a new invitation, rather than storing a bearer in retry history.
+Invitations expire within five minutes and enroll one device atomically. Enrollment
+returns a distinct credential once; only its SHA-256 verifier is durable. Every
+remote operation rechecks current device generation and explicit space/role grants.
+Controller device lists omit verifiers. These enrollment primitives alone do not
+expose a gateway, write participant credentials or enable remote participation.
+
 ## Resource shapes
 
 Local workspace mappings may carry an optional opaque UUID `repository_id`,

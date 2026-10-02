@@ -4,6 +4,20 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Shared-space source `efaeb47`, run `36957643422`: both OS compiled all new
+  code and passed storage/migration tests, but real IPC AgentList exposed a nested
+  RefCell borrow in the new membership filter. Materialize rows and release the
+  SQLite borrow before authorization queries; this fixes the common list path.
+  Rerun pending. Windows debug capture has not yet reached its runtime step.
+- Implemented enrollment persistence primitives: OS-random 256-bit invitations
+  and distinct credentials, five-minute/single-use grants, hash-only storage,
+  constant-time verifier comparison with pinned already-locked subtle, current
+  grant-generation checks and operator revocation/listing. Invitation dedup stores
+  only a safe receipt and never redisplays its secret. Added expiry/grant/replay/
+  redaction/revocation tests. Gateway, secure participant storage and SSH enrollment
+  remain separate unimplemented integration gates; Rust CI pending.
+
+
 - Implemented local shared routing backend with fresh app-selected terminal
   admission, schema-v5 immutable workspace bindings, durable revocation, scoped
   task/message/event grouping, physical reservation conflict privacy and original
