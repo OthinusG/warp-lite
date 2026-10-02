@@ -198,7 +198,6 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
             &worker,
             Operation::EvidenceAdd {
                 task_id: task.clone(),
-                revision,
                 kind: "file".into(),
                 attempt_id: None,
                 path: Some("source.txt".into()),
