@@ -100,7 +100,7 @@ jobs:
           $captureProcess = Start-Process -FilePath "$PWD/target/debug/warp-oss.exe" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           if ($captureProcess.ExitCode -ne 0) { throw "Native capture failed: $($captureProcess.ExitCode)" }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
-          if ($images.Count -ne 72 -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected 72 nonempty native PNGs" }
+          if ($images.Count -ne 74 -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected 74 nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && inputs.capture_ui && !inputs.protocol_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -211,7 +211,7 @@ jobs:
           import os
           from pathlib import Path
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
-          assert len(images) == 72 and all(image.stat().st_size > 0 for image in images), 'Expected 72 nonempty native PNGs'
+          assert len(images) == 74 and all(image.stat().st_size > 0 for image in images), 'Expected 74 nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures
         if: ${{ always() && inputs.capture_ui && !inputs.protocol_only }}

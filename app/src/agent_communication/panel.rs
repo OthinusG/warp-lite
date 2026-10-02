@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/app/src/agent_communication/panel.rs:
-
 //! Native static checkpoint. Live controller wiring follows screenshot acceptance.
 use crate::appearance::Appearance;
 use serde::Deserialize;
@@ -332,6 +330,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         TestStep::new(&filename)
                             .with_action(move |app, window, _| {
                                 app.update(|ctx| {
+                                    let origin = ctx.window_bounds(&window).unwrap().origin();
+                                    ctx.set_and_cache_window_bounds(
+                                        window,
+                                        pathfinder_geometry::rect::RectF::new(
+                                            origin,
+                                            pathfinder_geometry::vector::vec2f(1200., 800.),
+                                        ),
+                                    );
                                     let colors = Settings::theme_for_theme_kind(&theme, ctx);
                                     Appearance::handle(ctx).update(ctx, |appearance, ctx| {
                                         appearance.set_theme(colors, ctx);
@@ -392,6 +398,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 }),
         )
         .with_step(
+            TestStep::new("left wraps preview state")
+                .with_keystrokes(&["left"])
+                .add_named_assertion("previous state wraps", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.selected == 8)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        )
+        .with_step(
+            TestStep::new("right returns to first preview")
+                .with_keystrokes(&["right"])
+                .add_named_assertion("first state restored", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.selected == 0))
+                }),
+        )
+        .with_step(
             TestStep::new("enter advances preview state")
                 .with_keystrokes(&["enter"])
                 .add_named_assertion("enter belongs to panel", |app, window| {
@@ -401,6 +426,44 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 }),
+        )
+        .with_step(
+            TestStep::new("select overflowing detail").with_action(|app, window, _| {
+                app.update(|ctx| {
+                    let sizes = ResizableData::as_ref(ctx).get_all_handles(window).unwrap();
+                    sizes.left_panel_width.lock().unwrap().set_size(320.);
+                });
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.selected = 2;
+                    panel.scroll = Default::default();
+                    ctx.notify();
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("page down scrolls detail")
+                .with_keystrokes(&["pagedown"])
+                .add_named_assertion("detail scrolled", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.scroll.scroll_start().as_f32() > 0.)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("detail-scrolled.png"),
+        )
+        .with_step(
+            TestStep::new("page up restores detail")
+                .with_keystrokes(&["pageup"])
+                .add_named_assertion("detail at top", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.scroll.scroll_start().as_f32() == 0.)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("detail-restored.png"),
         )
         .with_step(
             TestStep::new("escape restores terminal focus")
@@ -417,6 +480,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     )
                 }),
         );
+    filenames.extend([
+        "detail-scrolled.png".to_owned(),
+        "detail-restored.png".to_owned(),
+    ]);
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

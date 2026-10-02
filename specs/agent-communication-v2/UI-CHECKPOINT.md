@@ -74,3 +74,10 @@ harness after packaging and uploads PNGs for both OS jobs. Compilation is separa
 from the seven-minute runtime step. Missing screenshots fail the runtime step;
 partial images are uploaded for diagnosis. CI capture must succeed and its images
 must be reviewed before it can count toward the static checkpoint.
+
+The keyboard revision captures 74 PNGs: the original 72 combinations plus
+`detail-scrolled.png` and `detail-restored.png`. It checks Left/Right wrap, Enter
+preview navigation, Page Down/Up scrolling and Escape focus restoration while
+preserving an unsent draft. Resize each fixture to a bounded viewport rather
+than relying on an initial size that startup restoration may replace. These
+new checks remain pending until the exact debug artifact completes.
