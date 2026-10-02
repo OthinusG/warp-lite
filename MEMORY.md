@@ -249,3 +249,5 @@
 - Remote disconnect/lease loss must persist unknown certainty for active attempts of the exact actor/epoch, with one audit/version change and no finished timestamp or task outcome. Online projection alone is insufficient. Reuse this transition for lease expiry, session cleanup and controller shutdown; a heartbeat cannot restore execution authority or erase the original uncertainty.
 
 - Remote snapshots reuse bounded history export with an original high-water fence across pages; concurrent changes require a fresh scoped snapshot. Confirmed device/space cursors cannot exceed coordinator high-water or move backwards. Grant removal clears that scoped cursor, and current authorization precedes every snapshot/event/cursor read or write.
+
+- Controller deactivation must acquire the broker mutex and fence remote access before attempting expiry/audit writes. A full disk or rejected uncertainty write cannot keep participation enabled. Retain failed loss metadata for the next sweep/activation; session cleanup likewise expires a failed lease instead of dropping the only retry record. Listener exit and explicit drop share this deactivation path.

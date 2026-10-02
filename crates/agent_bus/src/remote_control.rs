@@ -54,7 +54,7 @@ struct PresenceGuard {
 }
 impl Drop for PresenceGuard {
     fn drop(&mut self) {
-        if let Ok(mut state) = self.broker.store() {
+        if let Ok(mut state) = self.broker.shared.state.lock() {
             let disconnected: Vec<_> = state
                 .remote_presence
                 .iter()
@@ -62,8 +62,15 @@ impl Drop for PresenceGuard {
                 .map(|(actor, presence)| (actor.clone(), presence.mutation_epoch()))
                 .collect();
             for (actor, epoch) in disconnected {
-                let _ = state.store.observe_remote_disconnect(&actor, &epoch);
-                state.remote_presence.remove(&actor);
+                if state
+                    .store
+                    .observe_remote_disconnect(&actor, &epoch)
+                    .is_ok()
+                {
+                    state.remote_presence.remove(&actor);
+                } else if let Some(presence) = state.remote_presence.get_mut(&actor) {
+                    presence.seen = Instant::now() - PRESENCE;
+                }
             }
             self.broker.shared.changed.notify_all();
         }
@@ -302,17 +309,7 @@ impl RunningController {
                     }
                 });
             }
-            if let Ok(mut state) = task_broker.store() {
-                if state.remote_owner == Some(nonce) {
-                    state.remote_active = false;
-                    state.remote_owner = None;
-                for (actor, presence) in &state.remote_presence {
-                    let _ = state.store.observe_remote_disconnect(actor, &presence.mutation_epoch());
-                }
-                state.remote_presence.clear();
-                    let _ = state.store.invalidate_remote_sessions();
-                }
-            }
+            deactivate(&task_broker, nonce);
             #[cfg(target_os = "macos")]
             let _ = std::fs::remove_file(&endpoint);
             // JoinSet drop aborts owned connections; no detached endpoint survives disablement.
@@ -328,13 +325,7 @@ impl RunningController {
 }
 impl Drop for RunningController {
     fn drop(&mut self) {
-        if let Ok(mut state) = self.broker.store() {
-            if state.remote_owner == Some(self.nonce) {
-                state.remote_active = false;
-                state.remote_owner = None;
-                let _ = state.store.invalidate_remote_sessions();
-            }
-        }
+        deactivate(&self.broker, self.nonce);
         let _ = self.shutdown.send(true);
         self.listener.abort();
         if let Ok(descriptor) = read_descriptor(&self.descriptor) {
@@ -344,6 +335,34 @@ impl Drop for RunningController {
                 let _ = std::fs::remove_file(&self.descriptor);
             }
         }
+    }
+}
+
+// Shutdown fencing must not depend on a storage sweep succeeding (for example on a full disk).
+fn deactivate(broker: &Broker, owner: Uuid) {
+    if let Ok(mut state) = broker.shared.state.lock() {
+        if state.remote_owner != Some(owner) {
+            return;
+        }
+        state.remote_active = false;
+        state.remote_owner = None;
+        let actors: Vec<_> = state
+            .remote_presence
+            .iter()
+            .map(|(actor, presence)| (actor.clone(), presence.mutation_epoch()))
+            .collect();
+        for (actor, epoch) in actors {
+            if state
+                .store
+                .observe_remote_disconnect(&actor, &epoch)
+                .is_ok()
+            {
+                state.remote_presence.remove(&actor);
+            }
+        }
+        // Failed uncertainty writes remain fenced and are retried before the next activation.
+        let _ = state.store.invalidate_remote_sessions();
+        broker.shared.changed.notify_all();
     }
 }
 
@@ -976,6 +995,135 @@ pub async fn gateway_stdio() -> Result<()> {
 mod tests {
     use super::*;
     use crate::ControllerOperation;
+
+    #[test]
+    fn controller_shutdown_fences_calls_even_when_uncertainty_cannot_be_written() {
+        use diesel::{connection::SimpleConnection, Connection};
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("bus.sqlite");
+        let descriptor = directory.path().join("controller.json");
+        let server = RunningBroker::start(&database).unwrap();
+        let controller = RunningController::start(&server, &descriptor).unwrap();
+        let owner = controller.nonce;
+        let (actor_id, task_id, domain) = {
+            let mut state = server.broker.store().unwrap();
+            let request = || Uuid::new_v4().to_string();
+            let space = state
+                .store
+                .execute_controller(
+                    "/fixture",
+                    &ControllerOperation::SpaceCreate {
+                        name: "Shutdown failure".into(),
+                        request_id: request(),
+                    },
+                )
+                .unwrap()["space_id"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let issued = state
+                .store
+                .execute_controller(
+                    "/fixture",
+                    &ControllerOperation::InvitationCreate {
+                        space_ids: vec![space.clone()],
+                        ttl_seconds: None,
+                        request_id: request(),
+                    },
+                )
+                .unwrap();
+            let enrolled = state
+                .store
+                .enroll_remote(issued["invitation"].as_str().unwrap(), "Participant")
+                .unwrap();
+            let principal = state
+                .store
+                .authenticate_remote(enrolled["credential"].as_str().unwrap())
+                .unwrap();
+            let workspace = state
+                .store
+                .map_remote_workspace(
+                    &principal,
+                    Uuid::parse_str(&space).unwrap(),
+                    Uuid::new_v4(),
+                    "Participant",
+                    None,
+                )
+                .unwrap();
+            let actor = state
+                .store
+                .register_remote_actor(
+                    &principal,
+                    &workspace,
+                    Uuid::new_v4(),
+                    Uuid::new_v4(),
+                    "codex",
+                    "shutdown-worker",
+                )
+                .unwrap();
+            let domain = format!("space:{space}");
+            let assigned = state
+                .store
+                .execute(
+                    &crate::storage::Store::operator(&domain),
+                    crate::storage::OPERATOR_EPOCH,
+                    &Operation::TaskAssign {
+                        to: actor.actor.name.clone(),
+                        description: "Retain unknown work".into(),
+                        acceptance: "Fail closed on shutdown".into(),
+                        reviewer: None,
+                        dependencies: vec![],
+                        start_deadline: None,
+                        execution_timeout_seconds: None,
+                        review_timeout_seconds: None,
+                        request_id: request(),
+                    },
+                )
+                .unwrap();
+            let task_id = assigned["id"].as_str().unwrap().to_owned();
+            state
+                .store
+                .execute(
+                    &actor.actor,
+                    &actor.epoch,
+                    &Operation::TaskStart {
+                        task_id: task_id.clone(),
+                        revision: 1,
+                        expected_version: None,
+                        request_id: request(),
+                    },
+                )
+                .unwrap();
+            state.remote_presence.insert(
+                actor.actor.id.clone(),
+                ActorPresence {
+                    principal,
+                    epoch: Uuid::parse_str(&actor.epoch).unwrap(),
+                    connection: Uuid::new_v4(),
+                    seen: Instant::now(),
+                },
+            );
+            (actor.actor.id, task_id, domain)
+        };
+        let mut fixture = diesel::SqliteConnection::establish(database.to_str().unwrap()).unwrap();
+        fixture.batch_execute("CREATE TRIGGER reject_loss BEFORE UPDATE OF certainty ON attempts BEGIN SELECT RAISE(FAIL,'fixture write failure'); END;").unwrap();
+        drop(controller);
+        {
+            let state = server.broker.shared.state.lock().unwrap();
+            assert!(!state.remote_active);
+            assert!(state.remote_owner.is_none());
+            assert!(state.remote_presence.contains_key(&actor_id));
+        }
+        assert!(!descriptor.exists());
+        assert!(active(&server.broker, owner).is_err());
+        fixture.batch_execute("DROP TRIGGER reject_loss;").unwrap();
+        let state = server.broker.store().unwrap();
+        assert!(state.remote_presence.is_empty());
+        let task = state.store.operator_task(&domain, &task_id).unwrap();
+        assert_eq!(task.state, "running");
+        assert_eq!(task.attempts[0].certainty, "unknown");
+        assert!(task.attempts[0].finished_at.is_none());
+    }
 
     #[test]
     fn discovery_rejects_unbounded_and_foreign_descriptors() {
