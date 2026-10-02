@@ -1,10 +1,17 @@
+/Users/wqin/workplace/warp-lite/app/src/agent_communication/panel.rs:
+
 //! Native static checkpoint. Live controller wiring follows screenshot acceptance.
 use crate::appearance::Appearance;
 use serde::Deserialize;
 use warpui::{
-    elements::{ClippedScrollStateHandle, ClippedScrollable, Container, Element, Fill, Flex,
-        MouseStateHandle, Padding, ParentElement, ScrollbarWidth},
+    accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},
+    elements::{
+        ClippedScrollStateHandle, ClippedScrollable, Container, DispatchEventResult, Element,
+        EventHandler, Fill, Flex, MouseStateHandle, Padding, ParentElement, ScrollbarWidth,
+        Shrinkable,
+    },
     ui_components::{button::ButtonVariant, components::UiComponent},
+    units::IntoPixels,
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext,
 };
 
@@ -30,13 +37,18 @@ pub(crate) struct CollaborationPanel {
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
     NextFixture,
+    PreviousFixture,
+    Scroll(f32),
+    Exit,
 }
 
 impl CollaborationPanel {
     pub(crate) fn new(_: &mut ViewContext<Self>) -> Self {
         Self {
-            fixtures: serde_json::from_str(include_str!("../../../specs/agent-communication-v2/panel-fixtures.json"))
-                .expect("Validated collaboration fixtures"),
+            fixtures: serde_json::from_str(include_str!(
+                "../../../specs/agent-communication-v2/panel-fixtures.json"
+            ))
+            .expect("Validated collaboration fixtures"),
             selected: 0,
             next: Default::default(),
             scroll: Default::default(),
@@ -56,38 +68,150 @@ impl TypedActionView for CollaborationPanel {
                 self.scroll = Default::default();
                 ctx.notify();
             }
+            Action::PreviousFixture => {
+                self.selected = (self.selected + self.fixtures.len() - 1) % self.fixtures.len();
+                self.scroll = Default::default();
+                ctx.notify();
+            }
+            Action::Scroll(delta) => {
+                self.scroll.scroll_by((*delta).into_pixels());
+                ctx.notify();
+            }
+            Action::Exit => {
+                ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel)
+            }
         }
+    }
+    fn action_accessibility_contents(
+        &mut self,
+        _: &Action,
+        ctx: &mut ViewContext<Self>,
+    ) -> ActionAccessibilityContent {
+        self.accessibility_contents(ctx).into()
     }
 }
 impl View for CollaborationPanel {
     fn ui_name() -> &'static str {
         "AgentCollaboration"
     }
+    fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
+        let fixture = &self.fixtures[self.selected];
+        Some(AccessibilityContent::new(
+            format!("Agent collaboration, sample data. {}. {}", fixture.state, fixture.guidance),
+            "Left and Right or Enter change preview state. Page Up and Page Down scroll. Escape returns to terminal.",
+            WarpA11yRole::ScrollareaRole,
+        ))
+    }
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let builder = appearance.ui_builder();
         let theme = appearance.theme();
         let fixture = &self.fixtures[self.selected];
+        let mut header = Flex::column().with_spacing(12.);
+        header.add_child(
+            builder
+                .span("Agent collaboration")
+                .with_soft_wrap()
+                .build()
+                .finish(),
+        );
+        header.add_child(
+            builder
+                .span(format!("Design preview — sample data · {}", fixture.state))
+                .with_soft_wrap()
+                .build()
+                .finish(),
+        );
+        header.add_child(
+            builder
+                .span(fixture.guidance.clone())
+                .with_soft_wrap()
+                .build()
+                .finish(),
+        );
+        header.add_child(
+            builder
+                .button(ButtonVariant::Text, self.next.clone())
+                .with_text_label("Next preview state".to_owned())
+                .build()
+                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture))
+                .finish(),
+        );
         let mut body = Flex::column().with_spacing(12.);
-        body.add_child(builder.span("Agent collaboration").with_soft_wrap().build().finish());
-        body.add_child(builder.span(format!("Design preview — sample data · {}", fixture.state))
-            .with_soft_wrap().build().finish());
-        body.add_child(builder.span(fixture.guidance.clone()).with_soft_wrap().build().finish());
-        body.add_child(builder.button(ButtonVariant::Text, self.next.clone())
-            .with_text_label("Next preview state".to_owned()).build()
-            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture)).finish());
         for section in &fixture.sections {
-            body.add_child(builder.span(section.title.clone()).with_soft_wrap().build().finish());
+            body.add_child(
+                builder
+                    .span(section.title.clone())
+                    .with_soft_wrap()
+                    .build()
+                    .finish(),
+            );
             for row in &section.rows {
-                body.add_child(Container::new(builder.span(row.clone()).with_soft_wrap()
-                    .with_selectable(true).build().finish()).with_padding_left(8.).finish());
+                body.add_child(
+                    Container::new(
+                        builder
+                            .span(row.clone())
+                            .with_soft_wrap()
+                            .with_selectable(true)
+                            .build()
+                            .finish(),
+                    )
+                    .with_padding_left(8.)
+                    .finish(),
+                );
             }
         }
-        Container::new(ClippedScrollable::vertical(self.scroll.clone(), body.finish(),
-            ScrollbarWidth::Auto, theme.nonactive_ui_detail().into(),
-            theme.active_ui_detail().into(), Fill::None).with_overlayed_scrollbar().finish())
-            .with_padding(Padding::uniform(12.)).finish()
+        let scroll = ClippedScrollable::vertical(
+            self.scroll.clone(),
+            body.finish(),
+            ScrollbarWidth::Auto,
+            theme.nonactive_ui_detail().into(),
+            theme.active_ui_detail().into(),
+            Fill::None,
+        )
+        .with_overlayed_scrollbar()
+        .finish();
+        EventHandler::new(
+            Container::new(
+                Flex::column()
+                    .with_spacing(12.)
+                    .with_child(header.finish())
+                    .with_child(Shrinkable::new(1.0, scroll).finish())
+                    .finish(),
+            )
+            .with_padding(Padding::uniform(12.))
+            .finish(),
+        )
+        .on_keydown(|ctx, _, key| {
+            if key.ctrl || key.alt || key.cmd || key.meta || key.shift {
+                return DispatchEventResult::PropagateToParent;
+            }
+            let action = match key.key.as_str() {
+                "right" | "enter" => Action::NextFixture,
+                "left" => Action::PreviousFixture,
+                "pageup" => Action::Scroll(-360.),
+                "pagedown" => Action::Scroll(360.),
+                "escape" => Action::Exit,
+                _ => return DispatchEventResult::PropagateToParent,
+            };
+            ctx.dispatch_typed_action(action);
+            DispatchEventResult::StopPropagation
+        })
+        .finish()
     }
+}
+
+#[cfg(debug_assertions)]
+fn checkpoint_draft(app: &warpui::App, window: warpui::WindowId) -> String {
+    let terminal = app
+        .views_of_type::<crate::terminal::TerminalView>(window)
+        .unwrap()[0]
+        .clone();
+    terminal.read(app, |terminal, ctx| {
+        terminal
+            .input()
+            .read(ctx, |input, ctx| input.buffer_text(ctx))
+    })
 }
 
 /// Captures only fixed fixtures in an isolated debug profile; never enables live operations.
@@ -186,7 +310,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             |app, window| {
                 warpui::async_assert!(app.views_of_type::<CollaborationPanel>(window).is_some())
             },
-        ));
+        ))
+        .with_step(
+            TestStep::new("seed unsent draft")
+                .with_typed_characters(&["unsent collaboration draft"])
+                .add_named_assertion("draft entered", |app, window| {
+                    warpui::async_assert!(
+                        checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        );
     let mut filenames = Vec::new();
     for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
         for width in [320, 600] {
@@ -227,6 +360,63 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }
         }
     }
+    driver = driver
+        .with_step(
+            TestStep::new("focus tools from keyboard action")
+                .with_action(|app, window, _| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(&WorkspaceAction::FocusRightPanel, ctx)
+                    });
+                })
+                .add_named_assertion("collaboration focused", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.is_self_or_child_focused(app)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        )
+        .with_step(
+            TestStep::new("right wraps preview state")
+                .with_keystrokes(&["right"])
+                .add_named_assertion("state advanced without changing draft", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.is_self_or_child_focused(app)
+                            && panel.read(app, |panel, _| panel.selected == 0)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        )
+        .with_step(
+            TestStep::new("enter advances preview state")
+                .with_keystrokes(&["enter"])
+                .add_named_assertion("enter belongs to panel", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.selected == 1)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        )
+        .with_step(
+            TestStep::new("escape restores terminal focus")
+                .with_keystrokes(&["escape"])
+                .add_named_assertion("terminal focused with original draft", |app, window| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    warpui::async_assert!(
+                        workspace.update(app, |workspace, ctx| workspace
+                            .active_tab_pane_group()
+                            .is_self_or_child_focused(ctx))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                }),
+        );
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

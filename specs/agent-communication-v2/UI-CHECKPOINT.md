@@ -23,6 +23,13 @@ state. Ordinary app launches do not enable the preview.
 - Verify preview entry and updates preserve the terminal draft and focus; keyboard navigation follows native controls.
 - Only enable live reads and controller actions after this checkpoint passes.
 
+Keyboard behavior uses the existing left/right panel focus actions according to
+Tools Panel placement. Explicitly focusing the collaboration panel enables
+Left/Right or Enter to change preview state, Page Up/Down to scroll, and Escape to
+return to the current terminal. Ordinary opening/refresh retains terminal focus.
+Provide native screen-reader state/help text. Keep the preview header/control
+outside the scrollable detail, and test that an unsent terminal draft survives.
+
 ## Fidelity ledger
 
 | Point | Reference | Implementation | Render evidence / status |

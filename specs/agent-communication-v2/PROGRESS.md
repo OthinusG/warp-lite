@@ -4,6 +4,13 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Native static panel keyboard/focus revision: pinned preview controls, native
+  screen-reader state/help, Left/Right/Enter navigation, Page Up/Down scrolling
+  and Escape return through existing Tools Panel focus actions. Ordinary opening
+  still retains terminal focus. The isolated GPU harness seeds an unsent draft
+  and checks focus, state changes and draft preservation. GitHub validation and
+  native runtime acceptance are pending; live wiring remains gated.
+
 - Source `c7033aa`, run `36939414552`: both OS full validation and packaging
   passed. Source `8ea58e2`, run `36942065295`: both OS full validation/packaging
   also passed with the repaired native capture driver. Signed debug artifact ran

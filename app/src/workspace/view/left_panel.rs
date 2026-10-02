@@ -1041,7 +1041,7 @@ impl View for LeftPanelView {
         // Focus the active tool panel view on-left-panel-focus.
         if focus_ctx.is_self_focused() {
             match self.active_view.get() {
-                ToolPanelView::Collaboration => {},
+                ToolPanelView::Collaboration => ctx.focus(&self.collaboration_view),
                 ToolPanelView::ProjectExplorer => {
                     if let Some(view) = self.active_file_tree_view(ctx) {
                         ctx.focus(&view);

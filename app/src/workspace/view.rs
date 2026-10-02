@@ -4893,9 +4893,33 @@ impl Workspace {
         });
     }
 
+    fn focus_tools_panel(&mut self, direction: PanelPosition, ctx: &mut ViewContext<Self>) -> bool {
+        if self.left_panel_view.is_self_or_child_focused(ctx) {
+            self.focus_active_tab(ctx);
+        } else {
+            let tools_on_left = TabSettings::as_ref(ctx)
+                .header_toolbar_chip_selection
+                .left_items()
+                .contains(&HeaderToolbarItemKind::ToolsPanel);
+            if !self.is_left_panel_open(ctx)
+                || !self.active_tab_pane_group().is_self_or_child_focused(ctx)
+                || tools_on_left != (direction == PanelPosition::Left)
+            {
+                return false;
+            }
+            ctx.focus(&self.left_panel_view);
+        }
+        self.update_pane_dimming_for_current_focus_region(ctx);
+        ctx.notify();
+        true
+    }
+
     /// This function shifts focus to the panel on the left.
     /// The current focusable panels are: Warp Drive, theme chooser, AI, and resource center (keyboard shortcuts page only)
     fn focus_left_panel(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.focus_tools_panel(PanelPosition::Left, ctx) {
+            return;
+        }
         // Starts from terminal
         if self.active_tab_pane_group().is_self_or_child_focused(ctx) {
             if self.current_workspace_state.is_warp_drive_open {
@@ -4947,6 +4971,9 @@ impl Workspace {
 
     /// This function shifts focus to the panel on the right.
     fn focus_right_panel(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.focus_tools_panel(PanelPosition::Right, ctx) {
+            return;
+        }
         // Starts from terminal
         if self.active_tab_pane_group().is_self_or_child_focused(ctx) {
             if self.current_workspace_state.is_ai_assistant_panel_open {
