@@ -1350,3 +1350,23 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
     );
     client.cancel().await.unwrap();
 }
+
+#[tokio::test]
+async fn remote_stdio_unavailable_is_one_clean_redacted_frame() {
+    // A fresh profile never reads or replaces the daily controller descriptor.
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+    command.arg("remote-stdio")
+        .env("WARP_DATA_PROFILE", format!("gateway-test-{}", Uuid::new_v4()))
+        .kill_on_drop(true);
+    let output = tokio::time::timeout(Duration::from_secs(10), command.output())
+        .await.unwrap().unwrap();
+    assert!(!output.status.success());
+    assert!(output.stdout.len() > 4 && output.stdout.len() <= 4096);
+    let size = u32::from_be_bytes(output.stdout[..4].try_into().unwrap()) as usize;
+    assert_eq!(output.stdout.len(), size + 4);
+    let frame: Value = serde_json::from_slice(&output.stdout[4..]).unwrap();
+    assert_eq!(frame["type"], "error");
+    assert_eq!(frame["error"]["code"], "coordinator_unavailable");
+    assert!(frame["error"]["retryable"].as_bool().unwrap());
+    assert!(!frame.to_string().contains("credential"));
+}
