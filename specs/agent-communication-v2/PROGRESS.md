@@ -7,7 +7,9 @@
 - Added explicit-clock sweep regression for forward/backward UTC jumps: no
   resurrection, duplicate deadline events, reassignment, lost attempts or replay
   start. Production still supplies current UTC; no system clock is modified.
-  Both-platform GitHub verification is pending.
+  Initial run `36949685579` caught a fixture unit error (database UTC is
+  milliseconds, not seconds). Jumps now derive milliseconds from Duration;
+  both-platform GitHub verification is pending.
 
 - Native static panel keyboard/focus revision: pinned preview controls, native
   screen-reader state/help, Left/Right/Enter navigation, Page Up/Down scrolling

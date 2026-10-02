@@ -6110,6 +6110,7 @@ mod tests {
         let issuer = actor(&store, "issuer");
         let worker = actor(&store, "worker");
         let baseline = now();
+        let day_ms = Duration::from_secs(24 * 60 * 60).as_millis() as u64;
         let queued = store
             .execute(
                 &issuer,
@@ -6142,14 +6143,14 @@ mod tests {
         assert_eq!(original.attempts.len(), 1);
 
         store
-            .sweep_at(&issuer.project, baseline.saturating_sub(86400))
+            .sweep_at(&issuer.project, baseline.saturating_sub(day_ms))
             .unwrap();
         assert_eq!(store.task(&issuer, queued_id).unwrap().state, "queued");
         assert_eq!(
             store.task(&issuer, running_id).unwrap().version,
             original.version
         );
-        store.sweep_at(&issuer.project, baseline + 86400).unwrap();
+        store.sweep_at(&issuer.project, baseline + day_ms).unwrap();
         let expired = store.task(&issuer, queued_id).unwrap();
         let overdue = store.task(&issuer, running_id).unwrap();
         assert_eq!(expired.state, "expired");
@@ -6160,7 +6161,7 @@ mod tests {
         let events = store.events(&issuer.project, None, Some(200)).unwrap();
 
         // Moving UTC back cannot undo a committed expiry or prove execution stopped.
-        for observed in [baseline.saturating_sub(86400), baseline + 172800, baseline] {
+        for observed in [baseline.saturating_sub(day_ms), baseline + 2 * day_ms, baseline] {
             store.sweep_at(&issuer.project, observed).unwrap();
             assert_eq!(
                 store.task(&issuer, queued_id).unwrap().version,
