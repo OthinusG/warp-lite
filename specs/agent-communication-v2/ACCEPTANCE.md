@@ -54,13 +54,13 @@ actual image review before the static UI checkpoint can pass.
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
 | M6.2 | No remote gateway/control endpoint | Pending |
 | M6.3 | Device APIs explicitly return feature_unavailable | Enrollment, secure credentials, grants and revocation pending |
-| M6.4 | Typed remote hello/result and bounded frame regressions passed both OS in run 36951069744; added golden/truncation checks pending | Device authentication, live heartbeat, durable spool and event resume pending |
+| M6.4 | Typed remote hello/result and bounded frame regressions passed both OS including golden/truncation checks in run 36951776747 | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
 | M6.7 | Local stale run, replay and crash fixtures only | Remote fault injection and reconciliation pending |
 | M7.1 | Both-OS protocol CI; default/platform checks and macOS review packaging | New Windows installer/portable validation added; complete source run pending; UI snapshots pending |
 | M7.2 | Native handshake records only | RC artifacts plus real installed-client task execution pending |
-| M7.3 | No eight-hour soak result | Eight-hour deterministic restart/history soak and real-model acceptance pending |
+| M7.3 | Opt-in two-phase eight-hour backend runner added; stdlib orchestration self-check and dry-run passed | Actual eight-hour backend result, native UI/draft soak and real-model acceptance pending |
 | M7.4 | PROGRESS, this ledger and MEMORY updated | Final shipped capability matrix, remote prerequisites and operating instructions await implementation |
 
 The user reported no available Windows SSH test machine or model-call budget.

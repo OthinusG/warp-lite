@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Added opt-in eight-hour deterministic backend soak orchestration: two
+  sequential four-hour phases per OS, matching source/OS/duration, compilation
+  excluded, metadata-only atomic reports and failure/timeout handling. Local
+  stdlib self-check (mocked child/clock, no Rust) passed continuity, short-run
+  labeling and failure cases; dry-run passed. Actual soak remains pending and
+  does not stand in for a native UI/draft or real-model run.
+- Source `8a5c9e1`, run `36951776747`: both OS complete protocol/migration/history
+  suites passed, including fixed hello bytes, feature intersection and truncation.
+
 - SSH startup/negotiation source `dd4425f`, run `36951069744`: both OS complete
   protocol/migration/history suites passed, including real system `ssh -G` and
   hello/partial-frame checks. Windows first failed the probe while its disposable

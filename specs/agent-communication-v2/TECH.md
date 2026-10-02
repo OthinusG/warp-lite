@@ -217,6 +217,14 @@ M0 uses disposable fixture repositories and narrowly authorized model prompts wi
 
 ### Commands and artifacts
 
+The opt-in `soak` validation input runs the deterministic backend workload on
+each OS in two sequential four-hour jobs. Compile before starting each monotonic
+timer. The second phase requires a successful report with identical source, OS
+and duration. Reports contain only source/check names, elapsed time and status;
+short smoke runs cannot claim eight-hour acceptance. This workload repeats the
+existing IPC/reconnect/restart/replay checks and representative-history benchmark;
+long-running native UI/draft and real-model acceptance remain separate gates.
+
 Run on GitHub: `cargo test -p warp-agent-bus --locked`; `cargo check -p warp --bin warp-oss --locked`; the same check with `--features warp_platform`; focused `cargo test -p warp --lib <test> --locked` entries for setup/wake/panel behavior. Extend existing workflows with migration, concurrency and remote process fixtures, then build using the existing macOS/Windows packaging scripts. No local Rust compilation.
 
 Each acceptance record contains source commit, artifact identity, OS, CLI versions, scenario, expected/observed transitions, pass/fail and sanitized supporting evidence. Store reproducible harnesses in the repository and private runtime outputs outside source. UI evidence includes screenshots tied to fixture states; real-model evidence includes resulting fixture commits/tests and task transitions. Add records to the v1 coverage file only when behavior actually ships; keep proposals here.
