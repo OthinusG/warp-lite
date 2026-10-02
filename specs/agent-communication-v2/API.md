@@ -461,3 +461,19 @@ converts reconnect/heartbeat into restored execution authority. Original committ
 receipts remain queryable; unresolved effects require explicit recovery before
 continuation. Host access sweeps expired/revoked leases and disconnect/shutdown
 cleanup uses the same exact-run storage transition.
+
+
+### Scoped remote snapshot and confirmed cursors
+
+Authenticated `snapshot` carries space UUID, optional record cursor, optional
+original `expected_sequence` and bounded limit. It reuses ordered history export
+under the broker mutex and returns records/cursor plus a high-water sequence.
+Continuation pages require that original sequence; any intervening mutation yields
+`cursor_expired` and requires restarting the scoped snapshot. Future/out-of-range
+event cursors are also rejected instead of silently skipping later changes.
+
+`cursor_ack` persists only a confirmed sequence for the authenticated device and
+granted space. It cannot advance beyond coordinator high-water or move backwards.
+Grant/generation checks precede reading/updating cursor rows. These read projections
+and cursor metadata are not task ownership or execution authority; no automatic
+replay, compaction or remote terminal wake is introduced.

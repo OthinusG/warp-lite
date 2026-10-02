@@ -223,6 +223,81 @@ impl Store {
                 .optional()?,
         )
     }
+    pub(crate) fn remote_events(
+        &self,
+        principal: &RemotePrincipal,
+        space: &str,
+        after: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        self.authorize_remote(principal, space, false)?;
+        let project = format!("space:{space}");
+        let high_water = self.history_sequence(&project)?;
+        ensure!(
+            after.is_none_or(|after| after <= high_water),
+            crate::domain(
+                "cursor_expired",
+                "Refresh the scoped snapshot before resuming events",
+                false,
+                None
+            )
+        );
+        let mut page = self.events(&project, after, limit)?;
+        page["high_water"] = json!(high_water);
+        Ok(page)
+    }
+
+    pub(crate) fn remote_snapshot(
+        &self,
+        principal: &RemotePrincipal,
+        space: &str,
+        after: Option<u64>,
+        expected_sequence: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        self.authorize_remote(principal, space, false)?;
+        let project = format!("space:{space}");
+        let high_water = self.history_sequence(&project)?;
+        ensure!(
+            after.is_none_or(|after| after <= high_water)
+                && (after.is_none() || expected_sequence.is_some())
+                && expected_sequence.is_none_or(|expected| expected == high_water),
+            crate::domain(
+                "cursor_expired",
+                "Snapshot changed; restart the scoped snapshot",
+                false,
+                None
+            )
+        );
+        let mut page = self.history_export(&project, after, limit)?;
+        page["high_water"] = json!(high_water);
+        Ok(page)
+    }
+
+    pub(crate) fn acknowledge_remote_cursor(
+        &self,
+        principal: &RemotePrincipal,
+        space: &str,
+        sequence: u64,
+    ) -> Result<Value> {
+        self.authorize_remote(principal, space, false)?;
+        let high_water = self.history_sequence(&format!("space:{space}"))?;
+        ensure!(
+            sequence <= high_water,
+            invalid_input("Confirm only a received coordinator sequence")
+        );
+        let prior = self.count("SELECT COALESCE(MAX(sequence),0) AS count FROM cursors WHERE device_id=? AND space_id=?", &[&principal.device, space])? as u64;
+        ensure!(
+            sequence >= prior,
+            invalid_input("Confirmed event cursor cannot move backwards")
+        );
+        self.budget_available()?;
+        diesel::sql_query("INSERT INTO cursors(device_id,space_id,sequence) VALUES (?,?,?) ON CONFLICT(device_id,space_id) DO UPDATE SET sequence=excluded.sequence")
+            .bind::<Text,_>(&principal.device).bind::<Text,_>(space)
+            .bind::<BigInt,_>(sequence as i64).execute(&mut *self.connection.borrow_mut())?;
+        Ok(json!({"sequence":sequence,"high_water":high_water}))
+    }
+
     pub(super) fn update_device_grant(
         &self,
         project: &str,
@@ -274,6 +349,10 @@ impl Store {
                 .bind::<Text,_>(device).bind::<Text,_>(space).bind::<Text,_>(mode)
                 .execute(&mut *self.connection.borrow_mut())?;
         } else {
+            diesel::sql_query("DELETE FROM cursors WHERE device_id=? AND space_id=?")
+                .bind::<Text, _>(device)
+                .bind::<Text, _>(space)
+                .execute(&mut *self.connection.borrow_mut())?;
             diesel::sql_query("DELETE FROM device_spaces WHERE device_id=? AND space_id=?")
                 .bind::<Text, _>(device)
                 .bind::<Text, _>(space)
@@ -367,6 +446,117 @@ mod tests {
     fn id() -> String {
         Uuid::new_v4().to_string()
     }
+    #[test]
+    fn remote_snapshot_fences_changed_pages_and_confirms_only_received_space_cursors() {
+        let store = Store::open(":memory:").unwrap();
+        let space = store
+            .execute_controller(
+                "/private",
+                &ControllerOperation::SpaceCreate {
+                    name: "Cursor review".into(),
+                    request_id: id(),
+                },
+            )
+            .unwrap()["space_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let invitation = store
+            .execute_controller(
+                "/private",
+                &ControllerOperation::InvitationCreate {
+                    space_ids: vec![space.clone()],
+                    ttl_seconds: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        let enrolled = store
+            .enroll_remote(invitation["invitation"].as_str().unwrap(), "Participant")
+            .unwrap();
+        let principal = store
+            .authenticate_remote(enrolled["credential"].as_str().unwrap())
+            .unwrap();
+        let first = store
+            .remote_snapshot(&principal, &space, None, None, Some(2))
+            .unwrap();
+        let original_sequence = first["high_water"].as_u64().unwrap();
+        store
+            .acknowledge_remote_cursor(&principal, &space, original_sequence)
+            .unwrap();
+        assert!(store
+            .remote_events(&principal, &space, Some(u64::MAX), None)
+            .is_err());
+        store
+            .map_remote_workspace(
+                &principal,
+                Uuid::parse_str(&space).unwrap(),
+                Uuid::new_v4(),
+                "Participant metadata",
+                None,
+            )
+            .unwrap();
+        assert!(store
+            .remote_snapshot(&principal, &space, Some(0), Some(original_sequence), None)
+            .is_err());
+        assert!(store
+            .remote_snapshot(&principal, &space, Some(0), None, None)
+            .is_err());
+        let fresh = store
+            .remote_snapshot(&principal, &space, None, None, Some(2))
+            .unwrap();
+        let sequence = fresh["high_water"].as_u64().unwrap();
+        assert!(sequence > original_sequence);
+        assert!(!fresh["records"].as_array().unwrap().is_empty());
+        let events = store
+            .remote_events(&principal, &space, Some(original_sequence), Some(2))
+            .unwrap();
+        assert_eq!(events["high_water"], sequence);
+        assert!(!events["events"].as_array().unwrap().is_empty());
+        assert!(store
+            .acknowledge_remote_cursor(&principal, &space, sequence + 1)
+            .is_err());
+        store
+            .acknowledge_remote_cursor(&principal, &space, sequence)
+            .unwrap();
+        store
+            .acknowledge_remote_cursor(&principal, &space, sequence)
+            .unwrap();
+        assert!(store
+            .acknowledge_remote_cursor(&principal, &space, original_sequence)
+            .is_err());
+        assert!(store
+            .remote_snapshot(&principal, &id(), None, None, None)
+            .is_err());
+        store
+            .execute_controller(
+                "/private",
+                &ControllerOperation::DeviceGrantUpdate {
+                    device_id: principal.device.clone(),
+                    expected_generation: principal.generation,
+                    space_id: space.clone(),
+                    mode: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        assert!(store
+            .acknowledge_remote_cursor(&principal, &space, sequence)
+            .is_err());
+        assert!(store
+            .remote_snapshot(&principal, &space, None, None, None)
+            .is_err());
+        assert_eq!(
+            store
+                .count(
+                    "SELECT COUNT(*) AS count FROM cursors WHERE device_id=?",
+                    &[&principal.device]
+                )
+                .unwrap(),
+            0
+        );
+    }
+
     #[test]
     fn reviewed_grant_updates_fence_old_connections_and_preserve_original_receipts() {
         let store = Store::open(":memory:").unwrap();

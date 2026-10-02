@@ -152,6 +152,30 @@ pub enum AuthenticationFrame {
         mutation_epoch: Uuid,
         result: serde_json::Value,
     },
+    Snapshot {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        space_id: Uuid,
+        after: Option<u64>,
+        expected_sequence: Option<u64>,
+        limit: Option<u32>,
+    },
+    SnapshotResult {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        result: serde_json::Value,
+    },
+    CursorAck {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        space_id: Uuid,
+        sequence: u64,
+    },
+    CursorAckResult {
+        connection_epoch: Uuid,
+        frame_id: Uuid,
+        result: serde_json::Value,
+    },
     Events {
         connection_epoch: Uuid,
         frame_id: Uuid,
@@ -642,6 +666,60 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     result,
                 }
             }
+            AuthenticationFrame::Snapshot {
+                connection_epoch,
+                frame_id,
+                space_id,
+                after,
+                expected_sequence,
+                limit,
+            } => {
+                ensure!(
+                    connection_epoch == epoch && !frame_id.is_nil(),
+                    invalid_input("Invalid snapshot correlation")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before snapshot"))?;
+                let state = active(broker, owner)?;
+                let result = state.store.remote_snapshot(
+                    principal,
+                    &space_id.to_string(),
+                    after,
+                    expected_sequence,
+                    limit,
+                )?;
+                AuthenticationFrame::SnapshotResult {
+                    connection_epoch: epoch,
+                    frame_id,
+                    result,
+                }
+            }
+            AuthenticationFrame::CursorAck {
+                connection_epoch,
+                frame_id,
+                space_id,
+                sequence,
+            } => {
+                ensure!(
+                    connection_epoch == epoch && !frame_id.is_nil(),
+                    invalid_input("Invalid cursor confirmation correlation")
+                );
+                let principal = principal
+                    .as_ref()
+                    .ok_or_else(|| crate::unauthorized("Authenticate before confirming cursor"))?;
+                let state = active(broker, owner)?;
+                let result = state.store.acknowledge_remote_cursor(
+                    principal,
+                    &space_id.to_string(),
+                    sequence,
+                )?;
+                AuthenticationFrame::CursorAckResult {
+                    connection_epoch: epoch,
+                    frame_id,
+                    result,
+                }
+            }
             AuthenticationFrame::Events {
                 connection_epoch,
                 frame_id,
@@ -657,12 +735,10 @@ async fn session_inner<S: AsyncRead + AsyncWrite + Unpin>(
                     .as_ref()
                     .ok_or_else(|| crate::unauthorized("Authenticate before using this channel"))?;
                 let state = active(broker, owner)?;
-                state
-                    .store
-                    .authorize_remote(principal, &space_id.to_string(), false)?;
-                let result = state
-                    .store
-                    .events(&format!("space:{space_id}"), after, limit)?;
+                let result =
+                    state
+                        .store
+                        .remote_events(principal, &space_id.to_string(), after, limit)?;
                 AuthenticationFrame::EventsResult {
                     connection_epoch: epoch,
                     frame_id,
@@ -1295,6 +1371,25 @@ mod tests {
             };
             assert_eq!(result["events"].as_array().unwrap().len(), 2);
             assert!(result["cursor"].as_u64().is_some());
+            let confirmed_sequence = result["cursor"].as_u64().unwrap();
+            send(&mut client, &AuthenticationFrame::Snapshot {
+                connection_epoch, frame_id: Uuid::new_v4(), space_id: Uuid::parse_str(&space).unwrap(),
+                after: None, expected_sequence: None, limit: Some(2),
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::SnapshotResult { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected authorized scoped snapshot") };
+            assert_eq!(result["records"].as_array().unwrap().len(), 2);
+            assert!(result["high_water"].as_u64().unwrap() >= confirmed_sequence);
+            send(&mut client, &AuthenticationFrame::CursorAck {
+                connection_epoch, frame_id: Uuid::new_v4(), space_id: Uuid::parse_str(&space).unwrap(),
+                sequence: confirmed_sequence,
+            }, Instant::now() + DEADLINE).await.unwrap();
+            let AuthenticationFrame::CursorAckResult { result, .. } =
+                receive(&mut client, Instant::now() + DEADLINE).await.unwrap()
+                else { panic!("Expected confirmed scoped cursor") };
+            assert_eq!(result["sequence"], confirmed_sequence);
+
             server
                 .broker
                 .control(

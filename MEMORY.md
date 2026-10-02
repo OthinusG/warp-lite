@@ -247,3 +247,5 @@
 - Device grant review is a trusted local controller mutation pinned to the original generation. Every read/write/removal change increments generation atomically with the grant/audit, fencing live sessions before replay while preserving tasks and execution uncertainty. DeviceList keeps compatible space_ids and exposes explicit roles; remote MCP/gateway operations cannot edit grants.
 
 - Remote disconnect/lease loss must persist unknown certainty for active attempts of the exact actor/epoch, with one audit/version change and no finished timestamp or task outcome. Online projection alone is insufficient. Reuse this transition for lease expiry, session cleanup and controller shutdown; a heartbeat cannot restore execution authority or erase the original uncertainty.
+
+- Remote snapshots reuse bounded history export with an original high-water fence across pages; concurrent changes require a fresh scoped snapshot. Confirmed device/space cursors cannot exceed coordinator high-water or move backwards. Grant removal clears that scoped cursor, and current authorization precedes every snapshot/event/cursor read or write.

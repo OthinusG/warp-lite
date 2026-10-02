@@ -219,6 +219,7 @@ fn remote_error(error: crate::DomainError) -> anyhow::Error {
         | "version_conflict"
         | "reservation_conflict"
         | "dependency_blocked"
+        | "cursor_expired"
         | "dependency_cycle" => error.code.as_str(),
         _ => {
             return crate::domain(
@@ -667,33 +668,108 @@ impl Connection {
         after: Option<u64>,
         limit: Option<u32>,
     ) -> Result<serde_json::Value> {
+        self.projection_request(
+            crate::transport::remote_control::AuthenticationFrame::Events {
+                connection_epoch: self.connection_epoch,
+                frame_id: uuid::Uuid::new_v4(),
+                space_id: space,
+                after,
+                limit,
+            },
+        )
+        .await
+    }
+
+    pub async fn snapshot(
+        &mut self,
+        space: uuid::Uuid,
+        after: Option<u64>,
+        expected_sequence: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<serde_json::Value> {
+        self.projection_request(
+            crate::transport::remote_control::AuthenticationFrame::Snapshot {
+                connection_epoch: self.connection_epoch,
+                frame_id: uuid::Uuid::new_v4(),
+                space_id: space,
+                after,
+                expected_sequence,
+                limit,
+            },
+        )
+        .await
+    }
+
+    pub async fn acknowledge_cursor(
+        &mut self,
+        space: uuid::Uuid,
+        sequence: u64,
+    ) -> Result<serde_json::Value> {
+        self.projection_request(
+            crate::transport::remote_control::AuthenticationFrame::CursorAck {
+                connection_epoch: self.connection_epoch,
+                frame_id: uuid::Uuid::new_v4(),
+                space_id: space,
+                sequence,
+            },
+        )
+        .await
+    }
+
+    async fn projection_request(
+        &mut self,
+        request: crate::transport::remote_control::AuthenticationFrame,
+    ) -> Result<serde_json::Value> {
         use crate::transport::remote_control::AuthenticationFrame;
+        let (space, frame_id) = match &request {
+            AuthenticationFrame::Events {
+                space_id, frame_id, ..
+            }
+            | AuthenticationFrame::Snapshot {
+                space_id, frame_id, ..
+            }
+            | AuthenticationFrame::CursorAck {
+                space_id, frame_id, ..
+            } => (*space_id, *frame_id),
+            _ => return Err(invalid_input("Unexpected projection request")),
+        };
         ensure!(
             self.principal
                 .as_ref()
                 .is_some_and(|(_, _, spaces)| spaces.contains(&space)),
             crate::scope_denied("Authenticate with a grant for this space")
         );
-        let frame_id = uuid::Uuid::new_v4();
-        let AuthenticationFrame::EventsResult {
-            connection_epoch,
-            frame_id: received_id,
-            result,
-        } = self
-            .exchange(&AuthenticationFrame::Events {
-                connection_epoch: self.connection_epoch,
-                frame_id,
-                space_id: space,
-                after,
-                limit,
-            })
-            .await?
-        else {
-            return Err(invalid_input("Unexpected event response"));
+        let response = self.exchange(&request).await?;
+        let (connection_epoch, received_id, result) = match (request, response) {
+            (
+                AuthenticationFrame::Events { .. },
+                AuthenticationFrame::EventsResult {
+                    connection_epoch,
+                    frame_id,
+                    result,
+                },
+            )
+            | (
+                AuthenticationFrame::Snapshot { .. },
+                AuthenticationFrame::SnapshotResult {
+                    connection_epoch,
+                    frame_id,
+                    result,
+                },
+            )
+            | (
+                AuthenticationFrame::CursorAck { .. },
+                AuthenticationFrame::CursorAckResult {
+                    connection_epoch,
+                    frame_id,
+                    result,
+                },
+            ) => (connection_epoch, frame_id, result),
+            _ => return Err(invalid_input("Unexpected projection response")),
         };
         ensure!(
             connection_epoch == self.connection_epoch && received_id == frame_id,
-            invalid_input("Event response does not match the original request")
+            invalid_input("Projection response does not match the original request")
         );
         Ok(result)
     }

@@ -300,6 +300,12 @@ while True:
         send(dict(type='reconciled', connection_epoch=epoch, frame_id=frame['frame_id'],
                   mutation_epoch=frame['mutation_epoch'], result=dict(status='committed',
                   result=dict(operation=frame['operation']))))
+    elif frame['type'] == 'snapshot':
+        send(dict(type='snapshot_result', connection_epoch=epoch, frame_id=frame['frame_id'],
+                  result=dict(records=[], cursor=None, high_water=42)))
+    elif frame['type'] == 'cursor_ack':
+        send(dict(type='cursor_ack_result', connection_epoch=epoch, frame_id=frame['frame_id'],
+                  result=dict(sequence=frame['sequence'], high_water=42)))
     elif frame['type'] == 'events':
         send(dict(type='events_result', connection_epoch=epoch, frame_id=frame['frame_id'],
                   result=dict(events=[], cursor=frame.get('after'))))
@@ -398,6 +404,25 @@ while True:
         );
         assert!(connection
             .events(uuid::Uuid::new_v4(), None, None)
+            .await
+            .is_err());
+        assert_eq!(
+            connection
+                .snapshot(space, None, None, Some(2))
+                .await
+                .unwrap()["high_water"],
+            42
+        );
+        assert_eq!(
+            connection.acknowledge_cursor(space, 42).await.unwrap()["sequence"],
+            42
+        );
+        assert!(connection
+            .snapshot(uuid::Uuid::new_v4(), None, None, None)
+            .await
+            .is_err());
+        assert!(connection
+            .acknowledge_cursor(uuid::Uuid::new_v4(), 42)
             .await
             .is_err());
         let mut foreign = actor.clone();
