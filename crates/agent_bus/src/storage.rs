@@ -3310,6 +3310,11 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::RemoteWorkspaceMap { device_id, expected_generation, space_id, checkout_id, label, repository_id, .. } => {
+                let principal = RemotePrincipal { device: device_id.to_string(), generation: *expected_generation };
+                let workspace = self.map_remote_workspace_in_transaction(&principal, *space_id, *checkout_id, label, *repository_id)?;
+                Ok(json!({"workspace_id": workspace.id, "device_id": workspace.device, "space_id": workspace.space, "checkout_id": workspace.checkout}))
+            }
             ControllerOperation::ReservationUpdate { reservation_id, workspace, expected_owner, expected_expires_at, ttl_seconds, reason, .. } => {
                 text(reason)?;
                 let row = self.reservation_row(workspace, reservation_id)?;

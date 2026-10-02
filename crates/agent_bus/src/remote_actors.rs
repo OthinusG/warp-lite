@@ -49,6 +49,19 @@ impl Store {
         label: &str,
         repository: Option<Uuid>,
     ) -> Result<RemoteWorkspace> {
+        self.transaction(|| {
+            self.map_remote_workspace_in_transaction(principal, space, checkout, label, repository)
+        })
+    }
+
+    pub(super) fn map_remote_workspace_in_transaction(
+        &self,
+        principal: &RemotePrincipal,
+        space: Uuid,
+        checkout: Uuid,
+        label: &str,
+        repository: Option<Uuid>,
+    ) -> Result<RemoteWorkspace> {
         ensure!(
             !space.is_nil() && !checkout.is_nil() && repository.is_none_or(|id| !id.is_nil()),
             invalid_input("Workspace identities must be non-nil UUIDs")
@@ -60,26 +73,49 @@ impl Store {
         let space = space.to_string();
         let checkout = checkout.to_string();
         self.authorize_remote(principal, &space, true)?;
-        self.transaction(|| {
-            self.budget_available()?;
-            let prior = diesel::sql_query("SELECT id AS value FROM remote_workspaces WHERE device=? AND checkout=?")
-                .bind::<Text, _>(&principal.device).bind::<Text, _>(&checkout)
-                .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
-            ensure!(prior.is_some() || self.count("SELECT COUNT(*) AS count FROM remote_workspaces", &[])? < 1000,
-                capacity_exceeded("Remote workspace capacity reached"));
-            let id = prior.map(|row| row.value).unwrap_or_else(|| Uuid::new_v4().to_string());
-            let actors = diesel::sql_query(format!("SELECT {BINDING} FROM remote_actor_bindings WHERE workspace_id=? AND space_id!=?"))
-                .bind::<Text, _>(&id).bind::<Text, _>(&space)
-                .load::<Binding>(&mut *self.connection.borrow_mut())?;
-            for actor in actors { self.revoke_remote_actor(&actor.agent, &actor.space_id)?; }
-            diesel::sql_query("INSERT INTO remote_workspaces(id,device,space_id,checkout,label,repository_id,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(device,checkout) DO UPDATE SET space_id=excluded.space_id,label=excluded.label,repository_id=excluded.repository_id")
+        self.budget_available()?;
+        let prior = diesel::sql_query(
+            "SELECT id AS value FROM remote_workspaces WHERE device=? AND checkout=?",
+        )
+        .bind::<Text, _>(&principal.device)
+        .bind::<Text, _>(&checkout)
+        .get_result::<ValueRow>(&mut *self.connection.borrow_mut())
+        .optional()?;
+        ensure!(
+            prior.is_some()
+                || self.count("SELECT COUNT(*) AS count FROM remote_workspaces", &[])? < 1000,
+            capacity_exceeded("Remote workspace capacity reached")
+        );
+        let id = prior
+            .map(|row| row.value)
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        let actors = diesel::sql_query(format!(
+            "SELECT {BINDING} FROM remote_actor_bindings WHERE workspace_id=? AND space_id!=?"
+        ))
+        .bind::<Text, _>(&id)
+        .bind::<Text, _>(&space)
+        .load::<Binding>(&mut *self.connection.borrow_mut())?;
+        for actor in actors {
+            self.revoke_remote_actor(&actor.agent, &actor.space_id)?;
+        }
+        diesel::sql_query("INSERT INTO remote_workspaces(id,device,space_id,checkout,label,repository_id,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(device,checkout) DO UPDATE SET space_id=excluded.space_id,label=excluded.label,repository_id=excluded.repository_id")
                 .bind::<Text, _>(&id).bind::<Text, _>(&principal.device).bind::<Text, _>(&space)
                 .bind::<Text, _>(&checkout).bind::<Text, _>(label)
                 .bind::<Nullable<Text>, _>(repository.map(|id| id.to_string()))
                 .bind::<BigInt, _>(now() as i64).execute(&mut *self.connection.borrow_mut())?;
-            self.record(&format!("space:{space}"), "remote_workspace_mapped", &principal.device,
-                Some(&id), None, json!({"device_id":principal.device,"workspace_id":id,"checkout_id":checkout}))?;
-            Ok(RemoteWorkspace { id, device: principal.device.clone(), space, checkout })
+        self.record(
+            &format!("space:{space}"),
+            "remote_workspace_mapped",
+            &principal.device,
+            Some(&id),
+            None,
+            json!({"device_id":principal.device,"workspace_id":id,"checkout_id":checkout}),
+        )?;
+        Ok(RemoteWorkspace {
+            id,
+            device: principal.device.clone(),
+            space,
+            checkout,
         })
     }
 
@@ -285,6 +321,63 @@ mod tests {
             ttl_seconds: None,
             request_id: id(),
         }
+    }
+
+    #[test]
+    fn reviewed_controller_mapping_replays_without_nested_transactions() {
+        let store = Store::open(":memory:").unwrap();
+        let space = space(&store);
+        let principal = device(&store, &[space]);
+        let device_id = Uuid::parse_str(&principal.device).unwrap();
+        let checkout_id = Uuid::new_v4();
+        let request_id = id();
+        let intent =
+            |generation, label: &str, request_id: String| ControllerOperation::RemoteWorkspaceMap {
+                device_id,
+                expected_generation: generation,
+                space_id: space,
+                checkout_id,
+                label: label.into(),
+                repository_id: None,
+                request_id,
+            };
+        let operation = intent(
+            principal.generation,
+            "/participant-only/not-opened",
+            request_id.clone(),
+        );
+        let result = store
+            .execute_controller("/coordinator", &operation)
+            .unwrap();
+        assert_eq!(result["device_id"], principal.device);
+        assert_eq!(result["checkout_id"], checkout_id.to_string());
+        assert_eq!(
+            store
+                .execute_controller("/coordinator", &operation)
+                .unwrap(),
+            result
+        );
+        assert!(store
+            .execute_controller(
+                "/coordinator",
+                &intent(principal.generation + 1, "Changed generation", id())
+            )
+            .is_err());
+        assert!(store
+            .execute_controller(
+                "/coordinator",
+                &intent(principal.generation, "Changed intent", request_id)
+            )
+            .is_err());
+        assert_eq!(
+            store
+                .count(
+                    "SELECT COUNT(*) AS count FROM remote_workspaces WHERE device = ?",
+                    &[&principal.device]
+                )
+                .unwrap(),
+            1
+        );
     }
 
     #[test]

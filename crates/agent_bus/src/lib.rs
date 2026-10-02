@@ -15,6 +15,7 @@ use std::{fmt, path::Path, time::Duration};
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 pub const MAX_FRAME: usize = 1024 * 1024;
 pub(crate) const MAX_TEXT: usize = 8192;
@@ -558,6 +559,15 @@ pub enum ControllerOperation {
         acknowledged_messages: bool,
         request_id: String,
     },
+    RemoteWorkspaceMap {
+        device_id: Uuid,
+        expected_generation: u64,
+        space_id: Uuid,
+        checkout_id: Uuid,
+        label: String,
+        repository_id: Option<Uuid>,
+        request_id: String,
+    },
     ReservationUpdate {
         reservation_id: String,
         workspace: String,
@@ -594,6 +604,7 @@ impl ControllerOperation {
             | Self::ArchiveAged { request_id, .. }
             | Self::HistoryPurge { request_id, .. }
             | Self::ReservationUpdate { request_id, .. }
+            | Self::RemoteWorkspaceMap { request_id, .. }
             | Self::InvitationCreate { request_id, .. }
             | Self::DeviceRevoke { request_id, .. } => Some(request_id),
             _ => None,

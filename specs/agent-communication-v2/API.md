@@ -377,3 +377,10 @@ current read grants. Replies keep the connection/correlation epoch separate from
 the original mutation epoch. Unknown transport outcomes require original-intent
 reconciliation rather than fresh request IDs. Production application opt-in and
 participant persistence/wake remain separate unfinished gates.
+
+Trusted controller `RemoteWorkspaceMap` reviews device UUID and current generation,
+space UUID, device-local checkout UUID, display label and optional repository UUID.
+It returns the device-qualified mapping without opening the participant path.
+Generation/grants are checked inside the same request-ledger transaction; replay
+returns the original mapping receipt and remapping cannot revive old native runs.
+This is a host operator API, never an agent operation or remote frame.
