@@ -374,7 +374,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .add_named_assertion("collaboration focused", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
-                        panel.is_self_or_child_focused(app)
+                        app.update(|ctx| panel.is_self_or_child_focused(ctx))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 }),
@@ -385,7 +385,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .add_named_assertion("state advanced without changing draft", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
-                        panel.is_self_or_child_focused(app)
+                        app.update(|ctx| panel.is_self_or_child_focused(ctx))
                             && panel.read(app, |panel, _| panel.selected == 0)
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
