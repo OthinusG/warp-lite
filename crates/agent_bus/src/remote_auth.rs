@@ -181,6 +181,40 @@ impl Store {
         Ok(())
     }
 
+    pub(crate) fn invalidate_remote_sessions(&self) -> Result<()> {
+        ensure!(
+            self.count(
+                "SELECT COUNT(*) AS count FROM devices WHERE generation=9223372036854775807",
+                &[]
+            )? == 0,
+            invalid_state("Device generation exhausted")
+        );
+        diesel::sql_query("UPDATE devices SET generation=generation+1 WHERE revoked=0")
+            .execute(&mut *self.connection.borrow_mut())?;
+        Ok(())
+    }
+
+    pub(crate) fn remote_grants(&self, principal: &RemotePrincipal) -> Result<Vec<Uuid>> {
+        let rows = diesel::sql_query(
+            "SELECT space_id AS value FROM device_spaces WHERE device_id=? ORDER BY space_id",
+        )
+        .bind::<Text, _>(&principal.device)
+        .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        let mut spaces = Vec::new();
+        for row in rows {
+            self.authorize_remote(principal, &row.value, false)?;
+            spaces.push(
+                Uuid::parse_str(&row.value)
+                    .map_err(|_| invalid_state("Device grants unavailable"))?,
+            );
+        }
+        ensure!(
+            !spaces.is_empty(),
+            scope_denied("Device has no granted spaces")
+        );
+        Ok(spaces)
+    }
+
     fn device_row(&self, id: &str) -> Result<Option<DeviceRow>> {
         Ok(
             diesel::sql_query("SELECT id,name,verifier,generation,revoked FROM devices WHERE id=?")

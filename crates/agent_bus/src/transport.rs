@@ -26,6 +26,10 @@ pub(crate) mod windows_pipe;
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
+
+#[cfg(any(target_os = "macos", windows))]
+#[path = "remote_control.rs"]
+pub mod remote_control;
 use crate::readiness::{Activity, Draft};
 
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
@@ -100,6 +104,8 @@ struct State {
     store: Store,
     terminals: HashMap<String, Terminal>,
     programs: Option<HashSet<String>>,
+    remote_active: bool,
+    remote_owner: Option<Uuid>,
 }
 struct Shared {
     state: Mutex<State>,
@@ -112,6 +118,7 @@ struct Shared {
 pub struct Broker {
     shared: Arc<Shared>,
     pub endpoint: String,
+    runtime: tokio::runtime::Handle,
 }
 /// Live native MCP bindings in a single project.
 #[derive(Clone)]
@@ -175,6 +182,8 @@ impl RunningBroker {
                 store,
                 terminals: HashMap::new(),
                 programs: None,
+                remote_active: false,
+                remote_owner: None,
             }),
             changed: Condvar::new(),
             stopped: AtomicBool::new(false),
@@ -184,6 +193,7 @@ impl RunningBroker {
         let broker = Broker {
             shared: shared.clone(),
             endpoint,
+            runtime: runtime.handle().clone(),
         };
         let server = broker.clone();
         #[cfg(windows)]

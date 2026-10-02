@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 #[path = "remote_auth.rs"]
 mod remote_auth;
+pub(crate) use remote_auth::RemotePrincipal;
 
 pub(crate) const SCHEMA_VERSION: &str = "5";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
@@ -732,6 +733,20 @@ impl Store {
             .get_result::<AgentRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(AgentRow::agent))
+    }
+
+    pub(crate) fn coordinator_id(&self) -> Result<Uuid> {
+        self.transaction(|| {
+            let existing = diesel::sql_query("SELECT value FROM meta WHERE key='coordinator_id'")
+                .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
+            if let Some(existing) = existing {
+                return Uuid::parse_str(&existing.value).map_err(|_| invalid_state("Coordinator identity is unavailable"));
+            }
+            let id = Uuid::new_v4();
+            diesel::sql_query("INSERT INTO meta(key,value) VALUES ('coordinator_id',?)")
+                .bind::<Text, _>(id.to_string()).execute(&mut *self.connection.borrow_mut())?;
+            Ok(id)
+        })
     }
 
     pub(crate) fn workspace_binding(&self, id: &str) -> Result<WorkspaceBinding> {

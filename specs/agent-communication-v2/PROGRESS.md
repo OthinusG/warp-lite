@@ -4,6 +4,16 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `fc603e4`, run `36959995622`: macOS and Windows protocol validation
+  passed, including the Windows kernel DACL/current-user connection check.
+- Source `1267827`, capture run `36958662888`: macOS native capture passed;
+  Windows failed in wgpu initialization (`wgpu_core.rs:2653:18`) after runtime
+  DLL staging. Windows static acceptance remains pending; no live panel is enabled.
+- Added an explicitly started enrollment controller, bounded private discovery,
+  fixed remote-stdio relay and a real IPC enrollment/authentication/heartbeat/
+  revocation/disable/restart check. This is an enrollment-only implementation;
+  remote actor/task dispatch and production UI remain pending. Rust CI pending.
+
 - Windows pipe source `78f5cce`, run `36959439468`: macOS backend passed; Windows
   compiled and passed existing unit checks, but the ACL regression assumed SDDL
   always renders a numeric SID. Well-known accounts use aliases. Inspect and

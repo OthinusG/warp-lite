@@ -193,3 +193,5 @@
 - Remote invitation retries must persist only the safe receipt, not the raw one-time invitation. Replay cannot redisplay the secret. Enrollment uses OS-random 256-bit credentials, SHA-256 verifiers and locked subtle constant-time comparison; participant persistence must use the existing platform secure storage when gateway wiring lands.
 
 - Windows named-pipe defaults include Everyone/Anonymous read access. Native/control listeners should use a protected current-user SID DACL, reject network clients and disallow handle inheritance; inspect the actual kernel DACL in Windows CI. This OS boundary complements capabilities/device grants and does not replace them.
+
+- Enrollment controller discovery is non-secret and nonce-owned; reuse the broker runtime and mutex, and invalidate device generations when participation stops/restarts. A gateway only relays framed bytes and never opens the database. Enrollment/heartbeat IPC does not establish remote native task routing or production opt-in.

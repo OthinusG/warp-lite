@@ -10,6 +10,9 @@ async fn main() -> Result<()> {
     }
     match std::env::args().nth(1).as_deref() {
         Some("mcp") => { Bridge::from_env()?.serve(warp_agent_bus::mcp::legacy_transport(rmcp::transport::stdio()).await?).await?.waiting().await?; }
+        Some("remote-stdio") => {
+            warp_agent_bus::transport::remote_control::gateway_stdio().await?;
+        }
         Some("instructions") => println!("{INSTRUCTIONS}"),
         Some("forward") => {
             let endpoint = std::env::args().nth(2).ok_or_else(|| anyhow::anyhow!("Missing native MCP relay"))?;
