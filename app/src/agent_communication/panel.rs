@@ -2875,7 +2875,38 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     },
                 )
                 .with_take_screenshot("live-history-capacity.png"),
-        )
+        );
+    // Clipboard acceptance runs only on isolated cloud runners, never against a daily local clipboard.
+    if std::env::var_os("GITHUB_ACTIONS").is_some_and(|value| value == "true") {
+        let expected = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let captured = expected.clone();
+        driver = driver.with_step(
+            TestStep::new("copy the explicit scoped native history page")
+                .with_action(move |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        if let Some(snapshot) = &panel.snapshot {
+                            if let Some(history) = &snapshot.history {
+                                *captured.lock().unwrap() = Some(serde_json::json!({
+                                    "project": snapshot.project, "after": panel.query.history_after,
+                                    "cursor": history.cursor, "records": history.records,
+                                }));
+                            }
+                        }
+                        panel.handle_action(&Action::CopyHistory, ctx);
+                    });
+                })
+                .add_named_assertion("export preserves original scope ordering and relationships", move |app, window| {
+                    let copied = app.clipboard().read();
+                    let parsed = serde_json::from_str::<serde_json::Value>(&copied.plain_text).ok();
+                    let original = expected.lock().unwrap().clone();
+                    warpui::async_assert!(original.is_some() && parsed == original
+                        && copied.paths.is_none() && copied.html.is_none() && copied.images.is_none()
+                        && checkpoint_draft(app, window) == "unsent collaboration draft")
+                }),
+        );
+    }
+    driver = driver
         .with_step(
             TestStep::new("require explicit native history deletion text")
                 .with_action(|app, window, _| {

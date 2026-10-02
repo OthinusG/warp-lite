@@ -253,3 +253,5 @@
 - Controller deactivation must acquire the broker mutex and fence remote access before attempting expiry/audit writes. A full disk or rejected uncertainty write cannot keep participation enabled. Retain failed loss metadata for the next sweep/activation; session cleanup likewise expires a failed lease instead of dropping the only retry record. Listener exit and explicit drop share this deactivation path.
 
 - Unknown connectivity does not grant another execution owner. The unchanged original actor/current run may explicitly confirm completion, failure or stopped cancellation on the same unresolved attempt/revision. Shared outcome checks accept only active/unknown attempts with no outcome/finish timestamp; overridden/replaced epochs and revisions stay fenced. Progress/start/claim/renewal do not gain this exception.
+
+- Native history clipboard acceptance is restricted to isolated GitHub runners. Capture the exact page before explicit CopyHistory and compare only that owned fixture result, including scope/cursor/order/linkage and unchanged draft; local capture mode never reads or overwrites the daily user's clipboard.
