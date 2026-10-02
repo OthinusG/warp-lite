@@ -15,6 +15,7 @@ use warpui::{
 pub(crate) enum Kind {
     Assign,
     Pool,
+    Search,
     Cancel,
     Accept,
     Revise,
@@ -33,6 +34,7 @@ impl Kind {
         match self {
             Self::Assign => "Assign task",
             Self::Pool => "Create pool task",
+            Self::Search => "Search messages",
             Self::Cancel => "Request cancellation",
             Self::Accept => "Accept result",
             Self::Revise => "Request revision",
@@ -71,6 +73,7 @@ impl Kind {
                 "Repository UUID (optional; explicit logical overlap group)",
             ],
             Self::LeaveSpace => &["Agent name to remove"],
+            Self::Search => &["Literal search text (up to 256 bytes)"],
             _ => &["Reason"],
         }
     }
@@ -97,6 +100,7 @@ pub(super) struct Form {
 enum Command {
     Agent(Operation),
     Controller(ControllerOperation),
+    Search(String),
 }
 
 fn command(
@@ -123,6 +127,10 @@ fn command(
             fields.last().is_some_and(|field| field == "ALLOW OVERLAP"),
             "Type ALLOW OVERLAP to acknowledge that earlier execution may still be writing"
         );
+    }
+    if kind == Kind::Search {
+        anyhow::ensure!(fields[0].len() <= 256, "Search text must fit 256 bytes");
+        return Ok(Command::Search(fields[0].trim().to_owned()));
     }
     if matches!(kind, Kind::Assign | Kind::Pool) {
         let names = |value: &str| {
@@ -253,7 +261,12 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::Assign | Kind::Pool | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace => {
+        Kind::Assign
+        | Kind::Pool
+        | Kind::Search
+        | Kind::CreateSpace
+        | Kind::MapWorkspace
+        | Kind::LeaveSpace => {
             unreachable!()
         }
     })
@@ -270,7 +283,12 @@ impl CollaborationPanel {
         };
         if !matches!(
             kind,
-            Kind::Assign | Kind::Pool | Kind::CreateSpace | Kind::MapWorkspace | Kind::LeaveSpace
+            Kind::Assign
+                | Kind::Pool
+                | Kind::Search
+                | Kind::CreateSpace
+                | Kind::MapWorkspace
+                | Kind::LeaveSpace
         ) && snapshot
             .task
             .as_ref()
@@ -405,6 +423,22 @@ impl CollaborationPanel {
                 return;
             }
         };
+        if let Command::Search(query) = operation {
+            self.query.message_query = Some(query);
+            self.query.selected_thread = None;
+            self.query.message_after = None;
+            self.query.selected_task = None;
+            self.query.wait = false;
+            self.show_messages = true;
+            self.show_spaces = false;
+            self.query.spaces = false;
+            self.form = None;
+            self.generation += 1;
+            self.refresh(ctx);
+            ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+            ctx.notify();
+            return;
+        }
         let Some(broker) = crate::agent_communication::BROKER.get().cloned() else {
             return;
         };
@@ -414,7 +448,7 @@ impl CollaborationPanel {
         form.submitted_fields = Some(fields);
         form.error.clear();
         ctx.spawn(async move {
-            match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation) }
+            match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), Command::Search(_) => unreachable!("Search is handled locally") }
         }, move |panel, result, ctx| {
             if panel.form.as_ref().is_none_or(|form| form.request_id != request_id) { return; }
             match result {
@@ -524,7 +558,7 @@ impl CollaborationPanel {
             let mut kinds = if self.show_spaces {
                 vec![Kind::CreateSpace, Kind::MapWorkspace]
             } else {
-                vec![Kind::Assign, Kind::Pool]
+                vec![Kind::Assign, Kind::Pool, Kind::Search]
             };
             if self.show_spaces
                 && self
@@ -637,6 +671,17 @@ mod tests {
                     && start_deadline.as_deref() == Some("2030-01-01T09:00:00Z") && reviewer == "reviewer")
         );
         scheduled[5] = "0".into();
+        assert!(
+            matches!(command(Kind::Search, "/project", None, &["literal _%".into()], "read".into()).unwrap(), Command::Search(query) if query == "literal _%")
+        );
+        assert!(command(
+            Kind::Search,
+            "/project",
+            None,
+            &["x".repeat(257)],
+            "read".into()
+        )
+        .is_err());
         assert!(command(
             Kind::Pool,
             "/project",

@@ -318,6 +318,8 @@ The trusted panel reservation projection is scoped to both the active collaborat
 
 Native task filters reuse the operator task query's state, assignee and include-archived fields. Changing a filter clears task pagination and selected detail; it does not mutate task state. Participant buttons select scoped stable actor IDs, including authorized offline participants. The filtered empty state remains distinct from missing agents or a disconnected coordinator.
 
+Native message search uses the existing literal substring operation, capped at 256 query bytes and 50 results per page. Thread buttons retrieve the immutable root and replies with existing sequence cursors. The trusted local operator may inspect threads within its selected domain; ordinary native agents retain participant-only thread/search visibility. The reserved operator program cannot be registered through native participation. Search text and result content are transient panel state, never capture diagnostics or telemetry. Changing panes, disabling communication or leaving the message view clears the read intent; no search action acknowledges messages or changes task state.
+
 ## Space preview pagination and admission
 
 `space_list` accepts optional `cursor` (last unique name) and `limit` (existing

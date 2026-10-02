@@ -3828,7 +3828,7 @@ impl Store {
             "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND (thread_id = ? OR id = ?)",
             &[actor.project.as_str(), thread_id, thread_id],
         )?;
-        if total > 0 {
+        if total > 0 && actor.program != OPERATOR_PROGRAM {
             let participant = diesel::sql_query("SELECT COUNT(*) AS count FROM messages WHERE project = ? AND (thread_id = ? OR id = ?) AND (sender = ? OR recipient = ?)")
                 .bind::<Text, _>(&actor.project)
                 .bind::<Text, _>(thread_id)
@@ -3869,10 +3869,11 @@ impl Store {
             .replace('%', "\\%")
             .replace('_', "\\_");
         let pattern = format!("%{escaped}%");
-        let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project = ? AND (sender = ? OR recipient = ?) AND (body LIKE ? ESCAPE '\\' OR subject LIKE ? ESCAPE '\\') AND (COALESCE(?, '') = '' OR task_id = ?) AND (COALESCE(?, '') = '' OR thread_id = ?) AND sequence > ? ORDER BY sequence LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project = ? AND (sender = ? OR recipient = ? OR ?) AND (body LIKE ? ESCAPE '\\' OR subject LIKE ? ESCAPE '\\') AND (COALESCE(?, '') = '' OR task_id = ?) AND (COALESCE(?, '') = '' OR thread_id = ?) AND sequence > ? ORDER BY sequence LIMIT ?")
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
+            .bind::<Integer, _>(i32::from(actor.program == OPERATOR_PROGRAM))
             .bind::<Text, _>(&pattern)
             .bind::<Text, _>(&pattern)
             .bind::<Text, _>(task_id.unwrap_or(""))
@@ -6917,6 +6918,18 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&outsider), "scope_denied");
+        let operator_thread = store.execute(&Store::operator("/project"), OPERATOR_EPOCH,
+            &Operation::ThreadGet { thread_id: root_id.clone(), cursor: None, limit: Some(1) }).unwrap();
+        assert_eq!(operator_thread["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(operator_thread["messages"][0]["body"], "please run under_score checks");
+        assert!(store.execute(&Store::operator("/unrelated"), OPERATOR_EPOCH,
+            &Operation::ThreadGet { thread_id: root_id.clone(), cursor: None, limit: None }).unwrap()["messages"].as_array().unwrap().is_empty());
+        assert!(store.register("forged", OPERATOR_PROGRAM, "/project", "operator").is_err());
+        let operator_search = store.execute(&Store::operator("/project"), OPERATOR_EPOCH,
+            &Operation::MessageSearch { query: "under_".into(), task_id: None, thread_id: None, cursor: None, limit: None }).unwrap();
+        assert_eq!(operator_search["messages"].as_array().unwrap().len(), 1);
+        assert!(store.execute(&Store::operator("/unrelated"), OPERATOR_EPOCH,
+            &Operation::MessageSearch { query: "under_".into(), task_id: None, thread_id: None, cursor: None, limit: None }).unwrap()["messages"].as_array().unwrap().is_empty());
         let literal = store
             .execute(
                 &bob,

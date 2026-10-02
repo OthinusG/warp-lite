@@ -4,7 +4,7 @@ use crate::appearance::Appearance;
 mod controls;
 use serde::Deserialize;
 use std::{collections::HashMap, time::Duration};
-use warp_agent_bus::{transport::PanelQuery, Agent, Event, Reservation, Task};
+use warp_agent_bus::{transport::PanelQuery, Agent, Event, Message, Reservation, Task};
 use warpui::r#async::Timer;
 use warpui::{
     accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},
@@ -88,6 +88,8 @@ struct Snapshot {
     space_cursor: Option<String>,
     reservations: Vec<Reservation>,
     reservation_cursor: Option<u64>,
+    messages: Vec<Message>,
+    message_cursor: Option<u64>,
 }
 
 pub(crate) struct CollaborationPanel {
@@ -114,6 +116,9 @@ pub(crate) struct CollaborationPanel {
     workspace_buttons: HashMap<String, MouseStateHandle>,
     scope_buttons: [MouseStateHandle; 5],
     agent_task_buttons: HashMap<String, MouseStateHandle>,
+    show_messages: bool,
+    thread_buttons: HashMap<String, MouseStateHandle>,
+    message_page_buttons: [MouseStateHandle; 3],
 }
 
 #[derive(Clone, Debug)]
@@ -136,6 +141,9 @@ pub(crate) enum Action {
     PreviewWorkspace(String),
     ConfirmWorkspace,
     FirstSpaces,
+    OpenThread(String),
+    FirstMessages,
+    NextMessages,
     FilterTaskState,
     FilterTaskAssignee(Option<String>),
     ToggleArchived,
@@ -177,6 +185,9 @@ impl CollaborationPanel {
             workspace_buttons: Default::default(),
             scope_buttons: Default::default(),
             agent_task_buttons: Default::default(),
+            show_messages: false,
+            thread_buttons: Default::default(),
+            message_page_buttons: Default::default(),
         }
     }
 
@@ -206,6 +217,7 @@ impl CollaborationPanel {
             self.connected = false;
             self.form = None;
             self.show_spaces = false;
+            self.show_messages = false;
             self.workspace_preview = None;
             self.events.clear();
             self.query = Default::default();
@@ -269,6 +281,8 @@ impl CollaborationPanel {
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
+                    panel.thread_buttons.retain(|id, _| snapshot.messages.iter().any(|message| message.thread_id.as_ref().unwrap_or(&message.id) == id));
+                    for message in &snapshot.messages { panel.thread_buttons.entry(message.thread_id.as_ref().unwrap_or(&message.id).clone()).or_default(); }
                     panel.agent_task_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
                     for row in &snapshot.agents { panel.agent_task_buttons.entry(row.agent.id.clone()).or_default(); }
                     panel.focus_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
@@ -324,7 +338,22 @@ impl CollaborationPanel {
                 ),
             ],
         });
-        if self.show_spaces {
+        if self.show_messages {
+            fixture.state = if self.query.selected_thread.is_some() {
+                "thread history"
+            } else {
+                "message search"
+            }
+            .into();
+            fixture.sections.push(Section {
+                title: format!("Messages · query {} · thread {}", self.query.message_query.as_deref().unwrap_or("not set"), self.query.selected_thread.as_deref().unwrap_or("search results")),
+                rows: if snapshot.messages.is_empty() { vec!["No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.".into()] }
+                    else { snapshot.messages.iter().flat_map(|message| [
+                        format!("{} · {} · {} → {} · subject {} · thread {} · reply {} · task {} · {}", message.sequence, message.id, message.from, message.to, message.subject.as_deref().unwrap_or("none"), message.thread_id.as_deref().unwrap_or(&message.id), message.reply_to.as_deref().unwrap_or("root"), message.task_id.as_deref().unwrap_or("unlinked"), if message.acknowledged { "acknowledged" } else { "pending acknowledgement" }),
+                        message.body.clone(),
+                    ]).collect() },
+            });
+        } else if self.show_spaces {
             fixture.state = "space preview".into();
             fixture.sections.push(Section { title: "New shared sessions only".into(), rows: vec![
                 "Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.".into(),
@@ -594,6 +623,10 @@ impl TypedActionView for CollaborationPanel {
             match action {
                 Action::Spaces => {
                     self.show_spaces = true;
+                    self.show_messages = false;
+                    self.query.message_query = None;
+                    self.query.selected_thread = None;
+                    self.query.message_after = None;
                     self.query.spaces = true;
                     self.query.selected_task = None;
                 }
@@ -627,6 +660,22 @@ impl TypedActionView for CollaborationPanel {
                         );
                     }
                     return;
+                }
+                Action::OpenThread(id) => {
+                    self.show_messages = true;
+                    self.show_spaces = false;
+                    self.query.selected_task = None;
+                    self.query.selected_thread = Some(id.clone());
+                    self.query.message_after = None;
+                }
+                Action::FirstMessages => {
+                    self.query.message_after = None;
+                }
+                Action::NextMessages => {
+                    self.query.message_after = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.message_cursor);
                 }
                 Action::FilterTaskState => {
                     let states = [
@@ -725,6 +774,10 @@ impl TypedActionView for CollaborationPanel {
                 Action::Back => {
                     self.query.selected_task = None;
                     self.show_spaces = false;
+                    self.show_messages = false;
+                    self.query.message_query = None;
+                    self.query.selected_thread = None;
+                    self.query.message_after = None;
                     self.query.spaces = false;
                     self.workspace_preview = None;
                 }
@@ -873,7 +926,7 @@ impl View for CollaborationPanel {
                         .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
                         .finish(),
                 );
-                if self.query.selected_task.is_some() || self.show_spaces {
+                if self.query.selected_task.is_some() || self.show_spaces || self.show_messages {
                     header.add_child(
                         builder
                             .button(ButtonVariant::Text, self.page_buttons[0].clone())
@@ -975,7 +1028,7 @@ impl View for CollaborationPanel {
                 );
             }
         }
-        if !self.preview && !self.show_spaces && self.form.is_none() {
+        if !self.preview && !self.show_spaces && !self.show_messages && self.form.is_none() {
             for (label, state, action) in [
                 (
                     format!(
@@ -1024,6 +1077,54 @@ impl View for CollaborationPanel {
                                 ctx.dispatch_typed_action(Action::FilterTaskAssignee(Some(
                                     id.clone(),
                                 )))
+                            })
+                            .finish(),
+                    );
+                }
+            }
+        }
+        if !self.preview && self.show_messages {
+            if let Some(snapshot) = &self.snapshot {
+                for (index, label, action) in [
+                    (0, "First message page", Some(Action::FirstMessages)),
+                    (
+                        1,
+                        "Next message page",
+                        snapshot.message_cursor.map(|_| Action::NextMessages),
+                    ),
+                ] {
+                    if let Some(action) = action {
+                        body.add_child(
+                            builder
+                                .button(
+                                    ButtonVariant::Text,
+                                    self.message_page_buttons[index].clone(),
+                                )
+                                .with_text_label(label.into())
+                                .build()
+                                .on_click(move |ctx, _, _| {
+                                    ctx.dispatch_typed_action(action.clone())
+                                })
+                                .finish(),
+                        );
+                    }
+                }
+                let mut seen = std::collections::HashSet::new();
+                for message in &snapshot.messages {
+                    let id = message.thread_id.as_ref().unwrap_or(&message.id).clone();
+                    if !seen.insert(id.clone()) {
+                        continue;
+                    }
+                    body.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.thread_buttons[&id].clone())
+                            .with_text_label(format!(
+                                "Open thread {}",
+                                id.chars().take(8).collect::<String>()
+                            ))
+                            .build()
+                            .on_click(move |ctx, _, _| {
+                                ctx.dispatch_typed_action(Action::OpenThread(id.clone()))
                             })
                             .finish(),
                     );
@@ -1262,6 +1363,28 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         task_id: Some(task["id"].as_str().unwrap().into()),
         attempt_id: None,
         ttl_seconds: Some(600),
+        request_id: uuid::Uuid::new_v4().to_string(),
+    };
+    transport::call(&broker.endpoint, &request)?;
+    let thread = broker.operator(
+        root,
+        &Operation::AgentSend {
+            to: "capture-worker".into(),
+            body: "Native thread checkpoint literal _% text".into(),
+            subject: Some("Native checkpoint".into()),
+            thread_id: None,
+            reply_to: None,
+            task_id: Some(task["id"].as_str().unwrap().into()),
+            request_id: uuid::Uuid::new_v4().to_string(),
+        },
+    )?;
+    request.operation = Operation::AgentSend {
+        to: "capture-worker".into(),
+        body: "Follow-up native checkpoint".into(),
+        subject: Some("Native correction".into()),
+        thread_id: None,
+        reply_to: Some(thread["id"].as_str().unwrap().into()),
+        task_id: None,
         request_id: uuid::Uuid::new_v4().to_string(),
     };
     transport::call(&broker.endpoint, &request)?;
@@ -2276,6 +2399,65 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("live-task-filtered.png"),
         );
     filenames.push("live-task-filtered.png".into());
+    driver = driver
+        .with_step(
+            TestStep::new("search native thread with literal wildcard text").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::Search, ctx);
+                        panel.fill_control_checkpoint(&["literal _%"], ctx);
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("native literal search returns only matching root")
+                .add_named_assertion("escaped substring with retained draft", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.show_messages
+                            && panel.form.is_none()
+                            && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
+                                .messages
+                                .len()
+                                == 1
+                                && snapshot.messages[0].body
+                                    == "Native thread checkpoint literal _% text"))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-message-search.png"),
+        )
+        .with_step(
+            TestStep::new("open native immutable thread history").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    let message = &panel.snapshot.as_ref().unwrap().messages[0];
+                    let thread = message.thread_id.as_ref().unwrap_or(&message.id).clone();
+                    panel.handle_action(&Action::OpenThread(thread), ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("native thread retains original and correction")
+                .add_named_assertion("two ordered immutable messages", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
+                            |snapshot| snapshot.messages.len() == 2
+                                && snapshot.messages[0].body
+                                    == "Native thread checkpoint literal _% text"
+                                && snapshot.messages[1].body == "Follow-up native checkpoint"
+                                && snapshot.messages[1].reply_to.as_deref()
+                                    == Some(snapshot.messages[0].id.as_str())
+                        )) && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-thread-history.png"),
+        );
+    filenames.extend(["live-message-search.png", "live-thread-history.png"].map(str::to_owned));
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

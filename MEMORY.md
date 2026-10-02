@@ -217,3 +217,7 @@
 - Shared-pane admission is a reviewed workspace/space/canonical-root tuple passed through NewTerminalOptions, never an environment selector. Revalidate the exact tuple when preparing the new capability; a remap must not silently change the user's reviewed scope. Restored panes remain private. The panel derives pending admission from the prepared binding before native-agent discovery, and keeps revoked scope history distinguishable from participation.
 
 - An overridden outcome does not prove stopped execution. A force-cancel override belongs to that cancellation intent; retry/reassignment must independently authorize the current revision's unknown attempt. Older uncertainty remains recorded after the replacement revision is authorized. Native action acceptance exposed this distinction beyond backend transition coverage.
+
+- Native capture diagnostics copy only failed step names found in the committed capture source, plus exit status and source SHA. Raw stdout/stderr remain runner-local. This makes both-platform GUI failures diagnosable without exporting application payloads or credentials.
+
+- Trusted local operator thread/search reads may inspect the selected domain; native actor reads remain participant-scoped. Keep the operator program reserved at registration, retain original message bodies and append replies rather than editing history. Panel search state stays transient and bounded to existing 50-record pages.
