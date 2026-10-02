@@ -35,7 +35,7 @@ actual image review before the static UI checkpoint can pass.
 | M1.4 | `migration_preserves_v1_data_with_backup_and_restore`, migration failures, downgrade sentinel, SQLite-full rollback | Backend verified; native old-binary release gate remains distinct |
 | M1.5 | `request_replay_conflicts_and_epoch_expiry`, retention and quota tests | Backend verified |
 | M2.1 | Native panel source, persisted selection, nine fixed fixtures | Fixture app test and rendered checkpoint required |
-| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Final detail-end revision and Windows capture pending; Windows startup failed 101 without staged debug runtime assets |
+| M2.2 | `8c33356`, run 36950239278: 74 macOS native PNGs, all 72 fixture combinations visually reviewed, draft/focus/navigation/scroll assertions passed | Final detail-end revision and Windows capture pending; Windows readback failed 101 because COPY_SRC was gated by the old integration feature; debug capture correction pending |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Explicit-clock deadline regression passed both OS in run 36950035983; native interrupt unsupported-state UI pending |
@@ -43,8 +43,8 @@ actual image review before the static UI checkpoint can pass.
 | M3.3 | Dependency acceptance and cycle/foreign-edge rejection tests | Backend verified; failed prerequisite panel pending |
 | M3.4 | Pool eligibility, authenticated 20-way claims, deterministic single-receiver wake with stale-candidate/draft/failed-delivery/offline checks passed on both OSes | Native presence acceptance remains distinct |
 | M3.5 | MCP cooperation instructions and readiness/replay checks | Missing-acknowledgement panel and task controls pending |
-| M4.1 | Space/workspace metadata controller tests | Functional shared-space routing and checkout-qualified agents not implemented |
-| M4.2 | Controller join/leave metadata operations | Scope preview, new-session routing and UI not implemented |
+| M4.1 | Schema-v5 and real shared IPC passed both OS in run 36958662888: scoped delegation/rework, private-task preservation, immutable producing checkout | Fresh shared-pane admission UI pending |
+| M4.2 | Explicit fresh workspace admission and departure/remap fencing passed both OS in run 36958662888 | Scope preview and admission UI pending |
 | M4.3 | Exact/subtree, symlink, path escape, TTL and attempt-owner tests; explicit-scope overlap/migration regressions in `bfbc585` passed both OS | Backend overlap warnings verified; device-qualified workspace routing and UI pending |
 | M4.4 | MCP reserve/renew/release and abandoned-owner metadata | UI conflicts, renewal and release pending |
 | M5.1 | Thread participants, literal search, reply/task/subject validation tests | Backend verified |
@@ -52,8 +52,8 @@ actual image review before the static UI checkpoint can pass.
 | M5.3 | Archive/quota, ordered export, purge preservation and long-rework history tests | Backend verified; user-facing export/purge preview controls pending |
 | M5.4 | C10 benchmark: 100k messages/10k tasks; p95 1.799 ms macOS / 2.863 ms Windows in run 36912281466 | Per-recipient backpressure verified; native history/UI throughput pending |
 | M6.1 | System SSH command builder and offline `ssh -G` option/injection/path checks passed both OS in run 36951069744 | Real SSH authentication, changed hosts and remote stdio remain pending |
-| M6.2 | No remote gateway/control endpoint | Pending |
-| M6.3 | Device APIs explicitly return feature_unavailable | Enrollment, secure credentials, grants and revocation pending |
+| M6.2 | Opt-in enrollment controller and fixed remote-stdio relay added; real IPC check pending CI | Application opt-in and remote task dispatch pending |
+| M6.3 | Hash-only single-use enrollment, expiry, grants and revocation passed both OS in run 36958662888 | Live controller IPC CI and secure participant storage pending |
 | M6.4 | Typed remote hello/result and bounded frame regressions passed both OS including golden/truncation checks in run 36951776747 | Device authentication, live heartbeat, durable spool and event resume pending |
 | M6.5 | Existing guarded local wake and single storage state machine | Remote coordinator routing and wake notifications pending |
 | M6.6 | Existing local communication settings only | Devices/connections/mapping/grant UI pending |
@@ -76,5 +76,5 @@ both OS complete backend suites passed, including real-IPC shared delegation and
 rework, private active attempts, physical leases, original evidence checkout,
 reclaim/departure/remap/dedup fences and v4→v5 backup migration. Enrollment tests
 passed single-use/expiry/hash-only receipts/grants/revocation. M4 admission UI and
-M6 gateway/platform credential storage/real SSH remain pending. Debug native
-capture stages were still running at this checkpoint.
+M6 gateway/platform credential storage/real SSH remain pending. MacOS debug capture passed; Windows failed in readback validation. COPY_SRC
+correction is awaiting the next native capture run.

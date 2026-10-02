@@ -37,8 +37,33 @@ requires creating a new invitation, rather than storing a bearer in retry histor
 Invitations expire within five minutes and enroll one device atomically. Enrollment
 returns a distinct credential once; only its SHA-256 verifier is durable. Every
 remote operation rechecks current device generation and explicit space/role grants.
-Controller device lists omit verifiers. These enrollment primitives alone do not
-expose a gateway, write participant credentials or enable remote participation.
+Controller device lists omit verifiers. An explicitly constructed enrollment-only
+controller is available for IPC verification; it does not enable application remote
+participation, persist participant credentials or dispatch remote agent operations.
+
+The enrollment controller uses the existing four-byte big-endian length framing
+and bounded hello negotiation, followed by these internal frames. Sensitive frames
+have no Debug representation and must never enter logs or retry persistence.
+
+| Frame type | Fields | Authority |
+| --- | --- | --- |
+| `enroll` | `invitation`, `name` | Single-use invitation after hello |
+| `enroll_result` | `device_id`, `credential`, `generation`, `space_ids` | Credential delivery once in memory |
+| `authenticate` | `credential` | Current verifier/generation |
+| `authenticated` | `device_id`, `generation`, `connection_epoch`, `space_ids` | Server-derived principal |
+| `heartbeat` | `connection_epoch`, `space_id` | Current principal, controller ownership and read grant |
+| `heartbeat_result` | `connection_epoch` | Receipt on this connection only |
+| `goodbye` | `connection_epoch` | Authenticated connection only |
+| `error` | `error` | Redacted stable domain error |
+
+Initial hello/authentication has a five-second deadline; authenticated input has a
+30-second receipt deadline. A controller accepts at most 32 concurrent sessions.
+Shutdown/restart fences every frame by controller ownership nonce and invalidates
+device generations. Coordinator UUID survives broker/database restart; connection
+epoch does not. The fixed `warp-agent remote-stdio` adapter forwards only bytes to
+this per-user endpoint and emits a framed `coordinator_unavailable` failure when
+there is no running controller. This subset does not advertise production remote
+task availability.
 
 ## Resource shapes
 

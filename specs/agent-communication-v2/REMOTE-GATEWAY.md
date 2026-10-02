@@ -1,8 +1,9 @@
 # Remote gateway implementation checkpoint
 
-Status: enrollment/storage and SSH negotiation are verified subsets. There is no
-working production remote gateway or remote task routing yet. This document fixes
-the next boundary before wiring code; it does not accept M6.
+Status: enrollment/storage and SSH negotiation are verified subsets. An enrollment-only
+controller and byte relay are implemented with real IPC checks pending CI. There
+is no production application opt-in or remote task routing yet. This document
+fixes those remaining boundaries; it does not accept M6.
 
 ## Endpoint and lifetime
 
