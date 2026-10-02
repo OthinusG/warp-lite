@@ -52,5 +52,18 @@ a fresh `capture-<pid>/collaboration-static/<timestamp>/` under that directory a
 requires all 72 nonempty PNGs. Existing output cannot satisfy a later run. A
 300-second watchdog covers application startup as well as capture. The temporary
 preferences profile is named `collaboration-capture-<pid>`; no home override or
-daily-profile modification is performed. Source compilation and native render
-verification for this harness remain pending.
+daily-profile modification is performed.
+
+Source `8ea58e2`, GitHub run `36942065295`, passed both platform application
+checks, focused macOS application tests and both OS packaging. The separately
+downloaded/signature-verified debug app completed 72 macOS PNGs with exit 0; a
+second run also completed with exit 0. Narrow/wide detail images show wrapped
+description/evidence without overlap. The native capture invocation does not
+require OS accessibility permission. Complete image review, bounded-viewport
+scrolling, keyboard/focus behavior and Windows render evidence are still pending.
+
+The validation workflow's explicit `capture_ui` input runs this same native
+harness after packaging and uploads PNGs for both OS jobs. Compilation is separate
+from the seven-minute runtime step. Missing screenshots fail the runtime step;
+partial images are uploaded for diagnosis. CI capture must succeed and its images
+must be reviewed before it can count toward the static checkpoint.

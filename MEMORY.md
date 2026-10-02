@@ -32,6 +32,8 @@
   uses a unique data profile and keeps HOME unchanged; worker subprocesses
   retain their normal entrypoint. Missing captures must fail the check, and
   image generation alone is never visual or keyboard acceptance.
+  macOS runtime is proven by two exit-0 runs of the signed `8ea58e2` debug app;
+  the optional CI `capture_ui` input uses the same path on both target OS jobs.
 
 - Comparing a task response's state/version to its current row does not establish
   a new mutation: cached submission results can match after a later ordinary user

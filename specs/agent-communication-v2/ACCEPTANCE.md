@@ -11,7 +11,9 @@ passed both OS protocol suites including control-order, 20-claim and single-rece
 pool wake checks. Source `e2c90a1`, run [36936534033](https://github.com/OthinusG/warp-lite/actions/runs/36936534033),
 passed both OS protocol/scale suites and default/platform app checks. The new
 menu test initially failed to compile because its App binding was immutable;
-the one-line fixture repair awaits its source run. Packaging was still running.
+the one-line fixture repair passed the complete run for `c7033aa`,
+[36939414552](https://github.com/OthinusG/warp-lite/actions/runs/36939414552),
+including macOS/Windows packaging.
 Native UI/device/model gates remain unchanged.
 
 Source `bfbc585`, run [36941810908](https://github.com/OthinusG/warp-lite/actions/runs/36941810908),
@@ -33,7 +35,7 @@ actual image review before the static UI checkpoint can pass.
 | M1.4 | `migration_preserves_v1_data_with_backup_and_restore`, migration failures, downgrade sentinel, SQLite-full rollback | Backend verified; native old-binary release gate remains distinct |
 | M1.5 | `request_replay_conflicts_and_epoch_expiry`, retention and quota tests | Backend verified |
 | M2.1 | Native panel source, persisted selection, nine fixed fixtures | Fixture app test and rendered checkpoint required |
-| M2.2 | Signed `75f47f9` debug review app attempted locally | Startup failed on missing ReferAFriend binding; fix pending build. Accessibility unavailable; both-OS screenshots pending |
+| M2.2 | Signed `8ea58e2` debug review app completed 72 native macOS PNGs twice; narrow/wide detail inspected | Complete image review, scrolling/keyboard/focus and Windows render pending; native capture bypasses the accessibility-automation limitation |
 | M2.3 | Paginated operator task/event APIs exist | Live panel subscriptions, cursor recovery and detail integration not implemented |
 | M2.4 | Distinct operator mutations share storage transitions | Live panel controls and terminal focus not implemented |
 | M3.1 | Deadlines, exclusive cancellation and interrupted recovery tests | Native interrupt unsupported/unsupported-state UI and clock-jump acceptance pending |

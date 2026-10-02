@@ -6,6 +6,10 @@ on:
         description: 'Run both OS protocol suites and upload native probes; skip application builds'
         type: boolean
         default: false
+      capture_ui:
+        description: 'Run the isolated native static capture harness after packaging'
+        type: boolean
+        default: false
   push:
     branches: ['warp-lite/main', 'warp-lite/agent-communication']
 permissions:
@@ -75,6 +79,35 @@ jobs:
             WarpaiSetup-x64.exe
             Warpai-windows-x64.zip
           if-no-files-found: error
+          retention-days: 7
+      - name: Build Windows native review executable
+        if: ${{ inputs.capture_ui && !inputs.protocol_only }}
+        shell: pwsh
+        env:
+          CARGO_FULL_PROFILE: debug
+          CARGO_BIN_NAME: oss
+          WARP_APP_NAME: Warpai
+        run: |
+          cargo build -p warp --bin warp-oss --features "release_bundle,gui,nld_improvements" --locked
+          if ($LASTEXITCODE -ne 0) { throw "Native review compilation failed" }
+      - name: Capture Windows static collaboration UI
+        if: ${{ inputs.capture_ui && !inputs.protocol_only }}
+        timeout-minutes: 7
+        shell: pwsh
+        env:
+          WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
+        run: |
+          $captureProcess = Start-Process -FilePath "$PWD/target/debug/warp-oss.exe" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          if ($captureProcess.ExitCode -ne 0) { throw "Native capture failed: $($captureProcess.ExitCode)" }
+          $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
+          if ($images.Count -ne 72 -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected 72 nonempty native PNGs" }
+      - name: Upload Windows native UI captures
+        if: ${{ always() && inputs.capture_ui && !inputs.protocol_only }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-collaboration-native-captures-Windows
+          path: ${{ runner.temp }}/collaboration-ui-windows/**/*.png
+          if-no-files-found: warn
           retention-days: 7
   macos:
     runs-on: macos-15
@@ -166,4 +199,25 @@ jobs:
         with:
           name: Warpai-agent-communication-macos
           path: Warpai.app.zip
+          retention-days: 7
+      - name: Capture macOS static collaboration UI
+        if: ${{ inputs.capture_ui && !inputs.protocol_only }}
+        timeout-minutes: 7
+        env:
+          WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
+        run: |
+          WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
+          assert len(images) == 72 and all(image.stat().st_size > 0 for image in images), 'Expected 72 nonempty native PNGs'
+          PY
+      - name: Upload macOS native UI captures
+        if: ${{ always() && inputs.capture_ui && !inputs.protocol_only }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-collaboration-native-captures-macOS
+          path: ${{ runner.temp }}/collaboration-ui-macos/**/*.png
+          if-no-files-found: warn
           retention-days: 7

@@ -4,6 +4,14 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `c7033aa`, run `36939414552`: both OS full validation and packaging
+  passed. Source `8ea58e2`, run `36942065295`: both OS full validation/packaging
+  also passed with the repaired native capture driver. Signed debug artifact ran
+  locally twice, each producing 72 PNGs and exit 0. Detail images show successful
+  narrow/wide wrapping; complete screenshot/keyboard/scroll/Windows acceptance is
+  not claimed. Added an explicit `capture_ui` workflow input to collect native
+  images on both CI operating systems after their review packages build.
+
 - Implemented the backend cross-checkout reservation warning subset of M4.3:
   explicit repository UUIDs, current shared membership, immutable lease-sharing
   snapshots, bounded merge-overlap metadata, unchanged physical rejection and
