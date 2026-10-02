@@ -176,14 +176,15 @@ async fn system_ssh_accepts_strict_background_options_without_connecting() {
             return;
         }
     };
-    let empty_config = tempfile::NamedTempFile::new().unwrap();
+    // Close the handle before OpenSSH opens the file, including on Windows.
+    let empty_config = tempfile::NamedTempFile::new().unwrap().into_temp_path();
     let channel = build_ssh_command(&executable, "collaboration-test.invalid").unwrap();
     let mut probe = Command::new(&executable);
     // -G parses options without networking; the empty config avoids user hooks/credentials.
     probe
         .arg("-G")
         .arg("-F")
-        .arg(empty_config.path())
+        .arg(empty_config.as_os_str())
         .args(channel.as_std().get_args())
         .stdin(Stdio::null())
         .kill_on_drop(true);
@@ -191,10 +192,16 @@ async fn system_ssh_accepts_strict_background_options_without_connecting() {
         .await
         .expect("SSH configuration probe timed out")
         .expect("SSH probe failed to start");
-    assert!(
-        output.status.success(),
-        "System SSH rejected collaboration options"
-    );
+    let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+    let named_options: Vec<_> = SSH_OPTIONS
+        .iter()
+        .filter(|option| {
+            diagnostic.contains(&option.split('=').next().unwrap().to_ascii_lowercase())
+        })
+        .collect();
+    assert!(output.status.success(),
+        "System SSH rejected options: exit={:?}, named_options={named_options:?}, config_access_error={}",
+        output.status.code(), diagnostic.contains("permission") || diagnostic.contains("open configuration"));
     let configuration = String::from_utf8(output.stdout).unwrap();
     for setting in [
         "batchmode yes",
