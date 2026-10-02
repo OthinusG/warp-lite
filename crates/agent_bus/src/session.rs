@@ -41,7 +41,7 @@ struct ForwardContext {
     directory: Option<String>,
 }
 
-fn without_terminal_binding(command: &mut Command) {
+pub(crate) fn without_terminal_binding(command: &mut Command) {
     for name in [
         crate::transport::ENDPOINT,
         crate::transport::CAPABILITY,

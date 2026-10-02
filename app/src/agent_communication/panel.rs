@@ -61,6 +61,10 @@ struct PanelTask {
 struct TaskRuntime {
     online: bool,
     interrupted: bool,
+    #[serde(default)]
+    delivery_phase: Option<String>,
+    #[serde(default)]
+    delivery_retained: Option<bool>,
 }
 #[derive(Clone, Deserialize)]
 struct WorkspacePreview {
@@ -508,6 +512,10 @@ impl CollaborationPanel {
                                     }
                                 )
                             })
+                            .unwrap_or_default(),
+                        snapshot.task_runtime.as_ref().and_then(|runtime| runtime.delivery_phase.as_deref()
+                            .map(|phase| format!("Native prompt {} · receiver acknowledgement and TaskStart remain separate{}",
+                                phase, if runtime.delivery_retained == Some(false) { " · delivery history could not be retained" } else { "" })))
                             .unwrap_or_default(),
                     ],
                 },

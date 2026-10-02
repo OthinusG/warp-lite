@@ -89,6 +89,7 @@ struct Live {
     generation: u64,
     wake: Option<Wake>,
     delivered: HashSet<String>,
+    delivery: Option<(Wake, &'static str, bool)>,
     initial_prompt: bool,
     started: Instant,
     expired: bool,
@@ -100,6 +101,8 @@ pub struct Wake {
     pub run: String,
     pub message_id: String,
     generation: u64,
+    task_id: Option<String>,
+    revision: Option<u32>,
 }
 struct State {
     store: Store,
@@ -447,6 +450,7 @@ impl Broker {
             generation: 0,
             wake: None,
             delivered: HashSet::new(),
+            delivery: None,
             initial_prompt,
             started: Instant::now(),
             expired: false,
@@ -606,6 +610,8 @@ impl Broker {
                     run: live.run.clone(),
                     message_id: message.id,
                     generation: live.generation,
+                    task_id: message.task_id,
+                    revision: message.revision,
                 }))
             })
             .collect();
@@ -635,6 +641,8 @@ impl Broker {
                     run: live.run.clone(),
                     message_id: message.id,
                     generation: live.generation,
+                    task_id: message.task_id,
+                    revision: message.revision,
                 })
             })
             .collect()
@@ -670,9 +678,14 @@ impl Broker {
             return false;
         };
         if message.id != wake.message_id
+            || message.task_id != wake.task_id || message.revision != wake.revision
             || (message.kind == "available" && message.task_id.as_ref()
                 .is_some_and(|task| dispatched_pools(&state).contains(task)))
         {
+            return false;
+        }
+        if state.store.observe_native_delivery(actor, &wake.run, &wake.message_id,
+            wake.task_id.as_deref(), wake.revision, "claimed").is_err() {
             return false;
         }
         let live = state
@@ -683,7 +696,9 @@ impl Broker {
             .as_mut()
             .unwrap();
         live.delivered.insert(wake.message_id.clone());
+        live.delivery = Some((wake.clone(), "claimed", true));
         live.wake = Some(wake.clone());
+        self.shared.changed.notify_all();
         true
     }
     pub fn wake_valid(&self, wake: &Wake) -> bool {
@@ -699,12 +714,18 @@ impl Broker {
     }
     pub fn finish_wake(&self, wake: &Wake, submitted: bool) {
         if let Ok(mut state) = self.shared.state.lock() {
+            let actor = state.terminals.get(&wake.terminal).and_then(|binding| binding.live.as_ref())
+                .filter(|live| live.wake.as_ref() == Some(wake)).and_then(|live| live.agent.clone());
+            let phase = if submitted { "submitted" } else { "cancelled" };
+            let retained = actor.as_ref().is_some_and(|actor| state.store.observe_native_delivery(actor,
+                &wake.run, &wake.message_id, wake.task_id.as_deref(), wake.revision, phase).is_ok());
             if let Some(live) = state
                 .terminals
                 .get_mut(&wake.terminal)
                 .and_then(|binding| binding.live.as_mut())
             {
                 if live.wake.as_ref() == Some(wake) {
+                    live.delivery = Some((wake.clone(), phase, retained));
                     live.wake = None;
                     if !submitted {
                         live.delivered.remove(&wake.message_id);
@@ -716,6 +737,7 @@ impl Broker {
                     else { live.ready = None; live.activity = Activity::Working; live.readiness_source = "peer_submit"; live.observed = Instant::now(); }
                 }
             }
+            self.shared.changed.notify_all();
         }
     }
     fn execute(&self, request: &Request) -> Result<Value> {
@@ -1229,7 +1251,13 @@ impl Broker {
             .transpose()?;
         let runtime = task.as_ref().map(|task| {
             let (online, interrupted) = task_runtime(&state, task);
-            json!({"online": online, "interrupted": interrupted})
+            let delivery = state.terminals.values().filter_map(|binding| binding.live.as_ref())
+                .filter(|live| live.agent.as_ref().is_some_and(|actor| actor.id == task.assignee))
+                .filter_map(|live| live.delivery.as_ref())
+                .find(|(wake, _, _)| wake.task_id.as_deref() == Some(task.id.as_str()) && wake.revision == Some(task.revision));
+            json!({"online": online, "interrupted": interrupted,
+                "delivery_phase": delivery.map(|(_, phase, _)| *phase),
+                "delivery_retained": delivery.map(|(_, _, retained)| *retained)})
         });
         let messages = if let Some(thread) = query.selected_thread.as_ref().filter(|_| same_scope) {
             state.store.execute(&Store::operator(&project), crate::storage::OPERATOR_EPOCH, &Operation::ThreadGet {

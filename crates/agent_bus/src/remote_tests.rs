@@ -152,6 +152,21 @@ fn ssh_arguments_preserve_paths_and_reject_option_or_shell_injection() {
     let executable = directory.path().join("OpenSSH with spaces").join("ssh.exe");
     let command = build_ssh_command(&executable, "workstation-test").unwrap();
     assert_eq!(command.as_std().get_program(), executable.as_os_str());
+    for binding in [
+        crate::transport::ENDPOINT,
+        crate::transport::CAPABILITY,
+        crate::transport::TERMINAL,
+        crate::session::LAUNCHES,
+        "WARP_AGENT_BIN",
+        "WARP_AGENT_LAUNCH_PATH",
+        "WARP_AGENT_SESSION_TOKEN",
+        "VIBE_MCP_SERVERS",
+    ] {
+        assert!(command
+            .as_std()
+            .get_envs()
+            .any(|(name, value)| name == OsStr::new(binding) && value.is_none()));
+    }
     let args: Vec<_> = command.as_std().get_args().collect();
     assert_eq!(args[0], OsStr::new("-T"));
     assert_eq!(

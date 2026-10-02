@@ -274,3 +274,7 @@
 
 - Sanitize AuthenticationFrame::Error during initial Hello as well as authenticated exchanges. A peer can send an error before enrollment; returning that raw DomainError bypasses the shared diagnostic whitelist. The owned stdio fixture now checks reflected Hello text and unknown retry/version hints without transmitting a credential.
 - Native CLI preference changes wait for pending enrollment, except disablement which cancels immediately. Otherwise a settings worker can invalidate a consumed invitation or overwrite newly persisted connection metadata.
+
+
+- Native claimed/submitted/cancelled prompt observations belong to the event history, with original receiver/run/message/task revision metadata only. Never infer AgentAck, TaskStart or execution from a PTY submission. Commit the claimed observation before input, expose failed completion audit retention, and never reconstruct live delivery authority from persisted observations after restart.
+- SSH children reuse session::without_terminal_binding and strip VIBE_MCP_SERVERS. Removing originating capability/endpoint/native-launch environment prevents user SSH SendEnv rules from forwarding local MCP bindings; retain ordinary system SSH authentication environment.

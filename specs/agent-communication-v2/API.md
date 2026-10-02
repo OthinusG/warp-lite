@@ -541,3 +541,25 @@ the network future and drops only its owned SSH child; a late result cannot reac
 the model. Disabling communication also cancels enrollment. Settings CLI setup
 and enrollment result application cannot overwrite each other's preferences.
 The enrollment model does not enable MCP routing or synthesize live participation.
+
+
+### Native delivery observations
+
+The trusted native broker emits native_delivery_observed for claimed, submitted
+and cancelled prompt delivery, pinned to the original receiver/run/message and
+optional task/revision. Payloads contain only these identities and explicit
+acknowledgement_implied=false / execution_implied=false; never prompt bodies,
+drafts, capabilities or credentials. Repeated completion callbacks cannot emit
+another observation. These events do not change task state/version, attempts or
+message acknowledgement. A successful AgentAck still does not imply TaskStart.
+
+Claim requires the delivery observation to commit before input submission. If
+recording the actual submission/cancellation later fails, retain that failure in
+the current native runtime projection rather than claiming recorded history.
+Selected task_runtime may report delivery_phase and delivery_retained for its
+current owner/revision. A restarted app retains events but drops runtime delivery
+claims; history cannot restore automatic wake or execution authority.
+
+The SSH child reuses the native launcher environment scrubber and removes the
+Vibe MCP configuration environment, so originating terminal capability/endpoint/
+launch bindings cannot be forwarded through user-configured SSH SendEnv rules.

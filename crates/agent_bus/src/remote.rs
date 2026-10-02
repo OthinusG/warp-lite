@@ -171,6 +171,9 @@ pub fn validate_alias(alias: &str) -> Result<()> {
 fn build_ssh_command(executable: &Path, alias: &str) -> Result<Command> {
     validate_alias(alias)?;
     let mut command = Command::new(executable);
+    crate::session::without_terminal_binding(&mut command);
+    // SSH SendEnv configuration must never forward an originating native MCP binding.
+    command.env_remove("VIBE_MCP_SERVERS");
     command.arg("-T");
     for option in SSH_OPTIONS {
         command.args(["-o", option]);

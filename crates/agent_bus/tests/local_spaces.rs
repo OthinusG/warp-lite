@@ -717,3 +717,115 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
             .is_some_and(|kind| kind.contains("cancel"))));
     waiter.join().unwrap();
 }
+
+#[test]
+fn native_delivery_observations_never_acknowledge_or_start_tasks() {
+    use warp_agent_bus::transport::PanelQuery;
+    let directory = tempfile::tempdir().unwrap();
+    let root = warp_agent_bus::project_root(directory.path()).unwrap();
+    let database = directory.path().join("native-delivery.sqlite");
+    let server = RunningBroker::start(&database).unwrap();
+    let b = &server.broker;
+    let issuer = client(b, "delivery-issuer", "issuer", &root, None);
+    let worker = client(b, "delivery-worker", "worker", &root, None);
+    let task = assign(b, &issuer, "worker");
+    let initial = b.operator_task(&root, &task).unwrap();
+    let query = PanelQuery {
+        project: root.clone(),
+        scope: Some(root.clone()),
+        selected_task: Some(task.clone()),
+        ..Default::default()
+    };
+    let mut delivered = None;
+    for submitted in [false, true] {
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        let wake = b
+            .wakeups()
+            .into_iter()
+            .find(|wake| wake.terminal == worker.terminal)
+            .unwrap();
+        assert!(b.claim_wake(&wake));
+        assert_eq!(
+            b.operator_panel(&query).unwrap()["task_runtime"]["delivery_phase"],
+            "claimed"
+        );
+        b.finish_wake(&wake, submitted);
+        b.finish_wake(&wake, submitted);
+        let panel = b.operator_panel(&query).unwrap();
+        assert_eq!(
+            panel["task_runtime"]["delivery_phase"],
+            if submitted { "submitted" } else { "cancelled" }
+        );
+        assert_eq!(panel["task_runtime"]["delivery_retained"], true);
+        let current = b.operator_task(&root, &task).unwrap();
+        assert_eq!(current["state"], "queued");
+        assert_eq!(current["version"], initial["version"]);
+        assert!(current["attempts"].as_array().unwrap().is_empty());
+        let inbox = call(
+            b,
+            &worker,
+            Operation::AgentInbox {
+                cursor: None,
+                limit: Some(50),
+            },
+        )
+        .unwrap();
+        assert!(inbox["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|message| message["id"] == wake.message_id && message["acknowledged"] == false));
+        delivered = Some(wake.message_id);
+    }
+    let events = b.operator_events(&root, None, Some(50)).unwrap();
+    let phases: Vec<_> = events["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|event| event["kind"] == "native_delivery_observed")
+        .collect();
+    assert_eq!(phases.len(), 4);
+    assert_eq!(
+        phases
+            .iter()
+            .map(|event| event["payload"]["phase"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["claimed", "cancelled", "claimed", "submitted"]
+    );
+    for event in phases {
+        assert_eq!(event["resource"], task);
+        assert_eq!(event["payload"]["acknowledgement_implied"], false);
+        assert_eq!(event["payload"]["execution_implied"], false);
+        assert!(event["payload"].get("body").is_none());
+    }
+    call(
+        b,
+        &worker,
+        Operation::AgentAck {
+            message_id: delivered.unwrap(),
+        },
+    )
+    .unwrap();
+    assert_eq!(b.operator_task(&root, &task).unwrap()["state"], "queued");
+    drop(server);
+    let reopened = RunningBroker::start(&database).unwrap();
+    assert_eq!(
+        reopened.broker.operator_task(&root, &task).unwrap()["state"],
+        "queued"
+    );
+    assert_eq!(
+        reopened
+            .broker
+            .operator_events(&root, None, Some(50))
+            .unwrap()["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|event| event["kind"] == "native_delivery_observed")
+            .count(),
+        4
+    );
+    let panel = reopened.broker.operator_panel(&query).unwrap();
+    assert_eq!(panel["task_runtime"]["online"], false);
+    assert!(panel["task_runtime"]["delivery_phase"].is_null());
+}

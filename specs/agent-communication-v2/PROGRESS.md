@@ -638,3 +638,14 @@ Tools Panel integration points:
   unknown retry/version hints before enrollment. CLI preference changes wait
   for pending enrollment while disablement remains available and cancels it.
   Exact-source cloud revalidation pending.
+
+
+- Added durable native delivery observations and selected-task projection,
+  distinguishing guarded prompt claimed/submitted/cancelled from receiver
+  acknowledgement and execution. The real private-IPC check exercises retries,
+  duplicate callbacks, unchanged queued task/version/attempts, unacknowledged
+  inbox and restart history without restoring live authority. Cloud verification
+  and new native projection screenshot review pending.
+- SSH children now reuse the existing launcher binding scrubber and remove Vibe
+  MCP configuration. Argument/environment checks ensure native capabilities and
+  endpoints stay on the originating machine. Exact-source CI pending.

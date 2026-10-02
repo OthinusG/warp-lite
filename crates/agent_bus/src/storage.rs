@@ -616,6 +616,20 @@ impl Store {
         Ok(sequence)
     }
 
+    /// A native prompt observation is never an acknowledgement, task transition or execution proof.
+    pub(crate) fn observe_native_delivery(&self, actor: &Agent, run: &str, message: &str,
+        task: Option<&str>, revision: Option<u32>, phase: &str) -> Result<()> {
+        ensure!(matches!(phase, "claimed" | "submitted" | "cancelled"), invalid_input("Invalid native delivery phase"));
+        self.transaction(|| {
+            self.authorize(actor)?;
+            self.budget_available()?;
+            self.record(&actor.project, "native_delivery_observed", &actor.id, task.or(Some(message)), None,
+                json!({"message_id":message, "revision":revision, "run":run, "phase":phase,
+                    "acknowledgement_implied":false, "execution_implied":false}))?;
+            Ok(())
+        })
+    }
+
     fn queue(&self, project: &str, mut message: Message) -> Result<Message> {
         let control = !matches!(message.kind.as_str(), "message" | "assignment" | "available");
         let limit = MAX_PENDING_PER_AGENT + if control { CONTROL_MESSAGE_RESERVE } else { 0 };
