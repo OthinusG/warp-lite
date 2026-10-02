@@ -37,6 +37,9 @@ pub struct Preferences {
     pub(super) legacy_remote_profiles: Vec<LegacyRemoteProfile>,
 }
 impl Preferences {
+    pub fn legacy_cleanup_pending(&self) -> bool {
+        self.legacy_remote_profiles.iter().any(|profile| profile.cleanup_pending)
+    }
     pub fn programs(&self) -> std::collections::HashSet<String> {
         if !self.enabled {
             return std::collections::HashSet::new();
@@ -842,6 +845,7 @@ mod tests {
         assert!(preferences.enabled);
         assert_eq!(preferences.legacy_remote_profiles.len(), 1);
         assert!(preferences.legacy_remote_profiles[0].cleanup_pending);
+        assert!(preferences.legacy_cleanup_pending());
         let encoded = serde_json::to_value(&preferences).unwrap();
         assert!(encoded.get("remote_profiles").is_none());
         assert_eq!(encoded["legacy_remote_profiles"][0]["alias"], "old-host");
@@ -853,6 +857,7 @@ mod tests {
             "enabled": false, "selected": {},
         })).unwrap();
         assert!(old.legacy_remote_profiles.is_empty());
+        assert!(!old.legacy_cleanup_pending());
         for field in ["credential", "invitation", "capability", "private_key"] {
             let mut injected = profile.clone();
             injected[field] = serde_json::json!("synthetic");

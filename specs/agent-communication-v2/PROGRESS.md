@@ -724,3 +724,15 @@ v6 backup/history/pending intents, revokes old grants/runs and preserves unfinis
 execution as unknown. Legacy runtime fixtures remain test-only. Local parsing,
 SQL, YAML and whitespace checks passed; GitHub Rust checks remain pending.
 R1–R7 and R0's independently source-built server gate are still unimplemented.
+
+
+R0 follow-up source `a9caea0`, [run 37040051387](https://github.com/OthinusG/warp-lite/actions/runs/37040051387):
+macOS and Windows protocol/setup and representative-history checks passed,
+including unchanged local active attempts, retained original receipts and legacy
+profile selection. Both default application checks failed with E0616 because the settings view
+accessed a private legacy profile field; platform and focused native cleanup
+checks were skipped. A boolean Preferences accessor fixes the ownership boundary;
+exact-source revalidation is pending. Source was verified to
+match the workspace's 17 implementation paths without altering the current index.
+SSH Remote and SR41 host-status collection/rendering remain unimplemented; their
+contracts and static/live acceptance requirements are recorded in HOST-STATUS.md.

@@ -146,7 +146,7 @@ impl View for CommunicationSettingsView {
             }
         }
         body.add_child(builder.paragraph(model.status.clone()).build().finish());
-        if model.preferences.legacy_remote_profiles.iter().any(|profile| profile.cleanup_pending) {
+        if model.preferences.legacy_cleanup_pending() {
             body.add_child(builder.paragraph(
                 "Legacy device access is disabled. Unlock secure storage and restart Warpai to retry credential cleanup.".to_owned(),
             ).build().finish());

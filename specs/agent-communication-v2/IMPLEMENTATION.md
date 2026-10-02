@@ -48,3 +48,12 @@ the existing client/system primitives against the required contracts.
 
 Local static checks and exact-source GitHub results are recorded in ACCEPTANCE.
 Unchecked PLAN gates remain pending until their runtime checks actually pass.
+
+### Application compilation repair
+
+Source a9caea0/run 37040051387 passed both OS backend suites but macOS application
+check failed with E0616 at settings_view/agent_communication.rs:149. The settings
+view accessed a setup-private legacy profile field. Repair: expose only a boolean
+pending-cleanup query on Preferences and use it from settings; keep profile
+metadata private. Verify the query in the existing serialization regression,
+then repeat both OS backend/default/platform/native-cleanup checks on GitHub.
