@@ -23,12 +23,6 @@ const PRESENCE: Duration = Duration::from_secs(30);
 
 /// Sensitive frames deliberately have no Debug implementation or durable retry representation.
 #[derive(Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Frame {
-    Negotiation(NegotiationFrame),
-    Authentication(AuthenticationFrame),
-}
-#[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AuthenticationFrame {
     Enroll {
@@ -254,7 +248,7 @@ async fn session<S: AsyncRead + AsyncWrite + Unpin>(
             });
         let _ = send(
             &mut stream,
-            &Frame::Authentication(AuthenticationFrame::Error { error: safe }),
+            &AuthenticationFrame::Error { error: safe },
             Instant::now() + DEADLINE,
         )
         .await;
