@@ -4,6 +4,15 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Source `1267827`, run `36958662888`: both OS complete protocol, migration,
+  history and enrollment suites passed. Real authenticated shared IPC exercised
+  delegation/start/file evidence in its producing checkout/submit/rework/accept,
+  active private attempt preservation, cross-scope reservation privacy, directory
+  drift denial, offline reclaim denial, leave/replay fencing and irreversible
+  old-capability remap revocation. Both debug UI builds/captures are still running;
+  backend success does not accept the shared-pane GUI or SSH gateway.
+
+
 - Source `e1b2f4d`, run `36958248410`: both OS passed complete storage, migration
   and enrollment unit tests. Shared IPC reached AgentList correctly after the
   borrow fix; the new fixture incorrectly counted the caller as its own peer.

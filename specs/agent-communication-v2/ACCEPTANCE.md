@@ -70,3 +70,11 @@ access does not turn unimplemented M2/M4/M6 work into completed work.
 The UI source checkpoint requires screenshot acceptance before live integration:
 see [UI-CHECKPOINT.md](UI-CHECKPOINT.md). Do not enable real operations behind a
 sample-data panel or silently mark failed/unsupported scenarios as passed.
+
+Source `1267827`, run [36958662888](https://github.com/OthinusG/warp-lite/actions/runs/36958662888):
+both OS complete backend suites passed, including real-IPC shared delegation and
+rework, private active attempts, physical leases, original evidence checkout,
+reclaim/departure/remap/dedup fences and v4→v5 backup migration. Enrollment tests
+passed single-use/expiry/hash-only receipts/grants/revocation. M4 admission UI and
+M6 gateway/platform credential storage/real SSH remain pending. Debug native
+capture stages were still running at this checkpoint.
