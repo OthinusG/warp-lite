@@ -261,3 +261,6 @@
 
 - Native remote reconnect must fence the device-qualified native connection before absent-receipt reconciliation. Keep server-ordered owner tombstones after disconnect, reject older announcements and heartbeats, and guard every write before ledger replay. Otherwise a delayed old frame can commit after a new connection reports not_committed. Retain original mutation epochs and mark superseded execution unknown.
 - Native capture assertions access clipboard through an existing ViewContext, not App. Explicit history export verification runs only on isolated GitHub runners; local captures must not inspect or replace the daily clipboard.
+
+
+- Remote credentials reuse the existing SecureStorage trait with UUID-only namespaced keys. Empty/no-op providers must fail closed, enrollment must not overwrite existing keys, and successful writes require exact readback. Delete only the newly owned key after failed verification; verify absence after removal. Synthetic provider checks do not prove native Keychain/DPAPI acceptance.

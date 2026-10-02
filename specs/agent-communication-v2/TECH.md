@@ -272,3 +272,21 @@ sequence cursor only after receiving a valid batch. Page tasks/agents explicitly
 details read the original task, attempts and evidence provenance. Verify scoped
 reads, cursor resumption, offline/interrupted separation and draft metadata through
 real IPC tests, then capture live empty/task/detail states on both OSes.
+
+
+### Native credential storage implementation checkpoint
+
+Reuse warpui_extras::secure_storage::SecureStorage, with keys containing only
+non-nil coordinator/device UUIDs. Enrollment rejects an existing key and a
+provider that returns an empty value (including the retained no-op provider).
+Write and read back the exact returned credential before enabling participation.
+A failed verification removes only that newly owned key and requires a new
+invitation; a write failure never removes an existing key. Keep all storage errors
+behind static diagnostics. Removal must be followed by confirmed absence; failed
+cleanup cannot re-enable a connection.
+
+The focused application check uses the existing provider trait with synthetic
+values to cover successful persistence, lock/no-op/write/readback/delete failure,
+invalid identities and another device's key preservation. It does not prove
+Keychain/DPAPI runtime acceptance. Native enrollment and connection settings are
+still being integrated under NATIVE-REMOTE-ROUTING.md.

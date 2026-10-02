@@ -1,5 +1,6 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 pub(crate) mod setup;
+mod remote_credentials;
 pub(crate) mod panel;
 use crate::terminal::{
     cli_agent_sessions::{

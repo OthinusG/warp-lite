@@ -99,3 +99,23 @@ Source `338473e`, run [37001169565](https://github.com/OthinusG/warp-lite/action
 
 
 Participant intent source `b3c3b93`, run [37001599015](https://github.com/OthinusG/warp-lite/actions/runs/37001599015), and staged-client source `2973016`, run [37001938230](https://github.com/OthinusG/warp-lite/actions/runs/37001938230), passed both OS protocol/history checks. The checks recover unchanged pending/confirmed receipts after SQLite reopen, reject changed content/epochs/results, preserve unknown outcomes, enforce row/byte limits, page retained intents and reject another coordinator or request identity before stdio transmission. Native application routing is still unfinished.
+
+
+## Exact-source validation checkpoints on 2026-10-02
+
+- dc46ca6 / run 36998413298: both target OSes passed protocol/representative
+  history, default and warp_platform application checks, review release packaging
+  and all 115 native capture/action checks. This source excludes later remote
+  safety changes and clipboard/participant observation acceptance extensions.
+- Remote backend additions passed both OS suites in runs 37002464526 (presence),
+  37002776680 (grant review), 37003138274 (unknown on loss), 37003690031
+  (snapshot/cursors), 37004266066 (shutdown/storage failure) and 37004317107
+  (cursor reopen). Native production routing remains unfinished.
+- 5b988d3 and cec947a: both backend suites passed, including original-owner
+  explicit unknown completion. Native compilation failed on the capture-only
+  clipboard accessor; b1bf828 fixes it in run 37009716224 (pending).
+- c3250f2 / run 37010078182: macOS backend/history passed with native
+  connection replacement and delayed-old-write fencing; Windows still pending.
+- Secure storage fail-closed application check added; cloud verification pending.
+  No physical SSH, real vendor model, native credential or full M6 acceptance
+  is asserted by these checkpoints.

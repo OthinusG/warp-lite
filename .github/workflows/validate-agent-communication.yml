@@ -188,6 +188,7 @@ jobs:
           cargo test -p warp --lib native_intent_requires_explicit_fields_and_typed_override --locked
           cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
+          cargo test -p warp --lib remote_credentials_fail_closed_and_preserve_other_devices --locked
           cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
           cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked
           cargo test -p warp --lib opaque_approval_and_question_notifications_never_announce_idle --locked
