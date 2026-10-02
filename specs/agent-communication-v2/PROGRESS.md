@@ -620,3 +620,14 @@ Tools Panel integration points:
 - 54fe996 native enrollment/profiles source is pushed on its isolated validation
   ref; full two-platform build and focused application checks run 37011624211.
   Enrollment UI and production remote participation are not yet connected.
+
+
+- Native source b1bf828 compiled successfully on macOS, then its first live
+  projection assertion failed: the fixture compared checkout metadata against
+  PanelQuery.project, an ephemeral worker input not retained in panel state.
+  Compare the private fixture against the received snapshot.project instead.
+  Existing real-IPC metadata checks already passed; full native rerun pending.
+- Native enrollment source 54fe996 exposed a bridge setup-test dependency:
+  setup.rs is included independently of UI modules. Move its serialized profile
+  type into setup.rs rather than importing the native worker module. Fix committed
+  and the same two-platform full validation ref rerun.

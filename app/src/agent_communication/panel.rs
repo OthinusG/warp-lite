@@ -1973,7 +1973,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         .is_some_and(|snapshot| snapshot.tasks.len() == 1
                             && snapshot.agents.iter().any(|agent| !agent.online
                                 && agent.device.as_deref() == Some("local")
-                                && agent.workspace.as_deref() == Some(panel.query.project.as_str())
+                                && agent.workspace.as_deref() == Some(snapshot.project.as_str())
                                 && agent.last_observed_ms.is_none())))
                         && checkpoint_draft(app, window) == "unsent collaboration draft"
                 )
