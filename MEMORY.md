@@ -270,3 +270,7 @@
 
 
 - app/agent_communication/setup.rs is included verbatim by the bridge integration tests without the native UI modules. Keep serialized connection profile types in setup.rs (or another UI-independent source), and keep secure provider/ModelContext/SSH worker orchestration in remote_settings.rs. A setup preference reference to its native sibling breaks both OS bridge tests.
+
+
+- Sanitize AuthenticationFrame::Error during initial Hello as well as authenticated exchanges. A peer can send an error before enrollment; returning that raw DomainError bypasses the shared diagnostic whitelist. The owned stdio fixture now checks reflected Hello text and unknown retry/version hints without transmitting a credential.
+- Native CLI preference changes wait for pending enrollment, except disablement which cancels immediately. Otherwise a settings worker can invalidate a consumed invitation or overwrite newly persisted connection metadata.

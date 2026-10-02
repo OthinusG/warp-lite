@@ -199,7 +199,7 @@ impl AgentCommunication {
         command: Option<String>,
         ctx: &mut ModelContext<Self>,
     ) {
-        if self.busy {
+        if self.busy || (self.remote_pending.is_some() && enabled != Some(false)) {
             return;
         }
         if enabled == Some(false) {

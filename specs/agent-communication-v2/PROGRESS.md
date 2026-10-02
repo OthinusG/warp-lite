@@ -631,3 +631,10 @@ Tools Panel integration points:
   setup.rs is included independently of UI modules. Move its serialized profile
   type into setup.rs rather than importing the native worker module. Fix committed
   and the same two-platform full validation ref rerun.
+
+
+- Initial Hello error responses now use the same peer diagnostic sanitizer as
+  authenticated exchanges; the owned-child fixture rejects reflected text and
+  unknown retry/version hints before enrollment. CLI preference changes wait
+  for pending enrollment while disablement remains available and cancels it.
+  Exact-source cloud revalidation pending.

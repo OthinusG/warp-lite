@@ -13,6 +13,9 @@ pub(super) struct Enrollment {
 }
 
 impl AgentCommunication {
+    pub(crate) fn remote_enrolling(&self) -> bool {
+        self.remote_pending.is_some()
+    }
     pub(crate) fn enroll_remote(
         &mut self,
         alias: String,

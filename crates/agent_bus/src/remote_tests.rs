@@ -265,6 +265,10 @@ def send(value):
     sys.stdout.buffer.flush()
 
 hello = read()
+if len(sys.argv) > 3:
+    send(dict(type='error', error=dict(code=sys.argv[3], message='sensitive-hello-reflection',
+                                      retryable=True, version=999)))
+    sys.exit(0)
 epoch, device, space = str(uuid.uuid4()), str(uuid.uuid4()), sys.argv[2]
 send(dict(type='hello_result', protocol_major=2, protocol_minor=0,
           features=hello['features'], max_frame_bytes=hello['max_frame_bytes'],
@@ -329,6 +333,28 @@ while True:
         command
     };
     tokio::runtime::Runtime::new().unwrap().block_on(async {
+        for code in ["device_revoked", "untrusted_peer_value"] {
+            let mut failed_hello = command();
+            failed_hello.arg(code);
+            let error = Connection::from_command(failed_hello, coordinator)
+                .await
+                .err()
+                .unwrap();
+            assert!(!error.to_string().contains("sensitive-hello-reflection"));
+            let safe = error.downcast_ref::<crate::DomainError>().unwrap();
+            assert_eq!(
+                safe.code,
+                if code == "device_revoked" {
+                    code
+                } else {
+                    "invalid_input"
+                }
+            );
+            if code == "untrusted_peer_value" {
+                assert!(!safe.retryable);
+                assert!(safe.version.is_none());
+            }
+        }
         let rejected = Connection::from_command(command(), uuid::Uuid::new_v4()).await;
         assert!(rejected.is_err());
         let mut connection = Connection::from_command(command(), coordinator)

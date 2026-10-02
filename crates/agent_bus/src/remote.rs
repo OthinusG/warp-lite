@@ -331,7 +331,7 @@ impl Connection {
                 connection.connection_epoch = connection_epoch;
             }
             HelloResponse::Authentication(AuthenticationFrame::Error { error }) => {
-                return Err(error.into())
+                return Err(remote_error(error))
             }
             _ => return Err(invalid_input("Unexpected SSH negotiation response")),
         }

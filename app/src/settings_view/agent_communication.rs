@@ -115,7 +115,7 @@ impl View for CommunicationSettingsView {
                         .get(&row.command)
                         .is_some_and(|entry| entry.active),
                 );
-                let checkbox = if model.busy || row.installed.is_none() {
+                let checkbox = if model.busy || model.remote_enrolling() || row.installed.is_none() {
                     checkbox.disabled()
                 } else {
                     checkbox
@@ -149,7 +149,7 @@ impl View for CommunicationSettingsView {
         let refresh = builder
             .button(ButtonVariant::Text, self.refresh.clone())
             .with_text_label("Refresh agents / retry cleanup".to_owned());
-        let refresh = if model.busy {
+        let refresh = if model.busy || model.remote_enrolling() {
             refresh.disabled()
         } else {
             refresh
