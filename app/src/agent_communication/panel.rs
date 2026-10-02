@@ -1260,7 +1260,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     );
                     filenames.push(filename.clone());
                     driver = driver.with_step(
-                        TestStep::new(filename.clone())
+                        TestStep::new(&filename)
                             .with_action(move |app, window, _| {
                                 app.update(|ctx| {
                                     let colors = Settings::theme_for_theme_kind(&theme, ctx);
