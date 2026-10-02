@@ -797,7 +797,7 @@ impl Store {
     }
 
     /// Historical provenance remains readable by the operator after membership is revoked.
-    fn physical_root(&self, actor: &Agent) -> Result<String> {
+    pub(crate) fn physical_root(&self, actor: &Agent) -> Result<String> {
         if !actor.project.starts_with("space:") {
             return Ok(actor.project.clone());
         }

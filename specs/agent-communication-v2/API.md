@@ -289,3 +289,19 @@ Device/space enrollment changes use a separate operator request path and are per
 - Concurrent claim/dependency/reservation tests use real transactions; transport replay tests drop responses after commit.
 - Golden remote frames cover negotiated features, revoked epochs, partial reads and size limits on both operating systems.
 - UI operator requests and agent tools reach the same state-transition functions while retaining distinct authenticated principals.
+
+## Native local panel read contract
+
+`Broker::operator_panel(PanelQuery)` is a trusted in-process application read,
+never a native MCP tool or remote frame. Resolve the current pane's explicit
+shared admission only when its producing checkout matches the active local root.
+Return at most 50 authorized agents, 50 task summaries, one selected task with
+independent online/interrupted flags and 50 events after the confirmed sequence.
+Agent pagination uses the last unique name; task/event cursors use existing
+committed sequences. A changed space clears all prior cursors and selection.
+The existing broker condition variable wakes background reads; a one-second
+timeout refreshes volatile draft/readiness metadata, without storing terminal
+content or polling complete history each render. Offline identity is retained.
+Disablement removes the live projection; opening/refreshing never takes terminal
+focus. All human mutations remain separate operator calls with stable request
+IDs and optimistic versions. Live visual/action acceptance remains required.

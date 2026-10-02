@@ -261,3 +261,14 @@ Performance targets are initial release gates to measure on a documented referen
 - [MCP Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail): reference for threads, search and advisory reservations, not a replacement state engine.
 
 External capabilities and installed tool behavior must be rechecked against actual versions during implementation. Repository contracts and observed native behavior are the implementation authority.
+
+### Live panel implementation checkpoint
+
+The static checkpoint is accepted in UI-CHECKPOINT.md. Retain its native wrapped
+sections, theme and pinned controls. Use one outstanding bounded background
+read per panel; callbacks discard results from a changed active pane/root.
+Retain only the most recent 200 events in the view and advance the durable
+sequence cursor only after receiving a valid batch. Page tasks/agents explicitly;
+details read the original task, attempts and evidence provenance. Verify scoped
+reads, cursor resumption, offline/interrupted separation and draft metadata through
+real IPC tests, then capture live empty/task/detail states on both OSes.

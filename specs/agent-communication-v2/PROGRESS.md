@@ -4,6 +4,25 @@
 
 ### Recovered checkpoint for the current continuation
 
+- Live panel read integration added: ordinary Tools Panel entry, bounded background
+  event wait, explicit agent/task pages, task selection, original attempts/evidence,
+  readiness/draft/approval/offline metadata and a 200-event view tail. Context and
+  generation guards reject stale callbacks; disablement clears the projection.
+  Added real IPC checks for pagination, resumption, scope reset and independent
+  execution certainty. Rust compilation and live native capture remain pending;
+  human controls are not yet wired.
+
+
+- Source `f6200db`, run `36971937538`: both complete protocol suites passed,
+  including device/checkout identity, original-run resume and replacement fences,
+  remap/departure revocation, atomic interrupted-attempt recovery and v5 migration.
+  Remote production dispatch and UI remain pending.
+- Source `3d66017`, run `36970541930`: both native capture jobs passed with
+  74 images and keyboard/focus/draft checks each. Complete Windows fixture and
+  full-resolution detail-end/restoration review passed; prior complete macOS
+  review plus detail-end evidence completes M2.1/M2.2. Live integration begins.
+
+
 - Source `f16496e`, run `36971306130`: v6 source compiled on both OSes,
   v5 backup/host-lease/coordinator identity migration passed, and existing backend
   checks passed. Registration tests exposed nested BEGIN from recover inside the

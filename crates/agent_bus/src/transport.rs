@@ -133,6 +133,18 @@ pub struct RunningBroker {
     thread: Option<thread::JoinHandle<()>>,
     directory: std::path::PathBuf,
 }
+/// Trusted native panel query; cursors are scoped to the selected project.
+#[derive(Clone, Default)]
+pub struct PanelQuery {
+    pub project: String,
+    pub scope: Option<String>,
+    pub terminal: Option<String>,
+    pub agent_after: Option<String>,
+    pub task_after: Option<u64>,
+    pub selected_task: Option<String>,
+    pub event_after: Option<u64>,
+    pub wait: bool,
+}
 impl RunningBroker {
     /// Executable aliases live beside the private broker socket and disappear with the app.
     pub fn launcher_directory(&self) -> std::path::PathBuf {
@@ -1103,6 +1115,59 @@ impl Broker {
     pub fn operator_events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
         let state = self.store()?;
         state.store.events(project, after, limit)
+    }
+
+    /// Bounded read projection and resumable events, off the UI thread. A timeout also
+    /// refreshes volatile readiness, which deliberately does not enter durable history.
+    pub fn operator_panel(&self, query: &PanelQuery) -> Result<Value> {
+        let mut state = self.store()?;
+        let project = query.terminal.as_ref()
+            .and_then(|terminal| state.terminals.get(terminal))
+            .filter(|binding| !binding.revoked)
+            .and_then(|binding| binding.live.as_ref())
+            .and_then(|live| live.agent.as_ref())
+            .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
+            .map(|agent| agent.project.clone())
+            .unwrap_or_else(|| query.project.clone());
+        let same_scope = query.scope.as_deref() == Some(project.as_str());
+        let after = same_scope.then_some(query.event_after).flatten();
+        let mut events = state.store.events(&project, after, Some(50))?;
+        if query.wait && same_scope && events["events"].as_array().is_some_and(Vec::is_empty) {
+            let (next, _) = self.shared.changed.wait_timeout(state, Duration::from_secs(1))
+                .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
+            state = next;
+            events = state.store.events(&project, after, Some(50))?;
+        }
+        ensure!(!self.shared.stopped.load(Ordering::SeqCst), coordinator_unavailable("Broker unavailable"));
+        let agents = state.store.agents(&project)?;
+        let remaining: Vec<_> = agents.into_iter()
+            .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
+            .collect();
+        let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());
+        let agents: Vec<_> = remaining.into_iter().take(50).map(|agent| {
+            let live = state.terminals.values().filter(|binding| !binding.revoked)
+                .filter_map(|binding| binding.live.as_ref())
+                .find(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH
+                    && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
+            json!({"agent": agent, "online": live.is_some(),
+                "activity": live.map(|live| live.activity),
+                "draft": live.map(|live| live.draft.state()),
+                "blocked": live.is_some_and(|live| live.blocked),
+                "paused": live.is_some_and(|live| live.paused),
+                "ready": live.is_some_and(|live| live.ready.is_some()),
+                "readiness_source": live.map(|live| live.readiness_source)})
+        }).collect();
+        let tasks = state.store.operator_tasks(&project, None, None, same_scope.then_some(query.task_after).flatten(), Some(50), false)?;
+        let task = query.selected_task.as_ref().filter(|_| same_scope).map(|id| state.store.operator_task(&project, id))
+            .transpose()?;
+        let runtime = task.as_ref().map(|task| {
+            let (online, interrupted) = task_runtime(&state, task);
+            json!({"online": online, "interrupted": interrupted})
+        });
+        Ok(json!({"project": project, "agents": agents, "agent_cursor": agent_cursor,
+            "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
+            "task": task, "task_runtime": runtime, "events": events["events"],
+            "event_cursor": events["cursor"]}))
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {

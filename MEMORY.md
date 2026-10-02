@@ -207,3 +207,7 @@
 - Remote routing storage uses additive SQLite v6 tables rather than extending host workspaces' canonical-root uniqueness. Remote physical identity is enrolled device plus participant checkout UUID; display paths are not host roots. Native run UUIDs map to durable server mutation epochs. Preserve closed-run tombstones and uncertain attempts, and fence remap/departure before replay. This backend foundation does not enable production remote routing.
 
 - Store::transaction owns an explicit BEGIN/COMMIT and is not nestable. Atomic remote admission must call a transaction-internal recovery helper; preserve the public recovery wrapper for ordinary caller-owned operations. Do not split identity/run creation and interrupted-attempt recovery into separate commits.
+
+- Collaboration static gate passed on both native target platforms (source 3d66017, run 36970541930): 74 captures each, all fixture combinations reviewed, detail end reachable and draft/focus preserved. Live integration is now permitted but needs separate native data/action verification.
+
+- Native panel reads use the broker's existing condition variable off the UI thread with 50-item pages, a 200-event view tail and scoped sequence cursors. A one-second timeout refreshes volatile readiness independently of durable history. Scope/pane changes reset selection and cursors; callbacks also check a local generation before applying results.

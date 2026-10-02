@@ -63,8 +63,8 @@ Each package produces a reviewable commit/PR with updated specifications, focuse
 
 ### M2 — Native collaboration panel
 
-- [ ] **M2.1:** Add `Agent collaboration` to the existing Tools Panel and persisted panel selection. Build fixed fixtures for all B02/B04/B06 states using existing components and themes.
-- [ ] **M2.2:** Review macOS/Windows screenshots at narrow/wide widths, light/dark themes and increased text size; verify keyboard navigation, focus restoration, accessibility labels and long-content wrapping. Fix static states before live integration.
+- [x] **M2.1:** Add `Agent collaboration` to the existing Tools Panel and persisted panel selection. Build fixed fixtures for all B02/B04/B06 states using existing components and themes.
+- [x] **M2.2:** Review macOS/Windows screenshots at narrow/wide widths, light/dark themes and increased text size; verify keyboard navigation, focus restoration, accessibility labels and long-content wrapping. Fix static states before live integration.
 - [ ] **M2.3:** Subscribe to local event updates, with paginated task/agent queries and a recoverable cursor. Show current space/device, task detail, timeline and why work is waiting. Do not poll full history every UI frame.
 - [ ] **M2.4:** Wire human operations through the authenticated local controller using a distinct operator principal. Add local-terminal focus and stale/offline states; enable controls only when their APIs have shipped.
 - **Exit:** C05 plus existing terminal regression checks; typing in a terminal cannot be interrupted by panel refresh or delayed actions.

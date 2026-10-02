@@ -146,6 +146,25 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
     let issuer = client(b, "shared-issuer", "issuer", &root1, Some(&ws1));
     let worker = client(b, "shared-worker", "worker", &root2, Some(&ws2));
     let domain = format!("space:{group}");
+    let scoped_panel = b
+        .operator_panel(&warp_agent_bus::transport::PanelQuery {
+            project: root1.clone(),
+            scope: Some(root1.clone()),
+            terminal: Some("shared-issuer".into()),
+            selected_task: Some(private_task.clone()),
+            event_after: Some(u64::MAX),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(scoped_panel["project"], domain);
+    assert!(
+        scoped_panel["task"].is_null(),
+        "scope changes discard private selection"
+    );
+    assert!(
+        !scoped_panel["events"].as_array().unwrap().is_empty(),
+        "scope changes reset cursor"
+    );
     assert_eq!(
         call(b, &issuer, Operation::AgentList)
             .unwrap()
@@ -404,4 +423,117 @@ fn shared_capabilities_fence_directory_reclaim_departure_and_remapping() {
             .len(),
         0
     );
+}
+
+#[test]
+fn panel_pages_resume_and_keep_presence_separate_from_execution() {
+    use warp_agent_bus::transport::PanelQuery;
+    let directory = tempfile::tempdir().unwrap();
+    let root = warp_agent_bus::project_root(directory.path()).unwrap();
+    let server = RunningBroker::start(&directory.path().join("panel.sqlite")).unwrap();
+    let b = &server.broker;
+    let issuer = client(b, "panel-issuer", "issuer", &root, None);
+    let worker = client(b, "panel-worker", "worker", &root, None);
+    let task = assign(b, &issuer, "worker");
+    call(
+        b,
+        &worker,
+        Operation::TaskStart {
+            task_id: task.clone(),
+            revision: 1,
+            expected_version: Some(1),
+            request_id: id(),
+        },
+    )
+    .unwrap();
+    b.input_guard("panel-worker", true, true);
+    let mut query = PanelQuery {
+        project: root.clone(),
+        scope: Some(root.clone()),
+        terminal: Some("panel-issuer".into()),
+        selected_task: Some(task.clone()),
+        ..Default::default()
+    };
+    let snapshot = b.operator_panel(&query).unwrap();
+    assert_eq!(snapshot["task"]["state"], "running");
+    assert_eq!(snapshot["task_runtime"]["online"], true);
+    assert_eq!(snapshot["task_runtime"]["interrupted"], false);
+    let worker_row = snapshot["agents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["agent"]["name"] == "worker")
+        .unwrap();
+    assert_eq!(worker_row["blocked"], true);
+    query.event_after = snapshot["event_cursor"].as_u64();
+    assert!(query.event_after.is_some());
+    let unchanged = b.operator_panel(&query).unwrap();
+    assert!(unchanged["events"].as_array().unwrap().is_empty());
+    b.end("panel-worker");
+    let offline = b.operator_panel(&query).unwrap();
+    assert_eq!(
+        offline["task"]["state"], "running",
+        "exit does not claim task effects stopped"
+    );
+    assert_eq!(offline["task_runtime"]["online"], false);
+    assert_eq!(offline["task_runtime"]["interrupted"], true);
+
+    for index in 0..51 {
+        client(
+            b,
+            &format!("panel-{index:02}"),
+            &format!("member-{index:02}"),
+            &root,
+            None,
+        );
+    }
+    let first = b.operator_panel(&query).unwrap();
+    assert_eq!(first["agents"].as_array().unwrap().len(), 50);
+    query.agent_after = first["agent_cursor"].as_str().map(str::to_owned);
+    let second = b.operator_panel(&query).unwrap();
+    assert_eq!(second["agents"].as_array().unwrap().len(), 3);
+    assert!(second["agent_cursor"].is_null());
+    let names: std::collections::HashSet<_> = first["agents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(second["agents"].as_array().unwrap())
+        .map(|row| row["agent"]["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names.len(), 53);
+
+    query.agent_after = None;
+    loop {
+        let batch = b.operator_panel(&query).unwrap();
+        if batch["events"].as_array().unwrap().is_empty() {
+            break;
+        }
+        query.event_after = batch["event_cursor"].as_u64();
+    }
+    query.wait = true;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let reader = b.clone();
+    let waiter = std::thread::spawn(move || sender.send(reader.operator_panel(&query)).unwrap());
+    b.operator(
+        &root,
+        &Operation::TaskCancel {
+            task_id: task,
+            reason: "Operator requested cancellation".into(),
+            expected_version: None,
+            request_id: id(),
+        },
+    )
+    .unwrap();
+    let changed = receiver
+        .recv_timeout(std::time::Duration::from_secs(3))
+        .unwrap()
+        .unwrap();
+    assert!(changed["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|event| event["kind"]
+            .as_str()
+            .is_some_and(|kind| kind.contains("cancel"))));
+    waiter.join().unwrap();
 }

@@ -21713,10 +21713,7 @@ impl Workspace {
     /// Computes the list of available left panel views based on current AI settings and feature flags.
     fn compute_left_panel_views(ctx: &AppContext) -> Vec<ToolPanelView> {
         let mut views = vec![];
-        // The preview is explicit so fixture data cannot be mistaken for live collaboration.
-        if std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
-            views.push(ToolPanelView::Collaboration);
-        }
+        views.push(ToolPanelView::Collaboration);
         if FeatureFlag::AgentViewConversationListView.is_enabled()
             && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
             && *AISettings::as_ref(ctx).show_conversation_history
