@@ -1,4 +1,5 @@
-//! Bounded SFTP v3 reads over the native SSH subsystem, without shell filenames.
+//! Bounded SFTP v3 operations over native SSH, without shell filenames.
+use sha2::{Digest, Sha256};
 use std::{process::Stdio, time::Duration};
 
 use tokio::{
@@ -26,9 +27,11 @@ pub enum SftpError {
     PathEscape,
     CapacityExceeded,
     EndOfFile,
+    Conflict,
+    CommitUnknown,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Attributes {
     pub size: Option<u64>,
     pub permissions: Option<u32>,
@@ -56,6 +59,25 @@ pub struct Entry {
 pub struct Directory {
     pub entries: Vec<Entry>,
     pub truncated: bool,
+}
+
+/// Original new-file intent; no file contents or credentials are retained.
+#[derive(Clone, Debug)]
+pub struct UploadReceipt {
+    pub profile_id: Uuid,
+    pub canonical_root: String,
+    pub destination: String,
+    pub partial: String,
+    pub size: u64,
+    pub sha256: [u8; 32],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UploadState {
+    Prepared,
+    Confirmed,
+    Conflict,
+    Unknown,
 }
 
 struct Cursor<'a>(&'a [u8]);
@@ -163,6 +185,7 @@ pub struct SftpClient {
     output: ChildStdout,
     pub connection_id: Uuid,
     pub canonical_root: String,
+    profile_id: Uuid,
     windows: bool,
     sequence: u32,
     alive: bool,
@@ -190,6 +213,7 @@ impl SftpClient {
             output,
             connection_id: Uuid::new_v4(),
             canonical_root: String::new(),
+            profile_id: profile.id,
             windows: matches!(profile.remote_shell, RemoteShell::PowerShell),
             sequence: 0,
             alive: true,
@@ -349,7 +373,8 @@ impl SftpClient {
             }
             let mut cursor = Cursor(&reply[1..]);
             let count = cursor.u32()?;
-            if count == 0 || count > MAX_ENTRIES as u32 {
+            // Each entry needs at least two string lengths and attribute flags.
+            if count == 0 || count as usize > cursor.0.len() / 12 {
                 return Err(SftpError::Protocol);
             }
             for _ in 0..count {
@@ -429,6 +454,219 @@ impl SftpClient {
             bytes.extend_from_slice(chunk);
         }
         Ok(bytes)
+    }
+
+    /// Resolve the parent remotely, preserving the final link as an entry.
+    async fn scoped_entry(&mut self, relative: &str) -> Result<String, SftpError> {
+        self.relative_path(relative)?;
+        let (parent, leaf) = relative.rsplit_once('/').unwrap_or(("", relative));
+        if leaf.is_empty() || relative.split('/').any(str::is_empty) {
+            return Err(SftpError::InvalidName);
+        }
+        let parent = self.scoped_path(parent).await?;
+        if !self.stat_path(&parent).await?.is_directory() {
+            return Err(SftpError::Unsupported);
+        }
+        Ok(format!("{}/{leaf}", parent.trim_end_matches('/')))
+    }
+
+    async fn mutation(&mut self, kind: u8, payload: Vec<u8>) -> Result<(), SftpError> {
+        match self.request(kind, payload).await {
+            Ok(reply) if reply == [101] => Ok(()),
+            Ok(_) | Err(SftpError::Protocol | SftpError::ConnectionLost) => {
+                self.disconnect();
+                Err(SftpError::CommitUnknown)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    pub async fn create_directory(&mut self, relative: &str) -> Result<(), SftpError> {
+        let path = self.scoped_entry(relative).await?;
+        let mut payload = Vec::new();
+        string(&mut payload, path.as_bytes());
+        payload.extend_from_slice(&4u32.to_be_bytes());
+        payload.extend_from_slice(&0o700u32.to_be_bytes());
+        self.mutation(14, payload).await
+    }
+
+    /// Deletes the explicitly selected entry; never recurses or follows a link.
+    pub async fn remove(&mut self, relative: &str) -> Result<(), SftpError> {
+        let path = self.scoped_entry(relative).await?;
+        let attrs = self.stat_path(&path).await?;
+        let mut payload = Vec::new();
+        string(&mut payload, path.as_bytes());
+        self.mutation(if attrs.is_directory() { 15 } else { 13 }, payload)
+            .await
+    }
+
+    pub async fn rename_new(&mut self, from: &str, to: &str) -> Result<(), SftpError> {
+        let from = self.scoped_entry(from).await?;
+        let to = self.scoped_entry(to).await?;
+        match self.stat_path(&to).await {
+            Err(SftpError::Missing) => (),
+            Ok(_) => return Err(SftpError::Conflict),
+            Err(error) => return Err(error),
+        }
+        let mut payload = Vec::new();
+        string(&mut payload, from.as_bytes());
+        string(&mut payload, to.as_bytes());
+        // v3 RENAME must fail when the destination exists; no overwrite extension.
+        self.mutation(18, payload).await
+    }
+
+    /// Pins the intent before IO so a lost response retains its exact partial path.
+    pub fn upload_intent(
+        &self,
+        destination: &str,
+        bytes: &[u8],
+    ) -> Result<UploadReceipt, SftpError> {
+        self.relative_path(destination)?;
+        if destination.is_empty() || destination.split('/').any(str::is_empty) {
+            return Err(SftpError::InvalidName);
+        }
+        if bytes.len() > MAX_FILE {
+            return Err(SftpError::CapacityExceeded);
+        }
+        let parent = destination.rsplit_once('/').map(|(parent, _)| parent);
+        let leaf = format!(".warpai-upload-{}.partial", Uuid::new_v4());
+        let partial = parent.map_or(leaf.clone(), |parent| format!("{parent}/{leaf}"));
+        Ok(UploadReceipt {
+            profile_id: self.profile_id,
+            canonical_root: self.canonical_root.clone(),
+            destination: destination.into(),
+            partial,
+            size: bytes.len() as u64,
+            sha256: Sha256::digest(bytes).into(),
+        })
+    }
+
+    fn validate_receipt(&self, receipt: &UploadReceipt) -> Result<(), SftpError> {
+        if receipt.profile_id != self.profile_id
+            || receipt.canonical_root != self.canonical_root
+            || receipt.size > MAX_FILE as u64
+        {
+            return Err(SftpError::Conflict);
+        }
+        self.relative_path(&receipt.destination)?;
+        self.relative_path(&receipt.partial)?;
+        let (parent, leaf) = receipt
+            .partial
+            .rsplit_once('/')
+            .unwrap_or(("", &receipt.partial));
+        let expected_parent = receipt.destination.rsplit_once('/').map_or("", |(p, _)| p);
+        let id = leaf
+            .strip_prefix(".warpai-upload-")
+            .and_then(|s| s.strip_suffix(".partial"));
+        if parent != expected_parent || id.is_none_or(|id| Uuid::parse_str(id).is_err()) {
+            return Err(SftpError::InvalidName);
+        }
+        Ok(())
+    }
+
+    pub async fn prepare_upload(
+        &mut self,
+        receipt: &UploadReceipt,
+        bytes: &[u8],
+    ) -> Result<(), SftpError> {
+        self.validate_receipt(receipt)?;
+        if receipt.size != bytes.len() as u64
+            || receipt.sha256 != <[u8; 32]>::from(Sha256::digest(bytes))
+        {
+            return Err(SftpError::Conflict);
+        }
+        let path = self.scoped_entry(&receipt.partial).await?;
+        let mut payload = Vec::new();
+        string(&mut payload, path.as_bytes());
+        payload.extend_from_slice(&(2u32 | 8 | 32).to_be_bytes()); // WRITE | CREAT | EXCL
+        payload.extend_from_slice(&4u32.to_be_bytes());
+        payload.extend_from_slice(&0o600u32.to_be_bytes());
+        let reply = match self.request(3, payload).await {
+            Err(SftpError::ConnectionLost | SftpError::Protocol) => {
+                return Err(SftpError::CommitUnknown)
+            }
+            reply => reply?,
+        };
+        if reply[0] != 102 {
+            self.disconnect();
+            return Err(SftpError::CommitUnknown);
+        }
+        let decoded = (|| {
+            let mut cursor = Cursor(&reply[1..]);
+            let handle = cursor.string()?.to_vec();
+            cursor.finish()?;
+            if handle.is_empty() || handle.len() > 256 {
+                return Err(SftpError::Protocol);
+            }
+            Ok(handle)
+        })();
+        let handle = match decoded {
+            Ok(handle) => handle,
+            Err(_) => {
+                self.disconnect();
+                return Err(SftpError::CommitUnknown);
+            }
+        };
+        let result: Result<(), SftpError> = async {
+            for (index, chunk) in bytes.chunks(CHUNK as usize).enumerate() {
+                let mut payload = Vec::new();
+                string(&mut payload, &handle);
+                payload.extend_from_slice(&(index as u64 * CHUNK as u64).to_be_bytes());
+                string(&mut payload, chunk);
+                self.mutation(6, payload).await?;
+            }
+            Ok(())
+        }
+        .await;
+        let closed = self.close_handle(&handle).await;
+        result?;
+        closed.map_err(|_| SftpError::CommitUnknown)?;
+        if !self.matches_upload(&receipt.partial, receipt).await? {
+            return Err(SftpError::Conflict);
+        }
+        Ok(())
+    }
+
+    async fn matches_upload(
+        &mut self,
+        relative: &str,
+        receipt: &UploadReceipt,
+    ) -> Result<bool, SftpError> {
+        let path = self.scoped_entry(relative).await?;
+        let attrs = self.stat_path(&path).await?;
+        if !attrs.is_regular_file() || attrs.size != Some(receipt.size) {
+            return Ok(false);
+        }
+        let bytes = self.read(relative).await?;
+        Ok(bytes.len() as u64 == receipt.size
+            && <[u8; 32]>::from(Sha256::digest(&bytes)) == receipt.sha256)
+    }
+
+    pub async fn reconcile_upload(
+        &mut self,
+        receipt: &UploadReceipt,
+    ) -> Result<UploadState, SftpError> {
+        self.validate_receipt(receipt)?;
+        let partial = self.matches_upload(&receipt.partial, receipt).await;
+        let destination = self.matches_upload(&receipt.destination, receipt).await;
+        Ok(match (partial, destination) {
+            (Err(SftpError::Missing), Ok(true)) => UploadState::Confirmed,
+            (Ok(true), Err(SftpError::Missing)) => UploadState::Prepared,
+            (Ok(_), Ok(_)) | (Ok(false), _) | (_, Ok(false)) => UploadState::Conflict,
+            _ => UploadState::Unknown,
+        })
+    }
+
+    pub async fn commit_upload(&mut self, receipt: &UploadReceipt) -> Result<(), SftpError> {
+        if self.reconcile_upload(receipt).await? != UploadState::Prepared {
+            return Err(SftpError::Conflict);
+        }
+        self.rename_new(&receipt.partial, &receipt.destination)
+            .await?;
+        match self.reconcile_upload(receipt).await {
+            Ok(UploadState::Confirmed) => Ok(()),
+            _ => Err(SftpError::CommitUnknown),
+        }
     }
 
     async fn request(&mut self, kind: u8, payload: Vec<u8>) -> Result<Vec<u8>, SftpError> {

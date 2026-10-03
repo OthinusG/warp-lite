@@ -328,3 +328,22 @@ Connection and service-boot UUIDs still change for the present read process; no
 retained daemon/process/task ownership is inferred from persistent identity.
 The GUI's verified SSH host trust reference remains part of environment identity
 and must be implemented before cross-profile environment deduplication.
+
+### Bounded SFTP mutation implementation boundary
+
+The first structured write path creates a new file only: exclusive mode-0600
+UUID temporary sibling, bounded bytes (16 MiB), reread SHA-256 verification, then
+v3 non-overwriting rename. Existing destination is a conflict; atomic overwrite,
+conditional editor save and resume are not advertised. A transport failure after
+a mutation is commit_unknown and retains the original receipt; never retry it
+automatically. Receipt pins profile UUID, canonical root, destination, owned
+partial name, byte count and SHA-256. Reconciliation explicitly reads both original
+paths: destination with matching bytes and absent partial is confirmed; matching
+partial with absent destination is prepared; every other state is conflict or
+unknown. Bare SFTP cannot establish native root inode identity after reconnect.
+
+Directory creation and explicitly selected rename/delete use structured protocol
+paths and server canonical parent containment. They never target the selected root
+itself. Links are deleted/renamed as entries rather than followed; regular reads
+continue rejecting escapes. Lost responses are commit_unknown, not a successful
+mutation. These checks are not a kernel jail against same-account external races.

@@ -455,3 +455,12 @@ Identity source6ab9021 passed Windows native private-directory identity tests an
 20 real retired-endpoint refusal repetitions. macOS/Linux failed only test cleanup
 when the state directory lived inside the replaced project root; isolate test
 state from the root before revalidation.
+
+Structured SFTP mutations checkpoint (CI pending): create private directories,
+nonrecursive selected-entry deletion, non-overwriting rename, bounded exclusive
+partial upload, SHA-256 reread verification and original-intent reconciliation.
+New-file upload never replaces an existing destination. Transport uncertainty
+retains commit_unknown; no automatic mutation retry or partial cleanup. Atomic
+overwrite/editor save/resume, streaming large files, queue/GUI and Windows native
+SFTP root acceptance remain pending. Linux controlled SSH test now checks actual
+binary upload, reconnect/reconcile, competing destination, rename and delete.

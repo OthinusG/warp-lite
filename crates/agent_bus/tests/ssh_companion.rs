@@ -1,6 +1,6 @@
 //! Executed only against an explicitly provisioned isolated CI SSH fixture.
 use uuid::Uuid;
-use warp_agent_bus::sftp::{SftpClient, SftpError};
+use warp_agent_bus::sftp::{SftpClient, SftpError, UploadState};
 use warp_agent_bus::ssh_remote::{HostClient, RemoteShell, SshProfile};
 
 #[tokio::test]
@@ -81,6 +81,54 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
     assert!(matches!(
         sftp.read("../outside").await,
         Err(SftpError::InvalidName)
+    ));
+    assert!(matches!(sftp.remove("").await, Err(SftpError::InvalidName)));
+    assert!(matches!(
+        sftp.create_directory("../escape").await,
+        Err(SftpError::InvalidName)
+    ));
+    let directory = format!("Upload 多语言 {}", Uuid::new_v4());
+    sftp.create_directory(&directory).await.unwrap();
+    let destination = format!("{directory}/binary ;$(never-execute).bin");
+    let receipt = sftp.upload_intent(&destination, &expected).unwrap();
+    sftp.prepare_upload(&receipt, &expected).await.unwrap();
+    assert_eq!(
+        sftp.reconcile_upload(&receipt).await.unwrap(),
+        UploadState::Prepared
+    );
+    // Prepared content survives the original SSH attachment; reconcile before any retry.
+    sftp.disconnect();
+    let mut sftp = SftpClient::connect(&file_only).await.unwrap();
+    assert_eq!(
+        sftp.reconcile_upload(&receipt).await.unwrap(),
+        UploadState::Prepared
+    );
+    sftp.commit_upload(&receipt).await.unwrap();
+    assert_eq!(
+        sftp.reconcile_upload(&receipt).await.unwrap(),
+        UploadState::Confirmed
+    );
+    assert_eq!(sftp.read(&destination).await.unwrap(), expected);
+    let competing = sftp
+        .upload_intent(&destination, b"must not replace")
+        .unwrap();
+    sftp.prepare_upload(&competing, b"must not replace")
+        .await
+        .unwrap();
+    assert!(matches!(
+        sftp.commit_upload(&competing).await,
+        Err(SftpError::Conflict)
+    ));
+    assert_eq!(sftp.read(&destination).await.unwrap(), expected);
+    sftp.remove(&competing.partial).await.unwrap();
+    let renamed = format!("{directory}/renamed.bin");
+    sftp.rename_new(&destination, &renamed).await.unwrap();
+    assert_eq!(sftp.read(&renamed).await.unwrap(), expected);
+    sftp.remove(&renamed).await.unwrap();
+    sftp.remove(&directory).await.unwrap();
+    assert!(matches!(
+        sftp.stat(&directory).await,
+        Err(SftpError::Missing)
     ));
     sftp.disconnect();
     assert!(matches!(
