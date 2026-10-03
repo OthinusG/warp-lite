@@ -58,7 +58,7 @@ The source is maintained directly in this repository. Automated protocol checks 
 
 Extend the existing same-project communication to CLI Agents running through SSH.
 Agents in the same remote project share a private Broker/Store on that account;
-the existing collaboration panel will show messages, tasks and concise connection
+the existing collaboration panel shows messages, tasks and concise connection
 and Agent status. System OpenSSH owns authentication. Remote accounts support
 Linux, macOS and Windows; desktop targets remain macOS/Windows.
 
@@ -70,8 +70,9 @@ history without restoring device authority.
 
 Remote project authority, private per-run MCP and explicit Agent launch have passed
 three-platform checks, including two native Agent processes exchanging a message
-and completing a reviewed task through controlled OpenSSH. Panel integration and
-final desktop regression remain pending.
+and completing a reviewed task through controlled OpenSSH. Native panel actions
+and screenshot review passed on macOS and Windows at source4fcb0c3; final desktop
+release packaging remains pending.
 
 For the panel, enable Agent communication and open **Agent collaboration >
 Connect SSH project**. Enter a system SSH alias, the absolute remote project root

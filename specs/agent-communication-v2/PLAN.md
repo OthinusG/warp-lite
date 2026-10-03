@@ -48,12 +48,14 @@ functionality are preserved; redundant additions are deleted with focused regres
   Accepted source 06aa074, run 37122708969 on all three remote targets, including
   actual Linux OpenSSH. Existing vendor adapters are reused; paid vendor sessions
   are not claimed by deterministic fixture acceptance.
-- [ ] **S4 — Existing panel integration and concise status.** Select an SSH target,
+- [x] **S4 — Existing panel integration and concise status.** Select an SSH target,
   root and manual companion path; read remote Agent/message/task projections in
   the current collaboration panel and send explicit human messages. Show remote
   location, connected/disconnected/error, Agent run and last observation.
   Keep focus/drafts; disable writes offline and fence late project responses.
   Reuse reviewed native controls; static review precedes live integration.
+  Accepted source 4fcb0c3, run 37138929300: native actions passed on macOS and
+  Windows; eight live SSH screenshots per OS reviewed with retained drafts.
 - [ ] **S5 — Focused regression and delivery.** Local communication remains
   functional. Verify same/different project, fresh/stale run, disconnect/reconnect
   and exact response scope. GitHub-only Rust checks on relevant targets, both

@@ -10,7 +10,7 @@ SSH project-manager gates and local verification history are [archived](legacy-s
 | S1 | Same-account native root selects one private remote Broker/Store; different/replaced roots, account and stale authority are denied | Accepted |
 | S2 | Real owned children initialize/discover MCP with fresh project/run credentials; stale or revoked capabilities cannot act or replay receipts | Accepted |
 | S3 | Two actual native Agent fixtures exchange a message and complete assign/start/submit/review through controlled OpenSSH; other roots isolated and disconnect stops owned work | Accepted |
-| S4 | Existing panel selects target/root/helper, reads real remote projections, sends human messages and assigns/opens a task; offline writes denied, terminal/form drafts preserved through reconnect and return to local | Pending native desktop action and visual acceptance |
+| S4 | Existing panel selects target/root/helper, reads real remote projections, sends human messages and assigns/opens a task; offline writes denied, terminal/form drafts preserved through reconnect and return to local | Accepted source4fcb0c3/run37138929300 on macOS and Windows, including eight reviewed live images per OS |
 | S5 | Final relevant three-platform tests, both desktop default/platform checks, focused application tests and source-matched review packages; helper setup and evidence documented | Pending final run |
 
 S4 visual checks cover the existing native controls, narrow/wide themes and zoom,

@@ -603,3 +603,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   the same canonical remote root for the panel and explicit Agent launch. Remote
   review artifacts provide version/source/checksum/capability manifests. The old
   V01–V24 SSH-manager acceptance matrix is archived; active acceptance is S0–S5.
+
+- S4 accepted on 2026-10-04: source4fcb0c3/run37138929300 passed macOS/Windows
+  native panel actions and eight live SSH image reviews per OS. SDK tools discovery
+  registers a temporary Agent name before the fixture's explicit final registration;
+  native acceptance must wait for that final name before addressing a human message.
+  Keep product request identity/fencing unchanged; do not retry an obsolete name.
+  S5 release packaging is still pending.
