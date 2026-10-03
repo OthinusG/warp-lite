@@ -276,3 +276,20 @@ and [desktop/capture run 37105299449](https://github.com/OthinusG/warp-lite/acti
 are pending. Windows capture source `d1022f8` stopped at shared-tab confirmation
 with a circular view update; existing framework deferred dispatch now addresses
 that production path and sibling file/focus actions. Visual gates remain open.
+
+
+R0.3 contract/inventory accepted: API sections 2/3, shared ManagedFence/terminal
+schema and IMPLEMENTATION's remote/local call-site table cover identity and
+storage ownership before new remote domain storage. Source064f5cb/run37104521972
+supplies native-root, persistent account/service and replaced-attachment checks
+on all three remote platforms. Live GUI environment mapping remains pending.
+
+
+R4.3 accepted by source `3a37ed2`,
+[run 37105738779](https://github.com/OthinusG/warp-lite/actions/runs/37105738779):
+all Linux/macOS/Windows focused checks and actual controlled Linux SSH/SFTP
+passed. Actual background children remain alive after observing leader exit,
+then stop under the original owned group/job and reach observed exit/output EOF.
+The native fixture inspects OS process state rather than equating a broken pipe
+with process death. This closes the source28a97cb native regressions; production
+GUI/capture verification remains separate.

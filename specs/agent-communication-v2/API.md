@@ -418,3 +418,50 @@ partial and report Conflict without publishing a destination. Remote verificatio
 also streams to a sink; a large file never requires an in-memory copy. The current
 non-overwriting commit and original-intent reconciliation apply unchanged. Resume,
 conditional overwrite/editor save and durable queue state remain separate work.
+
+
+### Scoped project task wire (R2.7 implementation)
+
+Managed protocol major 1 adds an explicit `project_tasks` capability, request tag 7
+and result tag 7. A ProjectTasksRequest carries the complete selected-project
+fence, caller query generation and one bounded (64 KiB) UTF-8 JSON document.
+JSON is a typed protobuf field, never an alternative frame codec. Its tagged
+command reuses the existing PanelQuery, Operation and ControllerOperation serde
+contracts; domain transitions and original request UUID/version semantics stay
+in the existing Store. Operator and controller access comes only from the trusted
+same-account GUI attachment, never from an Agent MCP payload.
+
+Each admitted native project UUID owns its own private SQLite database beneath
+the remote companion data directory. Two roots and a replaced directory at the
+same display path cannot share a Store. Account-service attachments reuse one
+broker per project (maximum 32), retaining existing private native IPC helpers.
+Local desktop Store files are never opened or uploaded by this path.
+
+Panel query `project` must be empty and `terminal` absent. The service substitutes
+its checked canonical remote root; cursor scope uses the opaque project UUID and
+is mapped internally, preventing caller-selected authority. Agent registration,
+readiness, acknowledgement, task start/submit/claim and evidence/file capability
+operations are denied to the GUI domain route. Existing human task/message/
+history operations remain trusted-operator operations. Cross-project spaces,
+workspace maps and all retired device controls are unavailable. Reservation
+updates must name exactly the admitted root. Every operation, including replay,
+first passes service/boot/connection/project and native-directory checks.
+
+ProjectTasksResult echoes fence/generation and carries a <=512 KiB JSON result
+with either `value` or a fixed-message domain error (code/retryability/version).
+Endpoint credentials, native IPC paths and raw infrastructure errors are never
+included. A transport or response-capacity failure after a mutation leaves its
+outcome unresolved; retry uses the original unchanged domain request. GUI intent
+persistence, actual remote MCP launch and live UI remain separate work.
+
+Verification: real service attachments share the same project Store; task/message
+history survives service reopen; another root and a replaced root remain isolated;
+changed original mutation content conflicts; stale fences/forbidden Agent or
+retired-device operations fail before touching data. Rust verification runs in
+GitHub on Linux/macOS/Windows and the controlled Linux SSH fixture.
+
+The canonical root binding is persisted separately in each private project data
+directory. Renaming that root externally yields conflict for task operations;
+it cannot silently select a new path-keyed domain and hide old work. Explicit
+root-domain migration is not provided by this initial route. GUI file transfers
+must not present this as an accepted root-rename workflow.

@@ -54,6 +54,7 @@ message ManagedRequest {
     TerminalLaunch terminal_launch = 4;
     TerminalControl terminal_control = 5;
     TerminalList terminal_list = 6;
+    ProjectTasksRequest project_tasks = 7;
   }
 }
 message ManagedResponse {
@@ -64,6 +65,7 @@ message ManagedResponse {
     ManagedError error = 4;
     TerminalState terminal_state = 5;
     TerminalStates terminal_states = 6;
+    ProjectTasksResult project_tasks = 7;
   }
 }
 message ManagedInitialize { uint32 protocol_major = 1; }
@@ -106,6 +108,16 @@ enum ManagedErrorCode {
   MANAGED_CAPACITY_EXCEEDED = 8;
 }
 message ManagedError { ManagedErrorCode code = 1; }
+message ProjectTasksRequest {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+  bytes command_json = 3;
+}
+message ProjectTasksResult {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+  bytes result_json = 3;
+}
 message TerminalLaunch {
   ManagedFence fence = 1;
   string session_id = 2;

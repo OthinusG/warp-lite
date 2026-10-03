@@ -528,3 +528,13 @@ existing deferred typed dispatch: a synchronous action can update panel visibili
 while the originating panel is temporarily removed from the app's view map.
 Windows native capture exposed this at shared-tab confirmation. Source28a97cb uses
 the helper for workspace open/file/focus actions; capture verification remains open.
+
+
+Background ownership source3a37ed2/run37105738779 is verified on all three remote
+platforms plus controlled Linux SSH/SFTP. Darwin excludes zombies from group
+signal recipients and can return EPERM for a zombie-only group; bounded libproc
+membership must confirm only the exited leader before classifying that error as
+already ended. Permission failures with other members remain errors. Native tests
+observe child readiness/status and repeat job exit observation for ConPTY EOF.
+R0.3 identity contract/inventory and R4.3 session/run/attachment ownership are
+accepted independently; live terminal/sidebar/task integration remains pending.

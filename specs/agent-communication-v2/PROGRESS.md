@@ -827,3 +827,53 @@ updates re-enter it. Reuse `dispatch_typed_action_deferred` for panel-to-workspa
 open/file/focus actions. Existing native shared-tab assertions cover this path.
 Focused run 37105299664 and full desktop/capture run 37105299449 are pending.
 No additional PLAN item is accepted before their checks complete.
+
+
+### Background-child corrections — source 3a37ed2
+
+Run 37105299664 passed Linux, while macOS exposed Darwin's EPERM for a group
+containing only an unreaped zombie and Windows required another exit observation
+to close ConPTY after job termination. Full run 37105299449 stopped at the same
+native tests before application validation. No failed gate is marked complete.
+
+Confirm the Darwin group contains only the exited leader through bounded native
+`proc_listpids` before interpreting EPERM as already ended; other permission
+failures remain errors. Drop reaps an observed leader even if no group signal
+recipient remains. The background child now reports readiness before its parent
+exits, ignores Unix hangup itself, and the check inspects the actual child's
+process status before/after Stop rather than inferring death from a PTY pipe.
+It also observes Windows owned-job exit until console EOF. Exact-source run
+[37105738779](https://github.com/OthinusG/warp-lite/actions/runs/37105738779) is pending.
+Apple's [group signal implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c)
+filters zombies; its [native process listing](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c)
+includes current and zombie processes. These native semantics are not replaced
+with an unconditional permission-error fallback.
+
+
+### R0.3 accepted: identity contract and path/migration inventory
+
+API sections 2/3 and executable shared `ManagedFence` define separate account,
+service, boot, clean connection and admitted native project identities; the
+terminal contract separately identifies session, immutable run and attachment
+generation. IMPLEMENTATION's call-site table distinguishes local PathBuf/file
+access from inherited remote StandardizedPath/client routing. Legacy v6 device
+rows/receipts remain read-only rather than becoming new SSH authority.
+Source064f5cb/run37104521972 passed three-platform identity/native-root/fence and
+replaced terminal attachment checks. This accepts R0.3's definition/inventory
+work, not future profile/environment GUI deduplication, writable remote task
+storage or cross-host grouping. PLAN R0.3 is checked independently of those gates.
+
+
+### R4.3 accepted: retained run and attachment ownership
+
+Source `3a37ed2904b849c8ca93479a5d9ecb2b925b789b`,
+[run 37105738779](https://github.com/OthinusG/warp-lite/actions/runs/37105738779),
+passed all three remote platforms and controlled Linux SSH/SFTP. Independent
+session/run/connection/generation IDs gate actual queued input, resize, attach,
+detach, stop and release. Replacement rejects former input/resize/stop; changed
+launch retries conflict and exact launch reconciles the same run. Reader/writer
+threads retain the owned native PTY across clean channel loss. Background-child
+checks now confirm an actual surviving child after leader exit, then its stopped
+OS status and closed output. Original Unix IDs remain unreaped until release;
+Windows closes only the exhausted owned job's console. PLAN R4.3 is checked.
+This does not accept terminal GUI, profile-removal review or local draft replay.

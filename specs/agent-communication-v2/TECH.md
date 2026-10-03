@@ -252,3 +252,14 @@ Stop can target its process tree. Root cwd must exist and be absolute; arguments
 are structured and bounded, never a local shell interpolation. Native primitives
 alone do not advertise retention: the service must keep the exact process/PTY
 handle, bounded replay, session/run IDs and ownership/generation fences first.
+
+
+The R2.7 task route reuses RunningBroker/Store behind explicitly typed protobuf
+JSON fields. One account-service registry owns at most 32 per-project brokers,
+with private SQLite files selected by native project UUID rather than path text.
+No remote desktop process or local database is required. The GUI route admits
+only the existing human operations; MCP lifecycle/capability and retired-device
+operations are denied. Output includes bounded projections/domain error metadata,
+never per-run credentials or native endpoint addresses. Tests prove persisted
+history, same-root reuse, different/replaced-root isolation and original-intent
+replay. Live GUI intents and R2.6 per-launch MCP remain independent pending gates.

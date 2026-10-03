@@ -69,7 +69,7 @@ impl TypedActionView for RemoteProjectsView {
             }
             Action::Scroll(delta) => self.scroll.scroll_by((*delta).into_pixels()),
             Action::Exit => {
-                ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+                ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
                 return;
             }
         }

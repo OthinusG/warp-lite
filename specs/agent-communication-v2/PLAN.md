@@ -73,7 +73,7 @@ File browsing and terminal foundations may be developed independently after iden
 
 - [ ] **R0.1** Freeze old product additions; inspect all remote entrypoints/callers using CodeGraph, record source SHA and actual reachable behavior. Follow CUTOVER D01–D16.
 - [ ] **R0.2** Prove what upstream remote-server/file-tree/SSH paths do in Lite and on both local OSes. Locate the server implementation/artifact source; do not assume a client crate is a distributable server.
-- [ ] **R0.3** Define the typed remote environment/project/connection identities and ownership before extending storage. Document all remote-vs-local path call sites and proposed migrations.
+- [x] **R0.3** Define the typed remote environment/project/connection identities and ownership before extending storage. Document all remote-vs-local path call sites and proposed migrations. Contract/schema/inventory accepted; see PROGRESS. Live GUI environment integration remains R1/R6.
 - [ ] **R0.4** Disable/remove app enrollment worker, invitation/device UI plans and obsolete gateway entrypoints only after a schema/compatibility fixture is in place. Preserve local task/operator APIs and shared secure-storage hardening.
 - [ ] **R0.5** Fence legacy credentials and profiles; expose old metadata only for export/removal. Do not automatically turn a device profile into a trusted SSH project.
 - [x] **R0.6** Inventory legacy device tables, actors, cursors and unresolved intents; retain unknown work/history and original backups. Implement read-only legacy interpretation before deleting active writes. Storage source `d71d8b1`, run `37041826672`, remains byte-identical; see PROGRESS.
@@ -120,7 +120,7 @@ File browsing and terminal foundations may be developed independently after iden
 
 - [ ] **R4.1** Reuse terminal block renderer/input/PTY abstractions and audited upstream SSH lifecycle. Open shell in the exact remote root, with remote shell/environment and visible host/project identity.
 - [ ] **R4.2** Support multiple remote terminals, tabs/splits, resize, paste, IME, Unicode, Ctrl-C and interactive programs. Local cwd/environment must not masquerade as remote context.
-- [ ] **R4.3** Separate session ID, process run ID, SSH connection epoch and terminal attachment. Remote helper verifies ownership for input/resize/interrupt/close.
+- [x] **R4.3** Separate session ID, process run ID, SSH connection epoch and terminal attachment. Remote helper verifies ownership for input/resize/interrupt/close. Source `3a37ed2`, run `37105738779`; GUI lifecycle remains R4.1/R4.2/R4.4/R4.5.
 - [ ] **R4.4** Implement close tab/detach and disconnect as retaining managed remote sessions; Stop requests exit for the exact run. Project/profile removal reviews active sessions with explicit Stop or Leave running. Prompt only when an action will abandon/stop active work; report stop requested versus observed exit.
 - [ ] **R4.5** On network loss protect local draft and stop delayed submission. Reattach only to the same verifiably surviving remote process if the service supports it; otherwise show ended/unknown and require explicit new launch.
 - [ ] **R4.6** Bounded terminal buffers/backpressure; interactive output cannot starve heartbeats/tasks/transfers. Do not retain raw terminal transcripts in task diagnostics.

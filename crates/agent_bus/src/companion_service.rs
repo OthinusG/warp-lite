@@ -137,6 +137,7 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         crate::transport::windows_pipe::create(&endpoint, true).map_err(std::io::Error::other)?;
     let slots = Arc::new(Semaphore::new(32));
     let terminals = Arc::new(terminals::Terminals::default());
+    let tasks = Arc::new(tasks::Projects::new(&directory));
     let mut idle_since = Instant::now();
     loop {
         let stream = tokio::select! {
@@ -164,9 +165,10 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         let directory = directory.clone();
         let boot = boot.clone();
         let terminals = terminals.clone();
+        let tasks = tasks.clone();
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot, terminals).await;
+            let _ = serve_channel(stream, &directory, &boot, terminals, tasks).await;
         });
     }
     #[cfg(unix)]

@@ -18,8 +18,12 @@ use uuid::Uuid;
 mod identity;
 #[path = "companion_service.rs"]
 mod service;
+#[path = "companion_tasks.rs"]
+mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
+pub use tasks::Command as TaskCommand;
+pub(crate) use tasks::decode_result as decode_task_result;
 
 struct Project {
     root: PathBuf,
@@ -37,6 +41,7 @@ pub struct Companion {
     last_status: Option<(HostStatus, Instant)>,
     observation: u64,
     terminals: std::sync::Arc<terminals::Terminals>,
+    tasks: std::sync::Arc<tasks::Projects>,
 }
 
 impl Companion {
@@ -56,6 +61,7 @@ impl Companion {
             last_status: None,
             observation: 0,
             terminals: std::sync::Arc::new(terminals::Terminals::default()),
+            tasks: std::sync::Arc::new(tasks::Projects::new(data_directory)),
             identity,
         })
     }
@@ -109,6 +115,7 @@ impl Companion {
                         "project_open".into(),
                         "host_status".into(),
                         "retained_terminal".into(),
+                        "project_tasks".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))
@@ -245,6 +252,12 @@ impl Companion {
                 self.terminals
                     .list(&self.fence)
                     .map(managed_response::Result::TerminalStates)
+            }
+            Some(managed_request::Operation::ProjectTasks(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                self.tasks
+                    .execute(request, &self.fence, &self.project.as_ref().unwrap().root)
+                    .map(managed_response::Result::ProjectTasks)
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -391,6 +404,7 @@ async fn serve_channel<S>(
     directory: &Path,
     boot: &str,
     terminals: std::sync::Arc<terminals::Terminals>,
+    tasks: std::sync::Arc<tasks::Projects>,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -401,6 +415,7 @@ where
     let mut companion = Companion::new(directory)?;
     companion.fence.service_boot_id = boot.into();
     companion.terminals = terminals;
+    companion.tasks = tasks;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

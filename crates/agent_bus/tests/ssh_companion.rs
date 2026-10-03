@@ -50,6 +50,31 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
     );
     assert_eq!(first.account_id, second.account_id);
     assert_eq!(first.root_identity, second.root_identity);
+    let query = warp_agent_bus::companion::TaskCommand::Panel(
+        warp_agent_bus::transport::PanelQuery::default(),
+    );
+    let tasks = first.project_tasks(&query, 3).await.unwrap();
+    assert_eq!(
+        tasks["value"]["project"].as_str(),
+        first.fence().map(|f| f.project_id.as_str())
+    );
+    assert!(tasks["value"]["tasks"].is_array());
+    let second_tasks = second.project_tasks(&query, 4).await.unwrap();
+    assert_eq!(tasks["value"]["tasks"], second_tasks["value"]["tasks"]);
+    assert_eq!(
+        first
+            .project_tasks(
+                &warp_agent_bus::companion::TaskCommand::Operator(
+                    warp_agent_bus::Operation::AgentRegister {
+                        name: "not-a-gui-operation".into()
+                    }
+                ),
+                5
+            )
+            .await
+            .unwrap_err(),
+        warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable
+    );
     let mut projection =
         remote_protocol::managed::HostObservation::new(two.fence.unwrap(), 2).unwrap();
     assert!(!projection.receive(one, std::time::Instant::now()));

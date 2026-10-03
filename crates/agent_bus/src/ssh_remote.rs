@@ -310,6 +310,49 @@ impl HostClient {
         Ok(())
     }
 
+    /// Domain failure metadata is returned as `error`; lost writes retain the original intent.
+    pub async fn project_tasks(
+        &mut self,
+        command: &crate::companion::TaskCommand,
+        query_generation: u64,
+    ) -> Result<serde_json::Value, ConnectionError> {
+        if !self.capabilities.iter().any(|c| c == "project_tasks") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        if !self.alive || self.fence.as_ref().is_none_or(|f| f.project_id.is_empty()) {
+            return Err(ConnectionError::StaleAttachment);
+        }
+        let command_json =
+            serde_json::to_vec(command).map_err(|_| ConnectionError::InvalidInput)?;
+        if command_json.len() > 64 * 1024 {
+            return Err(ConnectionError::CapacityExceeded);
+        }
+        let result = self
+            .request(managed_request::Operation::ProjectTasks(
+                ProjectTasksRequest {
+                    fence: self.fence.clone(),
+                    query_generation,
+                    command_json,
+                },
+            ))
+            .await?;
+        if let managed_response::Result::ProjectTasks(result) = result {
+            if result.fence == self.fence && result.query_generation == query_generation {
+                if let Some(value) = crate::companion::decode_task_result(&result.result_json) {
+                    let panel_matches = !matches!(command, crate::companion::TaskCommand::Panel(_))
+                        || value.get("error").is_some()
+                        || value["value"]["project"].as_str()
+                            == self.fence.as_ref().map(|f| f.project_id.as_str());
+                    if panel_matches {
+                        return Ok(value);
+                    }
+                }
+            }
+        }
+        self.close();
+        Err(ConnectionError::StaleAttachment)
+    }
+
     pub async fn terminal_launch(
         &mut self,
         request: TerminalLaunch,

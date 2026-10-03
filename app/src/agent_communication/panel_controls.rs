@@ -466,7 +466,7 @@ impl CollaborationPanel {
             return;
         }
         self.form = None;
-        ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+        ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
         ctx.notify();
     }
 
@@ -566,7 +566,7 @@ impl CollaborationPanel {
             self.form = None;
             self.generation += 1;
             self.refresh(ctx);
-            ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+            ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
             ctx.notify();
             return;
         }
@@ -598,7 +598,7 @@ impl CollaborationPanel {
             }
             ctx.notify();
         });
-        ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+        ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
         ctx.notify();
     }
 

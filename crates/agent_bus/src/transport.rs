@@ -160,7 +160,8 @@ pub struct RunningBroker {
     directory: std::path::PathBuf,
 }
 /// Trusted native panel query; cursors are scoped to the selected project.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct PanelQuery {
     pub project: String,
     pub scope: Option<String>,

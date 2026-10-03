@@ -32,7 +32,12 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
     };
     assert_eq!(
         initialized.capabilities,
-        ["project_open", "host_status", "retained_terminal"]
+        [
+            "project_open",
+            "host_status",
+            "retained_terminal",
+            "project_tasks"
+        ]
     );
     let mut fence = initialized.fence.unwrap();
     assert!(matches!(
@@ -121,4 +126,69 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
         );
         std::fs::remove_dir(renamed).unwrap();
     }
+}
+
+#[test]
+fn project_tasks_require_current_native_project_before_any_store_access() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let directory = state.path().join("remote-data");
+    let mut companion = Companion::new(&directory).unwrap();
+    let managed_response::Result::Initialized(initialized) = result(companion.handle(request(
+        managed_request::Operation::Initialize(ManagedInitialize {
+            protocol_major: PROTOCOL_MAJOR,
+        }),
+    ))) else {
+        panic!("Handshake required")
+    };
+    let managed_response::Result::ProjectOpened(opened) = result(companion.handle(request(
+        managed_request::Operation::ProjectOpen(ProjectOpen {
+            fence: initialized.fence,
+            root: root.path().to_str().unwrap().into(),
+        }),
+    ))) else {
+        panic!("Project required")
+    };
+    let fence = opened.fence.unwrap();
+    let mut stale = fence.clone();
+    stale.connection_id = Uuid::new_v4().to_string();
+    let command_json =
+        serde_json::to_vec(&TaskCommand::Panel(crate::transport::PanelQuery::default())).unwrap();
+    let mut query = ProjectTasksRequest {
+        fence: Some(stale),
+        query_generation: 9,
+        command_json,
+    };
+    assert!(
+        matches!(result(companion.handle(request(managed_request::Operation::ProjectTasks(query.clone())))), managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedStaleAttachment as i32)
+    );
+    assert!(!directory.join("projects").exists());
+    query.fence = Some(fence);
+    assert!(matches!(
+        result(
+            companion.handle(request(managed_request::Operation::ProjectTasks(
+                query.clone()
+            )))
+        ),
+        managed_response::Result::ProjectTasks(_)
+    ));
+    let selected = root.path().join("selected");
+    std::fs::create_dir(&selected).unwrap();
+    let managed_response::Result::ProjectOpened(next) = result(companion.handle(request(
+        managed_request::Operation::ProjectOpen(ProjectOpen {
+            fence: Some(ManagedFence {
+                project_id: String::new(),
+                ..companion.fence.clone()
+            }),
+            root: selected.to_str().unwrap().into(),
+        }),
+    ))) else {
+        panic!("New project required")
+    };
+    std::fs::rename(&selected, root.path().join("moved")).unwrap();
+    std::fs::create_dir(&selected).unwrap();
+    query.fence = next.fence;
+    assert!(
+        matches!(result(companion.handle(request(managed_request::Operation::ProjectTasks(query)))), managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedStaleAttachment as i32)
+    );
 }

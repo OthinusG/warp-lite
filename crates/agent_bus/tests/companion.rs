@@ -43,7 +43,12 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
     };
     assert_eq!(
         first.capabilities,
-        ["project_open", "host_status", "retained_terminal"]
+        [
+            "project_open",
+            "host_status",
+            "retained_terminal",
+            "project_tasks"
+        ]
     );
     input.get_mut().shutdown().await.unwrap();
     drop(input);
