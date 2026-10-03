@@ -182,12 +182,22 @@ impl Process {
             true,
             sysinfo::ProcessRefreshKind::nothing(),
         );
-        Ok(pids.into_iter().any(|pid| match system.process(pid) {
-            Some(process) => process.status() != sysinfo::ProcessStatus::Zombie,
-            // A disappearing child is harmless; an unreadable surviving member
-            // remains active/unknown and cannot authorize release or idle exit.
-            None => (unsafe { libc::getpgid(pid.as_u32() as i32) }) == self.child.id() as i32,
-        }))
+        for pid in pids {
+            if let Some(process) = system.process(pid) {
+                if process.status() != sysinfo::ProcessStatus::Zombie {
+                    return Ok(true);
+                }
+            } else {
+                // Only a confirmed disappearance can authorize cleanup.
+                let group = unsafe { libc::getpgid(pid.as_u32() as i32) };
+                if group == self.child.id() as i32
+                    || (group < 0 && io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH))
+                {
+                    return Err(io::Error::other("Owned process activity is unavailable"));
+                }
+            }
+        }
+        Ok(false)
     }
     pub(super) fn resize(&self, file: &File, dimensions: Size) -> io::Result<()> {
         unsafe {
