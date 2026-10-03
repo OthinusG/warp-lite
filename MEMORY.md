@@ -427,3 +427,11 @@ Read companion source 861bd6c/run 37088825313 passed Linux/macOS/Windows wire,
 native-root/metrics and real process stdio tests. No durable PTY/task or GUI/live
 SSH acceptance is implied. Managed machine SSH must not inherit VIBE_MCP_SERVERS;
 it removes that variable alongside the existing native binding scrubber.
+
+Controlled SSH fixture: GitHub's runner password is locked. UsePAM=no rejects
+public-key login before authentication; UsePAM=yes respects system account checks
+without unlocking the user or enabling password/interactive auth. Source7035082
+run37089944901 passed Linux SSH read checks and all three companion review artifact
+builds. Loopback Linux does not prove physical-host or remote macOS/Windows SSH
+behavior. Structured SFTP uses the native SSH subsystem and never ls/batch
+filename interpolation; file-only profiles need no companion path.

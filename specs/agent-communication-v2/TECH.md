@@ -202,3 +202,20 @@ this does not enable Linux desktop builds. Managed channels use its explicit
 bounded read/write functions with a 1 MiB limit; ordinary inherited calls retain
 their existing limit. The companion implements versioned managed operations on
 that envelope and refuses inherited unrestricted file/command operations.
+
+
+### Native SFTP read foundation
+
+Use system OpenSSH's `sftp` subsystem as its own standards-defined channel;
+protobuf remains the companion control wire. Implement one bounded SFTP v3
+reader for structured realpath/lstat/directory/read responses, using the
+[SSH file transfer v3 specification](https://www.ietf.org/archive/id/draft-ietf-secsh-filexfer-02.txt).
+Do not parse human-readable ls output or place filenames in shell/batch syntax.
+Requests are serial, correlated and timed; packet allocation is capped at 1 MiB,
+file reads at 16 MiB and directory snapshots at 2000 entries with explicit
+truncation. Canonical roots and paths are resolved by the SFTP server and checked
+with protocol path spelling. File-only connections need no companion path.
+Initial source supports reads only; root confinement is not a kernel filesystem
+jail against another process of the same SSH account. Symlink escapes are
+rejected and mutation/editor integration waits for the reviewed write boundary.
+Native Windows SFTP-root mapping and other target runtime checks remain pending.

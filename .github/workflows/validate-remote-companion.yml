@@ -46,6 +46,7 @@ jobs:
           cargo test -p warp-agent-bus --lib companion::tests --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+          cargo test -p warp-agent-bus --lib sftp::tests --locked
       - name: Verify real controlled SSH companion on Linux
         if: runner.os == 'Linux'
         env:
@@ -58,6 +59,14 @@ jobs:
           export WARP_TEST_SSH_CONFIG="$fixture_dir/client.conf"
           mkdir -m 700 "$fixture_dir"
           mkdir -p "$WARP_TEST_REMOTE_ROOT"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path(os.environ['WARP_TEST_REMOTE_ROOT'])
+          (root / 'Unicode 空格;$(shell).bin').write_bytes(bytes(range(256)) * 257)
+          (root / 'folder').mkdir()
+          (root / 'outside-link').symlink_to('/etc')
+          PY
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host"
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/client"
           awk '{print "[127.0.0.1]:22222 "$1" "$2}' "$fixture_dir/host.pub" > "$fixture_dir/known_hosts"
@@ -74,6 +83,7 @@ jobs:
           UsePAM yes
           PermitRootLogin no
           StrictModes yes
+          Subsystem sftp internal-sftp
           EOF
           cat > "$WARP_TEST_SSH_CONFIG" <<EOF
           Host warpai-test

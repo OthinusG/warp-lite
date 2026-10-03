@@ -28,8 +28,7 @@ pub fn valid_fence(fence: &ManagedFence, require_project: bool) -> bool {
 }
 
 fn valid_reason(reason: i32) -> bool {
-    MetricUnavailable::try_from(reason)
-        .is_ok_and(|reason| reason != MetricUnavailable::Unspecified)
+    MetricUnavailable::try_from(reason).is_ok_and(|reason| reason != MetricUnavailable::Unspecified)
 }
 
 /// All metrics carry a value or a known absence reason; missing is not healthy zero.
@@ -72,7 +71,11 @@ pub struct HostObservation {
 
 impl HostObservation {
     pub fn new(fence: ManagedFence, generation: u64) -> Option<Self> {
-        valid_fence(&fence, true).then_some(Self { fence, generation, last: None })
+        valid_fence(&fence, true).then_some(Self {
+            fence,
+            generation,
+            last: None,
+        })
     }
 
     /// A rejected callback cannot replace a valid sample or reset its receipt age.
@@ -95,7 +98,9 @@ impl HostObservation {
     }
 
     pub fn age(&self, now: Instant) -> Option<Duration> {
-        self.last.as_ref().map(|(_, at)| now.saturating_duration_since(*at))
+        self.last
+            .as_ref()
+            .map(|(_, at)| now.saturating_duration_since(*at))
     }
 
     pub fn stale(&self, now: Instant) -> bool {
@@ -117,13 +122,30 @@ mod tests {
             project_id: Uuid::new_v4().to_string(),
         };
         let mut status = HostStatus {
-            fence: Some(fence.clone()), query_generation: 7, observation_sequence: 1,
-            sampled_at_unix_millis: 1, source: "companion_native".into(),
-            os: "linux".into(), architecture: "x86_64".into(),
-            cpu: Some(CpuMetric { value: Some(cpu_metric::Value::Percent(25.0)) }),
-            memory: Some(MemoryMetric { value: Some(memory_metric::Value::Bytes(MemoryBytes { used: 40, total: 100 })) }),
-            project_disk: Some(DiskMetric { value: Some(disk_metric::Value::Unavailable(MetricUnavailable::MetricUnsupported.into())) }),
-            uptime: Some(UptimeMetric { value: Some(uptime_metric::Value::Seconds(10)) }),
+            fence: Some(fence.clone()),
+            query_generation: 7,
+            observation_sequence: 1,
+            sampled_at_unix_millis: 1,
+            source: "companion_native".into(),
+            os: "linux".into(),
+            architecture: "x86_64".into(),
+            cpu: Some(CpuMetric {
+                value: Some(cpu_metric::Value::Percent(25.0)),
+            }),
+            memory: Some(MemoryMetric {
+                value: Some(memory_metric::Value::Bytes(MemoryBytes {
+                    used: 40,
+                    total: 100,
+                })),
+            }),
+            project_disk: Some(DiskMetric {
+                value: Some(disk_metric::Value::Unavailable(
+                    MetricUnavailable::MetricUnsupported.into(),
+                )),
+            }),
+            uptime: Some(UptimeMetric {
+                value: Some(uptime_metric::Value::Seconds(10)),
+            }),
         };
         let now = Instant::now();
         let mut cache = HostObservation::new(fence, 7).unwrap();
@@ -143,9 +165,14 @@ mod tests {
             status.cpu.as_mut().unwrap().value = Some(cpu_metric::Value::Percent(percent));
             assert!(!valid_status(&status));
         }
-        status.cpu.as_mut().unwrap().value = Some(cpu_metric::Value::Unavailable(MetricUnavailable::MetricWarmingUp.into()));
+        status.cpu.as_mut().unwrap().value = Some(cpu_metric::Value::Unavailable(
+            MetricUnavailable::MetricWarmingUp.into(),
+        ));
         assert!(valid_status(&status));
-        status.memory.as_mut().unwrap().value = Some(memory_metric::Value::Bytes(MemoryBytes { used: 101, total: 100 }));
+        status.memory.as_mut().unwrap().value = Some(memory_metric::Value::Bytes(MemoryBytes {
+            used: 101,
+            total: 100,
+        }));
         assert!(!valid_status(&status));
         status.memory.as_mut().unwrap().value = Some(memory_metric::Value::Unavailable(0));
         assert!(!valid_status(&status));

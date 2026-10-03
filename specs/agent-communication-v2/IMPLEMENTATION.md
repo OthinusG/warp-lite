@@ -158,3 +158,15 @@ authentication still disabled. This is fixture provisioning, not a production
 trust relaxation. Companion artifacts now carry source/target/debug provenance,
 version, SHA256SUMS and inherited license/notices. They remain read-only review
 artifacts, with durable service, installation and release acceptance pending.
+
+
+Source 7035082/run 37089944901 passed actual loopback Linux SSH companion
+handshake/project/host-status reads after the PAM fixture repair, including
+replaced connection/boot rejection and missing remote root. macOS and Windows
+wire/native/stdio/profile tests and all three source-matched review artifacts
+passed. This is controlled Linux remote-process evidence, not physical host or
+remote macOS/Windows SSH acceptance. New binary SFTP source adds only bounded
+structured list/stat/read, remotely canonicalized root containment and a clean
+file-only connection without a helper path. CI now checks exact binary bytes in
+a Unicode/shell-metacharacter filename and refuses a symlink escape. SFTP writes,
+transfers, GUI integration and Windows root mapping remain pending.
