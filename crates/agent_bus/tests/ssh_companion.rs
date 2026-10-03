@@ -60,19 +60,16 @@ async fn controlled_ssh_uses_project_communication_fences() {
             .unwrap_err(),
         warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable
     );
-    controlled_retained_terminal(&profile).await;
+    controlled_agent_terminal(&profile).await;
     // The alias resolves through a controlled config, not local project canonicalization.
     let mut missing = profile.clone();
     missing.remote_root.push_str("/missing-root");
     assert!(HostClient::connect(&missing).await.is_err());
 }
 
-async fn controlled_retained_terminal(profile: &SshProfile) {
+async fn controlled_agent_terminal(profile: &SshProfile) {
     let mut owner = HostClient::connect(profile).await.unwrap();
-    assert!(owner
-        .capabilities()
-        .iter()
-        .any(|c| c == "retained_terminal"));
+    assert!(owner.capabilities().iter().any(|c| c == "managed_agent"));
     let launch = TerminalLaunch { fence: owner.fence().cloned(), session_id: Uuid::new_v4().to_string(),
         executable: "/bin/sh".into(), arguments: vec!["-c".into(),
             "printf 'REMOTE_ROOT=%s\\n' \"$PWD\"; while IFS= read -r input; do printf 'RECEIVED=%s\\n' \"$input\"; done".into()],
@@ -84,27 +81,8 @@ async fn controlled_retained_terminal(profile: &SshProfile) {
     );
     let expected_root = format!("REMOTE_ROOT={}", owner.canonical_root);
     terminal_output(&mut owner, &state, &expected_root).await;
-    let boot = owner.fence().unwrap().service_boot_id.clone();
-    owner.disconnect();
-    let mut next = HostClient::connect(profile).await.unwrap();
-    assert_eq!(next.fence().unwrap().service_boot_id, boot);
-    let retained = next
-        .terminal_list()
-        .await
-        .unwrap()
-        .into_iter()
-        .find(|s| s.session_id == state.session_id)
-        .unwrap();
-    assert_eq!(retained.run_id, state.run_id);
-    assert!(retained.exit_code.is_none());
-    let attached = next
-        .terminal_control(terminal_command(
-            &next,
-            &retained,
-            TerminalAction::TerminalAttach,
-        ))
-        .await
-        .unwrap();
+    let mut next = owner;
+    let attached = state;
     let mut input = terminal_command(&next, &attached, TerminalAction::TerminalInput);
     input.input = "Remote Unicode 多语言;$(not-a-command)\r"
         .as_bytes()

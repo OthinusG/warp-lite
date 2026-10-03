@@ -54,34 +54,24 @@ Automatic delivery preserves user drafts and does not answer permission requests
 
 The source is maintained directly in this repository. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [receiver state audit](specs/agent-communication/RECEIVER-STATES.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
-### SSH Remote project management: planned
+### SSH Agent communication: in development
 
-The current remote roadmap is a local Warpai GUI managing project environments
-over SSH, with SFTP file browsing/transfers, remote terminals, remotely installed
-CLI agents and project-scoped task/status views. Commands, file edits, tests and
-Git operations run on the selected remote machine. Remote environments target
-Linux, macOS and Windows; the desktop application remains macOS/Windows. A small
-repository-owned companion replaces the requirement for another full Warpai GUI.
+Extend the existing same-project communication to CLI Agents running through SSH.
+Agents in the same remote project share a private Broker/Store on that account;
+the existing collaboration panel will show messages, tasks and concise connection
+and Agent status. System OpenSSH owns authentication. Remote accounts support
+Linux, macOS and Windows; desktop targets remain macOS/Windows.
 
-The existing Tab/Pane sidebar remains the Agent/session management entrypoint.
-Task, message and history details reuse an on-demand collaboration panel; no
-parallel Agent dashboard or mandatory manual task board is planned. The remote
-task panel will show verified host/account/project, independent connection
-capabilities, CPU/memory/project-volume status and observation age; see the
-[host-status contract](specs/agent-communication-v2/HOST-STATUS.md).
+Manual placement of the repository companion is sufficient. A file manager,
+transfer queue, host resource monitor, independent Connections dashboard and
+retained-session manager are outside this delivery and their new implementations
+are being removed. Historical device enrollment remains disabled; migration keeps
+history without restoring device authority.
 
-This is proposed work, not a capability in the published release. SFTP is the only
-planned transfer protocol; FTP/FTPS and cross-host device federation are excluded.
-The previous invitation/device-grant design is superseded. The current source
-removes its native enrollment worker and production gateway/client; schema v7
-retains legacy history and unresolved requests while revoking device authority.
-Source now includes a small read-only companion, scoped native host metrics and
-structured SFTP reads; controlled Linux SSH/SFTP and three-platform companion
-checks have passed. GUI integration, installation, writes/transfers, retained
-sessions and remote Agent task execution remain pending. See the revised [implementation plan](specs/agent-communication-v2/PLAN.md),
-[product behavior](specs/agent-communication-v2/PRODUCT.md),
-[source removal inventory](specs/agent-communication-v2/CUTOVER.md) and
-[pending acceptance gates](specs/agent-communication-v2/ACCEPTANCE.md).
+Private remote project/MCP foundations have passed three-platform checks. The
+actual SSH Agent launch workflow, panel integration and final regression remain
+pending. See the [active plan](specs/agent-communication-v2/PLAN.md) and
+[acceptance evidence](specs/agent-communication-v2/PROGRESS.md).
 
 ## Why
 

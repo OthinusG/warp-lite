@@ -41,12 +41,12 @@ jobs:
         run: choco install protoc -y
       - name: Verify shared control wire without desktop dependencies
         run: cargo test -p remote_protocol --locked
-      - name: Verify native scoped metrics and standalone companion
+      - name: Verify private project communication and standalone companion
         run: |
           cargo test -p warp-agent-bus --lib companion:: --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test native_pty --locked
-          cargo test -p warp-agent-bus --test retained_terminal --locked
+          cargo test -p warp-agent-bus --test managed_agent --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
       - name: Verify retired endpoint refusal flushes before process exit
         run: |
@@ -118,7 +118,7 @@ jobs:
           digest = hashlib.sha256(binary.read_bytes()).hexdigest()
           (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
           version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
-          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'retained_terminal', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
+          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'managed_agent', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
           PY

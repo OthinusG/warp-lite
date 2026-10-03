@@ -18,7 +18,7 @@ A simple remote target/root/helper selection and status section are sufficient.
 A file manager, transfer queue, automatic installer, session dashboard, full
 remote desktop manager, mandatory retained-session UX and broad vendor/physical
 matrix are not prerequisites for this delivery. Existing unrelated terminal/file
-functionality and in-progress foundations are preserved; no bulk rollback.
+functionality are preserved; redundant additions are deleted with focused regression checks.
 
 ## Tasks and acceptance
 

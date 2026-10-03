@@ -27,9 +27,9 @@ the existing local Broker or exact remote project client. Generation-fence resul
 and preserve input/focus. Display a compact status section in that panel, without
 creating a separate session manager. Static native review precedes live binding.
 
-Manual helper deployment is sufficient. Existing retained PTY/host-status code
-may be reused where it shortens integration, but retention UI, file operations,
-transfer machinery and automatic installation are independent future scope.
+Manual helper deployment is sufficient. Agent PTYs belong to their SSH connection: disconnect revokes MCP and stops the
+owned group/job. Session list, detach/reattach and generation takeover are removed.
+Bounded IO buffering and native ownership checks remain required for Agent IO.
 
 ## Verification
 

@@ -47,22 +47,22 @@ message ServerMessage {
 
 // Managed SSH control is explicitly admitted; it never invokes legacy handlers.
 message ManagedRequest {
+  reserved 3, 6;
   oneof operation {
     ManagedInitialize initialize = 1;
     ProjectOpen project_open = 2;
     TerminalLaunch terminal_launch = 4;
     TerminalControl terminal_control = 5;
-    TerminalList terminal_list = 6;
     ProjectTasksRequest project_tasks = 7;
   }
 }
 message ManagedResponse {
+  reserved 3, 6;
   oneof result {
     ManagedInitialized initialized = 1;
     ProjectOpened project_opened = 2;
     ManagedError error = 4;
     TerminalState terminal_state = 5;
-    TerminalStates terminal_states = 6;
     ProjectTasksResult project_tasks = 7;
   }
 }
@@ -123,8 +123,7 @@ message TerminalLaunch {
 }
 enum TerminalAction {
   TERMINAL_ACTION_UNSPECIFIED = 0;
-  TERMINAL_ATTACH = 1;
-  TERMINAL_DETACH = 2;
+  reserved 1, 2;
   TERMINAL_READ = 3;
   TERMINAL_INPUT = 4;
   TERMINAL_RESIZE = 5;
@@ -143,7 +142,6 @@ message TerminalControl {
   uint32 columns = 9;
   uint32 rows = 10;
 }
-message TerminalList { ManagedFence fence = 1; }
 message TerminalState {
   ManagedFence fence = 1;
   string session_id = 2;
@@ -161,7 +159,6 @@ message TerminalState {
   bool output_closed = 14;
   optional bool processes_active = 15;
 }
-message TerminalStates { repeated TerminalState sessions = 1; }
 // Legacy upstream protocol declarations below are retained for existing callers.
 message Initialize {}
 

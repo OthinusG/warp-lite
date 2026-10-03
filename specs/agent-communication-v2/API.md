@@ -1,3 +1,15 @@
+# Active SSH Agent Control Contract
+
+The active wire provides initialize, project_open, project_tasks, Agent launch and
+Agent read/input/resize/stop/release only. Agent runs belong to the launching
+connection. Disconnect revokes private MCP and stops the owned process group/job;
+there is no session listing, detach/reattach or takeover. Removed wire tags/actions
+are reserved and never reused. Capabilities are project_open, managed_agent,
+project_tasks and project_mcp. Credentials stay in the owned child environment.
+
+Historical detailed manager contract below is superseded by this scope. It is
+retained as history only; legacy-ssh-project-manager/API.md holds its full copy.
+
 # Active scope notice — SSH Agent Communication Extension
 
 The user narrowed delivery on 2026-10-03 to existing same-project communication
@@ -380,7 +392,7 @@ service restart changes boot identity, preserving unknown-task semantics.
 
 ### Retained native terminal wire (R2.8/R4)
 
-Managed protocol major 1 adds a negotiated `retained_terminal` capability and
+Managed protocol major 1 adds a negotiated `managed_agent` capability and
 TerminalLaunch/TerminalControl/TerminalList. Every call pins the complete project
 fence; controls additionally pin session UUID, server run UUID and attachment
 generation. Launch uses an original client session UUID and immutable executable,

@@ -1,6 +1,10 @@
-//! Native single-owner read service; stdio attachments never own its lifetime.
+//! Native single-owner project service with connection-owned Agent runs.
 use super::*;
-use std::{process::Stdio, sync::Arc, time::Duration};
+use std::{
+    process::Stdio,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tokio::sync::Semaphore;
 
 #[cfg(unix)]

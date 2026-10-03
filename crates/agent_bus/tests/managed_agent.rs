@@ -1,4 +1,4 @@
-//! Real companion, native PTY and disconnect/replacement acceptance.
+//! Real companion Agent PTY, private MCP and connection ownership acceptance.
 use remote_protocol::{managed::PROTOCOL_MAJOR, proto::*, protocol::*};
 use tokio::{io::AsyncWriteExt, process::Command};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[test]
 #[ignore = "only the owned companion PTY launches this child"]
-fn retained_terminal_child() {
+fn managed_agent_child() {
     #[cfg(unix)]
     assert_eq!(unsafe { libc::isatty(0) }, 1);
     #[cfg(windows)]
@@ -124,7 +124,7 @@ fn retained_background_sleep() {
 }
 
 #[tokio::test]
-async fn retained_background_activity_blocks_release_after_leader_exit_and_disconnect() {
+async fn background_activity_blocks_release_until_owned_stop() {
     let root = tempfile::tempdir().unwrap();
     let mut first = Attachment::open(root.path()).await;
     let managed_response::Result::TerminalState(state) = first
@@ -163,20 +163,12 @@ async fn retained_background_activity_blocks_release_after_leader_exit_and_disco
     assert!(
         matches!(first.call(managed_request::Operation::TerminalControl(first.control(&ended, TerminalAction::TerminalRelease))).await, managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedConflict as i32)
     );
-    let boot = first.fence.service_boot_id.clone();
-    first.disconnect().await;
-    let mut next = Attachment::open(root.path()).await;
-    assert_eq!(next.fence.service_boot_id, boot);
-    let attached = next
-        .command(next.control(&ended, TerminalAction::TerminalAttach))
-        .await;
-    assert_eq!(attached.run_id, state.run_id);
-    assert_eq!(attached.processes_active, Some(true));
-    next.command(next.control(&attached, TerminalAction::TerminalStop))
+    first
+        .command(first.control(&ended, TerminalAction::TerminalStop))
         .await;
     loop {
-        let current = next
-            .command(next.control(&attached, TerminalAction::TerminalRead))
+        let current = first
+            .command(first.control(&ended, TerminalAction::TerminalRead))
             .await;
         if current.processes_active == Some(false) && current.output_closed {
             break;
@@ -187,9 +179,10 @@ async fn retained_background_activity_blocks_release_after_leader_exit_and_disco
         );
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
-    next.command(next.control(&attached, TerminalAction::TerminalRelease))
+    first
+        .command(first.control(&ended, TerminalAction::TerminalRelease))
         .await;
-    next.disconnect().await;
+    first.disconnect().await;
 }
 impl Attachment {
     async fn open(root: &std::path::Path) -> Self {
@@ -313,7 +306,7 @@ impl Attachment {
 }
 
 #[tokio::test]
-async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned_stop() {
+async fn managed_agent_fences_input_project_and_owned_stop() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("Retained root 多语言");
     std::fs::create_dir(&root).unwrap();
@@ -323,14 +316,9 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
         fence: Some(first.fence.clone()),
         session_id: Uuid::new_v4().to_string(),
         executable: std::env::current_exe().unwrap().to_str().unwrap().into(),
-        arguments: [
-            "--exact",
-            "retained_terminal_child",
-            "--ignored",
-            "--nocapture",
-        ]
-        .map(str::to_owned)
-        .to_vec(),
+        arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"]
+            .map(str::to_owned)
+            .to_vec(),
         columns: 240,
         rows: 24,
         agent_program: Some("fixture".into()),
@@ -373,90 +361,86 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
     first.wait_output(&state, "UNICODE_INPUT_VERIFIED").await;
     let mut second = Attachment::open(&root).await;
     assert_eq!(first.fence.service_boot_id, second.fence.service_boot_id);
-    let replaced = second
-        .command(second.control(&state, TerminalAction::TerminalAttach))
-        .await;
-    assert!(replaced.attachment_generation > state.attachment_generation);
-    for action in [
-        TerminalAction::TerminalInput,
-        TerminalAction::TerminalResize,
-        TerminalAction::TerminalStop,
-    ] {
-        assert!(matches!(
-            first
-                .call(managed_request::Operation::TerminalControl(
-                    first.control(&state, action)
-                ))
-                .await,
-            managed_response::Result::Error(_)
-        ));
-    }
-    first.disconnect().await;
-    let mut resize = second.control(&replaced, TerminalAction::TerminalResize);
-    resize.columns = 120;
-    resize.rows = 40;
-    second.command(resize).await;
-    let mut flood = second.control(&replaced, TerminalAction::TerminalInput);
-    flood.input = b"flood\r".to_vec();
-    flood.input_sequence = 1;
-    second.command(flood).await;
-    let bounded = second
-        .wait_output(&replaced, "BOUNDED_REPLAY_VERIFIED")
-        .await;
-    // ConPTY can coalesce repeated screen updates, unlike a raw Unix PTY.
-    #[cfg(unix)]
-    assert!(bounded.output_truncated);
-    assert!(bounded.output.len() <= 32 * 1024);
-    assert!(bounded.output_end - bounded.output_offset <= 256 * 1024);
-    let original_boot = second.fence.service_boot_id.clone();
-    second.disconnect().await;
-    let mut next = Attachment::open(&root).await;
-    assert_eq!(next.fence.service_boot_id, original_boot);
-    let managed_response::Result::TerminalStates(list) = next
-        .call(managed_request::Operation::TerminalList(TerminalList {
-            fence: Some(next.fence.clone()),
-        }))
-        .await
-    else {
-        panic!("Retained list")
-    };
-    let retained = list
-        .sessions
-        .into_iter()
-        .find(|s| s.session_id == state.session_id)
-        .unwrap();
-    assert_eq!(retained.run_id, state.run_id);
-    assert_eq!(retained.exit_code, None);
-    let retained = next
-        .command(next.control(&retained, TerminalAction::TerminalAttach))
-        .await;
+    assert!(
+        matches!(second.call(managed_request::Operation::TerminalControl(
+        second.control(&state, TerminalAction::TerminalRead))).await,
+        managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedStaleAttachment as i32)
+    );
     let other_root = tempfile::tempdir().unwrap();
     let mut other = Attachment::open(other_root.path()).await;
     assert!(matches!(
         other
             .call(managed_request::Operation::TerminalControl(
-                other.control(&retained, TerminalAction::TerminalAttach)
+                other.control(&state, TerminalAction::TerminalRead)
             ))
             .await,
         managed_response::Result::Error(_)
     ));
     other.disconnect().await;
-    let stopped = next
-        .command(next.control(&retained, TerminalAction::TerminalStop))
+    let mut resize = first.control(&state, TerminalAction::TerminalResize);
+    resize.columns = 120;
+    resize.rows = 40;
+    first.command(resize).await;
+    let stopped = first
+        .command(first.control(&state, TerminalAction::TerminalStop))
         .await;
     assert!(stopped.stop_requested);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
-        let observed = next
-            .command(next.control(&retained, TerminalAction::TerminalRead))
+        let observed = first
+            .command(first.control(&state, TerminalAction::TerminalRead))
             .await;
-        if observed.exit_code.is_some() && observed.output_closed {
+        if observed.processes_active == Some(false) && observed.output_closed {
             break;
         }
         assert!(std::time::Instant::now() < deadline, "Stop did not exit");
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
-    next.command(next.control(&retained, TerminalAction::TerminalRelease))
+    first
+        .command(first.control(&state, TerminalAction::TerminalRelease))
         .await;
+    first.disconnect().await;
+    second.disconnect().await;
+}
+
+#[tokio::test]
+async fn disconnected_agent_cannot_be_adopted_by_another_connection() {
+    let root = tempfile::tempdir().unwrap();
+    let mut first = Attachment::open(root.path()).await;
+    let launch = TerminalLaunch {
+        fence: Some(first.fence.clone()),
+        session_id: Uuid::new_v4().to_string(),
+        executable: std::env::current_exe().unwrap().to_str().unwrap().into(),
+        arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"]
+            .map(str::to_owned)
+            .to_vec(),
+        columns: 100,
+        rows: 24,
+        agent_program: Some("fixture".into()),
+    };
+    let managed_response::Result::TerminalState(state) = first
+        .call(managed_request::Operation::TerminalLaunch(launch.clone()))
+        .await
+    else {
+        panic!("Launch")
+    };
+    first
+        .wait_output(&state, &format!("MCP_NATIVE_RUN={}", state.run_id))
+        .await;
+    first.disconnect().await;
+    let mut next = Attachment::open(root.path()).await;
+    for action in [
+        TerminalAction::TerminalRead,
+        TerminalAction::TerminalInput,
+        TerminalAction::TerminalStop,
+    ] {
+        assert!(matches!(
+            next.call(managed_request::Operation::TerminalControl(
+                next.control(&state, action)
+            ))
+            .await,
+            managed_response::Result::Error(_)
+        ));
+    }
     next.disconnect().await;
 }

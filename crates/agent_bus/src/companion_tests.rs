@@ -34,7 +34,7 @@ fn companion_opens_native_project_and_fences_every_attachment() {
         initialized.capabilities,
         [
             "project_open",
-            "retained_terminal",
+            "managed_agent",
             "project_tasks",
             "project_mcp"
         ]

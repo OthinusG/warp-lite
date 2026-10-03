@@ -1,4 +1,4 @@
-//! Account-owned PTYs; clean connections own input leases, never process lifetime.
+//! Connection-owned Agent PTYs; disconnect stops the owned process group/job.
 use super::*;
 use crate::native_pty::{NativePty, Size};
 use std::{
@@ -19,12 +19,6 @@ type Owner = Arc<Mutex<Session>>;
 #[derive(Default)]
 pub(super) struct Terminals(Mutex<BTreeMap<String, Owner>>);
 #[derive(Default)]
-struct Lease {
-    connection: Option<String>,
-    generation: u64,
-    revoked: Arc<AtomicBool>,
-}
-#[derive(Default)]
 struct Output {
     bytes: VecDeque<u8>,
     end: u64,
@@ -42,21 +36,14 @@ impl Output {
         Ok(())
     }
 }
-struct Input {
-    connection: String,
-    generation: u64,
-    bytes: Vec<u8>,
-}
 struct Session {
     launch: TerminalLaunch,
     run_id: String,
     binding: Option<tasks::RunBinding>,
     pty: NativePty,
-    lease: Arc<Mutex<Lease>>,
     output: Arc<Mutex<Output>>,
-    input: mpsc::SyncSender<Input>,
+    input: mpsc::SyncSender<Vec<u8>>,
     connection: Option<String>,
-    generation: u64,
     sequence: u64,
     failed: Arc<AtomicBool>,
     revoked: Arc<AtomicBool>,
@@ -114,7 +101,10 @@ impl Terminals {
             {
                 return Err(Error::ManagedConflict);
             }
-            // Reconciliation returns the existing run without replacing its input lease.
+            if session.connection.as_deref() != Some(&fence.connection_id) {
+                return Err(Error::ManagedStaleAttachment);
+            }
+            // Reconcile only the original connection; disconnected runs cannot be adopted.
             return session.state(fence, None);
         }
         if sessions.len() >= MAX_SESSIONS {
@@ -140,12 +130,7 @@ impl Terminals {
         let mut writer = pty.writer.try_clone().map_err(path_error)?;
         let output = Arc::new(Mutex::new(Output::default()));
         let revoked = Arc::new(AtomicBool::new(false));
-        let lease = Arc::new(Mutex::new(Lease {
-            connection: Some(fence.connection_id.clone()),
-            generation: 1,
-            revoked: revoked.clone(),
-        }));
-        let (input, receiver) = mpsc::sync_channel::<Input>(16);
+        let (input, receiver) = mpsc::sync_channel::<Vec<u8>>(16);
         let failed = Arc::new(AtomicBool::new(false));
         let collected = output.clone();
         std::thread::spawn(move || {
@@ -168,21 +153,15 @@ impl Terminals {
                 output.closed = true;
             }
         });
-        let guarded = lease.clone();
+        let write_revoked = revoked.clone();
         let write_failed = failed.clone();
         std::thread::spawn(move || {
             while let Ok(input) = receiver.recv() {
-                let Ok(lease) = guarded.lock() else { break };
-                if lease.connection.as_deref() != Some(&input.connection)
-                    || lease.generation != input.generation
-                    || lease.revoked.load(Ordering::Acquire)
-                    || write_failed.load(Ordering::Acquire)
-                {
+                if write_revoked.load(Ordering::Acquire) || write_failed.load(Ordering::Acquire) {
                     continue;
                 }
-                // Replacement serializes with actual bytes, not only queue admission.
                 if writer
-                    .write_all(&input.bytes)
+                    .write_all(&input)
                     .and_then(|_| writer.flush())
                     .is_err()
                 {
@@ -195,11 +174,9 @@ impl Terminals {
             run_id,
             binding,
             pty,
-            lease,
             output,
             input,
             connection: Some(fence.connection_id.clone()),
-            generation: 1,
             sequence: 0,
             failed,
             revoked,
@@ -238,109 +215,67 @@ impl Terminals {
         {
             return Err(Error::ManagedInvalidInput);
         }
-        if action == TerminalAction::TerminalAttach {
-            if request.attachment_generation != session.generation {
-                return Err(Error::ManagedStaleAttachment);
+        if session.connection.as_deref() != Some(&fence.connection_id)
+            || request.attachment_generation != 1
+        {
+            return Err(Error::ManagedStaleAttachment);
+        }
+        match action {
+            TerminalAction::TerminalInput => {
+                if request.input.is_empty()
+                    || request.input.len() > 4096
+                    || session.sequence.checked_add(1) != Some(request.input_sequence)
+                {
+                    return Err(Error::ManagedInvalidInput);
+                }
+                if session.failed.load(Ordering::Acquire)
+                    || session.pty.exit_code().map_err(path_error)?.is_some()
+                {
+                    return Err(Error::ManagedUnavailable);
+                }
+                session
+                    .input
+                    .try_send(request.input)
+                    .map_err(|_| Error::ManagedCapacityExceeded)?;
+                session.sequence = request.input_sequence;
             }
-            let generation = session
-                .generation
-                .checked_add(1)
-                .ok_or(Error::ManagedUnavailable)?;
-            let guarded = session.lease.clone();
-            // An in-flight native write makes attachment temporarily unavailable;
-            // never wait on it while holding process control or blocking Stop.
-            let mut lease = guarded.try_lock().map_err(|_| Error::ManagedUnavailable)?;
-            session.generation = generation;
-            session.connection = Some(fence.connection_id.clone());
-            lease.generation = generation;
-            lease.connection = session.connection.clone();
-            session.revoked = Arc::new(AtomicBool::new(false));
-            lease.revoked = session.revoked.clone();
-            session.sequence = 0;
-        } else {
-            if (session.connection.as_deref() != Some(&fence.connection_id)
-                && !(action == TerminalAction::TerminalStop && session.connection.is_none()))
-                || session.generation != request.attachment_generation
-            {
-                return Err(Error::ManagedStaleAttachment);
+            TerminalAction::TerminalResize => {
+                session
+                    .pty
+                    .resize(dimensions(request.columns, request.rows)?)
+                    .map_err(path_error)?;
             }
-            match action {
-                TerminalAction::TerminalDetach => {
-                    session.revoked.store(true, Ordering::Release);
-                    session.connection = None;
-                }
-                TerminalAction::TerminalInput => {
-                    if request.input.is_empty()
-                        || request.input.len() > 4096
-                        || session.sequence.checked_add(1) != Some(request.input_sequence)
-                    {
-                        return Err(Error::ManagedInvalidInput);
-                    }
-                    if session.failed.load(Ordering::Acquire)
-                        || session.pty.exit_code().map_err(path_error)?.is_some()
-                    {
-                        return Err(Error::ManagedUnavailable);
-                    }
-                    session
-                        .input
-                        .try_send(Input {
-                            connection: fence.connection_id.clone(),
-                            generation: session.generation,
-                            bytes: request.input,
-                        })
-                        .map_err(|_| Error::ManagedCapacityExceeded)?;
-                    session.sequence = request.input_sequence;
-                }
-                TerminalAction::TerminalResize => {
-                    session
-                        .pty
-                        .resize(dimensions(request.columns, request.rows)?)
-                        .map_err(path_error)?;
-                }
-                TerminalAction::TerminalStop => {
-                    // Process stop never waits for a blocked native input writer.
-                    session.pty.stop().map_err(path_error)?;
-                    session.stop_requested = true;
-                }
-                TerminalAction::TerminalRead => (),
-                TerminalAction::TerminalRelease => {
-                    if session.pty.exit_code().map_err(path_error)?.is_none()
-                        || session.pty.is_active().map_err(path_error)?
-                        || !lock(&session.output)?.closed
-                    {
-                        return Err(Error::ManagedConflict);
-                    }
-                    let state = session.state(fence, None)?;
-                    drop(session);
-                    let mut sessions = lock(&self.0)?;
-                    if sessions
-                        .get(&request.session_id)
-                        .is_none_or(|current| !Arc::ptr_eq(current, &owner))
-                    {
-                        return Err(Error::ManagedStaleAttachment);
-                    }
-                    sessions.remove(&request.session_id);
-                    return Ok(state);
-                }
-                _ => return Err(Error::ManagedInvalidInput),
+            TerminalAction::TerminalStop => {
+                // Process stop never waits for a blocked native input writer.
+                session.pty.stop().map_err(path_error)?;
+                session.stop_requested = true;
             }
+            TerminalAction::TerminalRead => (),
+            TerminalAction::TerminalRelease => {
+                if session.pty.exit_code().map_err(path_error)?.is_none()
+                    || session.pty.is_active().map_err(path_error)?
+                    || !lock(&session.output)?.closed
+                {
+                    return Err(Error::ManagedConflict);
+                }
+                let state = session.state(fence, None)?;
+                drop(session);
+                let mut sessions = lock(&self.0)?;
+                if sessions
+                    .get(&request.session_id)
+                    .is_none_or(|current| !Arc::ptr_eq(current, &owner))
+                {
+                    return Err(Error::ManagedStaleAttachment);
+                }
+                sessions.remove(&request.session_id);
+                return Ok(state);
+            }
+            _ => return Err(Error::ManagedInvalidInput),
         }
         session.state(
             fence,
             (action == TerminalAction::TerminalRead).then_some(request.output_offset),
         )
-    }
-
-    pub(super) fn list(&self, fence: &ManagedFence) -> Result<TerminalStates, Error> {
-        let owners: Vec<_> = lock(&self.0)?.values().cloned().collect();
-        let mut sessions = Vec::new();
-        for owner in owners {
-            let mut session = lock(&owner)?;
-            if session.launch.fence.as_ref().map(|f| &f.project_id) == Some(&fence.project_id) {
-                sessions.push(session.state(fence, None)?);
-            }
-        }
-        Ok(TerminalStates { sessions })
     }
 
     pub(super) fn disconnect(&self, connection: &str) {
@@ -358,28 +293,32 @@ impl Terminals {
                 }
                 session.connection = None;
                 session.revoked.store(true, Ordering::Release);
+                session.binding.take();
+                // Keep native ownership on stop failure; idle exit must still observe it.
+                session.stop_requested = session.pty.stop().is_ok();
             }
         }
     }
 
     pub(super) fn active(&self) -> bool {
-        let Ok(owners) = self
-            .0
-            .lock()
-            .map(|m| m.values().cloned().collect::<Vec<_>>())
-        else {
+        let Ok(mut owners) = self.0.lock() else {
             return true;
         };
-        owners.into_iter().fold(false, |active, owner| {
-            let owned = owner.lock().map_or(true, |mut s| {
-                let active = s.pty.is_active().unwrap_or(true);
-                if !active {
-                    s.binding.take();
-                }
-                active || s.output.lock().map_or(true, |output| !output.closed)
-            });
-            active || owned
-        })
+        let mut active = false;
+        owners.retain(|_, owner| {
+            let Ok(mut session) = owner.lock() else {
+                active = true;
+                return true;
+            };
+            let owned = session.pty.is_active().unwrap_or(true);
+            if !owned {
+                session.binding.take();
+            }
+            let draining = session.output.lock().map_or(true, |output| !output.closed);
+            active |= owned || draining;
+            session.connection.is_some() || owned || draining
+        });
+        active
     }
 }
 
@@ -427,7 +366,7 @@ impl Session {
             fence: Some(fence.clone()),
             session_id: self.launch.session_id.clone(),
             run_id: self.run_id.clone(),
-            attachment_generation: self.generation,
+            attachment_generation: 1,
             attached: self.connection.is_some(),
             stop_requested: self.stop_requested,
             exit_code,

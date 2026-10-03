@@ -1021,3 +1021,16 @@ disk/uptime collection, wire types, validators and sample states. Capture/workfl
 expectations now follow the retained collaboration fixtures only. Existing
 upstream file/terminal code is preserved. Session management simplification and
 exact-source regressions remain pending; S0 is not accepted yet.
+
+### S0 cleanup follow-up — pending exact-source verification
+
+Removed session listing, detach/reattach and generation takeover from the service,
+SSH client and protobuf schema; removed tags/actions are reserved. Runs now belong
+to their launch connection. Disconnect revokes MCP, requests owned group/job stop
+and retains native ownership until activity is observed ended; closed disconnected
+owners are collected. Replaced retained-session acceptance with connection-owned
+Agent IO/private-MCP/isolation checks. README follows the corrected scope.
+
+Cleanup source 468b490 run 37113128671 failed at compilation because service idle
+logic inherited Instant through the removed metrics import. Fixed with an explicit
+service import. No cleanup acceptance is claimed before a successful rerun.

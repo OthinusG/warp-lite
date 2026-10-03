@@ -1,4 +1,4 @@
-//! Managed project and retained terminal control, independent of desktop/UI and legacy enrollment.
+//! Private project communication and Agent IO, independent of desktop/UI and enrollment.
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -104,7 +104,7 @@ impl Companion {
                     architecture: std::env::consts::ARCH.into(),
                     capabilities: vec![
                         "project_open".into(),
-                        "retained_terminal".into(),
+                        "managed_agent".into(),
                         "project_tasks".into(),
                         "project_mcp".into(),
                     ],
@@ -154,12 +154,6 @@ impl Companion {
                 self.terminals
                     .control(request, &self.fence)
                     .map(managed_response::Result::TerminalState)
-            }
-            Some(managed_request::Operation::TerminalList(request)) => {
-                self.check_project(request.fence.as_ref())?;
-                self.terminals
-                    .list(&self.fence)
-                    .map(managed_response::Result::TerminalStates)
             }
             Some(managed_request::Operation::ProjectTasks(request)) => {
                 self.check_project(request.fence.as_ref())?;

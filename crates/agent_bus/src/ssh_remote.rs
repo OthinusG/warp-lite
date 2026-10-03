@@ -300,7 +300,7 @@ impl HostClient {
     }
 
     fn terminal_scope(&self, fence: &Option<ManagedFence>) -> Result<(), ConnectionError> {
-        if !self.capabilities.iter().any(|c| c == "retained_terminal") {
+        if !self.capabilities.iter().any(|c| c == "managed_agent") {
             return Err(ConnectionError::FeatureUnavailable);
         }
         if !self.alive || fence.is_none() || fence != &self.fence {
@@ -380,16 +380,9 @@ impl HostClient {
         request: TerminalControl,
     ) -> Result<TerminalState, ConnectionError> {
         self.terminal_scope(&request.fence)?;
-        let expected_generation = if request.action == TerminalAction::TerminalAttach as i32 {
-            request
-                .attachment_generation
-                .checked_add(1)
-                .ok_or(ConnectionError::InvalidInput)?
-        } else {
-            request.attachment_generation
-        };
         let session = request.session_id.clone();
         let run = request.run_id.clone();
+        let request_generation = request.attachment_generation;
         let result = self
             .request(managed_request::Operation::TerminalControl(request))
             .await?;
@@ -397,30 +390,9 @@ impl HostClient {
             if self.valid_terminal(&state)
                 && state.session_id == session
                 && state.run_id == run
-                && state.attachment_generation == expected_generation
+                && state.attachment_generation == request_generation
             {
                 return Ok(state);
-            }
-        }
-        self.close();
-        Err(ConnectionError::StaleAttachment)
-    }
-
-    pub async fn terminal_list(&mut self) -> Result<Vec<TerminalState>, ConnectionError> {
-        self.terminal_scope(&self.fence)?;
-        let result = self
-            .request(managed_request::Operation::TerminalList(TerminalList {
-                fence: self.fence.clone(),
-            }))
-            .await?;
-        if let managed_response::Result::TerminalStates(states) = result {
-            if states.sessions.len() <= 32
-                && states
-                    .sessions
-                    .iter()
-                    .all(|s| self.valid_terminal(s) && s.output.is_empty())
-            {
-                return Ok(states.sessions);
             }
         }
         self.close();
@@ -431,7 +403,7 @@ impl HostClient {
         remote_protocol::managed::valid_terminal_state(state) && state.fence == self.fence
     }
 
-    /// Disconnect revokes this connection's input lease, preserving remote owned runs.
+    /// Disconnect stops this connection's owned Agent runs and revokes their MCP bindings.
     pub fn disconnect(&mut self) {
         self.close();
     }
