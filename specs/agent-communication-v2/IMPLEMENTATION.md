@@ -214,3 +214,14 @@ retains commit_unknown; no automatic mutation retry or partial cleanup. Atomic
 overwrite/editor save/resume, streaming large files, queue/GUI and Windows native
 SFTP root acceptance remain pending. Linux controlled SSH test now checks actual
 binary upload, reconnect/reconcile, competing destination, rename and delete.
+
+Account-service checkpoint (CI pending): the clean stdio executable proxies to
+one private background owner using the same bounded protobuf codec. The native
+service lock prevents duplicate owners; current-user IPC and 32-attachment bound
+reuse existing OS helpers. Boot identity survives proxy/SSH disconnects; idle
+exit occurs only after 60 seconds without attachments. Current capabilities remain
+read-only, with no retained PTY/task claim. Actual subprocess tests verify boot
+reuse, fresh connection IDs and duplicate-owner rejection; Linux SSH tests now
+require one shared service boot. Task Store/PTY retention still require integration.
+SFTP source4104bae/run37091911301 passed all three focused platform suites and
+controlled Linux byte upload/reconnect/conflict/rename/delete checks.

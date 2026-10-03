@@ -347,3 +347,22 @@ paths and server canonical parent containment. They never target the selected ro
 itself. Links are deleted/renamed as entries rather than followed; regular reads
 continue rejecting escapes. Lost responses are commit_unknown, not a successful
 mutation. These checks are not a kernel jail against same-account external races.
+
+### Account service attachment boundary
+
+Managed stdio becomes a bounded proxy to one account-owned background service.
+An OS exclusive service.lock prevents duplicate authorities. Unix IPC resides in
+an owned mode-0700 short directory and mode-0600 socket; Windows uses the existing
+current-user-only named-pipe DACL with remote clients rejected. The stable service
+UUID selects the endpoint; each service start creates one boot UUID shared by its
+attachments, while every proxy connection receives a fresh connection UUID.
+Only the explicitly selected companion executable starts its own private service;
+no global install, startup script, sudo or public listener is involved.
+
+The service permits at most 32 attachments, one bounded protobuf request per
+attachment and a ten-second request/response deadline in the proxy. Idle exit is
+allowed after 60 seconds with no attachments and no owned work. Until retained
+PTY/task ownership exists, this read-only service advertises only project_open
+and host_status, never session retention or collaboration. Later owned work must
+participate in idle eligibility before those capabilities can be enabled. A
+service restart changes boot identity, preserving unknown-task semantics.

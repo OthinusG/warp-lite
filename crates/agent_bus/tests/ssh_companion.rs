@@ -35,7 +35,7 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
         one.fence.as_ref().unwrap().connection_id,
         two.fence.as_ref().unwrap().connection_id
     );
-    assert_ne!(
+    assert_eq!(
         one.fence.as_ref().unwrap().service_boot_id,
         two.fence.as_ref().unwrap().service_boot_id
     );

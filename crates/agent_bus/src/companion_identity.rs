@@ -78,7 +78,7 @@ fn account_id() -> std::io::Result<String> {
 }
 
 #[cfg(unix)]
-fn private_directory(path: &Path) -> std::io::Result<()> {
+pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
     std::fs::DirBuilder::new()
         .recursive(true)
@@ -95,7 +95,7 @@ fn private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(unix)]
-fn private_file(path: &Path) -> std::io::Result<File> {
+pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
     let file = OpenOptions::new()
         .read(true)
@@ -123,7 +123,7 @@ fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
 }
 
 #[cfg(windows)]
-fn private_file(path: &Path) -> std::io::Result<File> {
+pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
     use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
     let file = OpenOptions::new()
         .read(true)
@@ -158,7 +158,7 @@ fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
 }
 
 #[cfg(windows)]
-fn private_directory(path: &Path) -> std::io::Result<()> {
+pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
     use windows::{
         core::{Owned, HSTRING, PWSTR},
         Win32::{

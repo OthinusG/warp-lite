@@ -16,6 +16,8 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 #[path = "companion_identity.rs"]
 mod identity;
+#[path = "companion_service.rs"]
+mod service;
 
 struct Project {
     root: PathBuf,
@@ -121,10 +123,7 @@ impl Companion {
                 let handle = open_root(&root).map_err(path_error)?;
                 let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
                 let canonical_root = root.to_str().unwrap().to_owned();
-                self.project = Some(Project {
-                    root,
-                    handle,
-                });
+                self.project = Some(Project { root, handle });
                 self.fence.project_id = id;
                 self.last_status = None;
                 Ok(managed_response::Result::ProjectOpened(ProjectOpened {
@@ -338,13 +337,29 @@ fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
 
 /// Serial bounded reads provide backpressure and at most one response in flight.
 pub async fn serve_stdio() -> Result<(), ProtocolError> {
-    let mut reader = tokio::io::stdin().compat();
-    let mut writer = tokio::io::stdout().compat_write();
-    let data_directory = dirs::data_local_dir()
+    service::proxy_stdio().await
+}
+
+pub async fn serve_account_service() -> Result<(), ProtocolError> {
+    service::serve().await
+}
+
+fn data_directory() -> std::io::Result<PathBuf> {
+    Ok(dirs::data_local_dir()
         .ok_or_else(|| std::io::Error::other("Companion data directory unavailable"))?
         .join("warpai")
-        .join("remote");
-    let mut companion = Companion::new(&data_directory)?;
+        .join("remote"))
+}
+
+async fn serve_channel<S>(stream: S, directory: &Path, boot: &str) -> Result<(), ProtocolError>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let (reader, writer) = tokio::io::split(stream);
+    let mut reader = reader.compat();
+    let mut writer = writer.compat_write();
+    let mut companion = Companion::new(directory)?;
+    companion.fence.service_boot_id = boot.into();
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

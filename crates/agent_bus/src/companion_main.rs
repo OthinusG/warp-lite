@@ -11,11 +11,18 @@ async fn main() {
         );
         return;
     }
-    if std::env::args_os().count() != 1 {
+    let service = std::env::args_os().len() == 2
+        && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--service"));
+    if std::env::args_os().count() != 1 && !service {
         eprintln!("Companion accepts managed control on stdio only");
         std::process::exit(2);
     }
-    if warp_agent_bus::companion::serve_stdio().await.is_err() {
+    let result = if service {
+        warp_agent_bus::companion::serve_account_service().await
+    } else {
+        warp_agent_bus::companion::serve_stdio().await
+    };
+    if result.is_err() {
         // Peer bytes, native paths and OS diagnostics never enter protocol stderr.
         eprintln!("Companion control channel closed");
         std::process::exit(1);
