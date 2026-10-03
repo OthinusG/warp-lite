@@ -20,7 +20,6 @@ test-util = []
 
 [dependencies]
 anyhow = "1.0"
-async-broadcast.workspace = true
 async-channel.workspace = true
 async-executor = "1.4.1"
 async-task.workspace = true
@@ -50,7 +49,6 @@ schemars = { version = "1", optional = true }
 settings_value = { workspace = true, optional = true, features = ["derive"] }
 markdown_parser.workspace = true
 num-derive = "0.4.2"
-num-traits.workspace = true
 num_cpus = "1.0"
 ordered-float = "3.0.0"
 parking_lot.workspace = true

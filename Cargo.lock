@@ -250,23 +250,19 @@ dependencies = [
  "async-fs",
  "async-trait",
  "base16ct",
- "bincode",
  "bytes",
  "cfg-if",
  "chrono",
  "computer_use",
  "derivative",
  "dirs 6.0.0",
- "dunce",
  "filetime",
  "futures",
  "generic-array",
  "ignore",
- "instant",
  "itertools 0.14.0",
  "languages",
  "lazy_static",
- "line-span",
  "log",
  "nix 0.26.4",
  "notify-debouncer-full",
@@ -6249,7 +6245,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-onnx",
- "cfg-if",
  "clap",
  "fasttext",
  "futures",
@@ -6937,12 +6932,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "834e592123b39b7b3ba3fdc4b7e4822fad3ced449010f8229f843fe6dd1a33f1"
 
 [[package]]
-name = "line-span"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29fc123b2f6600099ca18248f69e3ee02b09c4188c0d98e9a690d90dec3e408a"
-
-[[package]]
 name = "line-wrap"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7268,7 +7257,6 @@ dependencies = [
  "markup5ever_rcdom",
  "nom 7.1.3",
  "serde_yaml",
- "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -7852,7 +7840,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-fs",
- "async-trait",
  "cfg-if",
  "command",
  "flate2",
@@ -7861,7 +7848,6 @@ dependencies = [
  "log",
  "semver",
  "serde",
- "serde_json",
  "sha2",
  "tar",
  "warp_core",
@@ -10088,7 +10074,6 @@ dependencies = [
  "command",
  "dashmap",
  "futures",
- "futures-lite 1.13.0",
  "getrandom 0.2.16",
  "log",
  "prost 0.14.3",
@@ -10098,7 +10083,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
- "uuid",
  "warp_core",
  "warp_util",
  "warpui",
@@ -10135,7 +10119,6 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "notify-debouncer-full",
- "once_cell",
  "serde",
  "serde_json",
  "strum",
@@ -10143,7 +10126,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.17",
  "virtual-fs",
- "walkdir",
  "warp_core",
  "warp_util",
  "warpui",
@@ -13337,7 +13319,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "itertools 0.14.0",
- "log",
  "string-offset",
  "unindent 0.2.4",
  "warp_core",
@@ -13351,7 +13332,6 @@ dependencies = [
  "dunce",
  "getset",
  "tempfile",
- "typed-path 0.10.0",
 ]
 
 [[package]]
@@ -13537,7 +13517,6 @@ dependencies = [
  "jsonschema",
  "kmeans_colors",
  "languages",
- "lasso",
  "lazy_static",
  "libc",
  "libsqlite3-sys",
@@ -13557,7 +13536,6 @@ dependencies = [
  "mio",
  "mockall",
  "mockito",
- "natural_language_detection",
  "nix 0.26.4",
  "notify-debouncer-full",
  "num-traits",
@@ -13811,7 +13789,6 @@ dependencies = [
  "clap",
  "command",
  "derive-new",
- "dirs 6.0.0",
  "futures",
  "fuzzy_match",
  "getset",
@@ -13823,7 +13800,6 @@ dependencies = [
  "regex",
  "rquickjs",
  "serde",
- "shellexpand",
  "smol_str",
  "string-offset",
  "thiserror 2.0.17",
@@ -13844,11 +13820,9 @@ dependencies = [
  "asset_macro",
  "async-broadcast",
  "cfg-if",
- "chrono",
  "cocoa 0.26.0",
  "command-corrections",
  "concat-idents",
- "dashmap",
  "directories",
  "dirs 6.0.0",
  "enum-iterator",
@@ -13877,7 +13851,6 @@ dependencies = [
  "serde_yaml",
  "settings",
  "settings_value",
- "shellexpand",
  "string-offset",
  "strum",
  "strum_macros",
@@ -13917,7 +13890,6 @@ dependencies = [
  "markdown_parser",
  "markup5ever",
  "mermaid_to_svg",
- "mime_guess",
  "num-traits",
  "ordered-float 3.9.2",
  "parking_lot",
@@ -13961,7 +13933,6 @@ dependencies = [
  "remote_server",
  "repo_metadata",
  "tempfile",
- "thiserror 2.0.17",
  "warp_core",
  "warp_util",
  "warpui",
@@ -13978,7 +13949,6 @@ dependencies = [
  "cynic",
  "cynic-codegen",
  "futures",
- "futures-util",
  "graphql-ws-client",
  "http 1.1.0",
  "http_client",
@@ -14067,7 +14037,6 @@ dependencies = [
  "getrandom 0.2.16",
  "grep",
  "ignore",
- "instant",
  "log",
  "nix 0.26.4",
  "serde",
@@ -14270,7 +14239,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arboard",
- "async-broadcast",
  "async-channel",
  "async-executor",
  "async-fs",
@@ -14305,7 +14273,6 @@ dependencies = [
  "markdown_parser",
  "minimp4",
  "num-derive",
- "num-traits",
  "num_cpus",
  "openh264",
  "ordered-float 3.9.2",
@@ -14347,7 +14314,6 @@ name = "warpui_extras"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "async-channel",
  "cocoa 0.26.0",
  "gloo-storage",
  "log",
@@ -14678,7 +14644,6 @@ dependencies = [
  "futures-util",
  "graphql-ws-client",
  "http 1.1.0",
- "log",
  "pin-project",
  "thiserror 2.0.17",
  "tokio",

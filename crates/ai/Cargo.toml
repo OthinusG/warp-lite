@@ -14,11 +14,9 @@ crash_reporting = ["dep:sentry"]
 [dependencies]
 async-channel.workspace = true
 async-trait.workspace = true
-bincode.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 computer_use.workspace = true
-dunce.workspace = true
 prost-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,11 +26,9 @@ typed-path.workspace = true
 anyhow.workspace = true
 base16ct = "0.2.0"
 streaming-iterator.workspace = true
-instant.workspace = true
 itertools.workspace = true
 rayon.workspace = true
 ignore = "0.4.23"
-line-span = "0.1.5"
 log.workspace = true
 sentry = { workspace = true, optional = true }
 shellexpand.workspace = true

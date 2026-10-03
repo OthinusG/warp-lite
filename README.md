@@ -20,7 +20,7 @@ Latest release:
 - Current build: `v0.5.7-lite`.
 - macOS artifacts: `WarpLite.dmg`, `WarpLite.app.zip`.
 - Windows x64 artifacts: `WarpLiteSetup-x64.exe`, `WarpLite-windows-x64.zip`.
-- Agent-to-agent communication is under development on `warp-lite/agent-communication`; it is not included in the published `v0.5.7-lite` packages.
+- Agent-to-agent communication and the scoped SSH extension are available in `warp-lite/main`; they are not included in the published `v0.5.7-lite` packages.
 
 See [`FORK_NOTICE.md`](FORK_NOTICE.md) for upstream Warp attribution and licensing.
 
@@ -42,9 +42,9 @@ The original **warp-lite** keeps the upstream block terminal, GPU rendering, she
 
 Third-party CLI agents are installed and authenticated by you. Supporting them does not restore the upstream bundled AI service or require a Warpai account. Their own provider connections remain under their control.
 
-### Agent collaboration: upcoming
+### Agent collaboration in repository source
 
-The communication feature is being developed on [`warp-lite/agent-communication`](https://github.com/OthinusG/warp-lite/tree/warp-lite/agent-communication). It adds a bundled local bridge for agents with native MCP support, including eligible custom agents. QoderCN has been confirmed to support the required local connection. Agents without native MCP support are excluded rather than given a shell-based workaround.
+The communication feature is maintained on [`warp-lite/main`](https://github.com/OthinusG/warp-lite/tree/warp-lite/main). It adds a bundled local bridge for agents with native MCP support, including eligible custom agents. QoderCN has been confirmed to support the required local connection. Agents without native MCP support are excluded rather than given a shell-based workaround.
 
 Open **Settings > Features > Agent communication**, enable communication, and check the installed CLI agents you want to participate. Warpai configures the bundled native MCP bridge in the background, including Codex environment passthrough. Unchecking an agent or disabling communication revokes its live access immediately and removes only Warpai-owned configuration. Running agents may need a restart to load the change; setup failures and unsupported installed versions are shown explicitly.
 
@@ -347,13 +347,10 @@ Dispatch `release-macos.yml` with an existing repository version tag. It tests a
 ## Branch Structure
 
 ```text
-origin/warp-lite/main         default branch; current shipped work
-origin/warp-lite/agent-communication  development branch; upcoming agent collaboration
+origin/warp-lite/main         default branch; accepted terminal and communication source
 ```
 
-Historical upstream-tracking and synchronization branches may remain as provenance; they are not an active maintenance or build mechanism.
-
-Historical phase branches and tags may still exist, but the public state should be read from `warp-lite/main`, the tags, and the GitHub Releases page.
+Merged development branches and the retired SSH project-manager branch are removed after acceptance, with a local Git bundle preserving their tips. Read current source from `warp-lite/main` and published packages from the tags and GitHub Releases page.
 
 ## Release History
 
@@ -388,7 +385,7 @@ Desktop targets are macOS and Windows x64. Planned SSH remote projects and their
 companion also target Linux; Linux desktop/UI remains outside the product scope.
 
 **Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
-Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Upcoming agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.
+Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.
 
 **Is the AI code completely gone from the source?**
 Not yet. Some AI/cloud/auth modules still exist in the source tree but are disabled, gated, or unreachable in the shipped lite build. The [Still Present And Needs Work](#still-present-and-needs-work) table tracks this split honestly; removal continues incrementally.

@@ -18,6 +18,12 @@
   references, decision kernel and viewer were found in the skills-manager cached
   package; comparison artifacts remain in the OS temporary directory.
 
+- Repository cleanup after the replacement functional gate removes only 29
+  unused dependency edges and seven unwired/duplicate files. No whole crate is
+  unused: for example input_classifier still uses natural_language_detection.
+  Preserve feature/macro/native-link side effects and all remaining lock versions.
+  The local CodeGraph index remains on disk and is ignored in source delivery.
+
 ## Product Boundary
 
 - Current platform scope (user correction 2026-10-03): local desktop GUI targets macOS/Windows; SSH Remote environments and the repository-owned companion target Linux/macOS/Windows. Linux helper builds and focused remote tests are authorized; Linux desktop/UI remains excluded. This supersedes the broader Linux exclusion recorded on 2026-10-01.

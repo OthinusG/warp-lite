@@ -76,3 +76,6 @@ Warpai.app.zip
 Warpai.dmg
 WarpaiSetup-x64.exe
 Warpai-windows-x64.zip
+
+# Keep the local code index outside source delivery.
+/.codegraph/

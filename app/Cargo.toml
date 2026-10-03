@@ -228,13 +228,11 @@ languages.workspace = true
 warp_terminal.workspace = true
 websocket.workspace = true
 wgpu = { workspace = true, optional = true }
-natural_language_detection.workspace = true
 onboarding.workspace = true
 aho-corasick = "1.1.3"
 strum.workspace = true
 strum_macros.workspace = true
 reqwest-eventsource = { workspace = true }
-lasso.workspace = true
 counter = "0.6.0"
 typed-path.workspace = true
 urlencoding = "2.1.3"

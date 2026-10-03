@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: ['warp-lite/main', 'warp-lite/agent-communication']
+    branches: ['warp-lite/main']
 permissions:
   contents: read
 concurrency:

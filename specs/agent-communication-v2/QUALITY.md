@@ -38,8 +38,11 @@ the comparison viewer are temporary artifacts outside this repository.
    build inputs, rerun affected gates before integration.
 5. Fast-forward the existing default branch; never force-push over remote changes.
 6. Delete obsolete branches only after preserving refs in a local Git bundle and
-   proving their tips are included in the accepted default branch. Retain unmerged
-   work and active PR branches; remove obsolete CI branch triggers.
+   proving their tips are included in the accepted default branch. The exact retired
+   SSH cutover tip `b149e30` is also removable: its only unique changes are the
+   obsolete metadata/SFTP manager and the ConPTY standard-handle correction
+   already present in accepted source. Retain other unmerged work and active PR
+   branches; remove obsolete CI branch triggers.
 
 Completion means passing final-source protocol/real-process/local-regression
 tests, both default/platform desktop checks, native panel actions and screenshot
@@ -47,4 +50,35 @@ review, plus matching default-branch source and audited branch cleanup. Paid ven
 sessions, physical-host acceptance and publishing a new tagged release are separate
 from this engineering gate.
 
-Status: replacement and unified verification pending.
+## Repository cleanup
+
+The whole workspace consumer audit found no removable crate. Remove 29
+unreferenced direct dependency edges from 18 manifests and only the newly
+unreachable `line-span 0.1.5` lock entry; retain all other locked versions.
+Preserve feature-driven, macro-generated and native linking dependencies.
+
+Remove seven unwired files: the old GetFiles executor, debug block model, queued
+query types, empty legacy navigation file, invalid unused usage module, and
+exact duplicate AppId/meta sources. Their active implementations/tests remain.
+Preserve the unrelated upstream terminal test file. Keep the local CodeGraph
+index on disk and ignore it in source delivery.
+
+Update CI triggers and README to the accepted default branch. Re-run both
+validation workflows for cleaned source before default-branch integration.
+
+## Verification record
+
+Replacement source `5ae1afd`: remote workflow
+[37147192504](https://github.com/OthinusG/warp-lite/actions/runs/37147192504)
+passed Linux/macOS/Windows protocol regression and clippy, owned native process
+lifecycle and the controlled Linux OpenSSH message/task/review gate.
+Desktop workflow
+[37147195277](https://github.com/OthinusG/warp-lite/actions/runs/37147195277)
+has passed both OS default/platform checks, application regression and native
+actions/capture steps. Each OS produced 155 verified PNGs with exit code zero,
+no failed native steps and the matching source SHA. Eight live SSH states per OS
+plus narrow/light/zoomed task views were visually reviewed. Release-package
+steps continue for that immutable source while cleaned source is verified on a
+separate branch.
+
+Status: replacement functional acceptance complete; cleaned-source verification pending.
