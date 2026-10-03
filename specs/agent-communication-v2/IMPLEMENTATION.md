@@ -149,3 +149,12 @@ not be disabled; safe fixed diagnostics identify any remaining auth issue.
 Windows app capture initially failed before building because its protocol
 step did not install protoc; that prerequisite now precedes all bridge tests.
 Both fixes and visibility checks await exact-source CI.
+
+
+Run 37089722741's fixed SSH diagnostic identified the Linux runner account as
+password-locked: UsePAM=no rejects it before public-key authentication. The
+isolated daemon now uses system PAM account checks with password/interactive
+authentication still disabled. This is fixture provisioning, not a production
+trust relaxation. Companion artifacts now carry source/target/debug provenance,
+version, SHA256SUMS and inherited license/notices. They remain read-only review
+artifacts, with durable service, installation and release acceptance pending.

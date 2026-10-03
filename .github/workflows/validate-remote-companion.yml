@@ -71,7 +71,7 @@ jobs:
           PubkeyAuthentication yes
           PasswordAuthentication no
           KbdInteractiveAuthentication no
-          UsePAM no
+          UsePAM yes
           PermitRootLogin no
           StrictModes yes
           EOF
@@ -98,3 +98,26 @@ jobs:
           PY
             exit 1
           fi
+      - name: Prepare source-matched companion review artifact
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, shutil, subprocess
+          from pathlib import Path
+          target = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
+          binary = Path('target/debug/warpai-companion' + ('.exe' if os.name == 'nt' else ''))
+          output = Path('companion-review')
+          output.mkdir()
+          shutil.copy2(binary, output / binary.name)
+          digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+          (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
+          version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
+          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'host_status'], 'sha256': digest}, indent=2) + '\n')
+          for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
+              shutil.copy2(notice, output / notice)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-companion-review-${{ runner.os }}-${{ runner.arch }}
+          path: companion-review/
+          if-no-files-found: error
+          retention-days: 7

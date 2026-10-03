@@ -29,7 +29,7 @@ pub struct SshProfile {
     /// An existing OpenSSH config alias; jump routing remains system-managed.
     pub jump_alias: Option<String>,
     pub remote_root: String,
-    pub companion_path: String,
+    pub companion_path: Option<String>,
     pub remote_shell: RemoteShell,
 }
 
@@ -52,10 +52,11 @@ impl SshProfile {
             || self.user.as_ref().is_some_and(|v| !text(v, 256) || v.starts_with('-') || !v.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-\\".contains(&b)))
             || self.identity_file.as_ref().is_some_and(|p| p.to_str().is_none_or(|v| !text(v, 4096)))
             || self.config_file.as_ref().is_some_and(|p| p.to_str().is_none_or(|v| !text(v, 4096)))
-            || !text(&self.remote_root, 4096) || !text(&self.companion_path, 4096)
+            || !text(&self.remote_root, 4096)
+            || self.companion_path.as_ref().is_some_and(|p| !text(p, 4096))
             || match self.remote_shell {
-                RemoteShell::Posix => !self.remote_root.starts_with('/') || !self.companion_path.starts_with('/'),
-                RemoteShell::PowerShell => !windows_absolute(&self.remote_root) || !windows_absolute(&self.companion_path),
+                RemoteShell::Posix => !self.remote_root.starts_with('/') || self.companion_path.as_ref().is_some_and(|p| !p.starts_with('/')),
+                RemoteShell::PowerShell => !windows_absolute(&self.remote_root) || self.companion_path.as_ref().is_some_and(|p| !windows_absolute(p)),
             }
         {
             return Err(ConnectionError::InvalidProfile);
@@ -70,7 +71,7 @@ impl SshProfile {
         Ok(command)
     }
 
-    fn ssh_command(&self, machine: bool) -> Result<Command, ConnectionError> {
+    pub(crate) fn ssh_command(&self, machine: bool) -> Result<Command, ConnectionError> {
         self.validate()?;
         let mut command = Command::new("ssh");
         crate::session::without_terminal_binding(&mut command);
@@ -92,16 +93,17 @@ impl SshProfile {
     }
 
     /// SSH joins remote argv into a shell program; quote for that separate boundary.
-    fn companion_command(&self) -> String {
-        let quoted = format!("'{}'", self.companion_path.replace('\'', "'\\''"));
-        match self.remote_shell {
+    fn companion_command(&self) -> Result<String, ConnectionError> {
+        let path = self.companion_path.as_ref().ok_or(ConnectionError::CompanionUnavailable)?;
+        let quoted = format!("'{}'", path.replace('\'', "'\\''"));
+        Ok(match self.remote_shell {
             RemoteShell::Posix => format!("exec {quoted}"),
             RemoteShell::PowerShell => {
-                let script = format!("& '{}'", self.companion_path.replace('\'', "''"));
+                let script = format!("& '{}'", path.replace('\'', "''"));
                 let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
                 format!("powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand {}", base64::engine::general_purpose::STANDARD.encode(utf16))
             }
-        }
+        })
     }
 }
 
@@ -124,7 +126,7 @@ pub struct HostClient {
 impl HostClient {
     pub async fn connect(profile: &SshProfile) -> Result<Self, ConnectionError> {
         let mut command = profile.ssh_command(true)?;
-        command.arg("--").arg(&profile.target).arg(profile.companion_command())
+        command.arg("--").arg(&profile.target).arg(profile.companion_command()?)
             .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
         let mut child = command.spawn().map_err(|_| ConnectionError::SshUnavailable)?;
         let input = child.stdin.take().ok_or(ConnectionError::ConnectionLost)?.compat_write();
@@ -201,9 +203,9 @@ mod tests {
     fn ssh_profile_rejects_options_and_encodes_remote_shell_separately() {
         let mut profile = SshProfile { id: Uuid::new_v4(), display_name: "Research".into(), target: "research-node".into(),
             user: Some("researcher".into()), port: Some(2222), identity_file: None, config_file: None, jump_alias: Some("jump-alias".into()),
-            remote_root: "/srv/project with spaces/多语言".into(), companion_path: "/opt/it's $(danger)/companion".into(), remote_shell: RemoteShell::Posix };
+            remote_root: "/srv/project with spaces/多语言".into(), companion_path: Some("/opt/it's $(danger)/companion".into()), remote_shell: RemoteShell::Posix };
         assert!(profile.validate().is_ok());
-        assert_eq!(profile.companion_command(), "exec '/opt/it'\\''s $(danger)/companion'");
+        assert_eq!(profile.companion_command().unwrap(), "exec '/opt/it'\\''s $(danger)/companion'");
         let command = profile.ssh_command(true).unwrap();
         let args: Vec<_> = command.as_std().get_args().filter_map(|arg| arg.to_str()).collect();
         assert!(args.contains(&"StrictHostKeyChecking=yes"));
@@ -216,9 +218,9 @@ mod tests {
         profile.target = "research-node".into();
         profile.remote_shell = RemoteShell::PowerShell;
         profile.remote_root = "C:\\project with spaces".into();
-        profile.companion_path = "C:\\it's $(danger)\\companion.exe".into();
+        profile.companion_path = Some("C:\\it's $(danger)\\companion.exe".into());
         assert!(profile.validate().is_ok());
-        let command = profile.companion_command();
+        let command = profile.companion_command().unwrap();
         let encoded = command.split_whitespace().last().unwrap();
         let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
         let words: Vec<u16> = bytes.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();

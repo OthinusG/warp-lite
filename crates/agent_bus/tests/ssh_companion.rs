@@ -10,7 +10,7 @@ async fn controlled_ssh_host_status_never_uses_local_paths_or_replaced_attachmen
     let companion = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
     let profile = SshProfile { id: Uuid::new_v4(), display_name: "Controlled SSH".into(), target: "warpai-test".into(),
         user: None, port: None, identity_file: None, config_file: Some(config.into()), jump_alias: None,
-        remote_root: root, companion_path: companion, remote_shell: RemoteShell::Posix };
+        remote_root: root, companion_path: Some(companion), remote_shell: RemoteShell::Posix };
     let mut first = HostClient::connect(&profile).await.expect("Verified SSH companion");
     assert!(std::path::Path::new(&first.canonical_root).is_absolute());
     let one = first.host_status(1).await.unwrap();
