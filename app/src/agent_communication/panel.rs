@@ -3588,6 +3588,36 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("live-ssh-message.png"),
         )
+        .with_step(TestStep::new("assign a task through the remote native panel").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let name = panel.snapshot.as_ref().unwrap().agents.iter().find(|row| row.online).unwrap().agent.name.clone();
+                panel.open_control(controls::Kind::Assign, ctx);
+                panel.fill_control_checkpoint(&[&name, "Remote panel task", "Native projection contains this task", "", "", "", "", ""], ctx);
+                panel.confirm_control(ctx);
+            });
+        }))
+        .with_step(TestStep::new("receive remote task list").add_named_assertion("remote Store task visible", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.connected && panel.form.is_none()
+                && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.tasks.len() == 1)))
+        }).with_take_screenshot("live-ssh-task.png"))
+        .with_step(TestStep::new("open remote task in existing detail view").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let id = panel.snapshot.as_ref().unwrap().tasks[0].id.clone();
+                panel.handle_action(&Action::SelectTask(id), ctx);
+            });
+        }))
+        .with_step(TestStep::new("receive actual remote task details").add_named_assertion("selected remote task detail matches", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().and_then(|snapshot| snapshot.task.as_ref())
+                .is_some_and(|task| task.description == "Remote panel task" && panel.query.selected_task.as_ref() == Some(&task.id))))
+        }).with_take_screenshot("live-ssh-task-detail.png"))
+        .with_step(TestStep::new("return to remote Agents before drafting a message").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action(&Action::Back, ctx));
+        }))
         .with_step(
             TestStep::new("retain remote form on disconnect")
                 .with_action(|app, window, _| {
