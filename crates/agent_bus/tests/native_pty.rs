@@ -12,8 +12,10 @@ fn native_terminal_child() {
     assert_eq!(unsafe { libc::isatty(0) }, 1);
     #[cfg(windows)]
     unsafe {
-        use windows::Win32::System::Console::{GetConsoleMode, GetStdHandle, STD_INPUT_HANDLE};
-        let mut mode = 0;
+        use windows::Win32::System::Console::{
+            GetConsoleMode, GetStdHandle, CONSOLE_MODE, STD_INPUT_HANDLE,
+        };
+        let mut mode = CONSOLE_MODE::default();
         GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE).unwrap(), &mut mode).unwrap();
     }
     println!("PTY_CHILD_READY");
@@ -116,4 +118,24 @@ fn native_terminal_owns_real_process_root_io_resize_and_exit() {
     drop(pty);
     drop(receiver);
     thread.join().unwrap();
+    let mut running = NativePty::spawn(
+        &executable,
+        &args,
+        &root,
+        Size {
+            columns: 80,
+            rows: 24,
+        },
+    )
+    .unwrap();
+    assert!(running.stop().unwrap());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while running.exit_code().unwrap().is_none() {
+        assert!(
+            Instant::now() < deadline,
+            "Stop requested but owned exit was not observed"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(!running.stop().unwrap());
 }

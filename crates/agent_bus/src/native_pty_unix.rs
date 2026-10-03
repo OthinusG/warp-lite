@@ -87,7 +87,7 @@ pub(super) fn spawn(
                 std::ptr::null_mut(),
             ))?;
             checked(libc::setsid())?;
-            checked(libc::ioctl(0, libc::TIOCSCTTY, 0))?;
+            checked(libc::ioctl(0, libc::TIOCSCTTY as _, 0))?;
             Ok(())
         });
     }
@@ -104,7 +104,7 @@ impl Process {
         unsafe {
             checked(libc::ioctl(
                 file.as_raw_fd(),
-                libc::TIOCSWINSZ,
+                libc::TIOCSWINSZ as _,
                 &size(dimensions),
             ))
         }
