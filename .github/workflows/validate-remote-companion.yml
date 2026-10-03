@@ -54,7 +54,8 @@ jobs:
         run: |
           sudo apt-get install -y openssh-server
           sudo mkdir -p /run/sshd
-          fixture_dir="$RUNNER_TEMP/warpai-ssh-fixture"
+          fixture_dir="$HOME/warpai-ssh-fixture"
+          export WARP_TEST_SSH_CONFIG="$fixture_dir/client.conf"
           mkdir -m 700 "$fixture_dir"
           mkdir -p "$WARP_TEST_REMOTE_ROOT"
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host"
@@ -86,4 +87,14 @@ jobs:
           sudo /usr/sbin/sshd -f "$fixture_dir/server.conf" -E "$fixture_dir/server.log"
           trap 'sudo kill "$(cat "$fixture_dir/sshd.pid")"; rm -rf "$fixture_dir"' EXIT
           export WARP_TEST_COMPANION_PATH="$PWD/target/debug/warpai-companion"
-          cargo test -p warp-agent-bus --test ssh_companion --locked -- --ignored
+          if ! cargo test -p warp-agent-bus --test ssh_companion --locked -- --ignored; then
+            sudo python3 - "$fixture_dir/server.log" <<'PY'
+          import sys
+          from pathlib import Path
+          log = Path(sys.argv[1]).read_text()
+          for marker in ['bad ownership or modes', 'not allowed because account is locked', 'Accepted publickey', 'Failed publickey', 'Could not open user', 'Authentication refused']:
+              if marker in log:
+                  print('Controlled SSH diagnostic: ' + marker)
+          PY
+            exit 1
+          fi

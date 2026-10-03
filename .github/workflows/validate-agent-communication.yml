@@ -38,6 +38,8 @@ jobs:
           git checkout-index --force --all
       - name: Install pinned Rust
         run: rustup toolchain install 1.92.0 --profile minimal
+      - name: Prepare Windows protobuf compiler
+        run: choco install protoc -y
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
       - name: Verify representative history and indexed query budget
@@ -60,7 +62,7 @@ jobs:
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
         shell: pwsh
         run: |
-          choco install protoc innosetup -y
+          choco install innosetup -y
           "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Check Windows default and platform application
         if: ${{ !inputs.protocol_only }}

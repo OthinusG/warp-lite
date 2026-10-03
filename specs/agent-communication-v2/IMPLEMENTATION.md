@@ -136,3 +136,16 @@ provisions its own loopback SSH daemon/keys and checks an actual remote companio
 These keys exist only in the isolated runner, are never printed, and are removed
 after the check. Controlled SSH checks, new static SR41 captures and default/
 platform app checks for the extended protobuf remain pending.
+
+
+On-demand panel visibility now stops new local projection reads and fences
+pending callbacks when closed or when another tool is selected. Drafts/forms
+remain intact. The native harness exercises closing without terminal draft
+changes; saved tool selection and fresh-profile closed state are preserved.
+Source 2a66fe0 passed all three OS codec/native/standalone and SSH argv tests;
+controlled Linux SSH failed before handshake. Fixture key placement now uses
+an owned 0700 directory under the runner home so OpenSSH StrictModes need
+not be disabled; safe fixed diagnostics identify any remaining auth issue.
+Windows app capture initially failed before building because its protocol
+step did not install protoc; that prerequisite now precedes all bridge tests.
+Both fixes and visibility checks await exact-source CI.

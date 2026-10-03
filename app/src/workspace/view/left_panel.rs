@@ -143,6 +143,7 @@ mod active_view_state {
         }
 
         left_panel.update_active_file_tree_subscription_state(ctx);
+        left_panel.update_collaboration_visibility(ctx);
     }
 }
 
@@ -963,6 +964,17 @@ impl LeftPanelView {
         }
 
         self.update_active_file_tree_subscription_state(ctx);
+        self.collaboration_view.update(ctx, |panel, ctx| {
+            panel.set_visible(is_now_open && self.active_view.get() == ToolPanelView::Collaboration, ctx);
+        });
+    }
+
+    fn update_collaboration_visibility(&self, ctx: &mut ViewContext<Self>) {
+        let open = self.active_pane_group.as_ref().and_then(|group| group.upgrade(ctx))
+            .is_some_and(|group| group.as_ref(ctx).left_panel_open);
+        self.collaboration_view.update(ctx, |panel, ctx| {
+            panel.set_visible(open && self.active_view.get() == ToolPanelView::Collaboration, ctx);
+        });
     }
 
     fn deactivate_file_tree_view_for_pane_group(

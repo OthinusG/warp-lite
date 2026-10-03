@@ -129,6 +129,7 @@ pub(crate) struct CollaborationPanel {
     next: MouseStateHandle,
     scroll: ClippedScrollStateHandle,
     preview: bool,
+    visible: bool,
     snapshot: Option<Snapshot>,
     query: PanelQuery,
     events: Vec<Event>,
@@ -205,6 +206,7 @@ impl CollaborationPanel {
             next: Default::default(),
             scroll: Default::default(),
             preview,
+            visible: false,
             snapshot: None,
             query: Default::default(),
             events: Vec::new(),
@@ -247,7 +249,18 @@ impl CollaborationPanel {
         });
     }
 
+    /// Closing or switching tools fences pending replies and stops new projection reads.
+    pub(crate) fn set_visible(&mut self, visible: bool, ctx: &mut ViewContext<Self>) {
+        if self.visible == visible { return; }
+        self.visible = visible;
+        self.generation += 1;
+        self.connected = false;
+        if visible && !self.preview { self.refresh(ctx); }
+        ctx.notify();
+    }
+
     fn refresh(&mut self, ctx: &mut ViewContext<Self>) {
+        if !self.visible { return; }
         let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
         let context = enabled.then(|| Self::current_context(ctx)).flatten();
         if context != self.context {
@@ -295,7 +308,7 @@ impl CollaborationPanel {
             serde_json::from_value::<Snapshot>(value).map_err(anyhow::Error::from)
         }, move |panel, result: anyhow::Result<Snapshot>, ctx| {
             panel.in_flight = false;
-            if panel.generation != generation || panel.context != context || Self::current_context(ctx) != context
+            if !panel.visible || panel.generation != generation || panel.context != context || Self::current_context(ctx) != context
                 || !super::AgentCommunication::as_ref(ctx).preferences.enabled {
                 return;
             }
@@ -3212,6 +3225,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-reservation-released.png",
         ]
         .map(str::to_owned),
+    );
+    driver = driver.with_step(
+        TestStep::new("close on-demand tasks without changing the terminal draft")
+            .with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| {
+                    if workspace.is_left_panel_open(ctx) {
+                        workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                    }
+                });
+            })
+            .add_named_assertion("hidden panel is fenced and draft retained", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| !panel.visible && !panel.connected)
+                    && checkpoint_draft(app, window) == "unsent collaboration draft")
+            }),
     );
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
