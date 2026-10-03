@@ -88,7 +88,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(registration.error.is_none());
+        assert_eq!(registration["agent"]["name"], "worker");
         let request_id = Uuid::new_v4().to_string();
         let mut operation = Operation::TaskCreatePool {
             description: "Remote fixture task".into(),

@@ -877,3 +877,28 @@ checks now confirm an actual surviving child after leader exit, then its stopped
 OS status and closed output. Original Unix IDs remain unreaped until release;
 Windows closes only the exhausted owned job's console. PLAN R4.3 is checked.
 This does not accept terminal GUI, profile-removal review or local draft replay.
+
+
+### Remote authoritative task foundation — source 4420e78 (pending)
+
+Add typed `project_tasks` protobuf fields/capability and reuse existing human
+PanelQuery/Operation/ControllerOperation serialization inside that explicit field.
+Private per-project SQLite/Broker owners live on the companion host; native
+project identity, persisted root binding and one account-service registry prevent
+path collisions or duplicate GUI writers. Task/version/dependency/review/history
+logic stays in Store. Deny GUI Agent registration/readiness/start/submit/file
+capabilities, cross-root space mapping and all retired device operations before
+opening storage; require expected versions for versioned GUI mutations.
+
+Client checks exact fence/generation, opaque panel project and bounded responses;
+remote error prose is replaced, unknown codes refused and retry/version hints
+sanitized. Unit checks use actual private IPC registration, create/replay/change
+an original pool intent, isolate another/replaced root, reopen history and deny
+forbidden authority without creating files. Controlled Linux SSH now reads both
+attachments' task projections and rejects GUI registration. New backend CI is
+pending; no R2.7/R2.6/live-UI task is accepted from source inspection.
+
+The remaining panel-control and Connections exit focus dispatches now also use
+the shared deferred helper, covering all discovered sibling workspace actions.
+Desktop/capture run37106025476 validates source3a37ed2 independently of this new
+wire/store source; it cannot establish compilation of source4420e78.
