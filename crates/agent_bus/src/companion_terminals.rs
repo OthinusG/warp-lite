@@ -116,9 +116,32 @@ impl Terminals {
             .as_deref()
             .map(|program| tasks.bind_run(fence, root, &request.session_id, &run_id, program))
             .transpose()?;
+        let (executable, arguments) = if let Some(program) = &request.agent_program {
+            let vendor = Path::new(&request.executable);
+            if !vendor.is_absolute()
+                || request.executable.len() > 4096
+                || request.executable.contains('\0')
+                || request.arguments.len() > 61
+            {
+                return Err(Error::ManagedInvalidInput);
+            }
+            let executable = std::env::current_exe().map_err(path_error)?;
+            let mut arguments = vec![
+                "--bound-agent".into(),
+                program.clone(),
+                request.executable.clone(),
+            ];
+            arguments.extend(request.arguments.iter().cloned());
+            (executable, arguments)
+        } else {
+            (
+                PathBuf::from(&request.executable),
+                request.arguments.clone(),
+            )
+        };
         let pty = NativePty::spawn_with_environment(
-            Path::new(&request.executable),
-            &request.arguments,
+            &executable,
+            &arguments,
             root,
             size,
             binding

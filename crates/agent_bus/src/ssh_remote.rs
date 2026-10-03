@@ -219,10 +219,32 @@ impl HostClient {
             .arg(profile.companion_command()?)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
-        let mut child = command
+            .stderr(Stdio::null())
+            .kill_on_drop(true);
+        let child = command
             .spawn()
             .map_err(|_| ConnectionError::SshUnavailable)?;
+        Self::open(child, &profile.remote_root).await
+    }
+
+    /// The companion CLI joins the same private account service as SSH control.
+    pub async fn connect_local(root: &str) -> Result<Self, ConnectionError> {
+        let executable =
+            std::env::current_exe().map_err(|_| ConnectionError::CompanionUnavailable)?;
+        let mut command = Command::new(executable);
+        crate::session::without_terminal_binding(&mut command);
+        command.env_remove("VIBE_MCP_SERVERS");
+        let child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|_| ConnectionError::CompanionUnavailable)?;
+        Self::open(child, root).await
+    }
+
+    async fn open(mut child: Child, root: &str) -> Result<Self, ConnectionError> {
         let input = child
             .stdin
             .take()
@@ -264,7 +286,7 @@ impl HostClient {
         let opened = client
             .request(managed_request::Operation::ProjectOpen(ProjectOpen {
                 fence: Some(fence.clone()),
-                root: profile.remote_root.clone(),
+                root: root.into(),
             }))
             .await?;
         let managed_response::Result::ProjectOpened(opened) = opened else {

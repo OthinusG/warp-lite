@@ -4189,10 +4189,16 @@ fn opened_file_path(file: &std::fs::File) -> Result<std::path::PathBuf> {
         ensure!(length > 0 && length < path.len(), invalid_state("Cannot inspect the opened evidence file"));
         Ok(std::ffi::OsString::from_wide(&path[..length]).into())
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::fd::AsRawFd;
+        std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd()))
+            .map_err(|_| invalid_state("Cannot inspect the opened evidence file"))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
     {
         let _ = file;
-        Err(invalid_state("Local evidence verification supports macOS and Windows"))
+        Err(invalid_state("Evidence verification is unavailable on this platform"))
     }
 }
 
@@ -4218,7 +4224,7 @@ fn verify_file(project: &str, path: &str, hash: Option<&str>) -> Result<()> {
         .map_err(|_| invalid_state("Producing workspace is unavailable"))?;
     let mut options = std::fs::OpenOptions::new();
     options.read(true);
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);

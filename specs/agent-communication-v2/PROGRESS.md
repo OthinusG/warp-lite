@@ -1043,3 +1043,11 @@ migration check proving uncertain attempts, receipts, pending intent and backup
 survive without the deleted runtime. Native disconnect acceptance now observes the
 actual child heartbeat stopping, in addition to refusal of another connection.
 These changes are pending exact-source CI; S0 remains unchecked.
+
+Source ce1f686 run 37121782406 passed macOS cleanup/local regression and the Linux
+companion/Agent checks. Linux broader Store regression exposed the desktop-only
+opened-evidence handle inspection; added the native /proc/self/fd equivalent and
+Unix no-follow/nonblocking open. Windows and exact-source rerun remain pending.
+S3 source now adds an explicit companion Agent CLI using the existing account
+client, PTY IO and session::launch adapters. Private credentials remain child-only;
+MCP relay uses the existing forward implementation. S3 is not accepted yet.

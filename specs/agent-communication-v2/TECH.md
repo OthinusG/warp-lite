@@ -41,3 +41,19 @@ communication remains a required regression. Update PROGRESS per accepted item.
 
 The detailed former manager architecture is archived in
 legacy-ssh-project-manager/TECH.md and is not a delivery checklist.
+
+### S3 minimum launch path (implementation pending validation)
+
+Inside an ordinary SSH terminal, run `warpai-companion agent <absolute-root>
+<program> <absolute-vendor-executable> [vendor-arguments...]`. The CLI joins the
+same private account service and forwards native PTY IO; the owned child reuses
+`session::launch` and its existing vendor MCP/readiness adapters. The companion
+also exposes the existing `forward` relay entrypoint required by those adapters.
+TTY mode is restored on normal/error return; resize follows the original terminal.
+No credentials are passed in arguments or copied from the desktop. Service launch
+validates a program, absolute vendor executable and at most 61 vendor arguments.
+Disconnect ends the owned run; no retained-session takeover is available.
+
+Linux remote evidence uses the opened file's `/proc/self/fd` path, followed by the
+same root/credential/regular-file/size/hash checks as the existing desktop engine.
+Unix evidence opens use O_NOFOLLOW/O_NONBLOCK to refuse symlinks and avoid FIFOs.
