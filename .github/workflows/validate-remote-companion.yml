@@ -47,6 +47,7 @@ jobs:
           cargo test -p warp-agent-bus --lib companion::identity::tests --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test native_pty --locked
+          cargo test -p warp-agent-bus --test ssh_profiles --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
           cargo test -p warp-agent-bus --lib sftp::tests --locked
       - name: Verify retired endpoint refusal flushes before process exit
