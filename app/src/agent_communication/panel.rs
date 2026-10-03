@@ -3582,6 +3582,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             TestStep::new("receive real remote Agent projection")
                 // Native Agent startup has a 30-second bound; allow projection polling too.
                 .set_timeout(std::time::Duration::from_secs(45))
+                // SDK discovery registers first; address the fixture only after its final rename.
                 .add_named_assertion("native run and isolated scope", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
@@ -3591,6 +3592,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 |snapshot| uuid::Uuid::parse_str(&snapshot.project).is_ok()
                                     && snapshot.agents.iter().any(|row| row.online
                                         && row.agent.program == "fixture"
+                                        && row.agent.name == format!("fixture-{}", row.agent.terminal)
                                     && row.run.as_ref().is_some_and(|run| uuid::Uuid::parse_str(run).is_ok()))
                             ))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
@@ -3828,16 +3830,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }),
     );
-    let driver = driver.with_on_finish(move |app, window, _| {
-        let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-        let state = panel.read(app, |panel, _| serde_json::json!({
-            "connected": panel.connected, "remote_failed": panel.remote_failed,
-            "in_flight": panel.in_flight, "events": panel.events.len(),
-            "message_committed": panel.events.iter().any(|event| event.kind == "message_queued"),
-            "form": panel.control_checkpoint_state(),
-        }));
-        // Only bounded state flags/codes; never fields, credentials or remote payloads.
-        std::fs::write(directory.join("panel-state.json"), serde_json::to_vec(&state).unwrap()).unwrap();
+    let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();
         Box::pin(async move {

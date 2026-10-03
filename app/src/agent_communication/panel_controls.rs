@@ -904,16 +904,6 @@ impl CollaborationPanel {
             .is_some_and(|form| !form.submitting && !form.error.is_empty())
     }
 
-    #[cfg(debug_assertions)]
-    pub(super) fn control_checkpoint_state(&self) -> serde_json::Value {
-        self.form.as_ref().map_or(serde_json::Value::Null, |form| {
-            let code = form.error.strip_prefix("Operation rejected (")
-                .and_then(|rest| rest.split_once(')').map(|(code, _)| code))
-                .filter(|code| code.len() <= 64 && code.bytes().all(|byte| byte.is_ascii_lowercase() || byte == b'_'));
-            serde_json::json!({"submitting": form.submitting,
-                "rejected": !form.error.is_empty(), "operation_error_code": code})
-        })
-    }
 }
 
 #[cfg(test)]

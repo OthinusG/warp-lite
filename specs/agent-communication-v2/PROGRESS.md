@@ -1131,3 +1131,23 @@ Downloaded source-matched Companion review artifacts: all three manifests match
 de2a72e, version0.1.0/protocol1 and the four active capabilities; SHA256SUMS matches
 each actual binary and both attribution/license files are present. S4 native
 actions/visual review and S5 desktop/package completion remain pending.
+
+Desktop run37134464890 passed default/platform checks and focused application
+tests on both desktop targets. Windows native capture now passed the real remote
+Agent projection, then failed "remote Store confirms the human message". Source
+`aaf731a60bebb4fd97110cf554073865bdec76fe`,
+[native diagnostic run37136879691](https://github.com/OthinusG/warp-lite/actions/runs/37136879691),
+adds only debug capture state flags and bounded operation error codes; no field,
+credential or remote payload is recorded. Message submission versus projection
+failure still needs runtime diagnosis. S4/S5 remain unchecked.
+
+Diagnostic run37136879691 passed macOS native actions and all 155 captures;
+Windows again failed human-message confirmation. Comparing the real Agent
+captures with Broker registration exposed a fixture race: SDK discovery creates
+`fixture-<random eight characters>` before the fixture finishes discovery and
+registers `fixture-<terminal UUID>`. The harness copied the temporary name before
+that rename; a later send correctly rejects the obsolete name. Its initial
+projection assertion now waits for the fixture's final registration before any
+message/task is addressed. No product mutation semantics or retry behavior changes.
+The temporary debug state writer was omitted from the artifact whitelist and is
+removed rather than retained as unused instrumentation. Final CI remains pending.
