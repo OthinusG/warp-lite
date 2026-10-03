@@ -136,12 +136,12 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
     let mut listener =
         crate::transport::windows_pipe::create(&endpoint, true).map_err(std::io::Error::other)?;
     let slots = Arc::new(Semaphore::new(32));
+    let terminals = Arc::new(terminals::Terminals::default());
     let mut idle_since = Instant::now();
     loop {
         let stream = tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                // No retained work is advertised yet. Owned runs must also fence idle exit.
-                if slots.available_permits() != 32 { idle_since = Instant::now(); }
+                if slots.available_permits() != 32 || terminals.active() { idle_since = Instant::now(); }
                 if idle_since.elapsed() >= Duration::from_secs(60) { break; }
                 continue;
             }
@@ -163,9 +163,10 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         };
         let directory = directory.clone();
         let boot = boot.clone();
+        let terminals = terminals.clone();
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot).await;
+            let _ = serve_channel(stream, &directory, &boot, terminals).await;
         });
     }
     #[cfg(unix)]

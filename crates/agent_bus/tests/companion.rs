@@ -41,7 +41,10 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
     else {
         panic!("Expected account-service attachment")
     };
-    assert_eq!(first.capabilities, ["project_open", "host_status"]);
+    assert_eq!(
+        first.capabilities,
+        ["project_open", "host_status", "retained_terminal"]
+    );
     input.get_mut().shutdown().await.unwrap();
     drop(input);
     assert!(

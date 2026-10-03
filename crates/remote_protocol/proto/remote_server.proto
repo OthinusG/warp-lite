@@ -51,6 +51,9 @@ message ManagedRequest {
     ManagedInitialize initialize = 1;
     ProjectOpen project_open = 2;
     HostStatusRequest host_status = 3;
+    TerminalLaunch terminal_launch = 4;
+    TerminalControl terminal_control = 5;
+    TerminalList terminal_list = 6;
   }
 }
 message ManagedResponse {
@@ -59,6 +62,8 @@ message ManagedResponse {
     ProjectOpened project_opened = 2;
     HostStatus host_status = 3;
     ManagedError error = 4;
+    TerminalState terminal_state = 5;
+    TerminalStates terminal_states = 6;
   }
 }
 message ManagedInitialize { uint32 protocol_major = 1; }
@@ -97,8 +102,58 @@ enum ManagedErrorCode {
   MANAGED_PERMISSION_DENIED = 4;
   MANAGED_UNAVAILABLE = 5;
   MANAGED_FEATURE_UNAVAILABLE = 6;
+  MANAGED_CONFLICT = 7;
+  MANAGED_CAPACITY_EXCEEDED = 8;
 }
 message ManagedError { ManagedErrorCode code = 1; }
+message TerminalLaunch {
+  ManagedFence fence = 1;
+  string session_id = 2;
+  string executable = 3;
+  repeated string arguments = 4;
+  uint32 columns = 5;
+  uint32 rows = 6;
+}
+enum TerminalAction {
+  TERMINAL_ACTION_UNSPECIFIED = 0;
+  TERMINAL_ATTACH = 1;
+  TERMINAL_DETACH = 2;
+  TERMINAL_READ = 3;
+  TERMINAL_INPUT = 4;
+  TERMINAL_RESIZE = 5;
+  TERMINAL_STOP = 6;
+  TERMINAL_RELEASE = 7;
+}
+message TerminalControl {
+  ManagedFence fence = 1;
+  string session_id = 2;
+  string run_id = 3;
+  uint64 attachment_generation = 4;
+  TerminalAction action = 5;
+  uint64 output_offset = 6;
+  bytes input = 7;
+  uint64 input_sequence = 8;
+  uint32 columns = 9;
+  uint32 rows = 10;
+}
+message TerminalList { ManagedFence fence = 1; }
+message TerminalState {
+  ManagedFence fence = 1;
+  string session_id = 2;
+  string run_id = 3;
+  uint64 attachment_generation = 4;
+  bool attached = 5;
+  bool stop_requested = 6;
+  optional sint32 exit_code = 7;
+  uint64 output_offset = 8;
+  uint64 output_end = 9;
+  bytes output = 10;
+  bool output_truncated = 11;
+  uint64 accepted_input_sequence = 12;
+  bool input_failed = 13;
+  bool output_closed = 14;
+}
+message TerminalStates { repeated TerminalState sessions = 1; }
 enum MetricUnavailable {
   METRIC_UNAVAILABLE_UNSPECIFIED = 0;
   METRIC_UNSUPPORTED = 1;

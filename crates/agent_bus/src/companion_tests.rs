@@ -30,7 +30,10 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
     else {
         panic!("Expected handshake")
     };
-    assert_eq!(initialized.capabilities, ["project_open", "host_status"]);
+    assert_eq!(
+        initialized.capabilities,
+        ["project_open", "host_status", "retained_terminal"]
+    );
     let mut fence = initialized.fence.unwrap();
     assert!(matches!(
         result(companion.handle(init())),

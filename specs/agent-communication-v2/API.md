@@ -366,3 +366,35 @@ PTY/task ownership exists, this read-only service advertises only project_open
 and host_status, never session retention or collaboration. Later owned work must
 participate in idle eligibility before those capabilities can be enabled. A
 service restart changes boot identity, preserving unknown-task semantics.
+
+### Retained native terminal wire (R2.8/R4)
+
+Managed protocol major 1 adds a negotiated `retained_terminal` capability and
+TerminalLaunch/TerminalControl/TerminalList. Every call pins the complete project
+fence; controls additionally pin session UUID, server run UUID and attachment
+generation. Launch uses an original client session UUID and immutable executable,
+argv and size: an identical retry returns the same run, a changed retry conflicts.
+Executable paths are absolute remote paths; cwd is the admitted native root.
+
+Attach explicitly replaces the old input lease and increments its generation.
+Detach and connection EOF revoke input authority while retaining the PTY/process;
+neither stops the run. Stop targets only that exact owned run; `stop_requested`
+and optional observed exit code remain separate. A service restart invalidates
+every former run fence and never recreates a process. Release removes an ended
+session only, never active work. Project/root replacement rejects all controls.
+
+Per service: 32 retained sessions, 256 KiB output replay per session, 32 KiB read
+pages, 4 KiB input packets and 16 queued writes. Reads use byte offsets with an
+explicit truncation flag. Input sequence must be exactly the next attachment
+sequence; an uncertain input is not automatically replayed. Queue acceptance
+does not prove delivery or execution. The writer rechecks the lease immediately
+before bytes; attachment replacement serializes with an in-flight native write.
+Blocking terminal IO runs outside the async control executor; heartbeats/status
+and other sessions remain independent. No terminal bytes enter task diagnostics.
+Idle exit is prohibited while any retained process remains active.
+
+Acceptance: real three-platform child PTYs prove cwd/Unicode/resize/exit; a real
+companion proxy disconnect/reconnect proves same boot/run, stale lease rejection,
+input ordering, replay/truncation, project isolation and explicit owned Stop.
+Controlled Linux SSH repeats detach/reattach on the remote service. These checks
+do not establish native GUI input, vendor readiness or V13–V15 in full.

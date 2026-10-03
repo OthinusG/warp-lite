@@ -18,6 +18,8 @@ use uuid::Uuid;
 mod identity;
 #[path = "companion_service.rs"]
 mod service;
+#[path = "companion_terminals.rs"]
+mod terminals;
 
 struct Project {
     root: PathBuf,
@@ -34,6 +36,7 @@ pub struct Companion {
     cpu_sample: Option<Instant>,
     last_status: Option<(HostStatus, Instant)>,
     observation: u64,
+    terminals: std::sync::Arc<terminals::Terminals>,
 }
 
 impl Companion {
@@ -52,6 +55,7 @@ impl Companion {
             cpu_sample: None,
             last_status: None,
             observation: 0,
+            terminals: std::sync::Arc::new(terminals::Terminals::default()),
             identity,
         })
     }
@@ -101,7 +105,11 @@ impl Companion {
                     fence: Some(self.fence.clone()),
                     os: std::env::consts::OS.into(),
                     architecture: std::env::consts::ARCH.into(),
-                    capabilities: vec!["project_open".into(), "host_status".into()],
+                    capabilities: vec![
+                        "project_open".into(),
+                        "host_status".into(),
+                        "retained_terminal".into(),
+                    ],
                     account_id: self.identity.account_id.clone(),
                 }))
             }
@@ -219,8 +227,34 @@ impl Companion {
                 self.last_status = Some((status.clone(), now));
                 Ok(managed_response::Result::HostStatus(status))
             }
+            Some(managed_request::Operation::TerminalLaunch(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                self.terminals
+                    .launch(request, &self.fence, &self.project.as_ref().unwrap().root)
+                    .map(managed_response::Result::TerminalState)
+            }
+            Some(managed_request::Operation::TerminalControl(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                self.terminals
+                    .control(request, &self.fence)
+                    .map(managed_response::Result::TerminalState)
+            }
+            Some(managed_request::Operation::TerminalList(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                self.terminals
+                    .list(&self.fence)
+                    .map(managed_response::Result::TerminalStates)
+            }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
+    }
+
+    fn check_project(&self, fence: Option<&ManagedFence>) -> Result<(), ManagedErrorCode> {
+        self.check_fence(fence, true)?;
+        if !same_root(self.project.as_ref().unwrap()).map_err(path_error)? {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        Ok(())
     }
 
     fn check_fence(
@@ -351,7 +385,12 @@ fn data_directory() -> std::io::Result<PathBuf> {
         .join("remote"))
 }
 
-async fn serve_channel<S>(stream: S, directory: &Path, boot: &str) -> Result<(), ProtocolError>
+async fn serve_channel<S>(
+    stream: S,
+    directory: &Path,
+    boot: &str,
+    terminals: std::sync::Arc<terminals::Terminals>,
+) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
@@ -360,6 +399,7 @@ where
     let mut writer = writer.compat_write();
     let mut companion = Companion::new(directory)?;
     companion.fence.service_boot_id = boot.into();
+    companion.terminals = terminals;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)
@@ -369,12 +409,21 @@ where
                 Err(ProtocolError::UnexpectedEof) => return Ok(()),
                 Err(error) => return Err(error),
             };
-        write_message_with_limit(
-            &mut writer,
-            &companion.handle(request),
-            MAX_MANAGED_MESSAGE_SIZE,
-        )
-        .await?;
+        // Native spawn/lease operations cannot block the async executor or host metrics.
+        let (owner, reply) = tokio::task::spawn_blocking(move || {
+            let reply = companion.handle(request);
+            (companion, reply)
+        })
+        .await
+        .map_err(std::io::Error::other)?;
+        companion = owner;
+        write_message_with_limit(&mut writer, &reply, MAX_MANAGED_MESSAGE_SIZE).await?;
+    }
+}
+
+impl Drop for Companion {
+    fn drop(&mut self) {
+        self.terminals.disconnect(&self.fence.connection_id);
     }
 }
 
