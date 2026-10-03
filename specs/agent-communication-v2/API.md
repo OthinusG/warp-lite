@@ -313,3 +313,18 @@ trusted host and noninteractive authentication; explicit interactive terminals
 use OpenSSH fingerprint review. The read client fails closed on timeout or
 correlation/fence mismatch. It does not yet expose authentication reason parsing,
 stable account identity, install, transfers or retained sessions.
+
+
+### Persistent identity admission
+
+The next identity gate replaces boot-random service/project labels for managed
+read admission. A nonsecret per-account service UUID lives in an owned private
+remote data directory, under an OS-native file lock. Initialize returns account
+identity from effective Unix UID or Windows process-token SID, never USER env.
+Project identity combines that service/account with the opened directory's native
+file identity and creation timestamp, separate from display spelling. Unsupported
+creation identity fails admission rather than inventing persistent equality.
+Connection and service-boot UUIDs still change for the present read process; no
+retained daemon/process/task ownership is inferred from persistent identity.
+The GUI's verified SSH host trust reference remains part of environment identity
+and must be implemented before cross-profile environment deduplication.

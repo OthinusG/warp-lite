@@ -178,3 +178,20 @@ protobuf extraction. The mapping bodies are preserved as explicit conversion
 functions in remote_server, with the one application sender updated. The shared
 protocol remains free of desktop metadata dependencies. All callers were searched;
 default/platform application builds and native captures must revalidate the fix.
+
+
+Sourcefc8964c/run37090383877 passed all three OS wire/native/stdio/profile/
+SFTP parser suites and Linux real SSH + independent SFTP: binary bytes match
+for Unicode/metacharacter names, symlink escape/traversal are rejected, and
+explicit disconnect prevents new requests. Review artifacts passed.
+Native capture run37090488200 failed its macOS backend suite before app build
+because the retired stdio refusal occasionally exited without a flushed frame.
+Pinned Tokio1.47.1 Blocking::poll_shutdown returns immediately; flush explicitly
+awaits the blocking write. The refusal now flushes and a twenty-process test
+checks the actual stdout frame. No raw stderr/payload is included in failures.
+Persistent service/account/root identity source now replaces boot-random read
+labels, with native ownership/private permissions and file-lock serialization.
+Tests cover stable reopen, replaced root, concurrent lock, corrupt UUID and
+Unix symlink rejection. Unsupported directory birth identity fails admission.
+Service boot/connection still change; retained task/PTYS remain unimplemented.
+These latest identity/flush changes require new exact-source CI.

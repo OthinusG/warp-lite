@@ -14,15 +14,17 @@ use remote_protocol::{
 };
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
+#[path = "companion_identity.rs"]
+mod identity;
 
 struct Project {
     root: PathBuf,
     handle: File,
-    id: String,
 }
 
 /// One clean read attachment; durable process/task ownership is not advertised here.
 pub struct Companion {
+    identity: identity::Identity,
     fence: ManagedFence,
     initialized: bool,
     project: Option<Project>,
@@ -32,11 +34,12 @@ pub struct Companion {
     observation: u64,
 }
 
-impl Default for Companion {
-    fn default() -> Self {
-        Self {
+impl Companion {
+    pub fn new(data_directory: &Path) -> std::io::Result<Self> {
+        let identity = identity::Identity::open(data_directory)?;
+        Ok(Self {
             fence: ManagedFence {
-                service_id: Uuid::new_v4().to_string(),
+                service_id: identity.service_id.clone(),
                 service_boot_id: Uuid::new_v4().to_string(),
                 connection_id: Uuid::new_v4().to_string(),
                 project_id: String::new(),
@@ -47,7 +50,8 @@ impl Default for Companion {
             cpu_sample: None,
             last_status: None,
             observation: 0,
-        }
+            identity,
+        })
     }
 }
 
@@ -96,6 +100,7 @@ impl Companion {
                     os: std::env::consts::OS.into(),
                     architecture: std::env::consts::ARCH.into(),
                     capabilities: vec!["project_open".into(), "host_status".into()],
+                    account_id: self.identity.account_id.clone(),
                 }))
             }
             Some(managed_request::Operation::ProjectOpen(request)) => {
@@ -114,18 +119,18 @@ impl Companion {
                     return Err(ManagedErrorCode::ManagedInvalidInput);
                 }
                 let handle = open_root(&root).map_err(path_error)?;
-                let id = Uuid::new_v4().to_string();
+                let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
                 let canonical_root = root.to_str().unwrap().to_owned();
                 self.project = Some(Project {
                     root,
                     handle,
-                    id: id.clone(),
                 });
                 self.fence.project_id = id;
                 self.last_status = None;
                 Ok(managed_response::Result::ProjectOpened(ProjectOpened {
                     fence: Some(self.fence.clone()),
                     canonical_root,
+                    root_identity,
                 }))
             }
             Some(managed_request::Operation::HostStatus(request)) => {
@@ -335,7 +340,11 @@ fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
 pub async fn serve_stdio() -> Result<(), ProtocolError> {
     let mut reader = tokio::io::stdin().compat();
     let mut writer = tokio::io::stdout().compat_write();
-    let mut companion = Companion::default();
+    let data_directory = dirs::data_local_dir()
+        .ok_or_else(|| std::io::Error::other("Companion data directory unavailable"))?
+        .join("warpai")
+        .join("remote");
+    let mut companion = Companion::new(&data_directory)?;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

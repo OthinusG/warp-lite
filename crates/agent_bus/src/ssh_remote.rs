@@ -200,6 +200,8 @@ pub struct HostClient {
     output: Compat<ChildStdout>,
     fence: Option<ManagedFence>,
     pub canonical_root: String,
+    pub account_id: String,
+    pub root_identity: String,
     alive: bool,
 }
 
@@ -232,6 +234,8 @@ impl HostClient {
             output,
             fence: None,
             canonical_root: String::new(),
+            account_id: String::new(),
+            root_identity: String::new(),
             alive: true,
         };
         let initialized = client
@@ -248,6 +252,7 @@ impl HostClient {
         if initialized.protocol_major != PROTOCOL_MAJOR
             || !valid_fence(&fence, false)
             || !initialized.capabilities.iter().any(|c| c == "host_status")
+            || !text(&initialized.account_id, 256)
         {
             return Err(ConnectionError::IncompatibleVersion);
         }
@@ -268,11 +273,15 @@ impl HostClient {
             || project_fence.service_boot_id != fence.service_boot_id
             || project_fence.connection_id != fence.connection_id
             || !text(&opened.canonical_root, 4096)
+            || opened.root_identity.len() != 64
+            || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())
         {
             return Err(ConnectionError::StaleAttachment);
         }
         client.fence = Some(project_fence);
         client.canonical_root = opened.canonical_root;
+        client.account_id = initialized.account_id;
+        client.root_identity = opened.root_identity;
         Ok(client)
     }
 

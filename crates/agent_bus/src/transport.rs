@@ -1521,6 +1521,7 @@ pub async fn retired_remote_stdio() -> Result<()> {
     let mut output = tokio::io::stdout();
     output.write_all(&(bytes.len() as u32).to_be_bytes()).await?;
     output.write_all(&bytes).await?;
-    output.shutdown().await?;
+    // Tokio stdio shutdown is a no-op; await its blocking writer before returning an error.
+    output.flush().await?;
     Err(crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None))
 }

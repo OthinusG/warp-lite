@@ -1357,7 +1357,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
 }
 
 #[tokio::test]
-async fn retired_remote_stdio_refuses_even_with_a_legacy_descriptor() {
+async fn retired_remote_stdio_refuses_with_a_bounded_nonretryable_frame() {
     // Compatibility refusal never discovers a daily controller or accepts old credentials.
     let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
     command.arg("remote-stdio")
@@ -1366,7 +1366,8 @@ async fn retired_remote_stdio_refuses_even_with_a_legacy_descriptor() {
     let output = tokio::time::timeout(Duration::from_secs(10), command.output())
         .await.unwrap().unwrap();
     assert!(!output.status.success());
-    assert!(output.stdout.len() > 4 && output.stdout.len() <= 4096);
+    assert!(output.stdout.len() > 4 && output.stdout.len() <= 4096,
+        "Missing bounded refusal: exit {:?}, stdout {} bytes", output.status.code(), output.stdout.len());
     let size = u32::from_be_bytes(output.stdout[..4].try_into().unwrap()) as usize;
     assert_eq!(output.stdout.len(), size + 4);
     let frame: Value = serde_json::from_slice(&output.stdout[4..]).unwrap();

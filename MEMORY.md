@@ -435,3 +435,13 @@ run37089944901 passed Linux SSH read checks and all three companion review artif
 builds. Loopback Linux does not prove physical-host or remote macOS/Windows SSH
 behavior. Structured SFTP uses the native SSH subsystem and never ls/batch
 filename interpolation; file-only profiles need no companion path.
+
+Tokio1.47.1 stdio poll_shutdown is a no-op; short-lived protocol refusals must
+flush().await before returning an error. Native run37090488200 reproduced a
+missing stdout frame; fixed in the shared retired endpoint and checked by real
+process repetition. Sourcefc8964c/run37090383877 passed all three read-companion
+suites and actual Linux SSH/SFTP bytes/escape/disconnect checks.
+Persistent identity uses nonsecret account-local metadata with native private
+permissions and std File::try_lock (supported by pinned Rust1.92). Root identity
+requires native directory identity plus creation time; unsupported birth identity
+must not silently become path-string equality. This does not add retained runs.

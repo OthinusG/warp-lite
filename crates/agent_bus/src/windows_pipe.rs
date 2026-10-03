@@ -16,7 +16,7 @@ use windows::{
     },
 };
 
-fn current_user_sid() -> Result<String> {
+pub(crate) fn current_user_sid() -> Result<String> {
     let mut token = HANDLE::default();
     // OS-created handles are owned below; neither token contents nor SID are logged.
     unsafe {
