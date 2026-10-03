@@ -48,6 +48,7 @@ jobs:
           cargo test -p warp-agent-bus --test native_pty --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+          cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
       - name: Verify local communication and retained history migrations
         run: |
           cargo test -p warp-agent-bus --lib storage::tests --locked
@@ -94,7 +95,14 @@ jobs:
           sudo /usr/sbin/sshd -f "$fixture_dir/server.conf" -E "$fixture_dir/server.log"
           trap 'sudo kill "$(cat "$fixture_dir/sshd.pid")"; rm -rf "$fixture_dir"' EXIT
           export WARP_TEST_COMPANION_PATH="$PWD/target/debug/warpai-companion"
-          if ! cargo test -p warp-agent-bus --test ssh_companion --locked -- --ignored; then
+          if ! python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          fixture = next(path for path in Path('target/debug/deps').glob('managed_agent-*') if path.is_file() and os.access(path, os.X_OK))
+          os.environ['WARP_TEST_AGENT_FIXTURE'] = str(fixture.resolve())
+          raise SystemExit(subprocess.run(['cargo', 'test', '-p', 'warp-agent-bus', '--test', 'ssh_companion', '--locked', '--', '--ignored']).returncode)
+          PY
+          then
             sudo python3 - "$fixture_dir/server.log" <<'PY'
           import sys
           from pathlib import Path

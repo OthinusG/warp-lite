@@ -61,6 +61,7 @@ async fn controlled_ssh_uses_project_communication_fences() {
         warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable
     );
     controlled_agent_terminal(&profile).await;
+    controlled_two_agents(&profile).await;
     // The alias resolves through a controlled config, not local project canonicalization.
     let mut missing = profile.clone();
     missing.remote_root.push_str("/missing-root");
@@ -132,4 +133,212 @@ async fn controlled_agent_terminal(profile: &SshProfile) {
     .await
     .unwrap();
     next.disconnect();
+}
+
+fn terminal_command(
+    client: &HostClient,
+    state: &TerminalState,
+    action: TerminalAction,
+) -> TerminalControl {
+    TerminalControl {
+        fence: client.fence().cloned(),
+        session_id: state.session_id.clone(),
+        run_id: state.run_id.clone(),
+        attachment_generation: state.attachment_generation,
+        action: action.into(),
+        ..TerminalControl::default()
+    }
+}
+
+async fn terminal_output(
+    client: &mut HostClient,
+    state: &TerminalState,
+    expected: &str,
+) -> TerminalState {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let result = client
+            .terminal_control(terminal_command(
+                client,
+                state,
+                TerminalAction::TerminalRead,
+            ))
+            .await
+            .unwrap();
+        if String::from_utf8_lossy(&result.output).contains(expected) {
+            return result;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Missing remote terminal output"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+}
+
+async fn controlled_two_agents(profile: &SshProfile) {
+    use warp_agent_bus::Operation;
+    let fixture =
+        std::env::var("WARP_TEST_AGENT_FIXTURE").expect("Owned native Agent fixture executable");
+    let mut one = HostClient::connect(profile).await.unwrap();
+    let mut two = HostClient::connect(profile).await.unwrap();
+    async fn launch(client: &mut HostClient, executable: &str) -> TerminalState {
+        let state = client
+            .terminal_launch(TerminalLaunch {
+                fence: client.fence().cloned(),
+                session_id: Uuid::new_v4().to_string(),
+                executable: executable.into(),
+                arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"]
+                    .map(str::to_owned)
+                    .to_vec(),
+                columns: 1000,
+                rows: 24,
+                agent_program: Some("fixture".into()),
+            })
+            .await
+            .unwrap();
+        terminal_output(client, &state, &format!("MCP_NATIVE_RUN={}", state.run_id)).await;
+        state
+    }
+    let mut first = launch(&mut one, &fixture).await;
+    let mut second = launch(&mut two, &fixture).await;
+    let receiver = format!("fixture-{}", second.session_id);
+    ssh_fixture_operation(
+        &mut one,
+        &mut first,
+        Operation::AgentSend {
+            to: receiver.clone(),
+            body: "Remote fixture message".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    assert_eq!(
+        ssh_fixture_operation(
+            &mut two,
+            &mut second,
+            Operation::AgentInbox {
+                cursor: None,
+                limit: None,
+            }
+        )
+        .await["has_message"],
+        true
+    );
+    let assigned = ssh_fixture_operation(
+        &mut one,
+        &mut first,
+        Operation::TaskAssign {
+            to: receiver,
+            description: "SSH fixture work".into(),
+            acceptance: "Message and review pass".into(),
+            reviewer: None,
+            dependencies: vec![],
+            start_deadline: None,
+            execution_timeout_seconds: None,
+            review_timeout_seconds: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    let task = assigned["id"].as_str().unwrap().to_owned();
+    let started = ssh_fixture_operation(
+        &mut two,
+        &mut second,
+        Operation::TaskStart {
+            task_id: task.clone(),
+            revision: 1,
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    assert_eq!(started["state"], "running");
+    let submitted = ssh_fixture_operation(
+        &mut two,
+        &mut second,
+        Operation::TaskSubmit {
+            task_id: task.clone(),
+            revision: 1,
+            result: "Done".into(),
+            evidence: "Actual SSH processes pass".into(),
+            expected_version: None,
+            attempt_id: Some(started["attempt_id"].as_str().unwrap().into()),
+            request_id: Uuid::new_v4().to_string(),
+            evidence_ids: vec![],
+        },
+    )
+    .await;
+    assert_eq!(submitted["state"], "submitted");
+    assert_eq!(
+        ssh_fixture_operation(
+            &mut one,
+            &mut first,
+            Operation::TaskReview {
+                task_id: task.clone(),
+                revision: 1,
+                accepted: true,
+                feedback: "Verified".into(),
+                expected_version: None,
+                request_id: Uuid::new_v4().to_string(),
+            }
+        )
+        .await["state"],
+        "accepted"
+    );
+    let query = warp_agent_bus::companion::TaskCommand::Panel(
+        warp_agent_bus::transport::PanelQuery::default(),
+    );
+    let panel = one.project_tasks(&query, 10).await.unwrap();
+    assert!(panel["value"]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry["id"] == task && entry["state"] == "accepted"));
+    let mut other_profile = profile.clone();
+    other_profile.remote_root.push_str("/isolated");
+    std::fs::create_dir_all(&other_profile.remote_root).unwrap();
+    let mut other = HostClient::connect(&other_profile).await.unwrap();
+    let panel = other.project_tasks(&query, 11).await.unwrap();
+    assert!(panel["value"]["tasks"].as_array().unwrap().is_empty());
+    assert!(other
+        .terminal_control(terminal_command(
+            &other,
+            &first,
+            TerminalAction::TerminalRead
+        ))
+        .await
+        .is_err());
+    other.disconnect();
+    one.disconnect();
+    two.disconnect();
+}
+
+async fn ssh_fixture_operation(
+    client: &mut HostClient,
+    state: &mut TerminalState,
+    operation: warp_agent_bus::Operation,
+) -> serde_json::Value {
+    let mut input = terminal_command(client, state, TerminalAction::TerminalInput);
+    input.input_sequence = state.accepted_input_sequence + 1;
+    input.input = format!("{}\r", serde_json::to_string(&operation).unwrap()).into_bytes();
+    *state = client.terminal_control(input).await.unwrap();
+    let marker = format!("FIXTURE_RESULT_{}=", state.accepted_input_sequence);
+    let output = terminal_output(client, state, &marker).await;
+    let output = String::from_utf8_lossy(&output.output);
+    serde_json::from_str(
+        output
+            .split(&marker)
+            .nth(1)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap()
+            .trim(),
+    )
+    .unwrap()
 }
