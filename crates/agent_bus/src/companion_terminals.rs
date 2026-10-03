@@ -411,8 +411,8 @@ mod tests {
 
 impl Session {
     fn state(&mut self, fence: &ManagedFence, offset: Option<u64>) -> Result<TerminalState, Error> {
-        let exit_code = self.pty.exit_code().map_err(path_error)?;
         let processes_active = Some(self.pty.is_active().map_err(path_error)?);
+        let exit_code = self.pty.exit_code().map_err(path_error)?;
         if processes_active == Some(false) {
             self.binding.take();
         }

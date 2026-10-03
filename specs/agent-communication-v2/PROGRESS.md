@@ -967,3 +967,20 @@ retained fixtures exercise the actual service startup path.
 Accepted as the lifecycle/backend follow-up only. R2.8 attempt recovery, R2.6
 per-launch MCP, sidebar/live GUI and full fault acceptance remain pending. Later
 MCP edits are not covered by this source gate.
+
+### Per-launch remote MCP implementation (pending validation)
+
+TerminalLaunch optionally selects a non-operator Agent program. The account
+service creates fresh private IPC credentials and pins native root/run ownership,
+then injects only that binding into the native child's environment. Ordinary
+terminals receive no Agent binding. The actual retained run UUID is the Broker
+run, and private credential verification now uses the installed constant-time
+comparison. Root replacement/directory escape is rejected before operation or
+receipt replay. Observed full group/job exit and owner removal revoke the binding;
+idle scans observe every owner, even while another process remains active.
+
+The companion's explicit mcp subcommand reuses Bridge and the pinned SDK.
+An actual retained native child exercises initialize/tools discovery and reports
+its nonsecret run identity; private IPC regression covers original receipts,
+root replacement and fresh credentials after revocation. Exact-source CI is
+pending. No R2.6, vendor adapter, automatic wake or live GUI gate is accepted yet.
