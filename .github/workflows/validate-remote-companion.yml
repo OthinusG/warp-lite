@@ -1,6 +1,8 @@
 name: Validate Warpai remote companion
 on:
   workflow_dispatch:
+  push:
+    branches: ['warp-lite/ssh-remote-cutover-20261003']
 permissions:
   contents: read
 concurrency:
