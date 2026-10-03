@@ -55,6 +55,10 @@ from this engineering gate.
 The whole workspace consumer audit found no removable crate. Remove 28
 unreferenced direct dependency edges from 18 manifests and only the newly
 unreachable `line-span 0.1.5` lock entry; retain all other locked versions.
+Also remove seven unconsumed workspace dependency declarations from the root
+manifest: ashpd, backtrace, three objc2 platform aliases, parquet and warp.
+These entries contribute no dependency edges or features to any member;
+retain the actual direct/transitive platform dependencies and profile settings.
 Preserve feature-driven, macro-generated and native linking dependencies,
 including num-traits required by num-derive expansions in warpui_core.
 

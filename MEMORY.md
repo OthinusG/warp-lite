@@ -19,7 +19,8 @@
   package; comparison artifacts remain in the OS temporary directory.
 
 - Repository cleanup after the replacement functional gate removes only 28
-  unused dependency edges and seven unwired/duplicate files. No whole crate is
+  unused dependency edges, seven unconsumed root dependency declarations and
+  seven unwired/duplicate files. No whole crate is
   unused: for example input_classifier still uses natural_language_detection.
   Preserve feature/macro/native-link side effects and all remaining lock versions.
   The local CodeGraph index remains on disk and is ignored in source delivery.
