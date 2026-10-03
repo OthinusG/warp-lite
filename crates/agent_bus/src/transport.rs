@@ -1247,7 +1247,7 @@ impl Broker {
                 .unwrap_or_else(|| "local".into());
             let workspace = state.store.physical_root(&agent).ok();
             let observed = live.map(|live| live.observed.elapsed().as_millis() as u64);
-            json!({"agent": agent, "online": live.is_some(),
+            json!({"agent": agent, "online": live.is_some(), "run": live.map(|live| &live.run),
                 "device": device, "workspace": workspace, "last_observed_ms": observed,
                 "observation_source": if live.is_some() { Some("local observation") } else { None },
                 "delivery_phase": live.and_then(|live| live.delivery.as_ref()).map(|(_, phase, _)| *phase),

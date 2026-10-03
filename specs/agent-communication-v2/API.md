@@ -40,6 +40,10 @@ or access retired device operations. Existing messages/tasks/reviews/versions/
 original request receipts remain unchanged. Changed-payload retries conflict;
 unknown writes retain their original intent and are never automatically replayed.
 
+Panel Agent rows include optional `run` from the currently observed Broker run.
+It is projection metadata, separate from the persisted Agent identity, and is
+absent when no active run is observed. Offline cached rows are explicitly stale.
+
 ## Explicit SSH terminal launch
 
 `warpai-companion agent <absolute-root> <program> <absolute-vendor-executable>

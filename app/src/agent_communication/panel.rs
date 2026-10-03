@@ -41,6 +41,8 @@ struct Section {
 #[derive(Deserialize)]
 struct PanelAgent {
     agent: Agent,
+    #[serde(default)]
+    run: Option<String>,
     online: bool,
     activity: Option<warp_agent_bus::readiness::Activity>,
     draft: Option<String>,
@@ -788,7 +790,7 @@ impl CollaborationPanel {
                                 .unwrap_or_else(|| "unavailable".into()),
                             row.delivery_phase.as_ref().map(|phase| format!("\nLast native prompt {} · acknowledgement remains separate{}",
                                 phase, if row.delivery_retained == Some(false) { " · history record unavailable" } else { "" })).unwrap_or_default(),
-                            row.agent.run,
+                            row.run.as_deref().unwrap_or("not observed"),
                         )
                     })
                     .collect(),
@@ -3540,7 +3542,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 |snapshot| uuid::Uuid::parse_str(&snapshot.project).is_ok()
                                     && snapshot.agents.iter().any(|row| row.online
                                         && row.agent.program == "fixture"
-                                        && !row.agent.run.is_empty())
+                                    && row.run.as_ref().is_some_and(|run| uuid::Uuid::parse_str(run).is_ok()))
                             ))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
