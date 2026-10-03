@@ -357,6 +357,9 @@ impl HostClient {
         &mut self,
         request: TerminalLaunch,
     ) -> Result<TerminalState, ConnectionError> {
+        if request.agent_program.is_some() && !self.capabilities.iter().any(|cap| cap == "project_mcp") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
         let result = self

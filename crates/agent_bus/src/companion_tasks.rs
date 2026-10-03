@@ -24,6 +24,54 @@ pub enum Command {
     Controller(ControllerOperation),
 }
 
+/// Credentials stay in native child environment and disappear with its owner.
+pub(super) struct RunBinding {
+    broker: Broker,
+    terminal: String,
+    run: String,
+    pub environment: Vec<(String, String)>,
+}
+impl Drop for RunBinding {
+    fn drop(&mut self) {
+        self.broker
+            .revoke_remote_run(&self.terminal, Some(&self.run));
+    }
+}
+impl Projects {
+    pub(super) fn bind_run(
+        &self,
+        fence: &ManagedFence,
+        root: &Path,
+        terminal: &str,
+        run: &str,
+        program: &str,
+    ) -> Result<RunBinding, ManagedErrorCode> {
+        let broker = self.broker(
+            &fence.project_id,
+            root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?,
+        )?;
+        let executable = std::env::current_exe().map_err(path_error)?;
+        let executable = executable
+            .to_str()
+            .ok_or(ManagedErrorCode::ManagedUnavailable)?;
+        let capability = broker
+            .prepare_remote_run(terminal, program, root, run)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        let environment = vec![
+            (crate::transport::ENDPOINT.into(), broker.endpoint.clone()),
+            (crate::transport::CAPABILITY.into(), capability),
+            (crate::transport::TERMINAL.into(), terminal.into()),
+            ("WARP_AGENT_BIN".into(), executable.into()),
+        ];
+        Ok(RunBinding {
+            broker,
+            terminal: terminal.into(),
+            run: run.into(),
+            environment,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,6 +103,81 @@ mod tests {
         assert_eq!(result.fence.as_ref(), Some(fence));
         assert_eq!(result.query_generation, 17);
         decode_result(&result.result_json).unwrap()
+    }
+    #[test]
+    fn private_run_credentials_fence_replacement_directory_and_revoked_replay() {
+        use crate::transport::{call, Request, CAPABILITY, PROTOCOL_MAJOR};
+        let data = tempfile::tempdir().unwrap();
+        let base = tempfile::tempdir().unwrap();
+        let root = base.path().join("project");
+        std::fs::create_dir(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        let projects = Projects::new(data.path());
+        let fence = fence();
+        let terminal = Uuid::new_v4().to_string();
+        let run = Uuid::new_v4().to_string();
+        let binding = projects
+            .bind_run(&fence, &root, &terminal, &run, "fixture")
+            .unwrap();
+        let capability = binding
+            .environment
+            .iter()
+            .find(|(key, _)| key == CAPABILITY)
+            .unwrap()
+            .1
+            .clone();
+        let mut request = Request {
+            protocol_major: PROTOCOL_MAJOR,
+            terminal: terminal.clone(),
+            capability: capability.clone(),
+            run: None,
+            defer_initial_ready: false,
+            native_activity: None,
+            directory: None,
+            operation: Operation::AgentRegister {
+                name: "worker".into(),
+            },
+        };
+        let registration = call(&binding.broker.endpoint, &request).unwrap();
+        assert_eq!(registration["run"], run);
+        request.run = Some(run.clone());
+        request.directory = Some(base.path().to_str().unwrap().into());
+        assert!(call(&binding.broker.endpoint, &request).is_err());
+        request.directory = None;
+        request.operation = Operation::AgentSend {
+            to: "worker".into(),
+            body: "Bound original intent".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
+            request_id: Uuid::new_v4().to_string(),
+        };
+        let original = call(&binding.broker.endpoint, &request).unwrap();
+        assert_eq!(original, call(&binding.broker.endpoint, &request).unwrap());
+        std::fs::rename(&root, base.path().join("old-project")).unwrap();
+        std::fs::create_dir(&root).unwrap();
+        assert!(call(&binding.broker.endpoint, &request).is_err());
+        std::fs::remove_dir(&root).unwrap();
+        std::fs::rename(base.path().join("old-project"), &root).unwrap();
+        let broker = binding.broker.clone();
+        drop(binding);
+        assert!(call(&broker.endpoint, &request).is_err());
+        let replacement = projects
+            .bind_run(
+                &fence,
+                &root,
+                &terminal,
+                &Uuid::new_v4().to_string(),
+                "fixture",
+            )
+            .unwrap();
+        assert!(replacement
+            .environment
+            .iter()
+            .find(|(key, _)| key == CAPABILITY)
+            .is_some_and(|(_, value)| value != &capability));
+        assert!(call(&broker.endpoint, &request).is_err());
     }
     #[test]
     fn task_history_is_remote_owned_persistent_and_project_isolated() {
@@ -260,7 +383,7 @@ impl Projects {
             owners: Mutex::new(BTreeMap::new()),
         }
     }
-    fn broker(&self, project_id: &str, root: &str) -> Result<Broker, ManagedErrorCode> {
+    pub(super) fn broker(&self, project_id: &str, root: &str) -> Result<Broker, ManagedErrorCode> {
         let id = Uuid::parse_str(project_id).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
         if id.is_nil() || id.to_string() != project_id {
             return Err(ManagedErrorCode::ManagedInvalidInput);

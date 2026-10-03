@@ -130,12 +130,13 @@ fn append_quoted(arg: &OsStr, command: &mut Vec<u16>) {
     command.push(34);
 }
 
-fn environment(executable: &Path) -> io::Result<Vec<u16>> {
+fn environment(executable: &Path, binding: &[(String, String)]) -> io::Result<Vec<u16>> {
     let mut command = tokio::process::Command::new(executable);
     crate::session::without_terminal_binding(&mut command);
     command
         .env_remove("VIBE_MCP_SERVERS")
         .env("TERM", "xterm-256color");
+    command.envs(binding.iter().cloned());
     let mut values: Vec<(OsString, OsString)> = std::env::vars_os().collect();
     for (key, value) in command.as_std().get_envs() {
         values.retain(|(existing, _)| {
@@ -167,6 +168,7 @@ pub(super) fn spawn(
     args: &[String],
     root: &Path,
     dimensions: Size,
+    binding: &[(String, String)],
 ) -> io::Result<NativePty> {
     unsafe {
         fn pipe() -> io::Result<(File, File)> {
@@ -204,7 +206,7 @@ pub(super) fn spawn(
             append_quoted(OsStr::new(arg), &mut command);
         }
         command.push(0);
-        let environment = environment(executable)?;
+        let environment = environment(executable, binding)?;
         let executable = HSTRING::from(executable.as_os_str());
         let root = HSTRING::from(root.as_os_str());
         let job = Owned::new(CreateJobObjectW(None, PCWSTR::null()).map_err(error)?);

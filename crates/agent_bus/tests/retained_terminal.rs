@@ -15,6 +15,56 @@ fn retained_terminal_child() {
         let mut mode = CONSOLE_MODE::default();
         GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE).unwrap(), &mut mode).unwrap();
     }
+    if std::env::var_os(warp_agent_bus::transport::CAPABILITY).is_some() {
+        use std::io::{BufRead, Write};
+        let mut bridge = std::process::Command::new(std::env::var_os("WARP_AGENT_BIN").unwrap())
+            .arg("mcp")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let mut input = bridge.stdin.take().unwrap();
+        for message in [
+            serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"owned-remote-fixture","version":"1"}}}),
+            serde_json::json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+            serde_json::json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+        ] {
+            writeln!(input, "{message}").unwrap();
+        }
+        input.flush().unwrap();
+        let mut output = std::io::BufReader::new(bridge.stdout.take().unwrap());
+        for id in [1, 2] {
+            let mut line = String::new();
+            output.read_line(&mut line).unwrap();
+            let response: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert_eq!(response["id"], id);
+            assert!(response.get("error").is_none());
+            if id == 2 {
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 30);
+            }
+        }
+        drop(input);
+        bridge.wait().unwrap();
+        use warp_agent_bus::transport::*;
+        let registered = call(
+            &std::env::var(ENDPOINT).unwrap(),
+            &Request {
+                protocol_major: PROTOCOL_MAJOR,
+                terminal: std::env::var(TERMINAL).unwrap(),
+                capability: std::env::var(CAPABILITY).unwrap(),
+                run: None,
+                defer_initial_ready: false,
+                native_activity: None,
+                directory: None,
+                operation: warp_agent_bus::Operation::AgentRegister {
+                    name: "fixture".into(),
+                },
+            },
+        )
+        .unwrap();
+        println!("MCP_NATIVE_RUN={}", registered["run"].as_str().unwrap());
+    }
     println!("REMOTE_ROOT={}", std::env::current_dir().unwrap().display());
     loop {
         let mut line = String::new();
@@ -92,6 +142,7 @@ async fn retained_background_activity_blocks_release_after_leader_exit_and_disco
             .to_vec(),
             columns: 100,
             rows: 24,
+            agent_program: None,
         }))
         .await
     else {
@@ -282,6 +333,7 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
         .to_vec(),
         columns: 240,
         rows: 24,
+        agent_program: Some("fixture".into()),
     };
     let managed_response::Result::TerminalState(state) = first
         .call(managed_request::Operation::TerminalLaunch(launch.clone()))
@@ -295,6 +347,9 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
     else {
         panic!("Replay launch")
     };
+    first
+        .wait_output(&state, &format!("MCP_NATIVE_RUN={}", state.run_id))
+        .await;
     assert_eq!(state.run_id, repeated.run_id);
     let mut changed = launch;
     changed.rows = 30;

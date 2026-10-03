@@ -26,6 +26,7 @@ pub(crate) mod windows_pipe;
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
+use subtle::ConstantTimeEq;
 
 #[cfg(all(test, any(target_os = "macos", windows)))]
 #[path = "remote_control.rs"]
@@ -66,6 +67,7 @@ pub struct Response {
 struct Terminal {
     capability: String,
     workspace: Option<crate::storage::WorkspaceBinding>,
+    remote_root: Option<(std::path::PathBuf, std::fs::File)>,
     revoked: bool,
     live: Option<Live>,
 }
@@ -408,6 +410,7 @@ impl Broker {
             Terminal {
                 capability: capability.clone(),
                 workspace,
+                remote_root: None,
                 revoked: false,
                 live: None,
             },
@@ -469,6 +472,33 @@ impl Broker {
         });
         self.shared.changed.notify_all();
         Ok(())
+    }
+    /// Only the owning companion admits a native remote process to private MCP.
+    pub(crate) fn prepare_remote_run(
+        &self, terminal: &str, program: &str, root: &Path, run: &str,
+    ) -> Result<String> {
+        let project = root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?;
+        let handle = crate::companion::open_root(root)?;
+        let capability = self.prepare(terminal)?;
+        if let Err(error) = self.activate(terminal, program, project, false) {
+            self.revoke_remote_run(terminal, None);
+            return Err(error);
+        }
+        let mut state = self.store()?;
+        let binding = state.terminals.get_mut(terminal).unwrap();
+        binding.remote_root = Some((root.to_owned(), handle));
+        binding.live.as_mut().unwrap().run = run.into();
+        Ok(capability)
+    }
+    pub(crate) fn revoke_remote_run(&self, terminal: &str, run: Option<&str>) {
+        if let Ok(mut state) = self.shared.state.lock() {
+            if state.terminals.get(terminal).is_some_and(|binding|
+                run.is_none() || binding.live.as_ref().is_some_and(|live|
+                    Some(live.run.as_str()) == run)) {
+                state.terminals.remove(terminal);
+            }
+        }
+        self.shared.changed.notify_all();
     }
     pub fn end(&self, terminal: &str) {
         if let Ok(mut state) = self.shared.state.lock() {
@@ -772,8 +802,13 @@ impl Broker {
                 Path::new(directory).is_absolute(),
                 invalid_input("Native workspace must be absolute")
             );
-            let project = crate::project_root(Path::new(directory))?;
-            let workspace = state.terminals.get(&request.terminal).unwrap().workspace.clone();
+            let binding = state.terminals.get(&request.terminal).unwrap();
+            let project = if let Some((root, _)) = &binding.remote_root {
+                ensure!(Path::new(directory).canonicalize()?.starts_with(root),
+                    scope_denied("Native directory does not match the selected project"));
+                root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?.to_owned()
+            } else { crate::project_root(Path::new(directory))? };
+            let workspace = binding.workspace.clone();
             if let Some(workspace) = &workspace {
                 ensure!(project == workspace.root, scope_denied("Native directory does not match the selected workspace"));
             }
@@ -1364,8 +1399,12 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
         .ok_or_else(|| unauthorized("Invalid terminal binding"))?;
     ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
     if let Some(workspace) = &binding.workspace { state.store.authorize_workspace(workspace)?; }
+    if let Some((root, handle)) = &binding.remote_root {
+        ensure!(crate::companion::root_matches(handle, root).unwrap_or(false),
+            scope_denied("Selected remote project was replaced or is unavailable"));
+    }
     ensure!(
-        binding.capability == request.capability,
+        bool::from(binding.capability.as_bytes().ct_eq(request.capability.as_bytes())),
         unauthorized("Invalid terminal capability")
     );
     let live = binding

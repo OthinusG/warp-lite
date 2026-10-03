@@ -31,6 +31,15 @@ pub struct NativePty {
 }
 impl NativePty {
     pub fn spawn(executable: &Path, args: &[String], root: &Path, size: Size) -> io::Result<Self> {
+        Self::spawn_with_environment(executable, args, root, size, &[])
+    }
+    pub(crate) fn spawn_with_environment(
+        executable: &Path,
+        args: &[String],
+        root: &Path,
+        size: Size,
+        environment: &[(String, String)],
+    ) -> io::Result<Self> {
         size.validate()?;
         if !executable.is_absolute()
             || executable
@@ -44,7 +53,7 @@ impl NativePty {
         {
             return Err(io::ErrorKind::InvalidInput.into());
         }
-        platform::spawn(executable, args, root, size)
+        platform::spawn(executable, args, root, size, environment)
     }
     pub fn resize(&self, size: Size) -> io::Result<()> {
         size.validate()?;

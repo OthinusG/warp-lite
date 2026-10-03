@@ -549,3 +549,9 @@ projects by path: an externally renamed root must fail visibly rather than hide
 history under a fresh path domain. Explicit root-domain migration is pending.
 GUI task control denies Agent lifecycle/file capabilities and retired federation;
 R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
+
+- Remote lifecycle evidence (2026-10-03): Darwin PTY EOF and leader exit can precede
+  owned background-process exit. Release and idle exit must use bounded native
+  group/job activity, retaining ownership on observation failure. Source 65e1b86,
+  GitHub run 37110078158, passed all three remote targets. Concurrent identity-file
+  contention is transient: wait within a bound rather than rejecting attachment.

@@ -129,7 +129,7 @@ jobs:
           digest = hashlib.sha256(binary.read_bytes()).hexdigest()
           (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
           version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
-          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'host_status', 'retained_terminal', 'project_tasks'], 'sha256': digest}, indent=2) + '\n')
+          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'host_status', 'retained_terminal', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
           PY

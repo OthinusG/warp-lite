@@ -276,7 +276,7 @@ async fn controlled_retained_terminal(profile: &SshProfile) {
     let launch = TerminalLaunch { fence: owner.fence().cloned(), session_id: Uuid::new_v4().to_string(),
         executable: "/bin/sh".into(), arguments: vec!["-c".into(),
             "printf 'REMOTE_ROOT=%s\\n' \"$PWD\"; while IFS= read -r input; do printf 'RECEIVED=%s\\n' \"$input\"; done".into()],
-        columns: 80, rows: 24 };
+        columns: 80, rows: 24, agent_program: None };
     let state = owner.terminal_launch(launch.clone()).await.unwrap();
     assert_eq!(
         owner.terminal_launch(launch).await.unwrap().run_id,

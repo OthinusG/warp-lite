@@ -2,6 +2,25 @@
 #[tokio::main]
 async fn main() {
     if std::env::args_os().len() == 2
+        && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("mcp"))
+    {
+        use rmcp::ServiceExt;
+        let result = async {
+            warp_agent_bus::mcp::Bridge::from_env()?
+                .serve(warp_agent_bus::mcp::legacy_transport(rmcp::transport::stdio()).await?)
+                .await?
+                .waiting()
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        }
+        .await;
+        if result.is_err() {
+            eprintln!("Companion MCP binding unavailable");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args_os().len() == 2
         && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--version"))
     {
         println!(

@@ -22,8 +22,8 @@ mod service;
 mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
-pub use tasks::Command as TaskCommand;
 pub(crate) use tasks::decode_result as decode_task_result;
+pub use tasks::Command as TaskCommand;
 
 struct Project {
     root: PathBuf,
@@ -116,6 +116,7 @@ impl Companion {
                         "host_status".into(),
                         "retained_terminal".into(),
                         "project_tasks".into(),
+                        "project_mcp".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))
@@ -238,7 +239,12 @@ impl Companion {
             Some(managed_request::Operation::TerminalLaunch(request)) => {
                 self.check_project(request.fence.as_ref())?;
                 self.terminals
-                    .launch(request, &self.fence, &self.project.as_ref().unwrap().root)
+                    .launch(
+                        request,
+                        &self.fence,
+                        &self.project.as_ref().unwrap().root,
+                        &self.tasks,
+                    )
                     .map(managed_response::Result::TerminalState)
             }
             Some(managed_request::Operation::TerminalControl(request)) => {
@@ -304,12 +310,12 @@ fn path_error(error: std::io::Error) -> ManagedErrorCode {
 }
 
 #[cfg(unix)]
-fn open_root(root: &Path) -> std::io::Result<File> {
+pub(crate) fn open_root(root: &Path) -> std::io::Result<File> {
     File::open(root)
 }
 
 #[cfg(windows)]
-fn open_root(root: &Path) -> std::io::Result<File> {
+pub(crate) fn open_root(root: &Path) -> std::io::Result<File> {
     use std::os::windows::fs::OpenOptionsExt;
     std::fs::OpenOptions::new()
         .read(true)
@@ -319,14 +325,24 @@ fn open_root(root: &Path) -> std::io::Result<File> {
 
 #[cfg(unix)]
 fn same_root(project: &Project) -> std::io::Result<bool> {
+    root_matches(&project.handle, &project.root)
+}
+
+#[cfg(unix)]
+pub(crate) fn root_matches(handle: &File, root: &Path) -> std::io::Result<bool> {
     use std::os::unix::fs::MetadataExt;
-    let owned = project.handle.metadata()?;
-    let current = project.root.metadata()?;
+    let owned = handle.metadata()?;
+    let current = root.metadata()?;
     Ok(current.is_dir() && owned.dev() == current.dev() && owned.ino() == current.ino())
 }
 
 #[cfg(windows)]
 fn same_root(project: &Project) -> std::io::Result<bool> {
+    root_matches(&project.handle, &project.root)
+}
+
+#[cfg(windows)]
+pub(crate) fn root_matches(handle: &File, root: &Path) -> std::io::Result<bool> {
     use std::os::windows::io::AsRawHandle;
     use windows::Win32::{
         Foundation::HANDLE,
@@ -343,7 +359,7 @@ fn same_root(project: &Project) -> std::io::Result<bool> {
             info.nFileIndexLow,
         ))
     }
-    Ok(identity(&project.handle)? == identity(&open_root(&project.root)?)?)
+    Ok(identity(handle)? == identity(&open_root(root)?)?)
 }
 
 #[cfg(unix)]

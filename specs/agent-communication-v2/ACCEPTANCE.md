@@ -306,3 +306,29 @@ replaced project isolation, no file creation on forbidden authority, stale/root
 replacement fencing, sanitized errors and actual SSH scoped panel reads. This
 is partial V08/V17 evidence. Local projection/GUI intent persistence, real remote
 MCP process launch and GUI/vendor task workflows remain unverified.
+
+### R0.4 — native enrollment worker removal
+
+Accepted independently from SSH GUI integration. Current worker/settings/setup
+and legacy-key cleanup sources are byte-identical to `d71d8b1`, verified by
+[run 37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672)
+on macOS/Windows default/platform builds and focused native cleanup/configuration
+checks. Source inventory confirms no enrollment worker, invitation polling or
+enrollment-only busy gate remains; v6 migration retains unknown work/history.
+This does not accept all R0 removals or managed SSH cancellation behavior.
+
+### Owned process activity and concurrent attachment acceptance — source 65e1b86
+
+[Run 37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158)
+passed Linux/macOS/Windows protocol/native/service tests and controlled Linux
+SSH/SFTP. Source `65e1b8671ec860007a5c76d868d442c46c76cec4` proves leader exit and
+PTY EOF cannot authorize release while owned background processes survive;
+disconnect/reattach preserves that run, explicit Stop observes inactive ownership
+and Release follows EOF. Failed/unreadable native activity retains ownership.
+Concurrent attachment identity access waits within a five-second bound; eight
+simultaneous opens share one persistent identity. The three-platform concurrent
+retained fixtures exercise the actual service startup path.
+
+Accepted as the lifecycle/backend follow-up only. R2.8 attempt recovery, R2.6
+per-launch MCP, sidebar/live GUI and full fault acceptance remain pending. Later
+MCP edits are not covered by this source gate.

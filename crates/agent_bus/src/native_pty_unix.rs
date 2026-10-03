@@ -42,6 +42,7 @@ pub(super) fn spawn(
     args: &[String],
     root: &Path,
     dimensions: Size,
+    environment: &[(String, String)],
 ) -> io::Result<NativePty> {
     let (mut master, mut slave) = (-1, -1);
     let mut dimensions = size(dimensions);
@@ -71,6 +72,7 @@ pub(super) fn spawn(
     let mut command = tokio::process::Command::new(executable);
     crate::session::without_terminal_binding(&mut command);
     command.env_remove("VIBE_MCP_SERVERS");
+    command.envs(environment.iter().cloned());
     let mut command: Command = command.into_std();
     command
         .args(args)

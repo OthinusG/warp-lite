@@ -937,3 +937,33 @@ use the same actual observation and retain ownership on observation failure.
 Extend the existing real background-child check with activity before/after stop,
 and shared-wire checks with impossible inactive/unobserved-exit rejection.
 These changes still need exact-source remote verification; no R2.8 gate is closed.
+
+### R0.4 accepted: native enrollment worker removal
+
+Rechecked the current worker/settings/configuration boundary against source
+`d71d8b1` and [run 37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672).
+agent_communication.rs, settings_view/agent_communication.rs, setup.rs and
+legacy_remote_credentials.rs are byte-identical to that accepted source.
+The enrollment module, receiver/cancel/status fields, poll and enrollment-only
+configuration gates are absent. Both default/platform application builds and
+local configuration/wake plus legacy metadata/credential cleanup checks passed.
+Schema-v6 compatibility/unknown-work fixtures preceded removal. Shared secure
+storage hardening and local operator/setup behavior remain. PLAN R0.4 is checked;
+SSH async cancellation/live connection integration and remaining cutover gates
+are separate pending tasks.
+
+### Owned process activity and concurrent attachment acceptance — source 65e1b86
+
+[Run 37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158)
+passed Linux/macOS/Windows protocol/native/service tests and controlled Linux
+SSH/SFTP. Source `65e1b8671ec860007a5c76d868d442c46c76cec4` proves leader exit and
+PTY EOF cannot authorize release while owned background processes survive;
+disconnect/reattach preserves that run, explicit Stop observes inactive ownership
+and Release follows EOF. Failed/unreadable native activity retains ownership.
+Concurrent attachment identity access waits within a five-second bound; eight
+simultaneous opens share one persistent identity. The three-platform concurrent
+retained fixtures exercise the actual service startup path.
+
+Accepted as the lifecycle/backend follow-up only. R2.8 attempt recovery, R2.6
+per-launch MCP, sidebar/live GUI and full fault acceptance remain pending. Later
+MCP edits are not covered by this source gate.

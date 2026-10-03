@@ -36,7 +36,8 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
             "project_open",
             "host_status",
             "retained_terminal",
-            "project_tasks"
+            "project_tasks",
+            "project_mcp"
         ]
     );
     let mut fence = initialized.fence.unwrap();

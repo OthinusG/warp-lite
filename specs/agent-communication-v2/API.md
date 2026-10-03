@@ -480,3 +480,22 @@ is bounded at 4096. Exceeding/losing observation is unavailable, not ended. Thes
 checks cover the owned Unix group/Windows job; deliberately escaped Unix process
 groups are outside this primitive's ownership. Whole GUI session/Agent lifecycle
 acceptance remains pending R4/R5.
+
+## Managed per-launch MCP binding (R2.6 implementation boundary)
+
+TerminalLaunch gains optional agent_program (tag 7). Absence is an ordinary
+terminal with no Agent capability. An explicit non-operator program label admits
+only one service-created private IPC capability for the new native session/run;
+it is immutable original launch content. The actual executable/version/vendor
+configuration and automatic wake remain R5 gates. The companion also exposes an
+explicit `mcp` stdio subcommand reusing Bridge and its pinned SDK.
+
+Endpoint/capability/session/run are injected into the owned child's environment,
+never returned in a control response, persisted as GUI preferences or accepted
+from control payloads. One selected project Broker owns agent operations and the
+existing remote task Store. GUI project_tasks remains human-only. Native root
+handle identity is checked before every Agent operation, including receipt replay;
+claimed directory changes cannot redirect the captured project. Actual owned
+process-group/job termination revokes the capability; disconnect/leader-only exit
+with surviving owned children preserves it. Revocation does not complete tasks
+or clear uncertain execution. Service replacement destroys volatile capabilities.

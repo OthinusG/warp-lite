@@ -125,6 +125,7 @@ message TerminalLaunch {
   repeated string arguments = 4;
   uint32 columns = 5;
   uint32 rows = 6;
+  optional string agent_program = 7;
 }
 enum TerminalAction {
   TERMINAL_ACTION_UNSPECIFIED = 0;

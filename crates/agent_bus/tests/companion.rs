@@ -47,7 +47,8 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "project_open",
             "host_status",
             "retained_terminal",
-            "project_tasks"
+            "project_tasks",
+            "project_mcp"
         ]
     );
     input.get_mut().shutdown().await.unwrap();

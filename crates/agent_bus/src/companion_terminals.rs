@@ -50,6 +50,7 @@ struct Input {
 struct Session {
     launch: TerminalLaunch,
     run_id: String,
+    binding: Option<tasks::RunBinding>,
     pty: NativePty,
     lease: Arc<Mutex<Lease>>,
     output: Arc<Mutex<Output>>,
@@ -84,8 +85,19 @@ impl Terminals {
         request: TerminalLaunch,
         fence: &ManagedFence,
         root: &Path,
+        tasks: &tasks::Projects,
     ) -> Result<TerminalState, Error> {
         if !valid_id(&request.session_id) {
+            return Err(Error::ManagedInvalidInput);
+        }
+        if request.agent_program.as_ref().is_some_and(|program| {
+            program.is_empty()
+                || program.len() > 64
+                || program == crate::OPERATOR_PROGRAM
+                || !program
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
+        }) {
             return Err(Error::ManagedInvalidInput);
         }
         let size = dimensions(request.columns, request.rows)?;
@@ -98,6 +110,7 @@ impl Terminals {
                 || original.arguments != request.arguments
                 || original.columns != request.columns
                 || original.rows != request.rows
+                || original.agent_program != request.agent_program
             {
                 return Err(Error::ManagedConflict);
             }
@@ -107,11 +120,20 @@ impl Terminals {
         if sessions.len() >= MAX_SESSIONS {
             return Err(Error::ManagedCapacityExceeded);
         }
-        let pty = NativePty::spawn(
+        let run_id = Uuid::new_v4().to_string();
+        let binding = request
+            .agent_program
+            .as_deref()
+            .map(|program| tasks.bind_run(fence, root, &request.session_id, &run_id, program))
+            .transpose()?;
+        let pty = NativePty::spawn_with_environment(
             Path::new(&request.executable),
             &request.arguments,
             root,
             size,
+            binding
+                .as_ref()
+                .map_or(&[], |binding| binding.environment.as_slice()),
         )
         .map_err(path_error)?;
         let mut reader = pty.reader.try_clone().map_err(path_error)?;
@@ -170,7 +192,8 @@ impl Terminals {
         });
         let mut session = Session {
             launch: request,
-            run_id: Uuid::new_v4().to_string(),
+            run_id,
+            binding,
             pty,
             lease,
             output,
@@ -347,11 +370,15 @@ impl Terminals {
         else {
             return true;
         };
-        owners.into_iter().any(|owner| {
-            owner.lock().map_or(true, |mut s| {
-                s.pty.is_active().unwrap_or(true)
-                    || s.output.lock().map_or(true, |output| !output.closed)
-            })
+        owners.into_iter().fold(false, |active, owner| {
+            let owned = owner.lock().map_or(true, |mut s| {
+                let active = s.pty.is_active().unwrap_or(true);
+                if !active {
+                    s.binding.take();
+                }
+                active || s.output.lock().map_or(true, |output| !output.closed)
+            });
+            active || owned
         })
     }
 }
@@ -386,6 +413,9 @@ impl Session {
     fn state(&mut self, fence: &ManagedFence, offset: Option<u64>) -> Result<TerminalState, Error> {
         let exit_code = self.pty.exit_code().map_err(path_error)?;
         let processes_active = Some(self.pty.is_active().map_err(path_error)?);
+        if processes_active == Some(false) {
+            self.binding.take();
+        }
         let output = lock(&self.output)?;
         let first = output.end - output.bytes.len() as u64;
         let requested = offset.unwrap_or(output.end);
