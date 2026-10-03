@@ -1,0 +1,39 @@
+name: Validate Warpai remote companion
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: remote-companion-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  wire:
+    name: Remote wire (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          lfs: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.92.0 --profile minimal
+      - name: Install Linux protobuf compiler
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y protobuf-compiler
+      - name: Install macOS protobuf compiler
+        if: runner.os == 'macOS'
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
+      - name: Install Windows protobuf compiler
+        if: runner.os == 'Windows'
+        run: choco install protoc -y
+      - name: Verify shared control wire without desktop dependencies
+        run: cargo test -p remote_protocol --locked

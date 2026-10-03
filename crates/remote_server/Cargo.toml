@@ -16,6 +16,7 @@ futures-lite.workspace = true
 log.workspace = true
 prost.workspace = true
 repo_metadata.workspace = true
+remote_protocol.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
@@ -33,6 +34,3 @@ getrandom = { version = "0.2", features = ["js"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread"] }
 tokio-util = { workspace = true, features = ["compat"] }
-
-[build-dependencies]
-prost-build.workspace = true

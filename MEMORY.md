@@ -402,7 +402,16 @@ R0 repair source `d71d8b1`, [run 37041826672](https://github.com/OthinusG/warp-l
 macOS and Windows protocol/setup, representative history, default application and
 warp_platform application checks passed. Both OS legacy metadata/credential
 cleanup tests and macOS native configuration, wake and Keychain error-classifier
-tests passed. Review-package builds remain in progress; real credential-provider
-and SSH runtime acceptance remain pending. These results validate the
+tests and both review-package builds passed. Real credential-provider and SSH
+runtime acceptance remain pending. These results validate the
 cutover implementation, not R1–R7 or SR41 runtime behavior. The workspace's 17
 implementation paths match this source; its current branch/index was preserved.
+
+
+Continuous R0–R7 implementation is explicitly requested on 2026-10-03. Extract
+only protobuf generation/framing into remote_protocol so the independently built
+companion can target Linux without desktop/UI dependencies. Keep the existing
+remote_server::{proto, protocol} public paths as re-exports. Ordinary inherited
+channels keep 64 MiB; managed channels use the same codec with a 1 MiB limit,
+checked before allocations. No second codec, transport interface or cloud
+installer is introduced. New remote-platform tests remain GitHub-only.

@@ -85,3 +85,27 @@ The accessor repair was verified by source d71d8b1/run 37041826672: both OS
 backend/history/default/platform/legacy-cleanup checks and macOS native
 configuration/wake/Keychain-classification tests passed. No SSH capability or
 host-status runtime acceptance is asserted. Packaging is tracked separately.
+
+
+## Managed protocol and companion foundation
+
+The user requested uninterrupted completion of the entire plan. R0 validation
+run 37041826672 completed successfully, including both review packages.
+
+Extract the existing protobuf schema and little-endian codec into
+`remote_protocol`, with no WarpUI, cloud installer or desktop dependency.
+`remote_server` re-exports the same protocol/generated symbols, preserving
+ordinary SSH consumers. Both the GUI client and the companion use this single
+schema/codec. Legacy channels retain their existing 64 MiB bound; managed control
+uses the same codec with a 1 MiB ceiling and host-status payloads stay <=8 KiB.
+No protocol autodetection, JSON device revival or parallel framing implementation.
+
+Tasks and checks:
+1. Move schema/codec/tests/build generation; keep public paths unchanged.
+2. Reject oversized writes before allocation and reads before payload allocation;
+   verify framing recovery and managed bounds on Linux/macOS/Windows in GitHub.
+3. Add versioned managed initialization/project attachment and typed host status,
+   pinning account/service/project/boot/connection identities before operations.
+4. Build the repository companion without desktop crates, collect native remote
+   metrics and verify real root identity; then integrate managed SSH client/UI
+   through the static UI gates in PLAN. Do not mark full R2/R6 complete early.

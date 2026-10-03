@@ -1,6 +1,6 @@
 # SSH Remote Technical Plan
 
-Date: 2026-10-03. Status: implementation design for the revised product; no SSH Remote acceptance is implied. Implements [PRODUCT.md](PRODUCT.md) SR01–SR40, sequenced by [PLAN.md](PLAN.md) R0–R7. The old technical plan is [archived](legacy-machine-collaboration/TECH.md). Source disposition is authoritative in [CUTOVER.md](CUTOVER.md).
+Date: 2026-10-03. Status: implementation design for the revised product; no SSH Remote acceptance is implied. Implements [PRODUCT.md](PRODUCT.md) SR01–SR41, sequenced by [PLAN.md](PLAN.md) R0–R7. The old technical plan is [archived](legacy-machine-collaboration/TECH.md). Source disposition is authoritative in [CUTOVER.md](CUTOVER.md).
 
 ## Context: actual reusable code and gaps
 
@@ -191,3 +191,14 @@ telemetry is needed. OS-native counters supply optional CPU/memory/uptime; volum
 space refers to the selected remote root. Missing, stale and disconnected data
 remain distinct. See [HOST-STATUS.md](HOST-STATUS.md). Implementation and static/
 live host-status acceptance remain pending.
+
+
+### Executable protocol extraction decision
+
+R0/R2 uses `remote_protocol` for the existing protobuf schema and little-endian
+codec. `remote_server::{proto, protocol}` remain re-exports so current desktop
+consumers keep the same API. The light crate may be used on Linux without WarpUI;
+this does not enable Linux desktop builds. Managed channels use its explicit
+bounded read/write functions with a 1 MiB limit; ordinary inherited calls retain
+their existing limit. The companion implements versioned managed operations on
+that envelope and refuses inherited unrestricted file/command operations.

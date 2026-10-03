@@ -11,6 +11,8 @@ use crate::proto::{ClientMessage, ServerMessage};
 /// length prefix but before allocating the payload buffer, preventing OOM from
 /// corrupted or adversarial length prefixes.
 pub const MAX_MESSAGE_SIZE: usize = 64 * 1024 * 1024;
+/// Managed project control must not inherit the legacy bulk-metadata allowance.
+pub const MAX_MANAGED_MESSAGE_SIZE: usize = 1024 * 1024;
 
 /// Errors that can occur during protocol-level read/write operations.
 #[derive(thiserror::Error, Debug)]
@@ -71,6 +73,15 @@ impl fmt::Display for RequestId {
 pub async fn read_message<M: Message + Default>(
     reader: &mut (impl AsyncRead + Unpin),
 ) -> Result<M, ProtocolError> {
+    read_message_with_limit(reader, MAX_MESSAGE_SIZE).await
+}
+
+/// Reads the same wire format with a channel-specific ceiling, before allocation.
+pub async fn read_message_with_limit<M: Message + Default>(
+    reader: &mut (impl AsyncRead + Unpin),
+    limit: usize,
+) -> Result<M, ProtocolError> {
+    let limit = limit.min(MAX_MESSAGE_SIZE);
     let mut len_buf = [0u8; 4];
     match reader.read_exact(&mut len_buf).await {
         Ok(_) => {}
@@ -81,10 +92,10 @@ pub async fn read_message<M: Message + Default>(
     }
     let len = u32::from_le_bytes(len_buf) as usize;
 
-    if len > MAX_MESSAGE_SIZE {
+    if len > limit {
         return Err(ProtocolError::MessageTooLarge {
             size: len,
-            max: MAX_MESSAGE_SIZE,
+            max: limit,
         });
     }
 
@@ -110,13 +121,24 @@ pub async fn write_message<M: Message>(
     writer: &mut (impl AsyncWrite + Unpin),
     msg: &M,
 ) -> Result<(), ProtocolError> {
-    let encoded = msg.encode_to_vec();
-    if encoded.len() > MAX_MESSAGE_SIZE {
+    write_message_with_limit(writer, msg, MAX_MESSAGE_SIZE).await
+}
+
+/// Checks size before allocating or writing; a rejected write leaves framing intact.
+pub async fn write_message_with_limit<M: Message>(
+    writer: &mut (impl AsyncWrite + Unpin),
+    msg: &M,
+    limit: usize,
+) -> Result<(), ProtocolError> {
+    let limit = limit.min(MAX_MESSAGE_SIZE);
+    let size = msg.encoded_len();
+    if size > limit {
         return Err(ProtocolError::MessageTooLarge {
-            size: encoded.len(),
-            max: MAX_MESSAGE_SIZE,
+            size,
+            max: limit,
         });
     }
+    let encoded = msg.encode_to_vec();
     let len = encoded.len() as u32;
     writer.write_all(&len.to_le_bytes()).await?;
     writer.write_all(&encoded).await?;

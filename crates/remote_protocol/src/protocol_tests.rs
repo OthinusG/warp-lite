@@ -198,3 +198,27 @@ async fn decode_error_none_when_no_request_id() {
         other => panic!("expected Decode error with None request_id, got: {other:?}"),
     }
 }
+
+
+#[tokio::test]
+async fn managed_limits_preserve_legacy_compatibility_and_rejected_write_framing() {
+    let oversized = ClientMessage { request_id: "x".repeat(MAX_MANAGED_MESSAGE_SIZE), message: None };
+    let mut output = vec![1, 2, 3];
+    let error = write_message_with_limit(&mut output, &oversized, MAX_MANAGED_MESSAGE_SIZE).await.unwrap_err();
+    assert!(matches!(error, ProtocolError::MessageTooLarge { max: MAX_MANAGED_MESSAGE_SIZE, .. }));
+    assert!(error.is_write_recoverable());
+    assert_eq!(output, [1, 2, 3]);
+    let prefix = ((MAX_MANAGED_MESSAGE_SIZE + 1) as u32).to_le_bytes();
+    let mut input = &prefix[..];
+    let error = read_message_with_limit::<ClientMessage>(&mut input, MAX_MANAGED_MESSAGE_SIZE).await.unwrap_err();
+    assert!(matches!(error, ProtocolError::MessageTooLarge { max: MAX_MANAGED_MESSAGE_SIZE, .. }));
+    assert!(!error.is_read_recoverable());
+    let mut legacy = Vec::new();
+    write_client_message(&mut legacy, &oversized).await.unwrap();
+    assert_eq!(read_client_message(&mut &legacy[..]).await.unwrap(), oversized);
+    let small = ClientMessage { request_id: "managed-request".into(), message: Some(client_message::Message::Initialize(Initialize {})) };
+    let mut output = Vec::new();
+    write_message_with_limit(&mut output, &small, MAX_MANAGED_MESSAGE_SIZE).await.unwrap();
+    assert_eq!(u32::from_le_bytes(output[..4].try_into().unwrap()) as usize, small.encoded_len());
+    assert_eq!(read_message_with_limit::<ClientMessage>(&mut &output[..], MAX_MANAGED_MESSAGE_SIZE).await.unwrap(), small);
+}
