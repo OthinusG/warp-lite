@@ -45,6 +45,10 @@ pub enum ConnectionError {
     IncompatibleVersion,
     StaleAttachment,
     CompanionUnavailable,
+    FeatureUnavailable,
+    InvalidInput,
+    Conflict,
+    CapacityExceeded,
 }
 
 fn target(value: &str) -> bool {
@@ -203,6 +207,7 @@ pub struct HostClient {
     pub account_id: String,
     pub root_identity: String,
     alive: bool,
+    capabilities: Vec<String>,
 }
 
 impl HostClient {
@@ -237,6 +242,7 @@ impl HostClient {
             account_id: String::new(),
             root_identity: String::new(),
             alive: true,
+            capabilities: Vec::new(),
         };
         let initialized = client
             .request(managed_request::Operation::Initialize(ManagedInitialize {
@@ -282,11 +288,105 @@ impl HostClient {
         client.canonical_root = opened.canonical_root;
         client.account_id = initialized.account_id;
         client.root_identity = opened.root_identity;
+        client.capabilities = initialized.capabilities;
         Ok(client)
     }
 
     pub fn fence(&self) -> Option<&ManagedFence> {
         self.fence.as_ref()
+    }
+
+    pub fn capabilities(&self) -> &[String] {
+        &self.capabilities
+    }
+
+    fn terminal_scope(&self, fence: &Option<ManagedFence>) -> Result<(), ConnectionError> {
+        if !self.capabilities.iter().any(|c| c == "retained_terminal") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        if !self.alive || fence.is_none() || fence != &self.fence {
+            return Err(ConnectionError::StaleAttachment);
+        }
+        Ok(())
+    }
+
+    pub async fn terminal_launch(
+        &mut self,
+        request: TerminalLaunch,
+    ) -> Result<TerminalState, ConnectionError> {
+        self.terminal_scope(&request.fence)?;
+        let session = request.session_id.clone();
+        let result = self
+            .request(managed_request::Operation::TerminalLaunch(request))
+            .await?;
+        if let managed_response::Result::TerminalState(state) = result {
+            if self.valid_terminal(&state) && state.session_id == session {
+                return Ok(state);
+            }
+        }
+        self.close();
+        Err(ConnectionError::StaleAttachment)
+    }
+
+    pub async fn terminal_control(
+        &mut self,
+        request: TerminalControl,
+    ) -> Result<TerminalState, ConnectionError> {
+        self.terminal_scope(&request.fence)?;
+        let expected_generation = if request.action == TerminalAction::TerminalAttach as i32 {
+            request
+                .attachment_generation
+                .checked_add(1)
+                .ok_or(ConnectionError::InvalidInput)?
+        } else {
+            request.attachment_generation
+        };
+        let session = request.session_id.clone();
+        let run = request.run_id.clone();
+        let result = self
+            .request(managed_request::Operation::TerminalControl(request))
+            .await?;
+        if let managed_response::Result::TerminalState(state) = result {
+            if self.valid_terminal(&state)
+                && state.session_id == session
+                && state.run_id == run
+                && state.attachment_generation == expected_generation
+            {
+                return Ok(state);
+            }
+        }
+        self.close();
+        Err(ConnectionError::StaleAttachment)
+    }
+
+    pub async fn terminal_list(&mut self) -> Result<Vec<TerminalState>, ConnectionError> {
+        self.terminal_scope(&self.fence)?;
+        let result = self
+            .request(managed_request::Operation::TerminalList(TerminalList {
+                fence: self.fence.clone(),
+            }))
+            .await?;
+        if let managed_response::Result::TerminalStates(states) = result {
+            if states.sessions.len() <= 32
+                && states
+                    .sessions
+                    .iter()
+                    .all(|s| self.valid_terminal(s) && s.output.is_empty())
+            {
+                return Ok(states.sessions);
+            }
+        }
+        self.close();
+        Err(ConnectionError::StaleAttachment)
+    }
+
+    fn valid_terminal(&self, state: &TerminalState) -> bool {
+        remote_protocol::managed::valid_terminal_state(state) && state.fence == self.fence
+    }
+
+    /// Disconnect revokes this connection's input lease, preserving remote owned runs.
+    pub fn disconnect(&mut self) {
+        self.close();
     }
 
     pub async fn host_status(
@@ -354,6 +454,14 @@ impl HostClient {
                     }
                     Ok(ManagedErrorCode::ManagedStaleAttachment) => {
                         ConnectionError::StaleAttachment
+                    }
+                    Ok(ManagedErrorCode::ManagedFeatureUnavailable) => {
+                        ConnectionError::FeatureUnavailable
+                    }
+                    Ok(ManagedErrorCode::ManagedInvalidInput) => ConnectionError::InvalidInput,
+                    Ok(ManagedErrorCode::ManagedConflict) => ConnectionError::Conflict,
+                    Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
+                        ConnectionError::CapacityExceeded
                     }
                     _ => ConnectionError::CompanionUnavailable,
                 })

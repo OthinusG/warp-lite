@@ -193,6 +193,9 @@ pub(super) fn spawn(
         let mut attributes = Attributes::new(console.0).map_err(error)?;
         let mut startup = STARTUPINFOEXW::default();
         startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
+        // As in the desktop PTY, let ConPTY supply handles instead of inheriting
+        // the account service's redirected/null standard handles.
+        startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
         startup.lpAttributeList = attributes.pointer();
         let mut command = Vec::new();
         append_quoted(executable.as_os_str(), &mut command);

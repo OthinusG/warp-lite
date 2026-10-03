@@ -131,6 +131,7 @@ impl Companion {
                 let handle = open_root(&root).map_err(path_error)?;
                 let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
                 let canonical_root = root.to_str().unwrap().to_owned();
+                self.terminals.disconnect(&self.fence.connection_id);
                 self.project = Some(Project { root, handle });
                 self.fence.project_id = id;
                 self.last_status = None;

@@ -14,6 +14,22 @@ pub const MAX_STATUS_BYTES: usize = 8192;
 pub const POLL_INTERVAL: Duration = Duration::from_secs(5);
 pub const STALE_AFTER: Duration = Duration::from_secs(15);
 
+/// Terminal bytes are bounded and pinned to an admitted process, never local paths.
+pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
+    let valid_id = |id: &str| Uuid::parse_str(id).is_ok_and(|id| !id.is_nil());
+    state.fence.as_ref().is_some_and(|f| valid_fence(f, true))
+        && valid_id(&state.session_id)
+        && valid_id(&state.run_id)
+        && state.attachment_generation > 0
+        && state.output.len() <= 32 * 1024
+        && state
+            .output_end
+            .checked_sub(state.output_offset)
+            .is_some_and(|remaining| {
+                remaining >= state.output.len() as u64 && remaining <= 256 * 1024
+            })
+}
+
 /// Nil or malformed IDs never identify a verified attachment.
 pub fn valid_fence(fence: &ManagedFence, require_project: bool) -> bool {
     let valid_id = |value: &str| Uuid::parse_str(value).is_ok_and(|id| !id.is_nil());

@@ -1,4 +1,5 @@
 //! Executed only against an explicitly provisioned isolated CI SSH fixture.
+use remote_protocol::proto::{TerminalAction, TerminalControl, TerminalLaunch, TerminalState};
 use uuid::Uuid;
 use warp_agent_bus::sftp::{SftpClient, SftpError, UploadState};
 use warp_agent_bus::ssh_remote::{HostClient, RemoteShell, SshProfile};
@@ -52,6 +53,7 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
     let mut projection =
         remote_protocol::managed::HostObservation::new(two.fence.unwrap(), 2).unwrap();
     assert!(!projection.receive(one, std::time::Instant::now()));
+    controlled_retained_terminal(&profile).await;
     // The alias resolves through a controlled config, not local project canonicalization.
     let mut missing = profile.clone();
     missing.remote_root.push_str("/missing-root");
@@ -135,4 +137,130 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
         sftp.list("").await,
         Err(SftpError::ConnectionLost)
     ));
+}
+
+fn terminal_command(
+    client: &HostClient,
+    state: &TerminalState,
+    action: TerminalAction,
+) -> TerminalControl {
+    TerminalControl {
+        fence: client.fence().cloned(),
+        session_id: state.session_id.clone(),
+        run_id: state.run_id.clone(),
+        attachment_generation: state.attachment_generation,
+        action: action.into(),
+        ..TerminalControl::default()
+    }
+}
+
+async fn terminal_output(client: &mut HostClient, state: &TerminalState, expected: &str) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let result = client
+            .terminal_control(terminal_command(
+                client,
+                state,
+                TerminalAction::TerminalRead,
+            ))
+            .await
+            .unwrap();
+        if String::from_utf8_lossy(&result.output).contains(expected) {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Missing remote terminal output"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+}
+
+async fn controlled_retained_terminal(profile: &SshProfile) {
+    let mut owner = HostClient::connect(profile).await.unwrap();
+    assert!(owner
+        .capabilities()
+        .iter()
+        .any(|c| c == "retained_terminal"));
+    let launch = TerminalLaunch { fence: owner.fence().cloned(), session_id: Uuid::new_v4().to_string(),
+        executable: "/bin/sh".into(), arguments: vec!["-c".into(),
+            "printf 'REMOTE_ROOT=%s\\n' \"$PWD\"; while IFS= read -r input; do printf 'RECEIVED=%s\\n' \"$input\"; done".into()],
+        columns: 80, rows: 24 };
+    let state = owner.terminal_launch(launch.clone()).await.unwrap();
+    assert_eq!(
+        owner.terminal_launch(launch).await.unwrap().run_id,
+        state.run_id
+    );
+    let expected_root = format!("REMOTE_ROOT={}", owner.canonical_root);
+    terminal_output(&mut owner, &state, &expected_root).await;
+    let boot = owner.fence().unwrap().service_boot_id.clone();
+    owner.disconnect();
+    let mut next = HostClient::connect(profile).await.unwrap();
+    assert_eq!(next.fence().unwrap().service_boot_id, boot);
+    let retained = next
+        .terminal_list()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|s| s.session_id == state.session_id)
+        .unwrap();
+    assert_eq!(retained.run_id, state.run_id);
+    assert!(retained.exit_code.is_none());
+    let attached = next
+        .terminal_control(terminal_command(
+            &next,
+            &retained,
+            TerminalAction::TerminalAttach,
+        ))
+        .await
+        .unwrap();
+    let mut input = terminal_command(&next, &attached, TerminalAction::TerminalInput);
+    input.input = "Remote Unicode 多语言;$(not-a-command)\r"
+        .as_bytes()
+        .to_vec();
+    input.input_sequence = 1;
+    next.terminal_control(input.clone()).await.unwrap();
+    assert!(next.terminal_control(input).await.is_err());
+    terminal_output(
+        &mut next,
+        &attached,
+        "RECEIVED=Remote Unicode 多语言;$(not-a-command)",
+    )
+    .await;
+    let stopped = next
+        .terminal_control(terminal_command(
+            &next,
+            &attached,
+            TerminalAction::TerminalStop,
+        ))
+        .await
+        .unwrap();
+    assert!(stopped.stop_requested);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let status = next
+            .terminal_control(terminal_command(
+                &next,
+                &attached,
+                TerminalAction::TerminalRead,
+            ))
+            .await
+            .unwrap();
+        if status.exit_code.is_some() && status.output_closed {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Remote Stop not observed"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    next.terminal_control(terminal_command(
+        &next,
+        &attached,
+        TerminalAction::TerminalRelease,
+    ))
+    .await
+    .unwrap();
+    next.disconnect();
 }
