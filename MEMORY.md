@@ -582,3 +582,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   session::launch, native PTY IO and the existing private MCP/forward relay.
   Disconnect ends the child heartbeat and prevents adoption. S3 accepted; live
   panel/final desktop acceptance and paid vendor calls are not covered.
+
+- Remote Linux evidence must inspect the opened file descriptor via /proc/self/fd,
+  then apply the same root/credential/regular-file/bounds/hash checks. Unix opens
+  use O_NOFOLLOW/O_NONBLOCK. Source 06aa074 verified this alongside Store migration
+  and local communication regressions; desktop-only handle inspection fails remote
+  task evidence even when SSH/MCP themselves work.

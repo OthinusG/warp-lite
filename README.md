@@ -68,9 +68,24 @@ retained-session manager are outside this delivery and their new implementations
 are being removed. Historical device enrollment remains disabled; migration keeps
 history without restoring device authority.
 
-Private remote project/MCP foundations have passed three-platform checks. The
-actual SSH Agent launch workflow, panel integration and final regression remain
-pending. See the [active plan](specs/agent-communication-v2/PLAN.md) and
+Remote project authority, private per-run MCP and explicit Agent launch have passed
+three-platform checks, including two native Agent processes exchanging a message
+and completing a reviewed task through controlled OpenSSH. Panel integration and
+final desktop regression remain pending.
+
+For a manually provisioned remote account, open an ordinary SSH terminal and run:
+
+```sh
+/opt/warpai/warpai-companion agent /srv/project codex /usr/local/bin/codex
+```
+
+Use the companion and vendor executable paths installed on that remote host. Run
+another managed Agent in a second SSH terminal with the same canonical project
+root. Vendor authentication stays remote; no desktop credentials are copied.
+The connection owns the run, so closing it stops the Agent. Native adapters and
+cooperative MCP readiness retain their existing behavior; no blanket automatic
+wake guarantee is added. The current companion is a source-matched review build,
+not included in the published release. See the [active plan](specs/agent-communication-v2/PLAN.md) and
 [acceptance evidence](specs/agent-communication-v2/PROGRESS.md).
 
 ## Why

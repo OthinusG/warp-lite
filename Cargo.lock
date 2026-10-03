@@ -13707,7 +13707,6 @@ dependencies = [
  "futures-util",
  "libc",
  "libsqlite3-sys",
- "rand 0.8.5",
  "rmcp",
  "schemars 1.0.4",
  "serde",
