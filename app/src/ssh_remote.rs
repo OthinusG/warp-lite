@@ -38,7 +38,7 @@ pub(crate) struct RemoteProjectsView {
     fixtures: Vec<Fixture>,
     next: MouseStateHandle,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum Action {
     Next,
     Scroll(f32),
