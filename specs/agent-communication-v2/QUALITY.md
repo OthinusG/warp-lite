@@ -52,10 +52,11 @@ from this engineering gate.
 
 ## Repository cleanup
 
-The whole workspace consumer audit found no removable crate. Remove 29
+The whole workspace consumer audit found no removable crate. Remove 28
 unreferenced direct dependency edges from 18 manifests and only the newly
 unreachable `line-span 0.1.5` lock entry; retain all other locked versions.
-Preserve feature-driven, macro-generated and native linking dependencies.
+Preserve feature-driven, macro-generated and native linking dependencies,
+including num-traits required by num-derive expansions in warpui_core.
 
 Remove seven unwired files: the old GetFiles executor, debug block model, queued
 query types, empty legacy navigation file, invalid unused usage module, and

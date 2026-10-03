@@ -49,6 +49,7 @@ schemars = { version = "1", optional = true }
 settings_value = { workspace = true, optional = true, features = ["derive"] }
 markdown_parser.workspace = true
 num-derive = "0.4.2"
+num-traits.workspace = true
 num_cpus = "1.0"
 ordered-float = "3.0.0"
 parking_lot.workspace = true

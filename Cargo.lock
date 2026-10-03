@@ -14273,6 +14273,7 @@ dependencies = [
  "markdown_parser",
  "minimp4",
  "num-derive",
+ "num-traits",
  "num_cpus",
  "openh264",
  "ordered-float 3.9.2",
