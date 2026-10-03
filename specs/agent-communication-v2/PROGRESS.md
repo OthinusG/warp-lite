@@ -1096,3 +1096,13 @@ Representative native SSH connected/connecting/disconnected/error screenshots
 were reviewed at narrow/wide sizes with no clipped guidance or terminal draft
 loss. PLAN S0 is checked. The later unused direct rand dependency removal and S4
 changes still require their exact-source final regression; no S4 completion claim.
+
+### S4 existing native panel integration — validation running
+
+Source `3145ce496caa741ed595c96831839a49cbfed806`,
+[remote run 37128408681](https://github.com/OthinusG/warp-lite/actions/runs/37128408681), passed all three remote targets, controlled Linux SSH and local regressions.
+[desktop run 37128408745](https://github.com/OthinusG/warp-lite/actions/runs/37128408745) is checking default/platform builds, native form logic, packages and actual companion-driven panel captures.
+Panel-only SSH selection, remote typed reads/mutations, explicit human messaging,
+stale/offline write guards and draft-preserving reconnect are implemented. Original
+request content/version/identity are retained; no automatic mutation retry.
+S4/S5 remain unchecked until native action/capture and final checks pass.

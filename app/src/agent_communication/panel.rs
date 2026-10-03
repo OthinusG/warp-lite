@@ -404,8 +404,12 @@ impl CollaborationPanel {
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
                     if panel.remote.is_some() {
-                        panel.remote_failed = true;
-                        panel.status = format!("SSH project unavailable ({code}). Last received state is stale. Check the system SSH alias and companion, then reconnect.");
+                        panel.remote_failed = error.downcast_ref::<warp_agent_bus::DomainError>().is_none();
+                        panel.status = if panel.remote_failed {
+                            format!("SSH project unavailable ({code}). Last received state is stale. Check the system SSH alias and companion, then reconnect.")
+                        } else {
+                            format!("Could not update the remote view ({code}). Last state is stale; change the view or refresh.")
+                        };
                     } else {
                         panel.status = format!("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.");
                     }
@@ -747,7 +751,7 @@ impl CollaborationPanel {
                             "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{} · run {}",
                             row.agent.name,
                             row.agent.program,
-                            if row.online { "online" } else { "offline" },
+                            if self.remote.is_some() && !self.connected { if row.online { "last observed online; current state unknown" } else { "last observed offline; current state unknown" } } else if row.online { "online" } else { "offline" },
                             row.activity
                                 .map(|activity| match activity {
                                     warp_agent_bus::readiness::Activity::Starting => "starting",
@@ -790,7 +794,7 @@ impl CollaborationPanel {
                     .collect(),
             });
             if snapshot.agents.is_empty() {
-                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec!["Configure installed agents in communication settings, then start them in a new terminal pane.".into()] });
+                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec![if self.remote.is_some() { "Start managed Agents in SSH terminals of this remote project using the manually installed companion." } else { "Configure installed agents in communication settings, then start them in a new terminal pane." }.into()] });
             }
         }
         fixture.sections.push(Section {
