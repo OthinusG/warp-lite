@@ -295,7 +295,9 @@ impl Attachment {
         state
     }
     async fn wait_output(&mut self, state: &TerminalState, marker: &str) -> TerminalState {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        // Native SDK startup has a 30-second adapter bound; steady IO is separate.
+        let seconds = if marker.starts_with("MCP_NATIVE_RUN=") { 45 } else { 15 };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
         loop {
             let result = self
                 .command(self.control(state, TerminalAction::TerminalRead))
@@ -319,7 +321,8 @@ impl Attachment {
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "Missing terminal marker"
+                "Missing terminal marker: active {:?}, exit {:?}, EOF {}, bytes {}",
+                result.processes_active, result.exit_code, result.output_closed, result.output_end
             );
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
@@ -650,7 +653,7 @@ async fn explicit_agent_cli_uses_the_existing_ssh_terminal_io_path() {
         .unwrap();
     let mut input = child.stdin.take().unwrap();
     let mut lines = tokio::io::BufReader::new(child.stdout.take().unwrap()).lines();
-    tokio::time::timeout(std::time::Duration::from_secs(15), async {
+    tokio::time::timeout(std::time::Duration::from_secs(45), async {
         loop {
             if lines
                 .next_line()
@@ -662,6 +665,10 @@ async fn explicit_agent_cli_uses_the_existing_ssh_terminal_io_path() {
                 break;
             }
         }
+    })
+    .await
+    .expect("Native SDK startup deadline");
+    tokio::time::timeout(std::time::Duration::from_secs(15), async {
         input
             .write_all("Unicode 空格;$(never-execute)\r".as_bytes())
             .await
