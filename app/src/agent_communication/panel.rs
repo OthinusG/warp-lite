@@ -463,7 +463,6 @@ impl CollaborationPanel {
                 title: "SSH project".into(),
                 rows: vec![
                     format!("{} · {}", profile.target, profile.remote_root),
-                    format!("Companion: {}", profile.companion_path),
                     self.last_received
                         .map(|at| {
                             format!(
@@ -479,29 +478,31 @@ impl CollaborationPanel {
         let Some(snapshot) = &self.snapshot else {
             return fixture;
         };
-        fixture.sections.push(Section {
-            title: "Scope".into(),
-            rows: vec![
-                format!(
-                    "{} · {}",
-                    if self.remote.is_some() {
-                        "Remote project"
-                    } else if cfg!(target_os = "windows") {
-                        "This Windows PC"
-                    } else {
-                        "This Mac"
-                    },
-                    snapshot.project
-                ),
-                "Only explicitly participating agents in this scope can collaborate.".into(),
-                format!(
-                    "Task filters · state {} · assignee {} · archived {}",
-                    self.query.task_state.as_deref().unwrap_or("any"),
-                    self.query.task_assignee.as_deref().unwrap_or("any"),
-                    self.query.include_archived
-                ),
-            ],
-        });
+        if self.remote.is_none() {
+            fixture.sections.push(Section {
+                title: "Scope".into(),
+                rows: vec![
+                    format!(
+                        "{} · {}",
+                        if self.remote.is_some() {
+                            "Remote project"
+                        } else if cfg!(target_os = "windows") {
+                            "This Windows PC"
+                        } else {
+                            "This Mac"
+                        },
+                        snapshot.project
+                    ),
+                    "Only explicitly participating agents in this scope can collaborate.".into(),
+                    format!(
+                        "Task filters · state {} · assignee {} · archived {}",
+                        self.query.task_state.as_deref().unwrap_or("any"),
+                        self.query.task_assignee.as_deref().unwrap_or("any"),
+                        self.query.include_archived
+                    ),
+                ],
+            });
+        }
         if self.query.history {
             fixture.state = "history and capacity".into();
             if let Some(history) = &snapshot.history {
@@ -749,24 +750,30 @@ impl CollaborationPanel {
                     .agents
                     .iter()
                     .map(|row| {
+                        let activity = row.activity.map(|activity| match activity {
+                            warp_agent_bus::readiness::Activity::Starting => "starting",
+                            warp_agent_bus::readiness::Activity::Idle => "idle",
+                            warp_agent_bus::readiness::Activity::Working => "working",
+                            warp_agent_bus::readiness::Activity::WaitingApproval => "waiting for approval",
+                            warp_agent_bus::readiness::Activity::WaitingInput => "waiting for input",
+                            warp_agent_bus::readiness::Activity::Cancelled => "cancelled",
+                            warp_agent_bus::readiness::Activity::Error => "error",
+                        }).unwrap_or("unknown activity");
+                        if self.remote.is_some() {
+                            return format!("{} · {} · {} · {}\nRun {} · last observation {} · {}{}",
+                                row.agent.name, row.agent.program,
+                                if !self.connected { "stale; current state unknown" } else if row.online { "online" } else { "offline" },
+                                activity, row.run.as_deref().unwrap_or("not observed"),
+                                row.last_observed_ms.map(|age| format!("{}s ago", age / 1000)).unwrap_or_else(|| "not observed".into()),
+                                if row.ready { "ready" } else { "readiness not reported" },
+                                if row.blocked { " · waiting for approval" } else if row.paused { " · paused" } else { "" });
+                        }
                         format!(
                             "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{} · run {}",
                             row.agent.name,
                             row.agent.program,
                             if self.remote.is_some() && !self.connected { if row.online { "last observed online; current state unknown" } else { "last observed offline; current state unknown" } } else if row.online { "online" } else { "offline" },
-                            row.activity
-                                .map(|activity| match activity {
-                                    warp_agent_bus::readiness::Activity::Starting => "starting",
-                                    warp_agent_bus::readiness::Activity::Idle => "idle",
-                                    warp_agent_bus::readiness::Activity::Working => "working",
-                                    warp_agent_bus::readiness::Activity::WaitingApproval =>
-                                        "waiting for approval",
-                                    warp_agent_bus::readiness::Activity::WaitingInput =>
-                                        "waiting for input",
-                                    warp_agent_bus::readiness::Activity::Cancelled => "cancelled",
-                                    warp_agent_bus::readiness::Activity::Error => "error",
-                                })
-                                .unwrap_or("unknown activity"),
+                            activity,
                             row.draft.as_deref().unwrap_or("unknown"),
                             if row.blocked {
                                 "waiting for approval"
@@ -1200,6 +1207,9 @@ impl View for CollaborationPanel {
         } else {
             &live
         };
+        let hide_navigation = self.form.as_ref().is_some_and(|form| {
+            matches!(form.kind, controls::Kind::ConnectSsh | controls::Kind::Send)
+        });
         let mut header = Flex::column().with_spacing(12.);
         header.add_child(
             builder
@@ -1250,14 +1260,19 @@ impl View for CollaborationPanel {
                 .finish(),
         );
         if !self.preview {
+            let mut connection_controls = Flex::row().with_spacing(8.);
             for (index, label, action) in [
                 (
                     0,
-                    "Connect SSH project",
+                    if self.remote.is_some() {
+                        "Change SSH"
+                    } else {
+                        "Connect SSH project"
+                    },
                     Action::OpenControl(controls::Kind::ConnectSsh),
                 ),
-                (1, "Reconnect SSH", Action::ReconnectSsh),
-                (2, "Use local project", Action::UseLocal),
+                (1, "Reconnect", Action::ReconnectSsh),
+                (2, "Local", Action::UseLocal),
             ] {
                 if index > 0 && self.remote.is_none() {
                     continue;
@@ -1272,21 +1287,58 @@ impl View for CollaborationPanel {
                 } else {
                     button
                 };
-                header.add_child(
+                connection_controls.add_child(
                     button
                         .build()
                         .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
                         .finish(),
                 );
             }
+            header.add_child(connection_controls.finish());
         }
         let mut body = Flex::column().with_spacing(12.);
+        let render_section = |section: &Section| {
+            let mut column = Flex::column().with_spacing(12.);
+            column.add_child(
+                builder
+                    .span(section.title.clone())
+                    .with_soft_wrap()
+                    .build()
+                    .finish(),
+            );
+            for row in &section.rows {
+                column.add_child(
+                    Container::new(
+                        builder
+                            .span(row.clone())
+                            .with_soft_wrap()
+                            .with_selectable(true)
+                            .build()
+                            .finish(),
+                    )
+                    .with_padding_left(8.)
+                    .finish(),
+                );
+            }
+            column.finish()
+        };
+        let leading_status = !self.preview && self.remote.is_some() && self.form.is_none();
+        if leading_status {
+            for section in fixture.sections.iter().filter(|section| {
+                matches!(
+                    section.title.as_str(),
+                    "SSH project" | "Agents" | "No participating agents"
+                )
+            }) {
+                body.add_child(render_section(section));
+            }
+        }
         if !self.preview && self.form.is_some() {
             body.add_child(self.render_controls(app));
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
-                if self.remote.is_none() {
+                if self.remote.is_none() && !hide_navigation {
                     header.add_child(
                         builder
                             .button(ButtonVariant::Text, self.scope_buttons[0].clone())
@@ -1296,27 +1348,31 @@ impl View for CollaborationPanel {
                             .finish(),
                     );
                 }
-                header.add_child(
-                    builder
-                        .button(ButtonVariant::Text, self.history_buttons[0].clone())
-                        .with_text_label("History and storage".into())
-                        .build()
-                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History))
-                        .finish(),
-                );
+                if !hide_navigation {
+                    header.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.history_buttons[0].clone())
+                            .with_text_label("History and storage".into())
+                            .build()
+                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History))
+                            .finish(),
+                    );
+                }
                 if self.query.selected_task.is_some()
                     || self.show_spaces
                     || self.show_messages
                     || self.query.history
                 {
-                    header.add_child(
-                        builder
-                            .button(ButtonVariant::Text, self.page_buttons[0].clone())
-                            .with_text_label("Back to agents and tasks".into())
-                            .build()
-                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
-                            .finish(),
-                    );
+                    if !hide_navigation {
+                        header.add_child(
+                            builder
+                                .button(ButtonVariant::Text, self.page_buttons[0].clone())
+                                .with_text_label("Back to agents and tasks".into())
+                                .build()
+                                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
+                                .finish(),
+                        );
+                    }
                 } else {
                     body.add_child(builder.span("Tasks").with_soft_wrap().build().finish());
                     if snapshot.tasks.is_empty() {
@@ -1388,27 +1444,15 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
-            body.add_child(
-                builder
-                    .span(section.title.clone())
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
-            for row in &section.rows {
-                body.add_child(
-                    Container::new(
-                        builder
-                            .span(row.clone())
-                            .with_soft_wrap()
-                            .with_selectable(true)
-                            .build()
-                            .finish(),
-                    )
-                    .with_padding_left(8.)
-                    .finish(),
-                );
+            if leading_status
+                && matches!(
+                    section.title.as_str(),
+                    "SSH project" | "Agents" | "No participating agents"
+                )
+            {
+                continue;
             }
+            body.add_child(render_section(section));
         }
         if !self.preview
             && !self.show_spaces
@@ -3536,6 +3580,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("receive real remote Agent projection")
+                // Native Agent startup has a 30-second bound; allow projection polling too.
+                .set_timeout(std::time::Duration::from_secs(45))
                 .add_named_assertion("native run and isolated scope", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(

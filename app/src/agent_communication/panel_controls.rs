@@ -116,7 +116,7 @@ impl Kind {
 }
 
 pub(super) struct Form {
-    kind: Kind,
+    pub(super) kind: Kind,
     project: String,
     task: Option<Task>,
     purge_preview: Option<super::PurgePreview>,
@@ -457,7 +457,11 @@ impl CollaborationPanel {
         let project = snapshot
             .map(|snapshot| snapshot.project.clone())
             .unwrap_or_default();
-        let task = snapshot.and_then(|snapshot| snapshot.task.clone());
+        let task = if matches!(kind, Kind::Send | Kind::ConnectSsh) {
+            None
+        } else {
+            snapshot.and_then(|snapshot| snapshot.task.clone())
+        };
         let fields: Vec<_> = kind
             .labels()
             .iter()
