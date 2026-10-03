@@ -1106,3 +1106,28 @@ Panel-only SSH selection, remote typed reads/mutations, explicit human messaging
 stale/offline write guards and draft-preserving reconnect are implemented. Original
 request content/version/identity are retained; no automatic mutation retry.
 S4/S5 remain unchecked until native action/capture and final checks pass.
+
+S4 verification follow-up: source210a803/run37131968858 passed all native macOS
+actions and produced 155 captures. Windows reached the real remote projection
+assertion but exceeded its default 10-second step limit; the existing native
+startup contract allows 30 seconds. Sourcefc0be7b/run37132942444 passed all three
+remote targets after aligning managed-child startup checks with that contract.
+Neither result accepts S4: macOS visual review found the Agent/task status below
+the initial viewport. Compact connection controls and leading remote status remove
+that obstruction; remote Send/Connect forms also omit unrelated navigation/task
+context. The projection assertion now allows 45 seconds for startup and polling.
+
+Exact source `de2a72e6321d6c002b60872db0c30123370f9ff0` is being checked in
+[desktop run 37134464890](https://github.com/OthinusG/warp-lite/actions/runs/37134464890)
+and [remote run 37134467333](https://github.com/OthinusG/warp-lite/actions/runs/37134467333).
+Default/platform builds, native actions/screenshots and release packaging must
+complete before S4/S5 are checked. Earlier source82e20c8 passed both desktop
+default/platform checks and focused application tests, but its older native
+capture harness failed; its package run is superseded, not final acceptance.
+
+Run37134467333 completed successfully on Linux x64, macOS arm64 and Windows x64,
+including controlled Linux OpenSSH and local Store/communication regressions.
+Downloaded source-matched Companion review artifacts: all three manifests match
+de2a72e, version0.1.0/protocol1 and the four active capabilities; SHA256SUMS matches
+each actual binary and both attribution/license files are present. S4 native
+actions/visual review and S5 desktop/package completion remain pending.

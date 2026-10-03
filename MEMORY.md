@@ -595,3 +595,11 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   core. Native SSH status fixtures retain terminal drafts. S4 selection belongs
   to the existing panel only, transient, with system SSH authentication and one
   serialized exact-project client; reconnect keeps original human intent.
+
+- SSH panel authentication remains system-owned: use an existing SSH alias with
+  trusted host fingerprint and working noninteractive authentication. The control
+  pipe uses BatchMode/StrictHostKeyChecking; do not add password/key storage or
+  automatic trust. Manually deploy a source-matched Companion artifact and use
+  the same canonical remote root for the panel and explicit Agent launch. Remote
+  review artifacts provide version/source/checksum/capability manifests. The old
+  V01–V24 SSH-manager acceptance matrix is archived; active acceptance is S0–S5.

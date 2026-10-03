@@ -37,7 +37,7 @@ functionality are preserved; redundant additions are deleted with focused regres
 - [x] **S2 — Per-run private MCP foundation.** Fresh child credentials, fixed
   project/native run, existing MCP SDK and operation semantics; revoke after
   observed owned exit and reject replaced-root/stale-capability replay.
-  Actual retained native child performs MCP initialize/tools discovery.
+  An actual owned native child performs MCP initialize/tools discovery.
   Accepted source 9a8e692, run 37110965089 on Linux/macOS/Windows. This backend
   gate does not prove vendor launch UX or two-Agent execution yet.
 - [x] **S3 — Existing SSH terminal Agent workflow.** Provide the smallest explicit

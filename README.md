@@ -64,14 +64,32 @@ Linux, macOS and Windows; desktop targets remain macOS/Windows.
 
 Manual placement of the repository companion is sufficient. A file manager,
 transfer queue, host resource monitor, independent Connections dashboard and
-retained-session manager are outside this delivery and their new implementations
-are being removed. Historical device enrollment remains disabled; migration keeps
+retained-session manager are outside this delivery; their redundant additions
+have been removed. Historical device enrollment remains disabled; migration keeps
 history without restoring device authority.
 
 Remote project authority, private per-run MCP and explicit Agent launch have passed
 three-platform checks, including two native Agent processes exchanging a message
 and completing a reviewed task through controlled OpenSSH. Panel integration and
 final desktop regression remain pending.
+
+For the panel, enable Agent communication and open **Agent collaboration >
+Connect SSH project**. Enter a system SSH alias, the absolute remote project root
+and the absolute installed companion path. The selection lasts for that panel;
+it does not save another SSH profile. Review the host fingerprint and establish
+working noninteractive authentication with your system SSH client first. The
+panel requires an already trusted host and does not prompt for passwords or keys.
+
+Use **Reconnect** after a lost connection. The last projection is shown as stale,
+writes are disabled offline, and unsent forms survive reconnect. A write with an
+unknown outcome keeps its original intent; explicitly retry unchanged content to
+reconcile it. Close the current form before changing the target or returning to
+**Local**. Use the same canonical remote root in the panel and Agent launch.
+
+Use the source-matched companion artifact for the remote host's OS/architecture
+from the [remote validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-remote-companion.yml).
+Place it at a user-chosen executable path on that account; use the artifact's
+manifest to match its source/version to the desktop review build.
 
 For a manually provisioned remote account, open an ordinary SSH terminal and run:
 

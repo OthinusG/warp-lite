@@ -42,7 +42,7 @@ communication remains a required regression. Update PROGRESS per accepted item.
 The detailed former manager architecture is archived in
 legacy-ssh-project-manager/TECH.md and is not a delivery checklist.
 
-### S3 minimum launch path (implementation pending validation)
+### S3 minimum launch path (accepted)
 
 Inside an ordinary SSH terminal, run `warpai-companion agent <absolute-root>
 <program> <absolute-vendor-executable> [vendor-arguments...]`. The CLI joins the
