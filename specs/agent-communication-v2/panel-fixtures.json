@@ -162,5 +162,75 @@
         ]
       }
     ]
+  },
+  {
+    "state": "ssh-agent-connected",
+    "guidance": "Connected · research-node · remote account and project verified. Last update 2s ago.",
+    "sections": [
+      {
+        "title": "SSH project",
+        "rows": [
+          "research-node · /srv/research/project",
+          "Companion: /opt/warpai/warpai-companion"
+        ]
+      },
+      {
+        "title": "Agents",
+        "rows": [
+          "Codex · online · run observed · ready",
+          "Claude Code · online · run observed · working"
+        ]
+      },
+      {
+        "title": "Tasks",
+        "rows": [
+          "Remote result submitted · waiting for review"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "ssh-agent-connecting",
+    "guidance": "Connecting to research-node. Writes are unavailable until the remote project is verified.",
+    "sections": [
+      {
+        "title": "SSH target",
+        "rows": [
+          "System SSH alias: research-node",
+          "Remote project: /srv/research/project",
+          "Companion path: /opt/warpai/warpai-companion"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "ssh-agent-disconnected",
+    "guidance": "Disconnected · last update 38s ago. Displayed Agent/task state may be stale. Reconnect before sending work.",
+    "sections": [
+      {
+        "title": "SSH project",
+        "rows": [
+          "research-node · /srv/research/project"
+        ]
+      },
+      {
+        "title": "Agents",
+        "rows": [
+          "Codex · last observed online · current state unknown"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "ssh-agent-error",
+    "guidance": "SSH connection failed. Check the system SSH alias and manually installed companion path, then retry.",
+    "sections": [
+      {
+        "title": "SSH project",
+        "rows": [
+          "research-node · /srv/research/project"
+        ]
+      }
+    ]
   }
 ]

@@ -57,3 +57,11 @@ Disconnect ends the owned run; no retained-session takeover is available.
 Linux remote evidence uses the opened file's `/proc/self/fd` path, followed by the
 same root/credential/regular-file/size/hash checks as the existing desktop engine.
 Unix evidence opens use O_NOFOLLOW/O_NONBLOCK to refuse symlinks and avoid FIFOs.
+
+### S4 visual source
+
+The existing native Collaboration panel and its existing editor/button components
+are the visual source. Added four fixed SSH states (connecting, connected,
+disconnected, error) to panel-fixtures.json, with target/root/companion and observed
+Agent/task rows. Review native captures before wiring live remote projections.
+No independent dashboard, resource metrics, file actions or session manager.
