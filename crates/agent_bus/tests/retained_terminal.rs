@@ -38,6 +38,108 @@ struct Attachment {
     output: Compat<tokio::process::ChildStdout>,
     fence: ManagedFence,
 }
+
+#[test]
+#[ignore = "owned retained background child fixture"]
+fn retained_background_child() {
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    }
+    std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "retained_background_sleep",
+            "--ignored",
+            "--nocapture",
+        ])
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !std::path::Path::new("retained-background-ready").exists() {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+#[test]
+#[ignore = "owned retained background sleeper fixture"]
+fn retained_background_sleep() {
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    }
+    std::fs::write("retained-background-ready", "ready").unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(30));
+}
+
+#[tokio::test]
+async fn retained_background_activity_blocks_release_after_leader_exit_and_disconnect() {
+    let root = tempfile::tempdir().unwrap();
+    let mut first = Attachment::open(root.path()).await;
+    let managed_response::Result::TerminalState(state) = first
+        .call(managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(first.fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: std::env::current_exe().unwrap().to_str().unwrap().into(),
+            arguments: [
+                "--exact",
+                "retained_background_child",
+                "--ignored",
+                "--nocapture",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+            columns: 100,
+            rows: 24,
+        }))
+        .await
+    else {
+        panic!("Background owner required")
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let ended = loop {
+        let current = first
+            .command(first.control(&state, TerminalAction::TerminalRead))
+            .await;
+        if current.exit_code.is_some() {
+            break current;
+        }
+        assert!(std::time::Instant::now() < deadline);
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    assert_eq!(ended.processes_active, Some(true));
+    assert!(
+        matches!(first.call(managed_request::Operation::TerminalControl(first.control(&ended, TerminalAction::TerminalRelease))).await, managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedConflict as i32)
+    );
+    let boot = first.fence.service_boot_id.clone();
+    first.disconnect().await;
+    let mut next = Attachment::open(root.path()).await;
+    assert_eq!(next.fence.service_boot_id, boot);
+    let attached = next
+        .command(next.control(&ended, TerminalAction::TerminalAttach))
+        .await;
+    assert_eq!(attached.run_id, state.run_id);
+    assert_eq!(attached.processes_active, Some(true));
+    next.command(next.control(&attached, TerminalAction::TerminalStop))
+        .await;
+    loop {
+        let current = next
+            .command(next.control(&attached, TerminalAction::TerminalRead))
+            .await;
+        if current.processes_active == Some(false) && current.output_closed {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Owned background process did not stop"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    next.command(next.control(&attached, TerminalAction::TerminalRelease))
+        .await;
+    next.disconnect().await;
+}
 impl Attachment {
     async fn open(root: &std::path::Path) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_warpai-companion"))

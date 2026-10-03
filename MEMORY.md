@@ -538,3 +538,14 @@ already ended. Permission failures with other members remain errors. Native test
 observe child readiness/status and repeat job exit observation for ConPTY EOF.
 R0.3 identity contract/inventory and R4.3 session/run/attachment ownership are
 accepted independently; live terminal/sidebar/task integration remains pending.
+
+
+Remote task Store/API source550753b/run37107398041 is verified on all three
+remote platforms plus controlled Linux SSH/SFTP. A native project UUID selects
+an owned private SQLite/Broker instance on the companion host, reusing Store;
+GUI attachments share its authority and never upload/open a local desktop Store.
+Persist the canonical root binding because the existing engine keys private
+projects by path: an externally renamed root must fail visibly rather than hide
+history under a fresh path domain. Explicit root-domain migration is pending.
+GUI task control denies Agent lifecycle/file capabilities and retired federation;
+R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.

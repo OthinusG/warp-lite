@@ -164,6 +164,7 @@ message TerminalState {
   uint64 accepted_input_sequence = 12;
   bool input_failed = 13;
   bool output_closed = 14;
+  optional bool processes_active = 15;
 }
 message TerminalStates { repeated TerminalState sessions = 1; }
 enum MetricUnavailable {

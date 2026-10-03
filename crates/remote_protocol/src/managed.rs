@@ -21,6 +21,7 @@ pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
         && valid_id(&state.session_id)
         && valid_id(&state.run_id)
         && state.attachment_generation > 0
+        && !(state.processes_active == Some(false) && state.exit_code.is_none())
         && state.output.len() <= 32 * 1024
         && state
             .output_end
@@ -146,6 +147,12 @@ mod tests {
             ..crate::proto::TerminalState::default()
         };
         assert!(valid_terminal_state(&state));
+        state.processes_active = Some(false);
+        assert!(!valid_terminal_state(&state));
+        state.exit_code = Some(0);
+        assert!(valid_terminal_state(&state));
+        state.exit_code = None;
+        state.processes_active = None;
         state.output_end = 1;
         assert!(!valid_terminal_state(&state));
         state.output_end = 2;

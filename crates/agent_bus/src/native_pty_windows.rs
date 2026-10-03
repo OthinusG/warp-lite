@@ -255,7 +255,7 @@ pub(super) fn spawn(
     }
 }
 impl Process {
-    fn active(&self) -> io::Result<bool> {
+    pub(super) fn active(&self) -> io::Result<bool> {
         let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
         unsafe {
             QueryInformationJobObject(

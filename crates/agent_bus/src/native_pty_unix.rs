@@ -112,9 +112,7 @@ pub(super) fn spawn(
 }
 impl Process {
     #[cfg(target_os = "macos")]
-    fn only_exited_leader(&self) -> bool {
-        // Darwin returns EPERM for a group containing only the unreaped zombie.
-        // Confirm group membership before distinguishing that case from denied IO.
+    fn group_members(&self) -> io::Result<Vec<sysinfo::Pid>> {
         let mut pids = [0i32; 4096];
         let bytes = unsafe {
             libc::proc_listpids(
@@ -124,11 +122,72 @@ impl Process {
                 std::mem::size_of_val(&pids) as _,
             )
         };
-        bytes > 0
-            && (bytes as usize) < std::mem::size_of_val(&pids)
-            && pids[..bytes as usize / std::mem::size_of::<i32>()]
-                .iter()
-                .all(|pid| *pid == 0 || *pid == self.child.id() as i32)
+        if bytes <= 0 || bytes as usize >= std::mem::size_of_val(&pids) || bytes as usize % 4 != 0 {
+            return Err(io::Error::other("Owned process group is unavailable"));
+        }
+        Ok(pids[..bytes as usize / 4]
+            .iter()
+            .filter(|pid| **pid > 0)
+            .map(|pid| sysinfo::Pid::from_u32(*pid as u32))
+            .collect())
+    }
+    #[cfg(not(target_os = "macos"))]
+    fn group_members(&self) -> io::Result<Vec<sysinfo::Pid>> {
+        let mut pids = Vec::new();
+        // ponytail: bounded /proc enumeration; native pidfd/cgroup ownership is
+        // needed only if hosts exceed this 16K process scan ceiling.
+        for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
+            if count >= 16384 {
+                return Err(io::Error::other("Owned process scan exceeds its bound"));
+            }
+            let entry = entry?;
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<i32>().ok())
+                .filter(|pid| *pid > 0)
+            else {
+                continue;
+            };
+            if unsafe { libc::getpgid(pid) } == self.child.id() as i32 {
+                pids.push(sysinfo::Pid::from_u32(pid as u32));
+                if pids.len() >= 4096 {
+                    return Err(io::Error::other("Owned process group exceeds its bound"));
+                }
+            }
+        }
+        Ok(pids)
+    }
+    #[cfg(target_os = "macos")]
+    fn only_exited_leader(&self) -> bool {
+        // Darwin rejects a group containing only the unreaped zombie with EPERM.
+        self.group_members()
+            .is_ok_and(|pids| pids.iter().all(|pid| pid.as_u32() == self.child.id()))
+    }
+    pub(super) fn active(&mut self) -> io::Result<bool> {
+        if self.exit_code()?.is_none() {
+            return Ok(true);
+        }
+        let pids: Vec<_> = self
+            .group_members()?
+            .into_iter()
+            .filter(|pid| pid.as_u32() != self.child.id())
+            .collect();
+        if pids.is_empty() {
+            return Ok(false);
+        }
+        let mut system = sysinfo::System::new();
+        system.refresh_processes_specifics(
+            sysinfo::ProcessesToUpdate::Some(&pids),
+            true,
+            sysinfo::ProcessRefreshKind::nothing(),
+        );
+        Ok(pids.into_iter().any(|pid| match system.process(pid) {
+            Some(process) => process.status() != sysinfo::ProcessStatus::Zombie,
+            // A disappearing child is harmless; an unreadable surviving member
+            // remains active/unknown and cannot authorize release or idle exit.
+            None => (unsafe { libc::getpgid(pid.as_u32() as i32) }) == self.child.id() as i32,
+        }))
     }
     pub(super) fn resize(&self, file: &File, dimensions: Size) -> io::Result<()> {
         unsafe {

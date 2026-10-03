@@ -282,6 +282,7 @@ impl Terminals {
                 TerminalAction::TerminalRead => (),
                 TerminalAction::TerminalRelease => {
                     if session.pty.exit_code().map_err(path_error)?.is_none()
+                        || session.pty.is_active().map_err(path_error)?
                         || !lock(&session.output)?.closed
                     {
                         return Err(Error::ManagedConflict);
@@ -348,7 +349,7 @@ impl Terminals {
         };
         owners.into_iter().any(|owner| {
             owner.lock().map_or(true, |mut s| {
-                s.pty.exit_code().ok().flatten().is_none()
+                s.pty.is_active().unwrap_or(true)
                     || s.output.lock().map_or(true, |output| !output.closed)
             })
         })
@@ -384,6 +385,7 @@ mod tests {
 impl Session {
     fn state(&mut self, fence: &ManagedFence, offset: Option<u64>) -> Result<TerminalState, Error> {
         let exit_code = self.pty.exit_code().map_err(path_error)?;
+        let processes_active = Some(self.pty.is_active().map_err(path_error)?);
         let output = lock(&self.output)?;
         let first = output.end - output.bytes.len() as u64;
         let requested = offset.unwrap_or(output.end);
@@ -399,6 +401,7 @@ impl Session {
             attached: self.connection.is_some(),
             stop_requested: self.stop_requested,
             exit_code,
+            processes_active,
             output_offset: start,
             output_end: output.end,
             output: if offset.is_some() {

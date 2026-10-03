@@ -902,3 +902,38 @@ The remaining panel-control and Connections exit focus dispatches now also use
 the shared deferred helper, covering all discovered sibling workspace actions.
 Desktop/capture run37106025476 validates source3a37ed2 independently of this new
 wire/store source; it cannot establish compilation of source4420e78.
+
+
+### Remote project task backend accepted — source 550753b
+
+Source `550753b33a090b0d0531395f9ced8c8beeebb2fb`,
+[run 37107398041](https://github.com/OthinusG/warp-lite/actions/runs/37107398041),
+passed all three remote platform suites and controlled Linux SSH/SFTP. Private
+project Store reopening retains tasks/events; same-project connections reconcile
+the original immutable intent, changed content conflicts, other/replaced project
+identities have independent databases. GUI lifecycle/retired-device requests and
+stale/native-replaced project fences are refused. Remote errors retain safe
+code/version facts without peer prose or arbitrary retry hints. Controlled SSH
+checks both attachments' task projections and refuses GUI Agent registration.
+
+Source4420e78/run37107128686 failed only the new IPC assertion's return type;
+the helper already unwraps successful JSON. The corrected source verifies the
+registered actor name, and every new task check now passes. This accepts the
+remote authoritative Store/API foundation; full R2.7 still requires local
+projection/pending GUI-intent integration. R2.6 per-launch MCP and R5/R6 live
+remote Agent/sidebar/task flows remain pending, as does native UI validation of
+this exact source. No complete V08/V17 gate or real vendor compliance is claimed.
+
+
+### Owned process activity follow-up (pending validation)
+
+Task source550753b passed all focused gates. Further lifecycle review found that
+Darwin PTY output may close while an ignored-hangup background child remains
+alive: leader exit plus output EOF must not authorize Release or 60-second idle
+owner exit. NativePty now provides group/job activity, using bounded native group
+membership plus installed sysinfo status on Unix and existing owned-job accounting
+on Windows. TerminalState exposes optional processes_active; Release and idle
+use the same actual observation and retain ownership on observation failure.
+Extend the existing real background-child check with activity before/after stop,
+and shared-wire checks with impossible inactive/unobserved-exit rejection.
+These changes still need exact-source remote verification; no R2.8 gate is closed.

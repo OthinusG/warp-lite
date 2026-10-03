@@ -465,3 +465,18 @@ directory. Renaming that root externally yields conflict for task operations;
 it cannot silently select a new path-keyed domain and hide old work. Explicit
 root-domain migration is not provided by this initial route. GUI file transfers
 must not present this as an accepted root-rename workflow.
+
+
+Retained TerminalState tag 15 adds optional `processes_active`, separate from the
+leader's exit_code and output_closed. Missing means an older helper did not
+provide group/job liveness. The current owner reports actual native process-
+group/job activity and refuses release while any owned member remains active,
+even after leader exit and PTY EOF. Idle service exit uses that same observation;
+unknown/unavailable activity keeps the owner alive rather than authorizing cleanup.
+Unix group queries exclude the retained zombie leader and inspect remaining
+members with the existing native sysinfo status implementation. Linux enumeration
+is bounded at 16K /proc entries and 4096 group members; macOS native group listing
+is bounded at 4096. Exceeding/losing observation is unavailable, not ended. These
+checks cover the owned Unix group/Windows job; deliberately escaped Unix process
+groups are outside this primitive's ownership. Whole GUI session/Agent lifecycle
+acceptance remains pending R4/R5.

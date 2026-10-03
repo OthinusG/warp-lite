@@ -293,3 +293,16 @@ then stop under the original owned group/job and reach observed exit/output EOF.
 The native fixture inspects OS process state rather than equating a broken pipe
 with process death. This closes the source28a97cb native regressions; production
 GUI/capture verification remains separate.
+
+
+## Remote task Store/API backend checkpoint — 2026-10-03
+
+Source `550753b33a090b0d0531395f9ced8c8beeebb2fb`,
+[run 37107398041](https://github.com/OthinusG/warp-lite/actions/runs/37107398041),
+passed Linux/macOS/Windows complete focused suites and controlled Linux SSH/SFTP.
+New task checks cover real private IPC actor registration, persisted pool task/
+events, shared project intent replay, changed-content conflict, different and
+replaced project isolation, no file creation on forbidden authority, stale/root
+replacement fencing, sanitized errors and actual SSH scoped panel reads. This
+is partial V08/V17 evidence. Local projection/GUI intent persistence, real remote
+MCP process launch and GUI/vendor task workflows remain unverified.

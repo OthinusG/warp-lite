@@ -83,6 +83,10 @@ fn owned_group_can_stop_background_children_after_observing_leader_exit() {
     assert!(system
         .process(pid)
         .is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie));
+    assert!(
+        pty.is_active().unwrap(),
+        "A closed leader still owns its background process"
+    );
     #[cfg(not(target_os = "macos"))]
     assert!(
         completion.try_recv().is_err(),
@@ -116,6 +120,10 @@ fn owned_group_can_stop_background_children_after_observing_leader_exit() {
     };
     assert!(String::from_utf8_lossy(&bytes).contains("BACKGROUND_CHILD_READY"));
     thread.join().unwrap();
+    assert!(
+        !pty.is_active().unwrap(),
+        "Stopped owned group still appears active"
+    );
 }
 
 #[test]

@@ -54,6 +54,10 @@ impl NativePty {
     pub fn exit_code(&mut self) -> io::Result<Option<i32>> {
         self.process.exit_code()
     }
+    /// Includes owned background processes; output EOF is not process-exit evidence.
+    pub fn is_active(&mut self) -> io::Result<bool> {
+        self.process.active()
+    }
     pub fn stop(&mut self) -> io::Result<bool> {
         self.process.stop()
     }
