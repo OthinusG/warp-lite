@@ -131,10 +131,10 @@ enum TerminalAction {
   TERMINAL_RELEASE = 7;
 }
 message TerminalControl {
+  reserved 4;
   ManagedFence fence = 1;
   string session_id = 2;
   string run_id = 3;
-  uint64 attachment_generation = 4;
   TerminalAction action = 5;
   uint64 output_offset = 6;
   bytes input = 7;
@@ -143,11 +143,10 @@ message TerminalControl {
   uint32 rows = 10;
 }
 message TerminalState {
+  reserved 4, 5;
   ManagedFence fence = 1;
   string session_id = 2;
   string run_id = 3;
-  uint64 attachment_generation = 4;
-  bool attached = 5;
   bool stop_requested = 6;
   optional sint32 exit_code = 7;
   uint64 output_offset = 8;

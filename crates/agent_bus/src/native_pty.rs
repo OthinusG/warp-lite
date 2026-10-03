@@ -1,4 +1,4 @@
-//! Native PTY ownership without desktop services. The service retains this owner.
+//! Native Agent PTY ownership without desktop services.
 use std::{fs::File, io, path::Path};
 
 #[cfg(unix)]
@@ -23,7 +23,7 @@ impl Size {
     }
 }
 
-/// Dropping an attachment must not drop this service-owned PTY/process handle.
+/// Observe owned group/job activity before releasing native process handles.
 pub struct NativePty {
     pub reader: File,
     pub writer: File,

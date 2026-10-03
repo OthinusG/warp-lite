@@ -9,7 +9,6 @@ pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
     state.fence.as_ref().is_some_and(|f| valid_fence(f, true))
         && valid_id(&state.session_id)
         && valid_id(&state.run_id)
-        && state.attachment_generation > 0
         && !(state.processes_active == Some(false) && state.exit_code.is_none())
         && state.output.len() <= 32 * 1024
         && state
@@ -48,7 +47,6 @@ mod tests {
             }),
             session_id: Uuid::new_v4().to_string(),
             run_id: Uuid::new_v4().to_string(),
-            attachment_generation: 1,
             output_end: 2,
             output: b"ok".to_vec(),
             ..crate::proto::TerminalState::default()

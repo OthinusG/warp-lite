@@ -11,7 +11,7 @@ use std::{
 };
 
 const MAX_SESSIONS: usize = 32;
-const REPLAY_BYTES: usize = 256 * 1024;
+const BUFFER_BYTES: usize = 256 * 1024;
 const PAGE_BYTES: usize = 32 * 1024;
 type Error = ManagedErrorCode;
 type Owner = Arc<Mutex<Session>>;
@@ -31,7 +31,7 @@ impl Output {
             .checked_add(bytes.len() as u64)
             .ok_or(Error::ManagedUnavailable)?;
         self.bytes.extend(bytes);
-        let discard = self.bytes.len().saturating_sub(REPLAY_BYTES);
+        let discard = self.bytes.len().saturating_sub(BUFFER_BYTES);
         self.bytes.drain(..discard);
         Ok(())
     }
@@ -238,9 +238,7 @@ impl Terminals {
         {
             return Err(Error::ManagedInvalidInput);
         }
-        if session.connection.as_deref() != Some(&fence.connection_id)
-            || request.attachment_generation != 1
-        {
+        if session.connection.as_deref() != Some(&fence.connection_id) {
             return Err(Error::ManagedStaleAttachment);
         }
         match action {
@@ -349,12 +347,12 @@ impl Terminals {
 mod tests {
     use super::*;
     #[test]
-    fn replay_discards_old_bytes_without_losing_absolute_offsets() {
+    fn output_buffer_preserves_absolute_offsets_when_full() {
         let mut output = Output::default();
-        output.append(&vec![1; REPLAY_BYTES]).unwrap();
+        output.append(&vec![1; BUFFER_BYTES]).unwrap();
         output.append(b"tail").unwrap();
-        assert_eq!(output.end, REPLAY_BYTES as u64 + 4);
-        assert_eq!(output.bytes.len(), REPLAY_BYTES);
+        assert_eq!(output.end, BUFFER_BYTES as u64 + 4);
+        assert_eq!(output.bytes.len(), BUFFER_BYTES);
         assert_eq!(
             output
                 .bytes
@@ -367,7 +365,7 @@ mod tests {
         );
         output.end = u64::MAX;
         assert!(output.append(b"overflow").is_err());
-        assert_eq!(output.bytes.len(), REPLAY_BYTES);
+        assert_eq!(output.bytes.len(), BUFFER_BYTES);
     }
 }
 
@@ -389,8 +387,6 @@ impl Session {
             fence: Some(fence.clone()),
             session_id: self.launch.session_id.clone(),
             run_id: self.run_id.clone(),
-            attachment_generation: 1,
-            attached: self.connection.is_some(),
             stop_requested: self.stop_requested,
             exit_code,
             processes_active,

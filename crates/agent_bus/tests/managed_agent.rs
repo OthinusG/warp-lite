@@ -84,10 +84,6 @@ fn managed_agent_child() {
         }
         match line.trim_end() {
             "Unicode 空格;$(never-execute)" => println!("UNICODE_INPUT_VERIFIED"),
-            "flood" => {
-                println!("{}", "x".repeat(300_000));
-                println!("BOUNDED_REPLAY_VERIFIED");
-            }
             value => {
                 use warp_agent_bus::transport::*;
                 operation_sequence += 1;
@@ -127,8 +123,8 @@ struct Attachment {
 }
 
 #[test]
-#[ignore = "owned retained background child fixture"]
-fn retained_background_child() {
+#[ignore = "owned Agent background child fixture"]
+fn owned_background_child() {
     #[cfg(unix)]
     unsafe {
         libc::signal(libc::SIGHUP, libc::SIG_IGN);
@@ -136,7 +132,7 @@ fn retained_background_child() {
     std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "retained_background_sleep",
+            "owned_background_sleep",
             "--ignored",
             "--nocapture",
         ])
@@ -150,8 +146,8 @@ fn retained_background_child() {
 }
 
 #[test]
-#[ignore = "owned retained background sleeper fixture"]
-fn retained_background_sleep() {
+#[ignore = "owned Agent background sleeper fixture"]
+fn owned_background_sleep() {
     #[cfg(unix)]
     unsafe {
         libc::signal(libc::SIGHUP, libc::SIG_IGN);
@@ -171,7 +167,7 @@ async fn background_activity_blocks_release_until_owned_stop() {
             executable: std::env::current_exe().unwrap().to_str().unwrap().into(),
             arguments: [
                 "--exact",
-                "retained_background_child",
+                "owned_background_child",
                 "--ignored",
                 "--nocapture",
             ]
@@ -285,7 +281,6 @@ impl Attachment {
             fence: Some(self.fence.clone()),
             session_id: state.session_id.clone(),
             run_id: state.run_id.clone(),
-            attachment_generation: state.attachment_generation,
             action: action.into(),
             ..TerminalControl::default()
         }
@@ -345,7 +340,7 @@ impl Attachment {
 #[tokio::test]
 async fn managed_agent_fences_input_project_and_owned_stop() {
     let directory = tempfile::tempdir().unwrap();
-    let root = directory.path().join("Retained root 多语言");
+    let root = directory.path().join("Agent root 多语言");
     std::fs::create_dir(&root).unwrap();
     let root = root.canonicalize().unwrap();
     let mut first = Attachment::open(&root).await;

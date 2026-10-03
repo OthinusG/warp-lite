@@ -149,7 +149,6 @@ async fn launch_agent() -> anyhow::Result<i32> {
             fence: client.fence().cloned(),
             session_id: state.session_id.clone(),
             run_id: state.run_id.clone(),
-            attachment_generation: state.attachment_generation,
             action: TerminalAction::TerminalRead as i32,
             output_offset: offset,
             ..Default::default()

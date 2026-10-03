@@ -1,4 +1,4 @@
-//! System OpenSSH metadata and a clean, strictly verified managed read channel.
+//! System OpenSSH metadata and a clean, strictly verified project control channel.
 use std::{path::PathBuf, process::Stdio, time::Duration};
 
 use base64::Engine;
@@ -404,16 +404,11 @@ impl HostClient {
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
         let run = request.run_id.clone();
-        let request_generation = request.attachment_generation;
         let result = self
             .request(managed_request::Operation::TerminalControl(request))
             .await?;
         if let managed_response::Result::TerminalState(state) = result {
-            if self.valid_terminal(&state)
-                && state.session_id == session
-                && state.run_id == run
-                && state.attachment_generation == request_generation
-            {
+            if self.valid_terminal(&state) && state.session_id == session && state.run_id == run {
                 return Ok(state);
             }
         }

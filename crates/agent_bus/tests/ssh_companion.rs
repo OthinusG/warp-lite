@@ -144,7 +144,6 @@ fn terminal_command(
         fence: client.fence().cloned(),
         session_id: state.session_id.clone(),
         run_id: state.run_id.clone(),
-        attachment_generation: state.attachment_generation,
         action: action.into(),
         ..TerminalControl::default()
     }
