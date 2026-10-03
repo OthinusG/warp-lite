@@ -792,3 +792,21 @@ waited indefinitely for a ConPTY output EOF while its owner retained HPCON.
 Source `d1022f8` closes the console only after observed exit. Three-platform
 run `37094854747` and full desktop/native-capture run `37094856739` are pending.
 No R2/R4/GUI/vendor gate is checked by this implementation checkpoint.
+
+### Retained terminal backend accepted — source 064f5cb
+
+[Run 37104521972](https://github.com/OthinusG/warp-lite/actions/runs/37104521972)
+passed Linux/macOS/Windows wire, native PTY, real companion disconnect/reconnect,
+immutable launch replay, replaced input lease, sequential input, bounded replay,
+project isolation and owned Stop/observed-exit/release checks. Controlled Linux
+OpenSSH exercised a real remote shell cwd, Unicode input, reconnect to the same
+boot/run and explicit Stop; actual binary SFTP streams also passed. All three
+review artifacts include the negotiated retained_terminal capability.
+
+This accepts the read/session service and terminal identity primitives, not
+terminal GUI, Agent MCP/task authority or complete V13–V15. A follow-up retains
+Unix leader IDs until owner release so background children remain controllable;
+that new process-group check needs exact-source validation. Desktop run
+37094856739 passed Windows application checks but native capture exposed a
+circular view update; macOS stopped at a crates.io DNS download failure.
+Full new-source desktop/capture run 37104524458 is pending.

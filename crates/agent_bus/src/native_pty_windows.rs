@@ -255,6 +255,20 @@ pub(super) fn spawn(
     }
 }
 impl Process {
+    fn active(&self) -> io::Result<bool> {
+        let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        unsafe {
+            QueryInformationJobObject(
+                Some(*self.job),
+                JobObjectBasicAccountingInformation,
+                (&mut info as *mut JOBOBJECT_BASIC_ACCOUNTING_INFORMATION).cast(),
+                std::mem::size_of_val(&info) as u32,
+                None,
+            )
+            .map_err(error)?;
+        }
+        Ok(info.ActiveProcesses != 0)
+    }
     pub(super) fn resize(&self, _: &File, dimensions: Size) -> io::Result<()> {
         let console = self.console.as_ref().ok_or(io::ErrorKind::NotConnected)?;
         unsafe { ResizePseudoConsole(console.0, size(dimensions)).map_err(error) }
@@ -266,9 +280,11 @@ impl Process {
                 WAIT_OBJECT_0 => {
                     let mut code = 0;
                     GetExitCodeProcess(*self.handle, &mut code).map_err(error)?;
-                    // The retained owner must release ConPTY after observed exit so
-                    // its output pipe reaches EOF before the session can be released.
-                    self.console.take();
+                    // A shell's background children still own the console. Close
+                    // only after the whole owned job exits so its pipe reaches EOF.
+                    if !self.active()? {
+                        self.console.take();
+                    }
                     Ok(Some(code as i32))
                 }
                 _ => Err(io::Error::last_os_error()),
@@ -276,12 +292,12 @@ impl Process {
         }
     }
     pub(super) fn stop(&mut self) -> io::Result<bool> {
-        if self.exit_code()?.is_some() {
-            return Ok(false);
+        let running = self.exit_code()?.is_none();
+        if self.active()? {
+            unsafe {
+                TerminateJobObject(*self.job, 1).map_err(error)?;
+            }
         }
-        unsafe {
-            TerminateJobObject(*self.job, 1).map_err(error)?;
-        }
-        Ok(true)
+        Ok(running)
     }
 }

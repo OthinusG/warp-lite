@@ -276,9 +276,8 @@ impl Terminals {
                 }
                 TerminalAction::TerminalStop => {
                     // Process stop never waits for a blocked native input writer.
-                    if session.pty.stop().map_err(path_error)? {
-                        session.stop_requested = true;
-                    }
+                    session.pty.stop().map_err(path_error)?;
+                    session.stop_requested = true;
                 }
                 TerminalAction::TerminalRead => (),
                 TerminalAction::TerminalRelease => {
@@ -348,9 +347,10 @@ impl Terminals {
             return true;
         };
         owners.into_iter().any(|owner| {
-            owner
-                .lock()
-                .map_or(true, |mut s| s.pty.exit_code().ok().flatten().is_none())
+            owner.lock().map_or(true, |mut s| {
+                s.pty.exit_code().ok().flatten().is_none()
+                    || s.output.lock().map_or(true, |output| !output.closed)
+            })
         })
     }
 }

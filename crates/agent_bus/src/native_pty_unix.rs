@@ -3,7 +3,7 @@ use super::*;
 use std::{
     os::{
         fd::{AsRawFd, FromRawFd},
-        unix::process::{CommandExt, ExitStatusExt},
+        unix::process::CommandExt,
     },
     process::{Child, Command, Stdio},
 };
@@ -13,12 +13,12 @@ pub(super) struct Process {
 }
 impl Drop for Process {
     fn drop(&mut self) {
-        if matches!(self.child.try_wait(), Ok(None)) {
-            // Failure during admission must not orphan a successfully spawned run.
-            // The still-unreaped owned child fences process-group ID reuse.
-            if unsafe { libc::kill(-(self.child.id() as i32), libc::SIGKILL) } == 0 {
-                let _ = self.child.wait();
-            }
+        // WNOWAIT retains the leader's ID until this owner is released, even if
+        // the shell exited before its background children. No unrelated group
+        // can reuse it. Admission failures also cannot orphan a spawned process.
+        let killed = unsafe { libc::kill(-(self.child.id() as i32), libc::SIGKILL) };
+        if killed == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH) {
+            let _ = self.child.wait();
         }
     }
 }
@@ -121,20 +121,34 @@ impl Process {
         }
     }
     pub(super) fn exit_code(&mut self) -> io::Result<Option<i32>> {
-        Ok(self.child.try_wait()?.map(|status| {
-            status
-                .code()
-                .unwrap_or_else(|| -status.signal().unwrap_or(1))
-        }))
+        let mut status: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        unsafe {
+            checked(libc::waitid(
+                libc::P_PID,
+                self.child.id() as _,
+                &mut status,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            ))?;
+            if status.si_pid() == 0 {
+                return Ok(None);
+            }
+            let code = status.si_status();
+            Ok(Some(if status.si_code == libc::CLD_EXITED {
+                code
+            } else {
+                -code
+            }))
+        }
     }
     pub(super) fn stop(&mut self) -> io::Result<bool> {
-        if self.child.try_wait()?.is_some() {
+        let running = self.exit_code()?.is_none();
+        // Include still-owned background children after observing the leader exit.
+        let result = unsafe { libc::kill(-(self.child.id() as i32), libc::SIGTERM) };
+        if result < 0 && !running && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+        {
             return Ok(false);
         }
-        // An unreaped owned child cannot have its PID recycled between this check and kill.
-        unsafe {
-            checked(libc::kill(-(self.child.id() as i32), libc::SIGTERM))?;
-        }
-        Ok(true)
+        checked(result)?;
+        Ok(running)
     }
 }

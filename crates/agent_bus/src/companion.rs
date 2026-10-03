@@ -1,4 +1,4 @@
-//! Read-only managed control, independent of desktop/UI and legacy enrollment.
+//! Managed project and retained terminal control, independent of desktop/UI and legacy enrollment.
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -26,7 +26,7 @@ struct Project {
     handle: File,
 }
 
-/// One clean read attachment; durable process/task ownership is not advertised here.
+/// One fenced attachment to account-owned project and terminal state.
 pub struct Companion {
     identity: identity::Identity,
     fence: ManagedFence,

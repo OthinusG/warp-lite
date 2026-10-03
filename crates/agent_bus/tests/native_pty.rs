@@ -6,6 +6,73 @@ use std::{
 use warp_agent_bus::native_pty::{NativePty, Size};
 
 #[test]
+#[ignore = "only an owned PTY launches this process-group fixture"]
+fn native_background_child() {
+    // A detached child can outlive the controlling terminal's original leader.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    }
+    std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "native_background_sleep",
+            "--ignored",
+            "--nocapture",
+        ])
+        .spawn()
+        .unwrap();
+    println!("BACKGROUND_CHILD_READY");
+}
+
+#[test]
+#[ignore = "background process invoked only by the owned PTY fixture"]
+fn native_background_sleep() {
+    std::thread::sleep(Duration::from_secs(30));
+}
+
+#[test]
+fn owned_group_can_stop_background_children_after_observing_leader_exit() {
+    let root = tempfile::tempdir().unwrap();
+    let mut pty = NativePty::spawn(
+        &std::env::current_exe().unwrap(),
+        &[
+            "--exact",
+            "native_background_child",
+            "--ignored",
+            "--nocapture",
+        ]
+        .map(str::to_owned),
+        root.path(),
+        Size {
+            columns: 100,
+            rows: 24,
+        },
+    )
+    .unwrap();
+    let mut reader = pty.reader.try_clone().unwrap();
+    let (done, completion) = std::sync::mpsc::channel();
+    let thread = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes);
+        done.send(bytes).unwrap();
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while pty.exit_code().unwrap().is_none() {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        completion.try_recv().is_err(),
+        "Background process unexpectedly ended"
+    );
+    assert!(!pty.stop().unwrap(), "The leader already exited");
+    let bytes = completion.recv_timeout(Duration::from_secs(10)).unwrap();
+    assert!(String::from_utf8_lossy(&bytes).contains("BACKGROUND_CHILD_READY"));
+    thread.join().unwrap();
+}
+
+#[test]
 #[ignore = "child invoked only by the owned PTY parent"]
 fn native_terminal_child() {
     #[cfg(unix)]

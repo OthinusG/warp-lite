@@ -809,8 +809,10 @@ impl TypedActionView for CollaborationPanel {
                         return;
                     }
                     if let Some(workspace) = &self.workspace_preview {
-                        ctx.dispatch_typed_action(
-                            &crate::workspace::WorkspaceAction::OpenCollaborationWorkspace {
+                        // Opening a tab updates this panel's visibility and context.
+                        // Dispatch after this view has returned to the app's view map.
+                        ctx.dispatch_typed_action_deferred(
+                            crate::workspace::WorkspaceAction::OpenCollaborationWorkspace {
                                 workspace_id: workspace.id.clone(),
                                 space_id: workspace.space_id.clone(),
                                 root: workspace.root.clone(),
@@ -846,8 +848,8 @@ impl TypedActionView for CollaborationPanel {
                     ctx.spawn(async move { broker.local_evidence_file(&project, &evidence_id) }, move |panel, result, ctx| {
                         if Self::current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !super::AgentCommunication::as_ref(ctx).preferences.enabled { return; }
                         match result {
-                            Ok(full_path) => ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::OpenFileInNewTab { full_path, line_and_column: None }),
-                            Err(_) => ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::CollaborationEvidenceUnavailable),
+                            Ok(full_path) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::OpenFileInNewTab { full_path, line_and_column: None }),
+                            Err(_) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::CollaborationEvidenceUnavailable),
                         }
                     });
                     return;
@@ -954,8 +956,8 @@ impl TypedActionView for CollaborationPanel {
                                 .and_then(|(id, (_, view))| view.upgrade(ctx).map(|_| *id))
                         });
                     if let Some(terminal_view_id) = target {
-                        ctx.dispatch_typed_action(
-                            &crate::workspace::WorkspaceAction::FocusTerminalViewInWorkspace {
+                        ctx.dispatch_typed_action_deferred(
+                            crate::workspace::WorkspaceAction::FocusTerminalViewInWorkspace {
                                 terminal_view_id,
                             },
                         );
@@ -996,7 +998,7 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::Exit => {
-                    ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel);
+                    ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
                     return;
                 }
             }
@@ -1023,7 +1025,7 @@ impl TypedActionView for CollaborationPanel {
                 ctx.notify();
             }
             Action::Exit => {
-                ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::FocusLeftPanel)
+                ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel)
             }
             _ => {}
         }
