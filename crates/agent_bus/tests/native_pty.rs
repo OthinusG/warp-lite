@@ -22,12 +22,22 @@ fn native_background_child() {
         ])
         .spawn()
         .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !std::path::Path::new("background-ready").exists() {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
     println!("BACKGROUND_CHILD_READY");
 }
 
 #[test]
 #[ignore = "background process invoked only by the owned PTY fixture"]
 fn native_background_sleep() {
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    }
+    std::fs::write("background-ready", std::process::id().to_string()).unwrap();
     std::thread::sleep(Duration::from_secs(30));
 }
 
@@ -62,12 +72,48 @@ fn owned_group_can_stop_background_children_after_observing_leader_exit() {
         assert!(Instant::now() < deadline);
         std::thread::sleep(Duration::from_millis(20));
     }
+    let pid = sysinfo::Pid::from_u32(
+        std::fs::read_to_string(root.path().join("background-ready"))
+            .unwrap()
+            .parse()
+            .unwrap(),
+    );
+    let mut system = sysinfo::System::new();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+    assert!(system
+        .process(pid)
+        .is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie));
+    #[cfg(not(target_os = "macos"))]
     assert!(
         completion.try_recv().is_err(),
         "Background process unexpectedly ended"
     );
     assert!(!pty.stop().unwrap(), "The leader already exited");
-    let bytes = completion.recv_timeout(Duration::from_secs(10)).unwrap();
+    loop {
+        system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+        if system
+            .process(pid)
+            .is_none_or(|process| process.status() == sysinfo::ProcessStatus::Zombie)
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Owned background process did not stop"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    // ConPTY is closed after observing that the stopped owned job has exited.
+    let bytes = loop {
+        pty.exit_code().unwrap();
+        match completion.recv_timeout(Duration::from_millis(20)) {
+            Ok(bytes) => break bytes,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                assert!(Instant::now() < deadline, "Owned output did not close")
+            }
+            Err(error) => panic!("{error}"),
+        }
+    };
     assert!(String::from_utf8_lossy(&bytes).contains("BACKGROUND_CHILD_READY"));
     thread.join().unwrap();
 }

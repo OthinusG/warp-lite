@@ -511,3 +511,20 @@ resume or conditional overwrite is claimed. Download SHA-256 describes received
 bytes; coarse SFTP size/mtime checks do not lock external writers. Controlled
 CI now checks disk bytes, local writer failure, 16-MiB-plus transfer and changed
 source refusal. This checkpoint is pending exact-source GitHub verification.
+
+
+Retained terminal backend source064f5cb/run37104521972 passed focused checks on
+Linux/macOS/Windows and controlled Linux SSH/SFTP. The account service owns PTYs;
+SSH attachments own revocable generation-fenced input leases. Launch UUID retries
+reconcile the same immutable run, with bounded replay and explicit queue admission
+versus execution. ConPTY must supply child standard handles via STARTF_USESTDHANDLES
+(as in the desktop primitive) and remain owned until all job processes exit, then
+close so retained output can reach EOF. Unix retains the exited leader with WNOWAIT
+until owner release to avoid signaling a reused process-group ID. Background-child
+follow-up source28a97cb is pending exact-source verification.
+
+Panel-to-workspace actions that open tabs or change active sessions must use the
+existing deferred typed dispatch: a synchronous action can update panel visibility
+while the originating panel is temporarily removed from the app's view map.
+Windows native capture exposed this at shared-tab confirmation. Source28a97cb uses
+the helper for workspace open/file/focus actions; capture verification remains open.

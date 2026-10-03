@@ -251,3 +251,28 @@ retired-endpoint refusal after a native-suite failure exposed Tokio stdio's no-o
 shutdown. Its exact-source identity/flush checks are pending. New SR41 native
 fixtures are implemented, but captures and visual review remain pending. V01–V24
 stay open; no paid vendor/physical-host acceptance is inferred.
+
+
+## Retained terminal backend checkpoint — 2026-10-03
+
+Source `064f5cb85192b5aeaffb286a51acbb0db739b1d2`,
+[run 37104521972](https://github.com/OthinusG/warp-lite/actions/runs/37104521972),
+passed Linux/macOS/Windows shared wire, companion, native PTY, profile persistence,
+retained terminal and SFTP checks. The controlled Linux SSH account also passed
+same-boot/session/run reattachment, literal Unicode input, stale/replaced input
+refusal, observed stop/exit/EOF/release and streamed SFTP disk-byte checks.
+The terminal owner bounds sessions at 32, replay at 256 KiB, read pages at 32 KiB
+and queued input at sixteen 4-KiB packets. Accepted input is queue admission,
+not execution evidence. Duplicate launch reconciles the original run; changed
+launch content conflicts. Disconnect revokes input while retaining the PTY.
+These backend checks do not accept remote terminal GUI, vendor execution,
+remote task authority, deployment or complete V13–V15.
+
+Source `28a97cb841974d77a17bf93f458e8fd0764258a1` adds owned background-child
+lifecycle checks on all three platforms, Unix unreaped process-group identity,
+Windows job-aware console closure, and deferred task-panel workspace actions.
+[Focused run 37105299664](https://github.com/OthinusG/warp-lite/actions/runs/37105299664)
+and [desktop/capture run 37105299449](https://github.com/OthinusG/warp-lite/actions/runs/37105299449)
+are pending. Windows capture source `d1022f8` stopped at shared-tab confirmation
+with a circular view update; existing framework deferred dispatch now addresses
+that production path and sibling file/focus actions. Visual gates remain open.

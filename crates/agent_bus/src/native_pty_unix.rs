@@ -17,7 +17,7 @@ impl Drop for Process {
         // the shell exited before its background children. No unrelated group
         // can reuse it. Admission failures also cannot orphan a spawned process.
         let killed = unsafe { libc::kill(-(self.child.id() as i32), libc::SIGKILL) };
-        if killed == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH) {
+        if killed == 0 || self.exit_code().is_ok_and(|code| code.is_some()) {
             let _ = self.child.wait();
         }
     }
@@ -111,6 +111,25 @@ pub(super) fn spawn(
     })
 }
 impl Process {
+    #[cfg(target_os = "macos")]
+    fn only_exited_leader(&self) -> bool {
+        // Darwin returns EPERM for a group containing only the unreaped zombie.
+        // Confirm group membership before distinguishing that case from denied IO.
+        let mut pids = [0i32; 4096];
+        let bytes = unsafe {
+            libc::proc_listpids(
+                2, /* PROC_PGRP_ONLY */
+                self.child.id(),
+                pids.as_mut_ptr().cast(),
+                std::mem::size_of_val(&pids) as _,
+            )
+        };
+        bytes > 0
+            && (bytes as usize) < std::mem::size_of_val(&pids)
+            && pids[..bytes as usize / std::mem::size_of::<i32>()]
+                .iter()
+                .all(|pid| *pid == 0 || *pid == self.child.id() as i32)
+    }
     pub(super) fn resize(&self, file: &File, dimensions: Size) -> io::Result<()> {
         unsafe {
             checked(libc::ioctl(
@@ -145,6 +164,14 @@ impl Process {
         // Include still-owned background children after observing the leader exit.
         let result = unsafe { libc::kill(-(self.child.id() as i32), libc::SIGTERM) };
         if result < 0 && !running && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+        {
+            return Ok(false);
+        }
+        #[cfg(target_os = "macos")]
+        if result < 0
+            && !running
+            && io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+            && self.only_exited_leader()
         {
             return Ok(false);
         }

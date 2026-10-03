@@ -810,3 +810,20 @@ that new process-group check needs exact-source validation. Desktop run
 37094856739 passed Windows application checks but native capture exposed a
 circular view update; macOS stopped at a crates.io DNS download failure.
 Full new-source desktop/capture run 37104524458 is pending.
+
+
+### Retained ownership and native view follow-up — source 28a97cb
+
+Keep the Unix leader unreaped with `waitid(WNOWAIT)` until owner release, fencing
+process-group ID reuse. Stop and release include still-owned background children.
+Windows retains ConPTY until its owned job has no active processes; stop can
+terminate that job after the original leader exits. A real child fixture verifies
+leader exit, retained background output and eventual stop/EOF on each platform.
+
+Downloaded Windows `d1022f8` capture evidence contains 147 PNGs and ends at the
+reviewed shared-workspace image. The next confirm opens a new tab synchronously
+while CollaborationPanel is removed from the view map; workspace visibility
+updates re-enter it. Reuse `dispatch_typed_action_deferred` for panel-to-workspace
+open/file/focus actions. Existing native shared-tab assertions cover this path.
+Focused run 37105299664 and full desktop/capture run 37105299449 are pending.
+No additional PLAN item is accepted before their checks complete.
