@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: agent-communication-${{ github.ref }}
+  group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.capture_ui }}
   cancel-in-progress: true
 jobs:
   protocol:
