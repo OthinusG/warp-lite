@@ -38,11 +38,14 @@ functionality are preserved; redundant additions are deleted with focused regres
   Actual retained native child performs MCP initialize/tools discovery.
   Accepted source 9a8e692, run 37110965089 on Linux/macOS/Windows. This backend
   gate does not prove vendor launch UX or two-Agent execution yet.
-- [ ] **S3 — Existing SSH terminal Agent workflow.** Provide the smallest explicit
+- [x] **S3 — Existing SSH terminal Agent workflow.** Provide the smallest explicit
   remote launch/binding path using current vendor adapters and terminal IO.
   Ordinary SSH commands continue working. No automatic credential copying or
   unsupported readiness/wake claims. Prove two real fixture processes exchange
   messages/tasks in one remote project and another root cannot participate.
+  Accepted source 06aa074, run 37122708969 on all three remote targets, including
+  actual Linux OpenSSH. Existing vendor adapters are reused; paid vendor sessions
+  are not claimed by deterministic fixture acceptance.
 - [ ] **S4 — Existing panel integration and concise status.** Select an SSH target,
   root and manual companion path; read remote Agent/message/task projections in
   the current collaboration panel and send explicit human messages. Show remote

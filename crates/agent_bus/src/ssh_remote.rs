@@ -7,33 +7,23 @@ use remote_protocol::{
     proto::*,
     protocol::{read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE},
 };
-use serde::{Deserialize, Serialize};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug)]
 pub enum RemoteShell {
     Posix,
     PowerShell,
 }
 
-/// Only metadata is persisted. Key contents and authentication stay with OpenSSH.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// Target metadata only; authentication and jump routing stay in system SSH config.
+#[derive(Clone, Debug)]
 pub struct SshProfile {
-    pub id: Uuid,
-    pub display_name: String,
     pub target: String,
-    pub user: Option<String>,
-    pub port: Option<u16>,
-    pub identity_file: Option<PathBuf>,
     pub config_file: Option<PathBuf>,
-    /// An existing OpenSSH config alias; jump routing remains system-managed.
-    pub jump_alias: Option<String>,
     pub remote_root: String,
-    pub companion_path: Option<String>,
+    pub companion_path: String,
     pub remote_shell: RemoteShell,
 }
 
@@ -66,42 +56,19 @@ fn text(value: &str, limit: usize) -> bool {
 
 impl SshProfile {
     pub fn validate(&self) -> Result<(), ConnectionError> {
-        if self.id.is_nil()
-            || !text(&self.display_name, 256)
-            || !target(&self.target)
-            || self.port == Some(0)
-            || self.jump_alias.as_ref().is_some_and(|v| !target(v))
-            || self.user.as_ref().is_some_and(|v| {
-                !text(v, 256)
-                    || v.starts_with('-')
-                    || !v
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b"._-\\".contains(&b))
-            })
-            || self
-                .identity_file
-                .as_ref()
-                .is_some_and(|p| p.to_str().is_none_or(|v| !text(v, 4096)))
+        if !target(&self.target)
             || self
                 .config_file
                 .as_ref()
                 .is_some_and(|p| p.to_str().is_none_or(|v| !text(v, 4096)))
             || !text(&self.remote_root, 4096)
-            || self.companion_path.as_ref().is_some_and(|p| !text(p, 4096))
+            || !text(&self.companion_path, 4096)
             || match self.remote_shell {
                 RemoteShell::Posix => {
-                    !self.remote_root.starts_with('/')
-                        || self
-                            .companion_path
-                            .as_ref()
-                            .is_some_and(|p| !p.starts_with('/'))
+                    !self.remote_root.starts_with('/') || !self.companion_path.starts_with('/')
                 }
                 RemoteShell::PowerShell => {
-                    !windows_absolute(&self.remote_root)
-                        || self
-                            .companion_path
-                            .as_ref()
-                            .is_some_and(|p| !windows_absolute(p))
+                    !windows_absolute(&self.remote_root) || !windows_absolute(&self.companion_path)
                 }
             }
         {
@@ -110,14 +77,7 @@ impl SshProfile {
         Ok(())
     }
 
-    /// Interactive authentication is an explicit terminal action, separate from protocol pipes.
-    pub fn authentication_command(&self) -> Result<Command, ConnectionError> {
-        let mut command = self.ssh_command(false)?;
-        command.arg("-tt").arg("--").arg(&self.target);
-        Ok(command)
-    }
-
-    pub(crate) fn ssh_command(&self, machine: bool) -> Result<Command, ConnectionError> {
+    pub(crate) fn ssh_command(&self) -> Result<Command, ConnectionError> {
         self.validate()?;
         let mut command = Command::new("ssh");
         crate::session::without_terminal_binding(&mut command);
@@ -137,31 +97,15 @@ impl SshProfile {
             "-o",
             "ServerAliveCountMax=2",
         ]);
-        if machine {
-            command.args([
-                "-T",
-                "-o",
-                "BatchMode=yes",
-                "-o",
-                "StrictHostKeyChecking=yes",
-            ]);
-        } else {
-            command.args(["-o", "StrictHostKeyChecking=ask"]);
-        }
-        if let Some(user) = &self.user {
-            command.arg("-l").arg(user);
-        }
-        if let Some(port) = self.port {
-            command.arg("-p").arg(port.to_string());
-        }
-        if let Some(identity) = &self.identity_file {
-            command.arg("-i").arg(identity);
-        }
+        command.args([
+            "-T",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=yes",
+        ]);
         if let Some(config) = &self.config_file {
             command.arg("-F").arg(config);
-        }
-        if let Some(jump) = &self.jump_alias {
-            command.arg("-J").arg(jump);
         }
         command.kill_on_drop(true);
         Ok(command)
@@ -169,10 +113,7 @@ impl SshProfile {
 
     /// SSH joins remote argv into a shell program; quote for that separate boundary.
     fn companion_command(&self) -> Result<String, ConnectionError> {
-        let path = self
-            .companion_path
-            .as_ref()
-            .ok_or(ConnectionError::CompanionUnavailable)?;
+        let path = &self.companion_path;
         let quoted = format!("'{}'", path.replace('\'', "'\\''"));
         Ok(match self.remote_shell {
             RemoteShell::Posix => format!("exec {quoted}"),
@@ -212,7 +153,7 @@ pub struct HostClient {
 
 impl HostClient {
     pub async fn connect(profile: &SshProfile) -> Result<Self, ConnectionError> {
-        let mut command = profile.ssh_command(true)?;
+        let mut command = profile.ssh_command()?;
         command
             .arg("--")
             .arg(&profile.target)
@@ -498,16 +439,10 @@ mod tests {
     #[test]
     fn ssh_profile_rejects_options_and_encodes_remote_shell_separately() {
         let mut profile = SshProfile {
-            id: Uuid::new_v4(),
-            display_name: "Research".into(),
             target: "research-node".into(),
-            user: Some("researcher".into()),
-            port: Some(2222),
-            identity_file: None,
             config_file: None,
-            jump_alias: Some("jump-alias".into()),
             remote_root: "/srv/project with spaces/多语言".into(),
-            companion_path: Some("/opt/it's $(danger)/companion".into()),
+            companion_path: "/opt/it's $(danger)/companion".into(),
             remote_shell: RemoteShell::Posix,
         };
         assert!(profile.validate().is_ok());
@@ -515,7 +450,7 @@ mod tests {
             profile.companion_command().unwrap(),
             "exec '/opt/it'\\''s $(danger)/companion'"
         );
-        let command = profile.ssh_command(true).unwrap();
+        let command = profile.ssh_command().unwrap();
         let args: Vec<_> = command
             .as_std()
             .get_args()
@@ -538,7 +473,7 @@ mod tests {
         profile.target = "research-node".into();
         profile.remote_shell = RemoteShell::PowerShell;
         profile.remote_root = "C:\\project with spaces".into();
-        profile.companion_path = Some("C:\\it's $(danger)\\companion.exe".into());
+        profile.companion_path = "C:\\it's $(danger)\\companion.exe".into();
         assert!(profile.validate().is_ok());
         let command = profile.companion_command().unwrap();
         let encoded = command.split_whitespace().last().unwrap();

@@ -574,3 +574,11 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   activity/stop observation cannot authorize owner release. Removed device runtime
   must not remove v6 migration, original pending intents or read-only provenance.
   New cleanup/migration checks are pending GitHub verification.
+
+- SSH Agent workflow source 06aa074, run 37122708969, passed Linux/macOS/Windows
+  and actual controlled OpenSSH: two owned native Agent fixtures exchange a
+  message and complete assign/start/submit/review; other roots are isolated.
+  `warpai-companion agent <root> <program> <absolute-executable> [args...]` reuses
+  session::launch, native PTY IO and the existing private MCP/forward relay.
+  Disconnect ends the child heartbeat and prevents adoption. S3 accepted; live
+  panel/final desktop acceptance and paid vendor calls are not covered.

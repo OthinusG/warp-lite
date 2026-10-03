@@ -1057,3 +1057,28 @@ register distinct names through private child bindings, send/read a message,
 assign/start/submit/review one task, and exercise the explicit companion Agent CLI
 with actual terminal IO. Existing MCP SDK initialization/tools discovery remains
 part of each managed child. Vendor credentials/model calls are not used.
+
+Latest cleanup sources remove constant takeover-generation/attached wire fields and
+unused fixture flood behavior. The active API contract now contains only project
+communication and connection-owned Agent IO; the host-status design is archived.
+Workflow YAML/Bash syntax, fixture JSON/unique states, Rust parsing and diff whitespace
+checks passed locally. Native tests remain GitHub-only. Exact source 06aa074 is
+running focused three-platform + real SSH checks (37122708969) and native desktop
+protocol/capture checks (37122711581); no new acceptance mark until completion.
+
+### S3 accepted — SSH terminal Agent communication
+
+Exact source `06aa074b04c4f87687878c0ea82814789f2bd0a8`, [run 37122708969](https://github.com/OthinusG/warp-lite/actions/runs/37122708969), passed Linux/macOS/Windows focused checks and controlled Linux OpenSSH.
+The explicit companion Agent CLI performs real terminal IO. Two native fixture
+processes each initialize/discover the existing MCP SDK and use fresh run bindings
+to send/read a message, assign/start/submit/review a task; another remote root
+cannot see the task or control the run. Disconnect stops the actual child
+heartbeat and another attachment cannot adopt it. The existing session/vendor
+adapters are reused; paid authenticated vendor calls are a separate limitation.
+PLAN S3 is checked. S0 desktop removal regression, S4 live panel and S5 final
+delivery remain pending.
+
+Further S0 pruning reduces SSH metadata to target/root/helper/shell plus system
+config override for the isolated SSH fixture. User/port/key/jump routing uses
+system SSH configuration; removed the redundant authentication helper and profile
+IDs/display-name/persistence scaffolding. Exact-source follow-up is pending.

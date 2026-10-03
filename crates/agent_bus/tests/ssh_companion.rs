@@ -10,16 +10,10 @@ async fn controlled_ssh_uses_project_communication_fences() {
     let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
     let companion = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
     let profile = SshProfile {
-        id: Uuid::new_v4(),
-        display_name: "Controlled SSH".into(),
         target: "warpai-test".into(),
-        user: None,
-        port: None,
-        identity_file: None,
         config_file: Some(config.into()),
-        jump_alias: None,
         remote_root: root,
-        companion_path: Some(companion),
+        companion_path: companion,
         remote_shell: RemoteShell::Posix,
     };
     let mut first = HostClient::connect(&profile)

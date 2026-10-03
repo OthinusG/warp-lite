@@ -359,3 +359,10 @@ native SDK discovery on all three remote targets. S1/S2 foundations are accepted
 S3 two-Agent launch workflow, S4 existing-panel integration and S5 focused delivery
 remain pending. Source 65e1b86 native captures also passed both desktop OSes in
 run 37110117064; visual/integration acceptance remains scoped and independent.
+
+## S3 accepted — active scope
+
+Source `06aa074b04c4f87687878c0ea82814789f2bd0a8`, [three-platform/real SSH run](https://github.com/OthinusG/warp-lite/actions/runs/37122708969): explicit Agent CLI IO, private run MCP discovery, two-process
+message/task/review flow, different-root refusal and disconnect termination passed.
+Fixture acceptance reuses vendor launch adapters; no paid vendor-session claim.
+Existing-panel live integration and final desktop checks remain open.
