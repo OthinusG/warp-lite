@@ -18,7 +18,7 @@
   references, decision kernel and viewer were found in the skills-manager cached
   package; comparison artifacts remain in the OS temporary directory.
 
-- Repository cleanup after the replacement functional gate removes only 28
+- Repository cleanup after the replacement functional gate removes only 27
   unused dependency edges, seven unconsumed root dependency declarations and
   seven unwired/duplicate files. No whole crate is
   unused: for example input_classifier still uses natural_language_detection.
