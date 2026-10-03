@@ -283,3 +283,22 @@ The status header consumes this projection alongside the same remote task
 snapshot. See [HOST-STATUS.md](HOST-STATUS.md) for fields, polling bounds,
 missing/stale semantics and scope fencing. No Agent MCP tool or local metrics
 fallback is added.
+
+### Executable managed read wire
+
+The shared `remote_protocol` protobuf retains legacy envelope tags; managed
+requests use ClientMessage tag 11 and responses use ServerMessage tag 12.
+Protocol major 1 initially admits Initialize, ProjectOpen and HostStatus only.
+The standalone companion rejects all inherited unrestricted operations. The
+inherited desktop server explicitly rejects managed requests.
+
+Initialize is once per clean connection and returns service/boot/connection
+identity, native OS/architecture and capabilities. ProjectOpen carries that
+service fence plus an absolute remote root; its reply supplies the canonical
+root and opaque project identity. HostStatus requires the complete exact fence
+and echoes the query generation. An unavailable metric is an enum, never an
+absent value interpreted as zero. Every received status is validated before
+use, including UUID identities, monotonically ordered observations, 8 KiB
+size, finite CPU bounds and consistent byte counters. GUI receipt age is local
+monotonic time; fifteen seconds is stale. This first read path does not claim
+retained sessions, writable task authority, installation or GUI integration.

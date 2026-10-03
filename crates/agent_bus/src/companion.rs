@@ -1,0 +1,278 @@
+//! Read-only managed control, independent of desktop/UI and legacy enrollment.
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    time::{Instant, SystemTime, UNIX_EPOCH},
+};
+
+use remote_protocol::{
+    managed::{valid_status, POLL_INTERVAL, PROTOCOL_MAJOR},
+    proto::*,
+    protocol::{read_message_with_limit, write_message_with_limit, ProtocolError, MAX_MANAGED_MESSAGE_SIZE},
+};
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+use uuid::Uuid;
+
+struct Project {
+    root: PathBuf,
+    handle: File,
+    id: String,
+}
+
+/// One clean read attachment; durable process/task ownership is not advertised here.
+pub struct Companion {
+    fence: ManagedFence,
+    initialized: bool,
+    project: Option<Project>,
+    system: sysinfo::System,
+    cpu_sample: Option<Instant>,
+    last_status: Option<(HostStatus, Instant)>,
+    observation: u64,
+}
+
+impl Default for Companion {
+    fn default() -> Self {
+        Self {
+            fence: ManagedFence {
+                service_id: Uuid::new_v4().to_string(),
+                service_boot_id: Uuid::new_v4().to_string(),
+                connection_id: Uuid::new_v4().to_string(),
+                project_id: String::new(),
+            },
+            initialized: false,
+            project: None,
+            system: sysinfo::System::new(),
+            cpu_sample: None,
+            last_status: None,
+            observation: 0,
+        }
+    }
+}
+
+impl Companion {
+    /// Only the managed oneof reaches this handler; legacy commands never execute.
+    pub fn handle(&mut self, request: ClientMessage) -> ServerMessage {
+        let valid_request_id = Uuid::parse_str(&request.request_id).is_ok_and(|id| !id.is_nil());
+        let result = if !valid_request_id {
+            Err(ManagedErrorCode::ManagedInvalidInput)
+        } else if let Some(client_message::Message::Managed(request)) = request.message {
+            self.dispatch(request)
+        } else {
+            Err(ManagedErrorCode::ManagedFeatureUnavailable)
+        };
+        ServerMessage {
+            // Never echo unvalidated peer strings, including oversized request identifiers.
+            request_id: if valid_request_id { request.request_id } else { String::new() },
+            message: Some(server_message::Message::Managed(ManagedResponse {
+                result: Some(result.unwrap_or_else(|code| managed_response::Result::Error(
+                    ManagedError { code: code.into() },
+                ))),
+            })),
+        }
+    }
+
+    fn dispatch(&mut self, request: ManagedRequest) -> Result<managed_response::Result, ManagedErrorCode> {
+        match request.operation {
+            Some(managed_request::Operation::Initialize(request)) => {
+                if self.initialized {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
+                if request.protocol_major != PROTOCOL_MAJOR {
+                    return Err(ManagedErrorCode::ManagedIncompatibleVersion);
+                }
+                self.initialized = true;
+                Ok(managed_response::Result::Initialized(ManagedInitialized {
+                    protocol_major: PROTOCOL_MAJOR, fence: Some(self.fence.clone()),
+                    os: std::env::consts::OS.into(), architecture: std::env::consts::ARCH.into(),
+                    capabilities: vec!["project_open".into(), "host_status".into()],
+                }))
+            }
+            Some(managed_request::Operation::ProjectOpen(request)) => {
+                self.check_fence(request.fence.as_ref(), false)?;
+                if request.root.is_empty() || request.root.len() > 4096 || request.root.chars().any(char::is_control)
+                    || !Path::new(&request.root).is_absolute()
+                {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
+                let root = Path::new(&request.root).canonicalize().map_err(path_error)?;
+                if !root.is_dir() || root.to_str().is_none() {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
+                let handle = open_root(&root).map_err(path_error)?;
+                let id = Uuid::new_v4().to_string();
+                let canonical_root = root.to_str().unwrap().to_owned();
+                self.project = Some(Project { root, handle, id: id.clone() });
+                self.fence.project_id = id;
+                self.last_status = None;
+                Ok(managed_response::Result::ProjectOpened(ProjectOpened {
+                    fence: Some(self.fence.clone()), canonical_root,
+                }))
+            }
+            Some(managed_request::Operation::HostStatus(request)) => {
+                self.check_fence(request.fence.as_ref(), true)?;
+                let now = Instant::now();
+                let project = self.project.as_ref().ok_or(ManagedErrorCode::ManagedStaleAttachment)?;
+                if !same_root(project).map_err(path_error)? {
+                    return Err(ManagedErrorCode::ManagedStaleAttachment);
+                }
+                if let Some((status, at)) = &self.last_status {
+                    if now.duration_since(*at) < POLL_INTERVAL {
+                        let mut status = status.clone();
+                        status.query_generation = request.query_generation;
+                        return Ok(managed_response::Result::HostStatus(status));
+                    }
+                }
+                self.system.refresh_memory();
+                self.system.refresh_cpu_usage();
+                let percent = self.system.global_cpu_usage();
+                let cpu = if self.system.cpus().is_empty() {
+                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricUnsupported.into())
+                } else if self.cpu_sample.is_none_or(|at| now.duration_since(at) < sysinfo::MINIMUM_CPU_UPDATE_INTERVAL) {
+                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricWarmingUp.into())
+                } else if percent.is_finite() && (0.0..=100.0).contains(&percent) {
+                    cpu_metric::Value::Percent(percent)
+                } else {
+                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into())
+                };
+                self.cpu_sample = Some(now);
+                let total = self.system.total_memory();
+                let used = self.system.used_memory();
+                let memory = if total > 0 && used <= total {
+                    memory_metric::Value::Bytes(MemoryBytes { used, total })
+                } else {
+                    memory_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into())
+                };
+                let disk = match disk_bytes(&project.root) {
+                    Ok(bytes) if bytes.total > 0 && bytes.free <= bytes.total => disk_metric::Value::Bytes(bytes),
+                    Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied =>
+                        disk_metric::Value::Unavailable(MetricUnavailable::MetricPermissionDenied.into()),
+                    _ => disk_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into()),
+                };
+                if !same_root(project).map_err(path_error)? {
+                    return Err(ManagedErrorCode::ManagedStaleAttachment);
+                }
+                self.observation = self.observation.checked_add(1).ok_or(ManagedErrorCode::ManagedUnavailable)?;
+                let status = HostStatus {
+                    fence: Some(self.fence.clone()), query_generation: request.query_generation,
+                    observation_sequence: self.observation,
+                    sampled_at_unix_millis: SystemTime::now().duration_since(UNIX_EPOCH)
+                        .ok().and_then(|duration| duration.as_millis().try_into().ok())
+                        .ok_or(ManagedErrorCode::ManagedUnavailable)?,
+                    source: "companion_native".into(), os: std::env::consts::OS.into(),
+                    architecture: std::env::consts::ARCH.into(),
+                    cpu: Some(CpuMetric { value: Some(cpu) }),
+                    memory: Some(MemoryMetric { value: Some(memory) }),
+                    project_disk: Some(DiskMetric { value: Some(disk) }),
+                    uptime: Some(UptimeMetric { value: Some(uptime_metric::Value::Seconds(sysinfo::System::uptime())) }),
+                };
+                if !valid_status(&status) {
+                    return Err(ManagedErrorCode::ManagedUnavailable);
+                }
+                self.last_status = Some((status.clone(), now));
+                Ok(managed_response::Result::HostStatus(status))
+            }
+            None => Err(ManagedErrorCode::ManagedInvalidInput),
+        }
+    }
+
+    fn check_fence(&self, fence: Option<&ManagedFence>, project: bool) -> Result<(), ManagedErrorCode> {
+        let Some(fence) = fence else { return Err(ManagedErrorCode::ManagedStaleAttachment) };
+        if !self.initialized || fence.service_id != self.fence.service_id
+            || fence.service_boot_id != self.fence.service_boot_id
+            || fence.connection_id != self.fence.connection_id
+            || if project { self.project.is_none() || fence.project_id != self.fence.project_id }
+                else { !fence.project_id.is_empty() }
+        {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        Ok(())
+    }
+}
+
+fn path_error(error: std::io::Error) -> ManagedErrorCode {
+    if error.kind() == std::io::ErrorKind::PermissionDenied {
+        ManagedErrorCode::ManagedPermissionDenied
+    } else {
+        ManagedErrorCode::ManagedUnavailable
+    }
+}
+
+#[cfg(unix)]
+fn open_root(root: &Path) -> std::io::Result<File> { File::open(root) }
+
+#[cfg(windows)]
+fn open_root(root: &Path) -> std::io::Result<File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new().read(true).custom_flags(0x02000000).open(root)
+}
+
+#[cfg(unix)]
+fn same_root(project: &Project) -> std::io::Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    let owned = project.handle.metadata()?;
+    let current = project.root.metadata()?;
+    Ok(current.is_dir() && owned.dev() == current.dev() && owned.ino() == current.ino())
+}
+
+#[cfg(windows)]
+fn same_root(project: &Project) -> std::io::Result<bool> {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::{Foundation::HANDLE, Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION}};
+    fn identity(file: &File) -> std::io::Result<(u32, u32, u32)> {
+        let mut info = BY_HANDLE_FILE_INFORMATION::default();
+        // Both handles are owned directory handles valid throughout this native call.
+        unsafe { GetFileInformationByHandle(HANDLE(file.as_raw_handle()), &mut info) }
+            .map_err(std::io::Error::other)?;
+        Ok((info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow))
+    }
+    Ok(identity(&project.handle)? == identity(&open_root(&project.root)?)?)
+}
+
+#[cfg(unix)]
+fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
+    use std::{ffi::CString, os::unix::ffi::OsStrExt};
+    let path = CString::new(root.as_os_str().as_bytes()).map_err(std::io::Error::other)?;
+    let mut stats = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    // The C path is NUL-terminated and output storage is valid; inspect only on success.
+    if unsafe { libc::statvfs(path.as_ptr(), stats.as_mut_ptr()) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let stats = unsafe { stats.assume_init() };
+    let block = stats.f_frsize as u64;
+    let total = (stats.f_blocks as u64).checked_mul(block);
+    let free = (stats.f_bavail as u64).checked_mul(block);
+    match (free, total) {
+        (Some(free), Some(total)) => Ok(DiskBytes { free, total }),
+        _ => Err(std::io::Error::other("Volume counters unavailable")),
+    }
+}
+
+#[cfg(windows)]
+fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::{core::PCWSTR, Win32::Storage::FileSystem::GetDiskFreeSpaceExW};
+    let path: Vec<u16> = root.as_os_str().encode_wide().chain(Some(0)).collect();
+    let (mut free, mut total) = (0, 0);
+    unsafe { GetDiskFreeSpaceExW(PCWSTR(path.as_ptr()), Some(&mut free), Some(&mut total), None) }
+        .map_err(std::io::Error::other)?;
+    Ok(DiskBytes { free, total })
+}
+
+/// Serial bounded reads provide backpressure and at most one response in flight.
+pub async fn serve_stdio() -> Result<(), ProtocolError> {
+    let mut reader = tokio::io::stdin().compat();
+    let mut writer = tokio::io::stdout().compat_write();
+    let mut companion = Companion::default();
+    loop {
+        let request = match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE).await {
+            Ok(request) => request,
+            Err(ProtocolError::UnexpectedEof) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        write_message_with_limit(&mut writer, &companion.handle(request), MAX_MANAGED_MESSAGE_SIZE).await?;
+    }
+}
+
+#[cfg(test)]
+#[path = "companion_tests.rs"]
+mod tests;

@@ -13720,6 +13720,9 @@ dependencies = [
  "unicode-segmentation",
  "uuid",
  "windows 0.62.2",
+ "remote_protocol",
+ "sysinfo",
+ "tokio-util",
 ]
 
 [[package]]

@@ -22,6 +22,7 @@ message ClientMessage {
     DeleteFile delete_file = 8;
     RunCommandRequest run_command = 9;
     ReadFileContextRequest read_file_context = 10;
+    ManagedRequest managed = 11;
   }
 }
 // Top-level envelope for all server → client messages.
@@ -40,7 +41,95 @@ message ServerMessage {
     DeleteFileResponse delete_file_response = 9;
     RunCommandResponse run_command_response = 10;
     ReadFileContextResponse read_file_context_response = 11;
+    ManagedResponse managed = 12;
   }
+}
+
+// Managed SSH control is explicitly admitted; it never invokes legacy handlers.
+message ManagedRequest {
+  oneof operation {
+    ManagedInitialize initialize = 1;
+    ProjectOpen project_open = 2;
+    HostStatusRequest host_status = 3;
+  }
+}
+message ManagedResponse {
+  oneof result {
+    ManagedInitialized initialized = 1;
+    ProjectOpened project_opened = 2;
+    HostStatus host_status = 3;
+    ManagedError error = 4;
+  }
+}
+message ManagedInitialize { uint32 protocol_major = 1; }
+message ManagedFence {
+  string service_id = 1;
+  string service_boot_id = 2;
+  string connection_id = 3;
+  string project_id = 4;
+}
+message ManagedInitialized {
+  uint32 protocol_major = 1;
+  ManagedFence fence = 2;
+  string os = 3;
+  string architecture = 4;
+  repeated string capabilities = 5;
+}
+message ProjectOpen {
+  ManagedFence fence = 1;
+  string root = 2;
+}
+message ProjectOpened {
+  ManagedFence fence = 1;
+  string canonical_root = 2;
+}
+message HostStatusRequest {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+}
+enum ManagedErrorCode {
+  MANAGED_ERROR_UNSPECIFIED = 0;
+  MANAGED_INVALID_INPUT = 1;
+  MANAGED_INCOMPATIBLE_VERSION = 2;
+  MANAGED_STALE_ATTACHMENT = 3;
+  MANAGED_PERMISSION_DENIED = 4;
+  MANAGED_UNAVAILABLE = 5;
+  MANAGED_FEATURE_UNAVAILABLE = 6;
+}
+message ManagedError { ManagedErrorCode code = 1; }
+enum MetricUnavailable {
+  METRIC_UNAVAILABLE_UNSPECIFIED = 0;
+  METRIC_UNSUPPORTED = 1;
+  METRIC_PERMISSION_DENIED = 2;
+  METRIC_WARMING_UP = 3;
+  METRIC_UNAVAILABLE = 4;
+}
+message CpuMetric {
+  oneof value { float percent = 1; MetricUnavailable unavailable = 2; }
+}
+message MemoryBytes { uint64 used = 1; uint64 total = 2; }
+message MemoryMetric {
+  oneof value { MemoryBytes bytes = 1; MetricUnavailable unavailable = 2; }
+}
+message DiskBytes { uint64 free = 1; uint64 total = 2; }
+message DiskMetric {
+  oneof value { DiskBytes bytes = 1; MetricUnavailable unavailable = 2; }
+}
+message UptimeMetric {
+  oneof value { uint64 seconds = 1; MetricUnavailable unavailable = 2; }
+}
+message HostStatus {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+  uint64 observation_sequence = 3;
+  uint64 sampled_at_unix_millis = 4;
+  string source = 5;
+  string os = 6;
+  string architecture = 7;
+  CpuMetric cpu = 8;
+  MemoryMetric memory = 9;
+  DiskMetric project_disk = 10;
+  UptimeMetric uptime = 11;
 }
 
 // ── Initialize handshake

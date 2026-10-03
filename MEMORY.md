@@ -415,3 +415,10 @@ remote_server::{proto, protocol} public paths as re-exports. Ordinary inherited
 channels keep 64 MiB; managed channels use the same codec with a 1 MiB limit,
 checked before allocations. No second codec, transport interface or cloud
 installer is introduced. New remote-platform tests remain GitHub-only.
+
+The managed read companion initially advertises only project_open/host_status;
+its boot-scoped attachment is not durable service/environment identity. Keep
+that distinction until per-account private service ownership and retained PTYs
+are implemented. CI Linux's older protoc needs experimental_allow_proto3_optional
+for the inherited schema. Native volume checks compare total/bounds rather than
+exact free bytes, which can change between samples.

@@ -109,3 +109,18 @@ Tasks and checks:
 4. Build the repository companion without desktop crates, collect native remote
    metrics and verify real root identity; then integrate managed SSH client/UI
    through the static UI gates in PLAN. Do not mark full R2/R6 complete early.
+
+
+Managed read source now adds the independent `warpai-companion` binary to the
+existing agent_bus package, reusing the shared protobuf and installed sysinfo.
+It advertises only project admission and native host-status reads. Directory
+handles detect root replacement; every read checks boot/connection/project.
+CPU starts warming_up; memory and selected-volume bytes use native counters.
+Sampling is bounded to five seconds. Received projections reject invalid values,
+stale fences/generations and repeated sequences, using local receipt age.
+This attachment currently exits on stdio disconnect; it advertises no durable
+sessions/task service and does not satisfy R2 retention or SR41 GUI acceptance.
+The three-platform workflow runs real standalone process and native-root tests.
+First shared-codec run 37088358866 passed macOS/Windows but Linux protoc 3.6
+required the proto3 optional flag; the build script now explicitly supplies it.
+Exact new-source tests are pending.

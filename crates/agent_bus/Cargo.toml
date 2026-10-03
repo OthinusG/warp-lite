@@ -22,8 +22,11 @@ schemars.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util", "io-std", "process"] }
 uuid.workspace = true
 unicode-segmentation = "=1.11.0"
+remote_protocol.workspace = true
+sysinfo.workspace = true
+tokio-util = { workspace = true, features = ["compat"] }
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(unix)'.dependencies]
 libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
@@ -32,6 +35,10 @@ windows = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Sec
 [[bin]]
 name = "warp-agent"
 path = "src/main.rs"
+
+[[bin]]
+name = "warpai-companion"
+path = "src/companion_main.rs"
 
 [dev-dependencies]
 serde_yaml.workspace = true
