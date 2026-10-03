@@ -22,11 +22,13 @@ functionality are preserved; redundant additions are deleted with focused regres
 
 ## Tasks and acceptance
 
-- [ ] **S0 — Remove redundant implementation.** Delete newly added file/SFTP
+- [x] **S0 — Remove redundant implementation.** Delete newly added file/SFTP
   manager, independent Connections preview, host resource metrics and unnecessary
   session-management features and their protocol/UI/test/workflow plumbing.
   Preserve original terminal/file core and local communication. Complete focused
   regressions before accepting cleanup; an unused leftover is not completion.
+  Accepted backend source 70a5e1d, run 37123392723, and desktop/capture source
+  06aa074, run 37122711581. Later dependency-only pruning is rechecked in S5.
 
 - [x] **S1 — Remote communication authority.** Reuse existing private Broker/Store
   on the remote account, fixed to the selected native project. Same-project

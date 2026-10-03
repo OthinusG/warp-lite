@@ -1082,3 +1082,17 @@ Further S0 pruning reduces SSH metadata to target/root/helper/shell plus system
 config override for the isolated SSH fixture. User/port/key/jump routing uses
 system SSH configuration; removed the redundant authentication helper and profile
 IDs/display-name/persistence scaffolding. Exact-source follow-up is pending.
+
+### S0 accepted — redundant implementation removed
+
+Backend source `70a5e1d64d17b0c449814bc5a56b1ba6d051d255`,
+[run 37123392723](https://github.com/OthinusG/warp-lite/actions/runs/37123392723), passed Linux/macOS/Windows focused and controlled OpenSSH checks.
+Desktop cleanup source `06aa074b04c4f87687878c0ea82814789f2bd0a8`,
+[run 37122711581](https://github.com/OthinusG/warp-lite/actions/runs/37122711581), passed both native desktop builds, protocol/local regressions and captures.
+Removed SFTP manager, independent Connections UI/profile persistence, resource
+metrics, retired device runtime and retained-session controls. Original local
+communication, Store migrations and upstream terminal/file behavior remain.
+Representative native SSH connected/connecting/disconnected/error screenshots
+were reviewed at narrow/wide sizes with no clipped guidance or terminal draft
+loss. PLAN S0 is checked. The later unused direct rand dependency removal and S4
+changes still require their exact-source final regression; no S4 completion claim.

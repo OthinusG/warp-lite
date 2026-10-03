@@ -13,6 +13,8 @@ use warpui::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
+    ConnectSsh,
+    Send,
     Assign,
     Pool,
     Search,
@@ -36,6 +38,8 @@ pub(crate) enum Kind {
 impl Kind {
     pub(super) fn label(self) -> &'static str {
         match self {
+            Self::ConnectSsh => "Connect SSH project",
+            Self::Send => "Send message",
             Self::Assign => "Assign task",
             Self::Pool => "Create pool task",
             Self::Search => "Search messages",
@@ -59,6 +63,12 @@ impl Kind {
     }
     fn labels(self) -> &'static [&'static str] {
         match self {
+            Self::ConnectSsh => &[
+                "System SSH alias",
+                "Absolute remote project root",
+                "Absolute companion path",
+            ],
+            Self::Send => &["Recipient agent name", "Message", "Subject (optional)"],
             Self::Assign | Self::Pool => &[
                 "Recipient or eligible names (comma-separated for pool)",
                 "Description",
@@ -120,6 +130,7 @@ pub(super) struct Form {
 }
 
 enum Command {
+    Connect(warp_agent_bus::ssh_remote::SshProfile),
     Agent(Operation),
     Controller(ControllerOperation),
     Search(String),
@@ -139,16 +150,46 @@ fn command(
 ) -> anyhow::Result<Command> {
     anyhow::ensure!(fields.len() == kind.labels().len(), "Invalid form");
     anyhow::ensure!(
-        fields
-            .iter()
-            .enumerate()
-            .all(|(index, field)| ((kind == Kind::MapWorkspace && index == 2)
-                || (matches!(kind, Kind::Assign | Kind::Pool) && index >= 3)
-                || !field.trim().is_empty())
-                && field.len() <= 8192
-                && !field.chars().any(char::is_control)),
+        fields.iter().enumerate().all(|(index, field)| ((matches!(
+            kind,
+            Kind::MapWorkspace | Kind::Send
+        ) && index == 2)
+            || (matches!(kind, Kind::Assign | Kind::Pool) && index >= 3)
+            || !field.trim().is_empty())
+            && field.len() <= 8192
+            && !field.chars().any(char::is_control)),
         "Complete every field using plain text (up to 8192 bytes)"
     );
+    if kind == Kind::ConnectSsh {
+        let profile = warp_agent_bus::ssh_remote::SshProfile {
+            target: fields[0].trim().into(),
+            remote_root: fields[1].trim().into(),
+            companion_path: fields[2].trim().into(),
+            config_file: None,
+            remote_shell: if fields[1].trim().starts_with('/') {
+                warp_agent_bus::ssh_remote::RemoteShell::Posix
+            } else {
+                warp_agent_bus::ssh_remote::RemoteShell::PowerShell
+            },
+        };
+        profile.validate().map_err(|_| {
+            anyhow::anyhow!(
+                "Use a system SSH alias and absolute paths for the remote operating system"
+            )
+        })?;
+        return Ok(Command::Connect(profile));
+    }
+    if kind == Kind::Send {
+        return Ok(Command::Agent(Operation::AgentSend {
+            to: fields[0].trim().into(),
+            body: fields[1].clone(),
+            subject: (!fields[2].trim().is_empty()).then(|| fields[2].clone()),
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
+            request_id,
+        }));
+    }
     if kind.overrides() {
         anyhow::ensure!(
             fields.last().is_some_and(|field| field == "ALLOW OVERLAP"),
@@ -340,7 +381,9 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::RenewReservation
+        Kind::ConnectSsh
+        | Kind::Send
+        | Kind::RenewReservation
         | Kind::ReleaseReservation
         | Kind::ArchiveAged
         | Kind::Purge
@@ -357,16 +400,30 @@ fn command(
 
 impl CollaborationPanel {
     pub(super) fn open_control(&mut self, kind: Kind, ctx: &mut ViewContext<Self>) {
-        if !self.connected || self.preview || self.form.as_ref().is_some_and(|form| form.submitting)
+        if (kind != Kind::ConnectSsh && !self.connected) || self.preview || self.form.is_some() {
+            return;
+        }
+        let snapshot = self.snapshot.as_ref();
+        if kind != Kind::ConnectSsh && snapshot.is_none() {
+            return;
+        }
+        if self.remote.is_some()
+            && matches!(
+                kind,
+                Kind::CreateSpace
+                    | Kind::MapWorkspace
+                    | Kind::LeaveSpace
+                    | Kind::RenewReservation
+                    | Kind::ReleaseReservation
+            )
         {
             return;
         }
-        let Some(snapshot) = &self.snapshot else {
-            return;
-        };
         if !matches!(
             kind,
-            Kind::RenewReservation
+            Kind::ConnectSsh
+                | Kind::Send
+                | Kind::RenewReservation
                 | Kind::ReleaseReservation
                 | Kind::ArchiveAged
                 | Kind::Purge
@@ -377,26 +434,30 @@ impl CollaborationPanel {
                 | Kind::MapWorkspace
                 | Kind::LeaveSpace
         ) && snapshot
-            .task
-            .as_ref()
+            .and_then(|snapshot| snapshot.task.as_ref())
             .is_none_or(|task| self.query.selected_task.as_ref() != Some(&task.id))
         {
             return;
         }
-        if kind == Kind::Purge && (!self.query.history || snapshot.history.is_none()) {
+        if kind == Kind::Purge
+            && (!self.query.history || snapshot.is_none_or(|snapshot| snapshot.history.is_none()))
+        {
             return;
         }
         let purge_preview = snapshot
-            .history
-            .as_ref()
+            .and_then(|snapshot| snapshot.history.as_ref())
             .map(|history| history.preview.clone());
         let reservations = if matches!(kind, Kind::RenewReservation | Kind::ReleaseReservation) {
-            snapshot.reservations.clone()
+            snapshot
+                .map(|snapshot| snapshot.reservations.clone())
+                .unwrap_or_default()
         } else {
             vec![]
         };
-        let project = snapshot.project.clone();
-        let task = snapshot.task.clone();
+        let project = snapshot
+            .map(|snapshot| snapshot.project.clone())
+            .unwrap_or_default();
+        let task = snapshot.and_then(|snapshot| snapshot.task.clone());
         let fields: Vec<_> = kind
             .labels()
             .iter()
@@ -471,8 +532,12 @@ impl CollaborationPanel {
     }
 
     pub(super) fn confirm_control(&mut self, ctx: &mut ViewContext<Self>) {
-        if !self.connected
-            || Self::current_context(ctx) != self.context
+        let connecting = self
+            .form
+            .as_ref()
+            .is_some_and(|form| form.kind == Kind::ConnectSsh);
+        if (!connecting && !self.connected)
+            || (!connecting && self.current_context(ctx) != self.context)
             || !crate::agent_communication::AgentCommunication::as_ref(ctx)
                 .preferences
                 .enabled
@@ -485,10 +550,11 @@ impl CollaborationPanel {
         if form.submitting {
             return;
         }
-        if self
-            .snapshot
-            .as_ref()
-            .is_none_or(|snapshot| snapshot.project != form.project)
+        if !connecting
+            && self
+                .snapshot
+                .as_ref()
+                .is_none_or(|snapshot| snapshot.project != form.project)
         {
             form.error =
                 "Scope changed. Close this form and confirm a new operation in the current scope."
@@ -524,6 +590,14 @@ impl CollaborationPanel {
                 return;
             }
         };
+        if let Command::Connect(profile) = operation {
+            self.remote = Some(profile);
+            self.form = None;
+            self.context = None;
+            self.reconnect_remote(ctx);
+            ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
+            return;
+        }
         if let Command::Reservation { id, ttl, reason } = &operation {
             let Some(reservation) = form
                 .reservations
@@ -570,16 +644,33 @@ impl CollaborationPanel {
             ctx.notify();
             return;
         }
-        let Some(broker) = crate::agent_communication::BROKER.get().cloned() else {
+        let broker = crate::agent_communication::BROKER.get().cloned();
+        if self.remote.is_none() && broker.is_none() {
             return;
-        };
+        }
+        let remote = self.remote.is_some();
+        let client = self.remote_client.clone();
+        let response_client = client.clone();
+        let generation = self.generation;
         let project = form.project.clone();
         let request_id = form.request_id.clone();
         form.submitting = true;
         form.submitted_fields = Some(fields);
         form.error.clear();
         ctx.spawn(async move {
-            match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), Command::Search(_) | Command::Reservation { .. } => unreachable!("Local intent is resolved before dispatch") }
+            if remote {
+                let command = match operation {
+                    Command::Agent(operation) => warp_agent_bus::companion::TaskCommand::Operator(operation),
+                    Command::Controller(operation) => warp_agent_bus::companion::TaskCommand::Controller(operation),
+                    _ => unreachable!("Form intent resolved before dispatch"),
+                };
+                let mut client = client.lock().await;
+                let client = client.as_mut().ok_or_else(|| anyhow::anyhow!("ssh_connection_lost"))?;
+                Self::remote_command(client, &command, generation).await
+            } else {
+                let broker = broker.unwrap();
+                match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), _ => unreachable!("Form intent resolved before dispatch") }
+            }
         }, move |panel, result, ctx| {
             if panel.form.as_ref().is_none_or(|form| form.request_id != request_id) { return; }
             match result {
@@ -590,6 +681,11 @@ impl CollaborationPanel {
                     panel.refresh(ctx);
                 }
                 Err(error) => {
+                    if remote && std::sync::Arc::ptr_eq(&panel.remote_client, &response_client) && error.downcast_ref::<warp_agent_bus::DomainError>().is_none() {
+                        panel.connected = false;
+                        panel.remote_failed = true;
+                        panel.status = "SSH connection lost. Last state is stale; reconnect before writing. The original request is retained.".into();
+                    }
                     let form = panel.form.as_mut().unwrap();
                     form.submitting = false;
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>().map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
@@ -689,7 +785,9 @@ impl CollaborationPanel {
                 let button = builder
                     .button(ButtonVariant::Text, form.buttons[index].clone())
                     .with_text_label(label.into());
-                let button = if form.submitting {
+                let button = if form.submitting
+                    || (index == 0 && form.kind != Kind::ConnectSsh && !self.connected)
+                {
                     button.disabled()
                 } else {
                     button
@@ -712,7 +810,7 @@ impl CollaborationPanel {
                     Kind::ReleaseReservation,
                 ]
             } else {
-                vec![Kind::Assign, Kind::Pool, Kind::Search]
+                vec![Kind::Assign, Kind::Pool, Kind::Search, Kind::Send]
             };
             if self.show_spaces
                 && self
@@ -785,6 +883,13 @@ impl CollaborationPanel {
     }
 
     #[cfg(debug_assertions)]
+    pub(super) fn control_checkpoint_draft(&self, message: &str, app: &AppContext) -> bool {
+        self.form.as_ref().is_some_and(|form| {
+            !form.submitting && form.fields[1].as_ref(app).buffer_text(app) == message
+        })
+    }
+
+    #[cfg(debug_assertions)]
     pub(super) fn control_checkpoint_rejected(&self) -> bool {
         self.form
             .as_ref()
@@ -797,6 +902,28 @@ mod tests {
     use super::*;
     #[test]
     fn native_intent_requires_explicit_fields_and_typed_override() {
+        let ssh = vec![
+            "research-node".into(),
+            "/srv/project".into(),
+            "/opt/warpai/warpai-companion".into(),
+        ];
+        assert!(
+            matches!(command(Kind::ConnectSsh, "", None, &ssh, "selection".into()).unwrap(), Command::Connect(profile) if profile.target == "research-node")
+        );
+        let mut invalid = ssh.clone();
+        invalid[0] = "-oProxyCommand=unexpected".into();
+        assert!(command(Kind::ConnectSsh, "", None, &invalid, "selection".into()).is_err());
+        invalid = ssh;
+        invalid[1] = "relative/root".into();
+        assert!(command(Kind::ConnectSsh, "", None, &invalid, "selection".into()).is_err());
+        let message = vec![
+            "worker".into(),
+            "Review the remote result".into(),
+            String::new(),
+        ];
+        assert!(
+            matches!(command(Kind::Send, "remote-project", None, &message, "original-message".into()).unwrap(), Command::Agent(Operation::AgentSend { request_id, subject: None, .. }) if request_id == "original-message")
+        );
         let fields = vec![
             "worker".into(),
             "Edit the fixture".into(),

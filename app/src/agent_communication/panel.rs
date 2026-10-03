@@ -3,7 +3,15 @@ use crate::appearance::Appearance;
 #[path = "panel_controls.rs"]
 mod controls;
 use serde::Deserialize;
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use warp_agent_bus::{
+    companion::TaskCommand,
+    ssh_remote::{HostClient, SshProfile},
+};
 use warp_agent_bus::{transport::PanelQuery, Agent, Event, Message, Reservation, Task};
 use warpui::r#async::Timer;
 use warpui::{
@@ -141,7 +149,7 @@ pub(crate) struct CollaborationPanel {
     generation: u64,
     connected: bool,
     form: Option<controls::Form>,
-    control_buttons: [MouseStateHandle; 8],
+    control_buttons: [MouseStateHandle; 9],
     focus_buttons: HashMap<String, MouseStateHandle>,
     show_spaces: bool,
     workspace_preview: Option<WorkspacePreview>,
@@ -153,11 +161,18 @@ pub(crate) struct CollaborationPanel {
     message_page_buttons: [MouseStateHandle; 3],
     evidence_buttons: HashMap<String, MouseStateHandle>,
     history_buttons: [MouseStateHandle; 4],
+    remote: Option<SshProfile>,
+    remote_client: Arc<tokio::sync::Mutex<Option<HostClient>>>,
+    remote_failed: bool,
+    last_received: Option<Instant>,
+    remote_buttons: [MouseStateHandle; 3],
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
     NextFixture,
+    ReconnectSsh,
+    UseLocal,
     PreviousFixture,
     Scroll(f32),
     Exit,
@@ -230,10 +245,24 @@ impl CollaborationPanel {
             message_page_buttons: Default::default(),
             evidence_buttons: Default::default(),
             history_buttons: Default::default(),
+            remote: None,
+            remote_client: Default::default(),
+            remote_failed: false,
+            last_received: None,
+            remote_buttons: Default::default(),
         }
     }
 
-    fn current_context(ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
+    fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
+        if let Some(profile) = &self.remote {
+            return Some((
+                format!(
+                    "ssh:{}:{}:{}",
+                    profile.target, profile.remote_root, profile.companion_path
+                ),
+                None,
+            ));
+        }
         let active = crate::workspace::ActiveSession::as_ref(ctx);
         let root = active.path_if_local(ctx.window_id())?.to_str()?.to_owned();
         let terminal = active
@@ -262,11 +291,12 @@ impl CollaborationPanel {
     fn refresh(&mut self, ctx: &mut ViewContext<Self>) {
         if !self.visible { return; }
         let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
-        let context = enabled.then(|| Self::current_context(ctx)).flatten();
+        let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
             self.generation += 1;
             self.context = context.clone();
             self.snapshot = None;
+            self.last_received = None;
             self.connected = false;
             self.form = None;
             self.show_spaces = false;
@@ -292,23 +322,39 @@ impl CollaborationPanel {
         if self.in_flight {
             return;
         }
-        let Some(broker) = super::BROKER.get().cloned() else {
+        if self.remote.is_some() && self.remote_failed {
+            return;
+        }
+        let broker = super::BROKER.get().cloned();
+        if self.remote.is_none() && broker.is_none() {
             self.status = "Coordinator unavailable. Restart Warpai to reconnect.".into();
             ctx.notify();
             return;
-        };
+        }
+        let remote = self.remote.clone();
+        let client = self.remote_client.clone();
         self.in_flight = true;
         let mut query = self.query.clone();
         let generation = self.generation;
         query.terminal = terminal;
         ctx.spawn(async move {
-            let root = warp_agent_bus::project_root(std::path::Path::new(&directory))?;
-            query.project = root;
-            let value = broker.operator_panel(&query)?;
+            let value = if let Some(profile) = remote {
+                let mut client = client.lock().await;
+                if client.is_none() {
+                    *client = Some(HostClient::connect(&profile).await.map_err(|_| anyhow::anyhow!("ssh_connection_lost"))?);
+                }
+                query.project.clear();
+                query.terminal = None;
+                query.spaces = false;
+                Self::remote_command(client.as_mut().unwrap(), &TaskCommand::Panel(query), generation).await?
+            } else {
+                query.project = warp_agent_bus::project_root(std::path::Path::new(&directory))?;
+                broker.unwrap().operator_panel(&query)?
+            };
             serde_json::from_value::<Snapshot>(value).map_err(anyhow::Error::from)
         }, move |panel, result: anyhow::Result<Snapshot>, ctx| {
             panel.in_flight = false;
-            if !panel.visible || panel.generation != generation || panel.context != context || Self::current_context(ctx) != context
+            if !panel.visible || panel.generation != generation || panel.context != context || panel.current_context(ctx) != context
                 || !super::AgentCommunication::as_ref(ctx).preferences.enabled {
                 return;
             }
@@ -345,22 +391,59 @@ impl CollaborationPanel {
                     panel.workspace_buttons.retain(|id, _| snapshot.spaces.iter().flat_map(|space| &space.workspaces).any(|workspace| &workspace.id == id));
                     for workspace in snapshot.spaces.iter().flat_map(|space| &space.workspaces) { panel.workspace_buttons.entry(workspace.id.clone()).or_default(); }
                     panel.connected = true;
-                    panel.status = match snapshot.admission.as_str() {
+                    panel.last_received = Some(Instant::now());
+                    panel.status = if panel.remote.is_some() { "Connected to the remote project. Agent presence is observed remotely.".into() } else { match snapshot.admission.as_str() {
                         "revoked" => "Participation revoked. Existing effects may still be running; review the mapping and open a fresh shared pane.",
                         "directory_mismatch" => "This pane changed checkout. Its shared native connection is unavailable in this directory; open a fresh pane for the reviewed workspace.",
                         _ => "Connected to the local coordinator. Execution and presence are separate.",
-                    }.into();
+                    }.into() };
                     panel.snapshot = Some(snapshot);
                 }
                 Err(error) => {
                     panel.connected = false;
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
-                    panel.status = format!("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.");
+                    if panel.remote.is_some() {
+                        panel.remote_failed = true;
+                        panel.status = format!("SSH project unavailable ({code}). Last received state is stale. Check the system SSH alias and companion, then reconnect.");
+                    } else {
+                        panel.status = format!("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.");
+                    }
                 }
             }
             ctx.notify();
         });
+    }
+
+    async fn remote_command(
+        client: &mut HostClient,
+        command: &TaskCommand,
+        generation: u64,
+    ) -> anyhow::Result<serde_json::Value> {
+        let envelope = client
+            .project_tasks(command, generation)
+            .await
+            .map_err(|_| anyhow::anyhow!("ssh_connection_lost"))?;
+        if let Some(error) = envelope.get("error") {
+            return Err(
+                serde_json::from_value::<warp_agent_bus::DomainError>(error.clone())?.into(),
+            );
+        }
+        envelope
+            .get("value")
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("ssh_invalid_response"))
+    }
+
+    fn reconnect_remote(&mut self, ctx: &mut ViewContext<Self>) {
+        self.generation += 1;
+        self.remote_client = Default::default();
+        self.remote_failed = false;
+        self.connected = false;
+        self.query.wait = false;
+        self.status = "Connecting to the SSH project…".into();
+        self.refresh(ctx);
+        ctx.notify();
     }
 
     fn live_fixture(&self) -> Fixture {
@@ -369,6 +452,24 @@ impl CollaborationPanel {
             guidance: self.status.clone(),
             sections: vec![],
         };
+        if let Some(profile) = &self.remote {
+            fixture.sections.push(Section {
+                title: "SSH project".into(),
+                rows: vec![
+                    format!("{} · {}", profile.target, profile.remote_root),
+                    format!("Companion: {}", profile.companion_path),
+                    self.last_received
+                        .map(|at| {
+                            format!(
+                                "Last received update {}s ago{}",
+                                at.elapsed().as_secs(),
+                                if self.connected { "" } else { " · stale" }
+                            )
+                        })
+                        .unwrap_or_else(|| "No remote update received.".into()),
+                ],
+            });
+        }
         let Some(snapshot) = &self.snapshot else {
             return fixture;
         };
@@ -377,7 +478,9 @@ impl CollaborationPanel {
             rows: vec![
                 format!(
                     "{} · {}",
-                    if cfg!(target_os = "windows") {
+                    if self.remote.is_some() {
+                        "Remote project"
+                    } else if cfg!(target_os = "windows") {
                         "This Windows PC"
                     } else {
                         "This Mac"
@@ -641,7 +744,7 @@ impl CollaborationPanel {
                     .iter()
                     .map(|row| {
                         format!(
-                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{}",
+                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{} · run {}",
                             row.agent.name,
                             row.agent.program,
                             if row.online { "online" } else { "offline" },
@@ -681,6 +784,7 @@ impl CollaborationPanel {
                                 .unwrap_or_else(|| "unavailable".into()),
                             row.delivery_phase.as_ref().map(|phase| format!("\nLast native prompt {} · acknowledgement remains separate{}",
                                 phase, if row.delivery_retained == Some(false) { " · history record unavailable" } else { "" })).unwrap_or_default(),
+                            row.agent.run,
                         )
                     })
                     .collect(),
@@ -762,7 +866,7 @@ impl TypedActionView for CollaborationPanel {
                 }
                 Action::CopyHistory => {
                     if self.connected
-                        && Self::current_context(ctx) == self.context
+                        && self.current_context(ctx) == self.context
                         && super::AgentCommunication::as_ref(ctx).preferences.enabled
                     {
                         if let Some(snapshot) = &self.snapshot {
@@ -778,7 +882,24 @@ impl TypedActionView for CollaborationPanel {
                     }
                     return;
                 }
+                Action::ReconnectSsh => {
+                    if self.remote.is_some() {
+                        self.reconnect_remote(ctx);
+                    }
+                    return;
+                }
+                Action::UseLocal => {
+                    if self.form.is_some() {
+                        return;
+                    }
+                    self.remote = None;
+                    self.reconnect_remote(ctx);
+                    return;
+                }
                 Action::Spaces => {
+                    if self.remote.is_some() {
+                        return;
+                    }
                     self.query.history = false;
                     self.show_spaces = true;
                     self.show_messages = false;
@@ -805,7 +926,7 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::ConfirmWorkspace => {
-                    if !self.connected || Self::current_context(ctx) != self.context {
+                    if !self.connected || self.current_context(ctx) != self.context {
                         return;
                     }
                     if let Some(workspace) = &self.workspace_preview {
@@ -822,7 +943,10 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::OpenEvidence(id) => {
-                    if !self.connected || Self::current_context(ctx) != self.context {
+                    if self.remote.is_some() {
+                        return;
+                    }
+                    if !self.connected || self.current_context(ctx) != self.context {
                         return;
                     }
                     let Some(snapshot) = &self.snapshot else {
@@ -846,7 +970,7 @@ impl TypedActionView for CollaborationPanel {
                     let context = self.context.clone();
                     let evidence_id = id.clone();
                     ctx.spawn(async move { broker.local_evidence_file(&project, &evidence_id) }, move |panel, result, ctx| {
-                        if Self::current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !super::AgentCommunication::as_ref(ctx).preferences.enabled { return; }
+                        if panel.current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !super::AgentCommunication::as_ref(ctx).preferences.enabled { return; }
                         match result {
                             Ok(full_path) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::OpenFileInNewTab { full_path, line_and_column: None }),
                             Err(_) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::CollaborationEvidenceUnavailable),
@@ -935,7 +1059,10 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::FocusAgent(id) => {
-                    if Self::current_context(ctx) != self.context {
+                    if self.remote.is_some() {
+                        return;
+                    }
+                    if self.current_context(ctx) != self.context {
                         return;
                     }
                     let Some(row) = self.snapshot.as_ref().and_then(|snapshot| {
@@ -1080,7 +1207,15 @@ impl View for CollaborationPanel {
                 .span(if self.preview {
                     format!("Design preview — sample data · {}", fixture.state)
                 } else {
-                    format!("Local collaboration · {}", fixture.state)
+                    format!(
+                        "{} collaboration · {}",
+                        if self.remote.is_some() {
+                            "SSH"
+                        } else {
+                            "Local"
+                        },
+                        fixture.state
+                    )
                 })
                 .with_soft_wrap()
                 .build()
@@ -1108,20 +1243,53 @@ impl View for CollaborationPanel {
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture))
                 .finish(),
         );
+        if !self.preview {
+            for (index, label, action) in [
+                (
+                    0,
+                    "Connect SSH project",
+                    Action::OpenControl(controls::Kind::ConnectSsh),
+                ),
+                (1, "Reconnect SSH", Action::ReconnectSsh),
+                (2, "Use local project", Action::UseLocal),
+            ] {
+                if index > 0 && self.remote.is_none() {
+                    continue;
+                }
+                let button = builder
+                    .button(ButtonVariant::Text, self.remote_buttons[index].clone())
+                    .with_text_label(label.into());
+                let button = if (index != 1 && self.form.is_some())
+                    || !super::AgentCommunication::as_ref(app).preferences.enabled
+                {
+                    button.disabled()
+                } else {
+                    button
+                };
+                header.add_child(
+                    button
+                        .build()
+                        .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
+                        .finish(),
+                );
+            }
+        }
         let mut body = Flex::column().with_spacing(12.);
         if !self.preview && self.form.is_some() {
             body.add_child(self.render_controls(app));
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
-                header.add_child(
-                    builder
-                        .button(ButtonVariant::Text, self.scope_buttons[0].clone())
-                        .with_text_label("Spaces and workspaces".into())
-                        .build()
-                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
-                        .finish(),
-                );
+                if self.remote.is_none() {
+                    header.add_child(
+                        builder
+                            .button(ButtonVariant::Text, self.scope_buttons[0].clone())
+                            .with_text_label("Spaces and workspaces".into())
+                            .build()
+                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
+                            .finish(),
+                    );
+                }
                 header.add_child(
                     builder
                         .button(ButtonVariant::Text, self.history_buttons[0].clone())
@@ -1303,11 +1471,9 @@ impl View for CollaborationPanel {
                 .and_then(|snapshot| snapshot.task.as_ref())
                 .filter(|task| self.query.selected_task.as_ref() == Some(&task.id))
             {
-                for evidence in task
-                    .evidence_records
-                    .iter()
-                    .filter(|evidence| evidence.kind == "file" && evidence.device.is_none())
-                {
+                for evidence in task.evidence_records.iter().filter(|evidence| {
+                    self.remote.is_none() && evidence.kind == "file" && evidence.device.is_none()
+                }) {
                     let id = evidence.id.clone();
                     body.add_child(
                         builder
@@ -1483,7 +1649,8 @@ impl View for CollaborationPanel {
         if !self.preview && self.form.is_none() && self.snapshot.is_some() {
             if let Some(snapshot) = &self.snapshot {
                 for row in &snapshot.agents {
-                    if row.online
+                    if self.remote.is_none()
+                        && row.online
                         && super::VIEWS
                             .get()
                             .and_then(|views| views.lock().ok())
@@ -1667,6 +1834,89 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     broker.input_guard(terminal, true, true);
     broker.end(terminal);
     Ok(())
+}
+
+/// The native panel checkpoint uses real private companion/MCP processes.
+#[cfg(debug_assertions)]
+impl CollaborationPanel {
+    fn connect_remote_checkpoint(&mut self, launch: bool, ctx: &mut ViewContext<Self>) {
+        let companion = std::path::PathBuf::from(
+            std::env::var_os("WARP_TEST_COMPANION").expect("Explicit CI companion"),
+        );
+        let root = std::env::temp_dir().join(format!("warpai-panel-remote-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap().to_str().unwrap().to_owned();
+        self.remote = Some(SshProfile {
+            target: "native-companion-checkpoint".into(),
+            config_file: None,
+            remote_root: root.clone(),
+            companion_path: companion.to_str().unwrap().into(),
+            remote_shell: if cfg!(windows) {
+                warp_agent_bus::ssh_remote::RemoteShell::PowerShell
+            } else {
+                warp_agent_bus::ssh_remote::RemoteShell::Posix
+            },
+        });
+        self.generation += 1;
+        let generation = self.generation;
+        self.connected = false;
+        self.remote_failed = false;
+        self.remote_client = Default::default();
+        ctx.spawn(
+            async move {
+                let mut client = HostClient::connect_companion(&companion, &root)
+                    .await
+                    .expect("Private native companion");
+                if launch {
+                    let fixture = std::fs::read_dir(companion.parent().unwrap().join("deps"))
+                        .unwrap()
+                        .map(|entry| entry.unwrap().path())
+                        .find(|path| {
+                            path.file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                                .starts_with("managed_agent-")
+                                && if cfg!(windows) {
+                                    path.extension().is_some_and(|ext| ext == "exe")
+                                } else {
+                                    path.extension().is_none()
+                                }
+                        })
+                        .expect("Compiled native Agent fixture");
+                    client
+                        .terminal_launch(remote_server::proto::TerminalLaunch {
+                            fence: client.fence().cloned(),
+                            session_id: uuid::Uuid::new_v4().to_string(),
+                            executable: fixture.to_str().unwrap().into(),
+                            arguments: [
+                                "--exact",
+                                "managed_agent_child",
+                                "--ignored",
+                                "--nocapture",
+                            ]
+                            .map(str::to_owned)
+                            .to_vec(),
+                            columns: 120,
+                            rows: 24,
+                            agent_program: Some("fixture".into()),
+                        })
+                        .await
+                        .expect("Real managed native Agent");
+                }
+                client
+            },
+            move |panel, client, ctx| {
+                assert_eq!(
+                    panel.generation, generation,
+                    "Checkpoint attachment selection changed"
+                );
+                panel.remote_client = Arc::new(tokio::sync::Mutex::new(Some(client)));
+                panel.query.wait = false;
+                panel.refresh(ctx);
+            },
+        );
+        ctx.notify();
+    }
 }
 
 /// Exercises fixed fixtures and deterministic local operations in an isolated debug profile.
@@ -3242,6 +3492,185 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-reservation-renewed.png",
             "live-reservation-release-confirmation.png",
             "live-reservation-released.png",
+        ]
+        .map(str::to_owned),
+    );
+    driver = driver
+        .with_step(
+            TestStep::new("review native SSH selection form")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.open_control(controls::Kind::ConnectSsh, ctx);
+                        panel.fill_control_checkpoint(
+                            &[
+                                "research-node",
+                                "/srv/project",
+                                "/opt/warpai/warpai-companion",
+                            ],
+                            ctx,
+                        );
+                    });
+                })
+                .with_take_screenshot("live-ssh-selection.png"),
+        )
+        .with_step(
+            TestStep::new("attach real native companion to existing panel").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.cancel_control(ctx);
+                        panel.connect_remote_checkpoint(true, ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("receive real remote Agent projection")
+                .add_named_assertion("native run and isolated scope", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| panel.connected
+                            && panel.remote.is_some()
+                            && panel.snapshot.as_ref().is_some_and(
+                                |snapshot| uuid::Uuid::parse_str(&snapshot.project).is_ok()
+                                    && snapshot.agents.iter().any(|row| row.online
+                                        && row.agent.program == "fixture"
+                                        && !row.agent.run.is_empty())
+                            ))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-ssh-agent.png"),
+        )
+        .with_step(
+            TestStep::new("send explicit human message through remote panel").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let name = panel
+                            .snapshot
+                            .as_ref()
+                            .unwrap()
+                            .agents
+                            .iter()
+                            .find(|row| row.online)
+                            .unwrap()
+                            .agent
+                            .name
+                            .clone();
+                        panel.open_control(controls::Kind::Send, ctx);
+                        panel.fill_control_checkpoint(
+                            &[&name, "Native remote panel message", "Panel checkpoint"],
+                            ctx,
+                        );
+                        panel.confirm_control(ctx);
+                    });
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remote Store confirms the human message")
+                .add_named_assertion("real remote message committed", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.connected
+                        && panel.form.is_none()
+                        && panel
+                            .events
+                            .iter()
+                            .any(|event| event.kind == "message_queued")))
+                })
+                .with_take_screenshot("live-ssh-message.png"),
+        )
+        .with_step(
+            TestStep::new("retain remote form on disconnect")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        let name = panel.snapshot.as_ref().unwrap().agents[0]
+                            .agent
+                            .name
+                            .clone();
+                        panel.open_control(controls::Kind::Send, ctx);
+                        panel.fill_control_checkpoint(
+                            &[&name, "Unsent remote message", "Retain this draft"],
+                            ctx,
+                        );
+                        panel.generation += 1;
+                        panel.connected = false;
+                        panel.remote_failed = true;
+                        panel.status =
+                            "Disconnected. Last remote state is stale; reconnect before writing."
+                                .into();
+                        let client = panel.remote_client.clone();
+                        ctx.spawn(
+                            async move {
+                                if let Some(client) = client.lock().await.as_mut() {
+                                    client.disconnect();
+                                }
+                            },
+                            |_, _, _| {},
+                        );
+                        panel.confirm_control(ctx);
+                        assert!(panel.control_checkpoint_draft("Unsent remote message", ctx));
+                        ctx.notify();
+                    });
+                })
+                .with_take_screenshot("live-ssh-disconnected-draft.png"),
+        )
+        .with_step(
+            TestStep::new("reconnect private native project without replaying the draft")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.connect_remote_checkpoint(false, ctx)
+                    });
+                }),
+        )
+        .with_step(
+            TestStep::new("reconnect preserves original remote intent")
+                .add_named_assertion("remote draft and terminal draft retained", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, app| panel.connected
+                            && panel.control_checkpoint_draft("Unsent remote message", app))
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                })
+                .with_take_screenshot("live-ssh-reconnected-draft.png"),
+        )
+        .with_step(
+            TestStep::new("return to original local project").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.cancel_control(ctx);
+                    panel.handle_action(&Action::UseLocal, ctx);
+                });
+            }),
+        )
+        .with_step(
+            TestStep::new("local projection works after remote selection")
+                .add_named_assertion("local authority restored", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.connected
+                        && panel.remote.is_none()
+                        && panel
+                            .snapshot
+                            .as_ref()
+                            .is_some_and(
+                                |snapshot| uuid::Uuid::parse_str(&snapshot.project).is_err()
+                            )))
+                })
+                .with_take_screenshot("live-ssh-return-local.png"),
+        );
+    filenames.extend(
+        [
+            "live-ssh-selection.png",
+            "live-ssh-agent.png",
+            "live-ssh-message.png",
+            "live-ssh-disconnected-draft.png",
+            "live-ssh-reconnected-draft.png",
+            "live-ssh-return-local.png",
         ]
         .map(str::to_owned),
     );

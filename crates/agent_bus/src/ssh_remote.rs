@@ -172,6 +172,17 @@ impl HostClient {
     pub async fn connect_local(root: &str) -> Result<Self, ConnectionError> {
         let executable =
             std::env::current_exe().map_err(|_| ConnectionError::CompanionUnavailable)?;
+        Self::connect_companion(&executable, root).await
+    }
+
+    /// Connect to an explicitly provisioned companion through the same private protocol.
+    pub async fn connect_companion(
+        executable: &std::path::Path,
+        root: &str,
+    ) -> Result<Self, ConnectionError> {
+        if !executable.is_absolute() {
+            return Err(ConnectionError::InvalidProfile);
+        }
         let mut command = Command::new(executable);
         crate::session::without_terminal_binding(&mut command);
         command.env_remove("VIBE_MCP_SERVERS");

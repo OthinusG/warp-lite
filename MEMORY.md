@@ -588,3 +588,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   use O_NOFOLLOW/O_NONBLOCK. Source 06aa074 verified this alongside Store migration
   and local communication regressions; desktop-only handle inspection fails remote
   task evidence even when SSH/MCP themselves work.
+
+- S0 pruning accepted using backend source70a5e1d/run37123392723 and desktop
+  source06aa074/run37122711581. Removed the extra SFTP/Connections/metrics/device
+  runtime/session manager, preserving local Store migration and original terminal
+  core. Native SSH status fixtures retain terminal drafts. S4 selection belongs
+  to the existing panel only, transient, with system SSH authentication and one
+  serialized exact-project client; reconnect keeps original human intent.

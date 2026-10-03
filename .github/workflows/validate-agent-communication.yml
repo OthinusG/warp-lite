@@ -114,6 +114,7 @@ jobs:
         shell: pwsh
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
+          WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion.exe
         run: |
           $captureProcess = Start-Process -FilePath "$PWD/target/debug/warp-oss.exe" -WorkingDirectory "$PWD/target/debug" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           # Keep only panic source locations, never the raw application log or payload.
@@ -128,7 +129,7 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          $expectedImages = $fixtureCount * 8 + 43
+          $expectedImages = $fixtureCount * 8 + 49
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && inputs.capture_ui }}
@@ -240,6 +241,7 @@ jobs:
         timeout-minutes: 7
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
+          WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion
         run: |
           capture_exit=0
           WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
@@ -252,7 +254,7 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = len(fixtures) * 8 + 43
+          expected = len(fixtures) * 8 + 49
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures

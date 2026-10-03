@@ -65,3 +65,12 @@ are the visual source. Added four fixed SSH states (connecting, connected,
 disconnected, error) to panel-fixtures.json, with target/root/companion and observed
 Agent/task rows. Review native captures before wiring live remote projections.
 No independent dashboard, resource metrics, file actions or session manager.
+
+Remote selection is panel-local and transient. Reuse the existing human-intent
+form for the system SSH alias, absolute remote root and companion path. A single
+serialized HostClient handles reads and explicit mutations; no local remote Store
+or saved credential/profile manager is introduced. Connection failure retains the
+last projection and original intent, disables writes and requires explicit
+reconnect. Selection/visibility generations reject late reads; reconnect keeps
+drafts, while switching targets requires closing the current form. Remote file
+and terminal focus actions cannot use local desktop paths or terminal IDs.
