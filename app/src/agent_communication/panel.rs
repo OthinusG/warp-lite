@@ -1864,10 +1864,12 @@ impl CollaborationPanel {
             },
         });
         self.generation += 1;
-        let generation = self.generation;
         self.connected = false;
-        self.remote_failed = false;
+        // Suppress polling until the real checkpoint transport is installed.
+        self.remote_failed = true;
         self.remote_client = Default::default();
+        self.refresh(ctx);
+        let generation = self.generation;
         ctx.spawn(
             async move {
                 let mut client = HostClient::connect_companion(&companion, &root)
@@ -1917,6 +1919,7 @@ impl CollaborationPanel {
                     "Checkpoint attachment selection changed"
                 );
                 panel.remote_client = Arc::new(tokio::sync::Mutex::new(Some(client)));
+                panel.remote_failed = false;
                 panel.query.wait = false;
                 panel.refresh(ctx);
             },

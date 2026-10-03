@@ -74,23 +74,6 @@ jobs:
         run: |
           cargo test -p warp --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warp --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
-      - name: Prepare Windows packaging dependencies
-        if: ${{ !inputs.protocol_only }}
-        run: bash script/install_cargo_release_deps
-      - name: Build and package Windows review artifacts
-        if: ${{ !inputs.protocol_only }}
-        shell: pwsh
-        run: script/build-warp-lite-windows.ps1 -ReleaseTag "0.5.7-review"
-      - name: Upload Windows review artifacts
-        if: ${{ !inputs.protocol_only }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: Warpai-agent-communication-windows
-          path: |
-            WarpaiSetup-x64.exe
-            Warpai-windows-x64.zip
-          if-no-files-found: error
-          retention-days: 7
       - name: Build Windows native review executable
         if: ${{ inputs.capture_ui }}
         shell: pwsh
@@ -140,6 +123,23 @@ jobs:
             ${{ runner.temp }}/collaboration-ui-windows/**/*.png
             ${{ runner.temp }}/collaboration-ui-windows/diagnostic.json
           if-no-files-found: warn
+          retention-days: 7
+      - name: Prepare Windows packaging dependencies
+        if: ${{ !inputs.protocol_only }}
+        run: bash script/install_cargo_release_deps
+      - name: Build and package Windows review artifacts
+        if: ${{ !inputs.protocol_only }}
+        shell: pwsh
+        run: script/build-warp-lite-windows.ps1 -ReleaseTag "0.5.7-review"
+      - name: Upload Windows review artifacts
+        if: ${{ !inputs.protocol_only }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-agent-communication-windows
+          path: |
+            WarpaiSetup-x64.exe
+            Warpai-windows-x64.zip
+          if-no-files-found: error
           retention-days: 7
   macos:
     runs-on: macos-15
@@ -220,22 +220,6 @@ jobs:
           name: Warpai-collaboration-UI-review-macos
           path: WarpaiReview.app.zip
           retention-days: 7
-      - name: Build and package review artifacts
-        if: ${{ !inputs.protocol_only }}
-        run: |
-          cargo build --release --bin warp-oss --locked
-          cargo build --release -p warp-agent-bus --bin warp-agent --locked
-          script/build-warp-lite-app.sh
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Warpai.app/Contents/Info.plist | grep -qx Warpai
-          test -x Warpai.app/Contents/MacOS/Warpai
-          codesign --verify --deep --strict Warpai.app
-          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ !inputs.protocol_only }}
-        with:
-          name: Warpai-agent-communication-macos
-          path: Warpai.app.zip
-          retention-days: 7
       - name: Capture macOS static collaboration UI
         if: ${{ inputs.capture_ui }}
         timeout-minutes: 7
@@ -266,6 +250,22 @@ jobs:
             ${{ runner.temp }}/collaboration-ui-macos/**/*.png
             ${{ runner.temp }}/collaboration-ui-macos/diagnostic.json
           if-no-files-found: warn
+          retention-days: 7
+      - name: Build and package review artifacts
+        if: ${{ !inputs.protocol_only }}
+        run: |
+          cargo build --release --bin warp-oss --locked
+          cargo build --release -p warp-agent-bus --bin warp-agent --locked
+          script/build-warp-lite-app.sh
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Warpai.app/Contents/Info.plist | grep -qx Warpai
+          test -x Warpai.app/Contents/MacOS/Warpai
+          codesign --verify --deep --strict Warpai.app
+          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !inputs.protocol_only }}
+        with:
+          name: Warpai-agent-communication-macos
+          path: Warpai.app.zip
           retention-days: 7
   soak_phase1:
     if: ${{ inputs.soak && !inputs.protocol_only }}
