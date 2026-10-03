@@ -32,7 +32,7 @@ tokio-util = { workspace = true, features = ["compat"] }
 libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Security_Authorization", "Win32_System_Threading"] }
+windows = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Pipes"] }
 
 [[bin]]
 name = "warp-agent"

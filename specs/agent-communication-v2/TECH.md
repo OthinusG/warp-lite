@@ -238,3 +238,17 @@ PTY/task ownership exists, this read-only service advertises only project_open
 and host_status, never session retention or collaboration. Later owned work must
 participate in idle eligibility before those capabilities can be enabled. A
 service restart changes boot identity, preserving unknown-task semantics.
+
+### Native retained-terminal extraction
+
+The desktop PTY implementations depend on WarpUI/PtySpawner, so they cannot be
+linked into the independent Linux companion. Reuse their native spawn sequence
+and Windows argv quoting in a small agent_bus native_pty module, keeping desktop
+render/input APIs intact. Unix uses openpty/setsid/TIOCSCTTY; Windows uses system
+ConPTY (Windows 10 1809 / Server 2019 minimum), with separate synchronous IO
+workers as required by [Microsoft's session guide](https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session).
+An owned Windows job assigns a suspended child before resuming it, so explicit
+Stop can target its process tree. Root cwd must exist and be absolute; arguments
+are structured and bounded, never a local shell interpolation. Native primitives
+alone do not advertise retention: the service must keep the exact process/PTY
+handle, bounded replay, session/run IDs and ownership/generation fences first.

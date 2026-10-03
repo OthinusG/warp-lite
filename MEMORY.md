@@ -484,3 +484,12 @@ per OS). Live profile forms and remote IO remain pending this native image revie
 Account-service source31a21d3/run37092447246 passed all three focused platform
 suites, real stdio detach/reattach and duplicate-owner checks, and actual Linux
 SSH shared-boot plus SFTP mutation checks. No PTY retention claim follows.
+
+Native terminal primitive checkpoint (CI pending): reuse audited Unix
+openpty/setsid/TIOCSCTTY and Windows argv/ConPTY process-attribute sequences in
+agent_bus without desktop services. Windows uses the OS ConPTY API and an owned
+job assigned before child resume; no external desktop DLL. Structured absolute
+executable/root, bounded argv, inherited binding scrubber, size validation and
+observed exit are explicit. The real process check verifies an actual terminal,
+owned multilingual cwd, Unicode input and resize on each OS. Service session
+retention/replay/generation guards are not implemented by this primitive alone.
