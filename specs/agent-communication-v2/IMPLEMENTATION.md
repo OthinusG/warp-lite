@@ -170,3 +170,11 @@ structured list/stat/read, remotely canonicalized root containment and a clean
 file-only connection without a helper path. CI now checks exact binary bytes in
 a Unicode/shell-metacharacter filename and refuses a symlink escape. SFTP writes,
 transfers, GUI integration and Windows root mapping remain pending.
+
+
+Native capture run 37089753788 (source3f722f5) failed macOS build with E0117:
+three legacy repo_metadata conversion impls became foreign-to-foreign after
+protobuf extraction. The mapping bodies are preserved as explicit conversion
+functions in remote_server, with the one application sender updated. The shared
+protocol remains free of desktop metadata dependencies. All callers were searched;
+default/platform application builds and native captures must revalidate the fix.

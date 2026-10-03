@@ -250,7 +250,9 @@ impl ServerModel {
                     me.send_server_message(
                         None,
                         None,
-                        server_message::Message::RepoMetadataUpdate(update.into()),
+                        server_message::Message::RepoMetadataUpdate(
+                            super::repo_metadata_proto::repo_metadata_update_to_proto(update),
+                        ),
                     );
                 }
                 RepoMetadataEvent::RepositoryUpdated {

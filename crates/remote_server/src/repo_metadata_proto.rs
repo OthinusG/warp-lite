@@ -14,58 +14,52 @@ use crate::proto;
 
 // ── Rust → Proto ────────────────────────────────────────────
 
-impl From<&RepoMetadataUpdate> for proto::RepoMetadataUpdatePush {
-    fn from(update: &RepoMetadataUpdate) -> Self {
-        Self {
-            repo_path: update.repo_path.to_string(),
-            remove_entries: update
-                .remove_entries
-                .iter()
-                .map(|p| p.to_string())
-                .collect(),
-            update_entries: update
-                .update_entries
-                .iter()
-                .map(proto::RepoMetadataEntryUpdate::from)
-                .collect(),
-        }
+pub fn repo_metadata_update_to_proto(update: &RepoMetadataUpdate) -> proto::RepoMetadataUpdatePush {
+    proto::RepoMetadataUpdatePush {
+        repo_path: update.repo_path.to_string(),
+        remove_entries: update
+            .remove_entries
+            .iter()
+            .map(|p| p.to_string())
+            .collect(),
+        update_entries: update
+            .update_entries
+            .iter()
+            .map(entry_update_to_proto)
+            .collect(),
     }
 }
 
-impl From<&FileTreeEntryUpdate> for proto::RepoMetadataEntryUpdate {
-    fn from(update: &FileTreeEntryUpdate) -> Self {
-        Self {
-            parent_path_to_replace: update.parent_path_to_replace.to_string(),
-            subtree_metadata: update
-                .subtree_metadata
-                .iter()
-                .map(proto::RepoNodeMetadata::from)
-                .collect(),
-        }
+fn entry_update_to_proto(update: &FileTreeEntryUpdate) -> proto::RepoMetadataEntryUpdate {
+    proto::RepoMetadataEntryUpdate {
+        parent_path_to_replace: update.parent_path_to_replace.to_string(),
+        subtree_metadata: update
+            .subtree_metadata
+            .iter()
+            .map(repo_node_metadata_to_proto)
+            .collect(),
     }
 }
 
-impl From<&RepoNodeMetadata> for proto::RepoNodeMetadata {
-    fn from(node: &RepoNodeMetadata) -> Self {
-        let node_oneof = match node {
-            RepoNodeMetadata::Directory(dir) => {
-                proto::repo_node_metadata::Node::Directory(proto::DirectoryNodeMetadata {
-                    path: dir.path.to_string(),
-                    ignored: dir.ignored,
-                    loaded: dir.loaded,
-                })
-            }
-            RepoNodeMetadata::File(file) => {
-                proto::repo_node_metadata::Node::File(proto::FileNodeMetadata {
-                    path: file.path.to_string(),
-                    extension: file.extension.clone(),
-                    ignored: file.ignored,
-                })
-            }
-        };
-        Self {
-            node: Some(node_oneof),
+fn repo_node_metadata_to_proto(node: &RepoNodeMetadata) -> proto::RepoNodeMetadata {
+    let node_oneof = match node {
+        RepoNodeMetadata::Directory(dir) => {
+            proto::repo_node_metadata::Node::Directory(proto::DirectoryNodeMetadata {
+                path: dir.path.to_string(),
+                ignored: dir.ignored,
+                loaded: dir.loaded,
+            })
         }
+        RepoNodeMetadata::File(file) => {
+            proto::repo_node_metadata::Node::File(proto::FileNodeMetadata {
+                path: file.path.to_string(),
+                extension: file.extension.clone(),
+                ignored: file.ignored,
+            })
+        }
+    };
+    proto::RepoNodeMetadata {
+        node: Some(node_oneof),
     }
 }
 
