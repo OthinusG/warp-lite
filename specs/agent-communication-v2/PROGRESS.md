@@ -1051,3 +1051,9 @@ Unix no-follow/nonblocking open. Windows and exact-source rerun remain pending.
 S3 source now adds an explicit companion Agent CLI using the existing account
 client, PTY IO and session::launch adapters. Private credentials remain child-only;
 MCP relay uses the existing forward implementation. S3 is not accepted yet.
+
+S3 acceptance additions (pending CI): two owned native Agent fixture processes
+register distinct names through private child bindings, send/read a message,
+assign/start/submit/review one task, and exercise the explicit companion Agent CLI
+with actual terminal IO. Existing MCP SDK initialization/tools discovery remains
+part of each managed child. Vendor credentials/model calls are not used.

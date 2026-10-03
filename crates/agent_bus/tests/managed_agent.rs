@@ -15,6 +15,7 @@ fn managed_agent_child() {
         let mut mode = CONSOLE_MODE::default();
         GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE).unwrap(), &mut mode).unwrap();
     }
+    let mut agent_run = None;
     if std::env::var_os(warp_agent_bus::transport::CAPABILITY).is_some() {
         use std::io::{BufRead, Write};
         let mut bridge = std::process::Command::new(std::env::var_os("WARP_AGENT_BIN").unwrap())
@@ -58,7 +59,7 @@ fn managed_agent_child() {
                 native_activity: None,
                 directory: None,
                 operation: warp_agent_bus::Operation::AgentRegister {
-                    name: "fixture".into(),
+                    name: format!("fixture-{}", std::env::var(TERMINAL).unwrap()),
                 },
             },
         )
@@ -71,9 +72,11 @@ fn managed_agent_child() {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
         });
+        agent_run = Some(registered["run"].as_str().unwrap().to_owned());
         println!("MCP_NATIVE_RUN={}", registered["run"].as_str().unwrap());
     }
     println!("REMOTE_ROOT={}", std::env::current_dir().unwrap().display());
+    let mut operation_sequence = 0;
     loop {
         let mut line = String::new();
         if std::io::stdin().read_line(&mut line).unwrap() == 0 {
@@ -85,7 +88,33 @@ fn managed_agent_child() {
                 println!("{}", "x".repeat(300_000));
                 println!("BOUNDED_REPLAY_VERIFIED");
             }
-            _ => panic!("Unexpected terminal input"),
+            value => {
+                use warp_agent_bus::transport::*;
+                operation_sequence += 1;
+                let operation: warp_agent_bus::Operation = serde_json::from_str(value).unwrap();
+                let result = call(
+                    &std::env::var(ENDPOINT).unwrap(),
+                    &Request {
+                        protocol_major: PROTOCOL_MAJOR,
+                        terminal: std::env::var(TERMINAL).unwrap(),
+                        capability: std::env::var(CAPABILITY).unwrap(),
+                        run: agent_run.clone(),
+                        defer_initial_ready: false,
+                        native_activity: None,
+                        directory: None,
+                        operation,
+                    },
+                )
+                .unwrap();
+                println!(
+                    "FIXTURE_RESULT_{operation_sequence}={}",
+                    serde_json::json!({
+                        "id": result["id"], "attempt_id": result["attempt_id"], "state": result["state"],
+                        "has_message": result["messages"].as_array().is_some_and(|messages|
+                            messages.iter().any(|message| message["body"] == "Remote fixture message"))
+                    })
+                );
+            }
         }
     }
 }
@@ -466,4 +495,202 @@ async fn disconnected_agent_cannot_be_adopted_by_another_connection() {
         ));
     }
     next.disconnect().await;
+}
+
+#[tokio::test]
+async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project() {
+    use warp_agent_bus::Operation;
+    let root = tempfile::tempdir().unwrap();
+    let mut attachment = Attachment::open(root.path()).await;
+    let mut agents = Vec::new();
+    for _ in 0..2 {
+        let managed_response::Result::TerminalState(state) = attachment
+            .call(managed_request::Operation::TerminalLaunch(TerminalLaunch {
+                fence: Some(attachment.fence.clone()),
+                session_id: Uuid::new_v4().to_string(),
+                executable: std::env::current_exe().unwrap().to_str().unwrap().into(),
+                arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"]
+                    .map(str::to_owned)
+                    .to_vec(),
+                columns: 1000,
+                rows: 24,
+                agent_program: Some("fixture".into()),
+            }))
+            .await
+        else {
+            panic!("Owned Agent required")
+        };
+        attachment
+            .wait_output(&state, &format!("MCP_NATIVE_RUN={}", state.run_id))
+            .await;
+        agents.push(state);
+    }
+    let receiver = format!("fixture-{}", agents[1].session_id);
+    fixture_operation(
+        &mut attachment,
+        &mut agents[0],
+        Operation::AgentSend {
+            to: receiver.clone(),
+            body: "Remote fixture message".into(),
+            subject: None,
+            thread_id: None,
+            reply_to: None,
+            task_id: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    assert_eq!(
+        fixture_operation(
+            &mut attachment,
+            &mut agents[1],
+            Operation::AgentInbox {
+                cursor: None,
+                limit: None,
+            }
+        )
+        .await["has_message"],
+        true
+    );
+    let assigned = fixture_operation(
+        &mut attachment,
+        &mut agents[0],
+        Operation::TaskAssign {
+            to: receiver,
+            description: "Remote fixture work".into(),
+            acceptance: "Message and review pass".into(),
+            reviewer: None,
+            dependencies: vec![],
+            start_deadline: None,
+            execution_timeout_seconds: None,
+            review_timeout_seconds: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    let task = assigned["id"].as_str().unwrap().to_owned();
+    let started = fixture_operation(
+        &mut attachment,
+        &mut agents[1],
+        Operation::TaskStart {
+            task_id: task.clone(),
+            revision: 1,
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    assert_eq!(started["state"], "running");
+    let submitted = fixture_operation(
+        &mut attachment,
+        &mut agents[1],
+        Operation::TaskSubmit {
+            task_id: task.clone(),
+            revision: 1,
+            result: "Done".into(),
+            evidence: "Fixture communication passes".into(),
+            expected_version: None,
+            attempt_id: Some(started["attempt_id"].as_str().unwrap().into()),
+            request_id: Uuid::new_v4().to_string(),
+            evidence_ids: vec![],
+        },
+    )
+    .await;
+    assert_eq!(submitted["state"], "submitted");
+    let reviewed = fixture_operation(
+        &mut attachment,
+        &mut agents[0],
+        Operation::TaskReview {
+            task_id: task,
+            revision: 1,
+            accepted: true,
+            feedback: "Verified".into(),
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    )
+    .await;
+    assert_eq!(reviewed["state"], "accepted");
+    attachment.disconnect().await;
+}
+
+async fn fixture_operation(
+    attachment: &mut Attachment,
+    state: &mut TerminalState,
+    operation: warp_agent_bus::Operation,
+) -> serde_json::Value {
+    let mut input = attachment.control(state, TerminalAction::TerminalInput);
+    input.input_sequence = state.accepted_input_sequence + 1;
+    input.input = format!("{}\r", serde_json::to_string(&operation).unwrap()).into_bytes();
+    *state = attachment.command(input).await;
+    let marker = format!("FIXTURE_RESULT_{}=", state.accepted_input_sequence);
+    let output = attachment.wait_output(state, &marker).await;
+    let output = String::from_utf8_lossy(&output.output);
+    let result = output
+        .split(&marker)
+        .nth(1)
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap()
+        .trim();
+    serde_json::from_str(result).unwrap()
+}
+
+#[tokio::test]
+async fn explicit_agent_cli_uses_the_existing_ssh_terminal_io_path() {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    let root = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_warpai-companion"))
+        .arg("agent")
+        .arg(root.path())
+        .arg("fixture")
+        .arg(std::env::current_exe().unwrap())
+        .args(["--exact", "managed_agent_child", "--ignored", "--nocapture"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    let mut lines = tokio::io::BufReader::new(child.stdout.take().unwrap()).lines();
+    tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            if lines
+                .next_line()
+                .await
+                .unwrap()
+                .unwrap()
+                .contains("MCP_NATIVE_RUN=")
+            {
+                break;
+            }
+        }
+        input
+            .write_all("Unicode 空格;$(never-execute)\r".as_bytes())
+            .await
+            .unwrap();
+        input.flush().await.unwrap();
+        loop {
+            if lines
+                .next_line()
+                .await
+                .unwrap()
+                .unwrap()
+                .contains("UNICODE_INPUT_VERIFIED")
+            {
+                break;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    drop(input);
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_secs(10), child.wait())
+            .await
+            .unwrap()
+            .is_ok()
+    );
 }
