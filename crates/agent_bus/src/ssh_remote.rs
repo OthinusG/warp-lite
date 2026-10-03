@@ -3,7 +3,7 @@ use std::{path::PathBuf, process::Stdio, time::Duration};
 
 use base64::Engine;
 use remote_protocol::{
-    managed::{valid_fence, valid_status, PROTOCOL_MAJOR},
+    managed::{valid_fence, PROTOCOL_MAJOR},
     proto::*,
     protocol::{read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE},
 };
@@ -257,7 +257,6 @@ impl HostClient {
         };
         if initialized.protocol_major != PROTOCOL_MAJOR
             || !valid_fence(&fence, false)
-            || !initialized.capabilities.iter().any(|c| c == "host_status")
             || !text(&initialized.account_id, 256)
         {
             return Err(ConnectionError::IncompatibleVersion);
@@ -357,7 +356,9 @@ impl HostClient {
         &mut self,
         request: TerminalLaunch,
     ) -> Result<TerminalState, ConnectionError> {
-        if request.agent_program.is_some() && !self.capabilities.iter().any(|cap| cap == "project_mcp") {
+        if request.agent_program.is_some()
+            && !self.capabilities.iter().any(|cap| cap == "project_mcp")
+        {
             return Err(ConnectionError::FeatureUnavailable);
         }
         self.terminal_scope(&request.fence)?;
@@ -433,28 +434,6 @@ impl HostClient {
     /// Disconnect revokes this connection's input lease, preserving remote owned runs.
     pub fn disconnect(&mut self) {
         self.close();
-    }
-
-    pub async fn host_status(
-        &mut self,
-        query_generation: u64,
-    ) -> Result<HostStatus, ConnectionError> {
-        let result = self
-            .request(managed_request::Operation::HostStatus(HostStatusRequest {
-                fence: self.fence.clone(),
-                query_generation,
-            }))
-            .await?;
-        if let managed_response::Result::HostStatus(status) = result {
-            if valid_status(&status)
-                && status.fence == self.fence
-                && status.query_generation == query_generation
-            {
-                return Ok(status);
-            }
-        }
-        self.close();
-        Err(ConnectionError::StaleAttachment)
     }
 
     async fn request(

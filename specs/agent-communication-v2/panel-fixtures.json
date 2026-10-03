@@ -2,226 +2,165 @@
   {
     "state": "agents",
     "guidance": "Private space · This Mac · fixture-checkout. Select a local agent to focus its terminal after live wiring is enabled.",
-    "sections": [{"title": "Agents", "rows": [
-      "reviewer · Claude Code · This Mac · main · Ready · observed 1s ago",
-      "worker · Codex · This Mac · feature-worktree · Busy · task 42 · observed 2s ago",
-      "researcher · QoderCN · This Mac · main · Ready · Draft protected · observed 1s ago",
-      "tester · Antigravity · This Mac · main · Waiting for approval · observed 3s ago",
-      "helper · Cursor · This Mac · main · Manually paused · observed 5s ago",
-      "remote-worker · Codex · Windows PC · mapped-checkout · Offline · last seen 2m ago",
-      "custom-worker · Custom CLI · This Mac · main · Lifecycle unknown · bridge connected",
-      "installed-worker · Qoder · This Mac · main · Configured · not connected",
-      "new-worker · CLI · This Mac · main · Installed · configuration required"
-    ]}]
+    "sections": [
+      {
+        "title": "Agents",
+        "rows": [
+          "reviewer · Claude Code · This Mac · main · Ready · observed 1s ago",
+          "worker · Codex · This Mac · feature-worktree · Busy · task 42 · observed 2s ago",
+          "researcher · QoderCN · This Mac · main · Ready · Draft protected · observed 1s ago",
+          "tester · Antigravity · This Mac · main · Waiting for approval · observed 3s ago",
+          "helper · Cursor · This Mac · main · Manually paused · observed 5s ago",
+          "remote-worker · Codex · Windows PC · mapped-checkout · Offline · last seen 2m ago",
+          "custom-worker · Custom CLI · This Mac · main · Lifecycle unknown · bridge connected",
+          "installed-worker · Qoder · This Mac · main · Configured · not connected",
+          "new-worker · CLI · This Mac · main · Installed · configuration required"
+        ]
+      }
+    ]
   },
   {
     "state": "tasks",
     "guidance": "All states · All assignees · sample tasks. Controls remain disabled in the static preview.",
-    "sections": [{"title": "Tasks", "rows": [
-      "42 · Running · worker · attempt 1 · Update the focused source fixture",
-      "43 · Queued · researcher · Waiting: protected draft",
-      "44 · Blocked · tester · Waiting: prerequisite 42 must be accepted",
-      "45 · Cancel requested · helper · Waiting: stop confirmation; execution is still uncertain",
-      "46 · Submitted · remote-worker · Review overdue · reported evidence available",
-      "47 · Failed · worker · Retry available after confirmed stop",
-      "48 · Expired · Unassigned · Start deadline passed",
-      "49 · Cancelled · tester · Receiver confirmed stop",
-      "50 · Accepted · reviewer accepted result · Archive available"
-    ]}]
+    "sections": [
+      {
+        "title": "Tasks",
+        "rows": [
+          "42 · Running · worker · attempt 1 · Update the focused source fixture",
+          "43 · Queued · researcher · Waiting: protected draft",
+          "44 · Blocked · tester · Waiting: prerequisite 42 must be accepted",
+          "45 · Cancel requested · helper · Waiting: stop confirmation; execution is still uncertain",
+          "46 · Submitted · remote-worker · Review overdue · reported evidence available",
+          "47 · Failed · worker · Retry available after confirmed stop",
+          "48 · Expired · Unassigned · Start deadline passed",
+          "49 · Cancelled · tester · Receiver confirmed stop",
+          "50 · Accepted · reviewer accepted result · Archive available"
+        ]
+      }
+    ]
   },
   {
     "state": "detail",
     "guidance": "Task 46 · revision 2 · version 8 · Submitted · review overdue. Evidence is agent-reported until locally verified.",
     "sections": [
-      {"title": "Description", "rows": ["Implement the smallest focused fixture change, preserving all existing terminal input, rendering, shell integration, tabs, panes, command palette, completions and user preferences. This deliberately long sentence exercises wrapping at narrow panel widths and increased text sizes without ellipsis hiding the acceptance criteria or the next available action."]},
-      {"title": "Acceptance", "rows": ["The representative fixture check passes; include its exact command and exit code."]},
-      {"title": "Attempts and dependencies", "rows": ["Attempt 1 · interrupted · no confirmed stop", "Attempt 2 · finished · submitted · Windows PC / mapped-checkout", "Prerequisite 41 · accepted"]},
-      {"title": "Result and review", "rows": ["Focused change submitted with a test descriptor.", "Revision 1 feedback: cover the failure case."]},
-      {"title": "Evidence", "rows": ["file · fixtures/source.txt · unavailable on this device; metadata only", "test · fixture-check · reported passed · exit 0 · not independently verified"]},
-      {"title": "Activity", "rows": ["1 · operator assigned task", "2 · worker started attempt 1", "3 · process disconnected; outcome unknown", "4 · operator explicitly recovered ownership", "5 · worker submitted attempt 2"]},
-      {"title": "Reservations", "rows": ["fixtures/source.txt · exclusive · worker · expires in 8m", "Other worktree intends to edit the same logical file; merge overlap warning", "Expired reservation · abandoned owner · expiry does not prove writes stopped"]},
-      {"title": "Human controls", "rows": ["Assign · Cancel · Retry · Reassign · Accept · Request revision · Archive", "Uncertain execution override requires a concrete confirmation before ownership changes."]}
+      {
+        "title": "Description",
+        "rows": [
+          "Implement the smallest focused fixture change, preserving all existing terminal input, rendering, shell integration, tabs, panes, command palette, completions and user preferences. This deliberately long sentence exercises wrapping at narrow panel widths and increased text sizes without ellipsis hiding the acceptance criteria or the next available action."
+        ]
+      },
+      {
+        "title": "Acceptance",
+        "rows": [
+          "The representative fixture check passes; include its exact command and exit code."
+        ]
+      },
+      {
+        "title": "Attempts and dependencies",
+        "rows": [
+          "Attempt 1 · interrupted · no confirmed stop",
+          "Attempt 2 · finished · submitted · Windows PC / mapped-checkout",
+          "Prerequisite 41 · accepted"
+        ]
+      },
+      {
+        "title": "Result and review",
+        "rows": [
+          "Focused change submitted with a test descriptor.",
+          "Revision 1 feedback: cover the failure case."
+        ]
+      },
+      {
+        "title": "Evidence",
+        "rows": [
+          "file · fixtures/source.txt · unavailable on this device; metadata only",
+          "test · fixture-check · reported passed · exit 0 · not independently verified"
+        ]
+      },
+      {
+        "title": "Activity",
+        "rows": [
+          "1 · operator assigned task",
+          "2 · worker started attempt 1",
+          "3 · process disconnected; outcome unknown",
+          "4 · operator explicitly recovered ownership",
+          "5 · worker submitted attempt 2"
+        ]
+      },
+      {
+        "title": "Reservations",
+        "rows": [
+          "fixtures/source.txt · exclusive · worker · expires in 8m",
+          "Other worktree intends to edit the same logical file; merge overlap warning",
+          "Expired reservation · abandoned owner · expiry does not prove writes stopped"
+        ]
+      },
+      {
+        "title": "Human controls",
+        "rows": [
+          "Assign · Cancel · Retry · Reassign · Accept · Request revision · Archive",
+          "Uncertain execution override requires a concrete confirmation before ownership changes."
+        ]
+      }
     ]
   },
-  {"state": "empty", "guidance": "No participating agents. Enable Agent communication in Settings > Features, then open a new terminal pane and start a configured CLI.", "sections": []},
-  {"state": "loading", "guidance": "Loading the selected collaboration space. Your terminal keeps its current focus and draft.", "sections": []},
-  {"state": "disconnected", "guidance": "Coordinator disconnected. Shared tasks cannot start. Check SSH connectivity or remove the connection; private local work remains available.", "sections": [{"title": "Connection", "rows": ["Windows PC · reconnecting · last confirmed event 128 · execution of task 46 unknown"]}]},
-  {"state": "stale", "guidance": "The displayed snapshot is stale. Refresh before changing task ownership; an old response cannot replace the currently selected space.", "sections": [{"title": "Tasks", "rows": ["42 · last observed Running · current state unknown"]}]},
-  {"state": "capacity", "guidance": "Storage capacity is limited. Export history and preview eligible archived records before purging; unread messages and unresolved work are retained.", "sections": [{"title": "Capacity", "rows": ["Active queue 1000 / 1000 · archive completed work to recover capacity", "Database soft budget reached · no silent eviction"]}]},
-  {"state": "failed", "guidance": "Could not read collaboration state. Refresh after the local broker recovers. Terminal input remains available.", "sections": [{"title": "Failure", "rows": ["coordinator_unavailable · no task transition was confirmed"]}]}
-,
-{
-  "state": "ssh-host-ready",
-  "guidance": "Task 42 · running · exact producing project; host health does not prove Agent readiness.",
-  "sections": [
-    {
-      "title": "Remote host · Ready",
-      "rows": [
-        "research-linux-node · account researcher",
-        "Project /srv/research/checkout",
-        "SSH ready · SFTP ready · companion ready · MCP ready",
-        "CPU 24% · Memory 6.2 / 16 GiB · Project disk 180 / 512 GiB free",
-        "companion_native · observed 2s ago"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime 3d 2h",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "42 · selected producing host/project · Running"
-      ]
-    }
-  ]
-},
-{
-  "state": "ssh-host-authentication",
-  "guidance": "Review the verified host fingerprint and authenticate through system SSH. Task writes remain disabled.",
-  "sections": [
-    {
-      "title": "Remote host · Authentication required",
-      "rows": [
-        "research-linux-node · account researcher",
-        "Project /srv/research/checkout",
-        "SSH authentication required · SFTP unavailable · companion unavailable · MCP unavailable",
-        "CPU unavailable · Memory unavailable · Project disk unavailable",
-        "No observation"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime unavailable",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "Task access and mutations follow the scoped connection state."
-      ]
-    }
-  ]
-},
-{
-  "state": "ssh-host-sftp-only",
-  "guidance": "File-only connection. Deploy or select a compatible companion for remote task access.",
-  "sections": [
-    {
-      "title": "Remote host · SSH / SFTP ready",
-      "rows": [
-        "research-linux-node · account researcher",
-        "Project /srv/research/checkout",
-        "SSH ready · SFTP ready · companion unavailable · MCP unavailable",
-        "CPU unavailable · Memory unavailable · Project disk unavailable",
-        "No companion observation"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime unavailable",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "Task access and mutations follow the scoped connection state."
-      ]
-    }
-  ]
-},
-{
-  "state": "ssh-host-partial",
-  "guidance": "Inspect separate SFTP and MCP failures. Missing counters do not display as zero.",
-  "sections": [
-    {
-      "title": "Remote host · Connected with unavailable capabilities",
-      "rows": [
-        "research-linux-node · account researcher",
-        "Project /srv/research/checkout",
-        "SSH ready · SFTP failed · companion ready · MCP failed",
-        "CPU warming up · Memory permission denied · Project disk unsupported",
-        "companion_native · observed 1s ago"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime 3d 2h",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "Task access and mutations follow the scoped connection state."
-      ]
-    }
-  ]
-},
-{
-  "state": "ssh-host-stale",
-  "guidance": "Task 42 was running at disconnect; execution is unknown. Reconnect before changing ownership.",
-  "sections": [
-    {
-      "title": "Remote host · Offline · stale last sample",
-      "rows": [
-        "research-linux-node · account researcher",
-        "Project /srv/research/checkout",
-        "SSH offline · SFTP offline · companion offline · MCP offline",
-        "Last CPU 24% · Last memory 6.2 / 16 GiB · Last project disk 180 / 512 GiB free",
-        "companion_native · last observation 2m ago · stale"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime 3d 2h",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "Task access and mutations follow the scoped connection state."
-      ]
-    }
-  ]
-},
-{
-  "state": "ssh-host-long",
-  "guidance": "Task 42 · running. A reply from the previously selected project is discarded; this task retains its producing host.",
-  "sections": [
-    {
-      "title": "Remote host · Ready",
-      "rows": [
-        "research-cluster-node-with-a-long-qualified-hostname.example.internal · account researcher",
-        "Project /srv/research/projects/materials-chemistry/remote-worktree-with-spaces-and-多语言",
-        "SSH ready · SFTP ready · companion ready · MCP ready",
-        "CPU 98% · Memory 15.4 / 16 GiB · Project disk 1.2 / 512 GiB free",
-        "companion_native · observed 3s ago"
-      ]
-    },
-    {
-      "title": "System details",
-      "rows": [
-        "Remote Linux · x86_64 · uptime 3d 2h",
-        "Resource metrics do not imply task completion, transfer completion or process exit."
-      ]
-    },
-    {
-      "title": "Task",
-      "rows": [
-        "Task access and mutations follow the scoped connection state."
-      ]
-    }
-  ]
-}
+  {
+    "state": "empty",
+    "guidance": "No participating agents. Enable Agent communication in Settings > Features, then open a new terminal pane and start a configured CLI.",
+    "sections": []
+  },
+  {
+    "state": "loading",
+    "guidance": "Loading the selected collaboration space. Your terminal keeps its current focus and draft.",
+    "sections": []
+  },
+  {
+    "state": "disconnected",
+    "guidance": "Coordinator disconnected. Shared tasks cannot start. Check SSH connectivity or remove the connection; private local work remains available.",
+    "sections": [
+      {
+        "title": "Connection",
+        "rows": [
+          "Windows PC · reconnecting · last confirmed event 128 · execution of task 46 unknown"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "stale",
+    "guidance": "The displayed snapshot is stale. Refresh before changing task ownership; an old response cannot replace the currently selected space.",
+    "sections": [
+      {
+        "title": "Tasks",
+        "rows": [
+          "42 · last observed Running · current state unknown"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "capacity",
+    "guidance": "Storage capacity is limited. Export history and preview eligible archived records before purging; unread messages and unresolved work are retained.",
+    "sections": [
+      {
+        "title": "Capacity",
+        "rows": [
+          "Active queue 1000 / 1000 · archive completed work to recover capacity",
+          "Database soft budget reached · no silent eviction"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "failed",
+    "guidance": "Could not read collaboration state. Refresh after the local broker recovers. Terminal input remains available.",
+    "sections": [
+      {
+        "title": "Failure",
+        "rows": [
+          "coordinator_unavailable · no task transition was confirmed"
+        ]
+      }
+    ]
+  }
 ]

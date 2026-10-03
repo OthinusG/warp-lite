@@ -4044,7 +4044,6 @@ impl Workspace {
             // Restore which panel tab was active
             let active_view = match left_panel_snapshot.left_panel_displayed_tab {
                 LeftPanelDisplayedTab::FileTree => ToolPanelView::ProjectExplorer,
-                LeftPanelDisplayedTab::RemoteProjects => ToolPanelView::RemoteProjects,
                 LeftPanelDisplayedTab::Collaboration => ToolPanelView::Collaboration,
                 LeftPanelDisplayedTab::GlobalSearch => ToolPanelView::GlobalSearch {
                     entry_focus: GlobalSearchEntryFocus::Results,
@@ -18646,7 +18645,6 @@ impl Workspace {
                         .unwrap_or(ToolPanelView::WarpDrive)
                     {
                         ToolPanelView::ProjectExplorer => "Project explorer",
-                        ToolPanelView::RemoteProjects => "Connections / Projects",
                         ToolPanelView::Collaboration => "Agent collaboration",
                         ToolPanelView::GlobalSearch { .. } => "Global search",
                         ToolPanelView::WarpDrive => "Warpai Drive",
@@ -18702,7 +18700,6 @@ impl Workspace {
                 .unwrap_or(ToolPanelView::WarpDrive)
             {
                 ToolPanelView::ProjectExplorer => "Project explorer",
-                ToolPanelView::RemoteProjects => "Connections / Projects",
                 ToolPanelView::Collaboration => "Agent collaboration",
                 ToolPanelView::GlobalSearch { .. } => "Global search",
                 ToolPanelView::WarpDrive => "Warpai Drive",
@@ -21717,9 +21714,6 @@ impl Workspace {
     fn compute_left_panel_views(ctx: &AppContext) -> Vec<ToolPanelView> {
         let mut views = vec![];
         views.push(ToolPanelView::Collaboration);
-        if cfg!(debug_assertions) && std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
-            views.push(ToolPanelView::RemoteProjects);
-        }
         if FeatureFlag::AgentViewConversationListView.is_enabled()
             && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
             && *AISettings::as_ref(ctx).show_conversation_history

@@ -46,10 +46,8 @@ jobs:
           cargo test -p warp-agent-bus --lib companion:: --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test native_pty --locked
-          cargo test -p warp-agent-bus --test ssh_profiles --locked
           cargo test -p warp-agent-bus --test retained_terminal --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
-          cargo test -p warp-agent-bus --lib sftp::tests --locked
       - name: Verify retired endpoint refusal flushes before process exit
         run: |
           for attempt in {1..20}; do
@@ -67,14 +65,6 @@ jobs:
           export WARP_TEST_SSH_CONFIG="$fixture_dir/client.conf"
           mkdir -m 700 "$fixture_dir"
           mkdir -p "$WARP_TEST_REMOTE_ROOT"
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          root = Path(os.environ['WARP_TEST_REMOTE_ROOT'])
-          (root / 'Unicode 空格;$(shell).bin').write_bytes(bytes(range(256)) * 257)
-          (root / 'folder').mkdir()
-          (root / 'outside-link').symlink_to('/etc')
-          PY
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host"
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/client"
           awk '{print "[127.0.0.1]:22222 "$1" "$2}' "$fixture_dir/host.pub" > "$fixture_dir/known_hosts"
@@ -91,7 +81,6 @@ jobs:
           UsePAM yes
           PermitRootLogin no
           StrictModes yes
-          Subsystem sftp internal-sftp
           EOF
           cat > "$WARP_TEST_SSH_CONFIG" <<EOF
           Host warpai-test
@@ -129,7 +118,7 @@ jobs:
           digest = hashlib.sha256(binary.read_bytes()).hexdigest()
           (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
           version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
-          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'host_status', 'retained_terminal', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
+          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'retained_terminal', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
           PY

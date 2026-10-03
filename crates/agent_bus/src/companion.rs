@@ -2,11 +2,10 @@
 use std::{
     fs::File,
     path::{Path, PathBuf},
-    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use remote_protocol::{
-    managed::{valid_status, POLL_INTERVAL, PROTOCOL_MAJOR},
+    managed::PROTOCOL_MAJOR,
     proto::*,
     protocol::{
         read_message_with_limit, write_message_with_limit, ProtocolError, MAX_MANAGED_MESSAGE_SIZE,
@@ -36,10 +35,6 @@ pub struct Companion {
     fence: ManagedFence,
     initialized: bool,
     project: Option<Project>,
-    system: sysinfo::System,
-    cpu_sample: Option<Instant>,
-    last_status: Option<(HostStatus, Instant)>,
-    observation: u64,
     terminals: std::sync::Arc<terminals::Terminals>,
     tasks: std::sync::Arc<tasks::Projects>,
 }
@@ -56,10 +51,6 @@ impl Companion {
             },
             initialized: false,
             project: None,
-            system: sysinfo::System::new(),
-            cpu_sample: None,
-            last_status: None,
-            observation: 0,
             terminals: std::sync::Arc::new(terminals::Terminals::default()),
             tasks: std::sync::Arc::new(tasks::Projects::new(data_directory)),
             identity,
@@ -113,7 +104,6 @@ impl Companion {
                     architecture: std::env::consts::ARCH.into(),
                     capabilities: vec![
                         "project_open".into(),
-                        "host_status".into(),
                         "retained_terminal".into(),
                         "project_tasks".into(),
                         "project_mcp".into(),
@@ -142,99 +132,11 @@ impl Companion {
                 self.terminals.disconnect(&self.fence.connection_id);
                 self.project = Some(Project { root, handle });
                 self.fence.project_id = id;
-                self.last_status = None;
                 Ok(managed_response::Result::ProjectOpened(ProjectOpened {
                     fence: Some(self.fence.clone()),
                     canonical_root,
                     root_identity,
                 }))
-            }
-            Some(managed_request::Operation::HostStatus(request)) => {
-                self.check_fence(request.fence.as_ref(), true)?;
-                let now = Instant::now();
-                let project = self
-                    .project
-                    .as_ref()
-                    .ok_or(ManagedErrorCode::ManagedStaleAttachment)?;
-                if !same_root(project).map_err(path_error)? {
-                    return Err(ManagedErrorCode::ManagedStaleAttachment);
-                }
-                if let Some((status, at)) = &self.last_status {
-                    if now.duration_since(*at) < POLL_INTERVAL {
-                        let mut status = status.clone();
-                        status.query_generation = request.query_generation;
-                        return Ok(managed_response::Result::HostStatus(status));
-                    }
-                }
-                self.system.refresh_memory();
-                self.system.refresh_cpu_usage();
-                let percent = self.system.global_cpu_usage();
-                let cpu = if self.system.cpus().is_empty() {
-                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricUnsupported.into())
-                } else if self
-                    .cpu_sample
-                    .is_none_or(|at| now.duration_since(at) < sysinfo::MINIMUM_CPU_UPDATE_INTERVAL)
-                {
-                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricWarmingUp.into())
-                } else if percent.is_finite() && (0.0..=100.0).contains(&percent) {
-                    cpu_metric::Value::Percent(percent)
-                } else {
-                    cpu_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into())
-                };
-                self.cpu_sample = Some(now);
-                let total = self.system.total_memory();
-                let used = self.system.used_memory();
-                let memory = if total > 0 && used <= total {
-                    memory_metric::Value::Bytes(MemoryBytes { used, total })
-                } else {
-                    memory_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into())
-                };
-                let disk = match disk_bytes(&project.root) {
-                    Ok(bytes) if bytes.total > 0 && bytes.free <= bytes.total => {
-                        disk_metric::Value::Bytes(bytes)
-                    }
-                    Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
-                        disk_metric::Value::Unavailable(
-                            MetricUnavailable::MetricPermissionDenied.into(),
-                        )
-                    }
-                    _ => {
-                        disk_metric::Value::Unavailable(MetricUnavailable::MetricUnavailable.into())
-                    }
-                };
-                if !same_root(project).map_err(path_error)? {
-                    return Err(ManagedErrorCode::ManagedStaleAttachment);
-                }
-                self.observation = self
-                    .observation
-                    .checked_add(1)
-                    .ok_or(ManagedErrorCode::ManagedUnavailable)?;
-                let status = HostStatus {
-                    fence: Some(self.fence.clone()),
-                    query_generation: request.query_generation,
-                    observation_sequence: self.observation,
-                    sampled_at_unix_millis: SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .ok()
-                        .and_then(|duration| duration.as_millis().try_into().ok())
-                        .ok_or(ManagedErrorCode::ManagedUnavailable)?,
-                    source: "companion_native".into(),
-                    os: std::env::consts::OS.into(),
-                    architecture: std::env::consts::ARCH.into(),
-                    cpu: Some(CpuMetric { value: Some(cpu) }),
-                    memory: Some(MemoryMetric {
-                        value: Some(memory),
-                    }),
-                    project_disk: Some(DiskMetric { value: Some(disk) }),
-                    uptime: Some(UptimeMetric {
-                        value: Some(uptime_metric::Value::Seconds(sysinfo::System::uptime())),
-                    }),
-                };
-                if !valid_status(&status) {
-                    return Err(ManagedErrorCode::ManagedUnavailable);
-                }
-                self.last_status = Some((status.clone(), now));
-                Ok(managed_response::Result::HostStatus(status))
             }
             Some(managed_request::Operation::TerminalLaunch(request)) => {
                 self.check_project(request.fence.as_ref())?;
@@ -362,43 +264,6 @@ pub(crate) fn root_matches(handle: &File, root: &Path) -> std::io::Result<bool> 
     Ok(identity(handle)? == identity(&open_root(root)?)?)
 }
 
-#[cfg(unix)]
-fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
-    use std::{ffi::CString, os::unix::ffi::OsStrExt};
-    let path = CString::new(root.as_os_str().as_bytes()).map_err(std::io::Error::other)?;
-    let mut stats = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    // The C path is NUL-terminated and output storage is valid; inspect only on success.
-    if unsafe { libc::statvfs(path.as_ptr(), stats.as_mut_ptr()) } != 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    let stats = unsafe { stats.assume_init() };
-    let block = stats.f_frsize as u64;
-    let total = (stats.f_blocks as u64).checked_mul(block);
-    let free = (stats.f_bavail as u64).checked_mul(block);
-    match (free, total) {
-        (Some(free), Some(total)) => Ok(DiskBytes { free, total }),
-        _ => Err(std::io::Error::other("Volume counters unavailable")),
-    }
-}
-
-#[cfg(windows)]
-fn disk_bytes(root: &Path) -> std::io::Result<DiskBytes> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::{core::PCWSTR, Win32::Storage::FileSystem::GetDiskFreeSpaceExW};
-    let path: Vec<u16> = root.as_os_str().encode_wide().chain(Some(0)).collect();
-    let (mut free, mut total) = (0, 0);
-    unsafe {
-        GetDiskFreeSpaceExW(
-            PCWSTR(path.as_ptr()),
-            Some(&mut free),
-            Some(&mut total),
-            None,
-        )
-    }
-    .map_err(std::io::Error::other)?;
-    Ok(DiskBytes { free, total })
-}
-
 /// Serial bounded reads provide backpressure and at most one response in flight.
 pub async fn serve_stdio() -> Result<(), ProtocolError> {
     service::proxy_stdio().await
@@ -441,7 +306,7 @@ where
                 Err(ProtocolError::UnexpectedEof) => return Ok(()),
                 Err(error) => return Err(error),
             };
-        // Native spawn/lease operations cannot block the async executor or host metrics.
+        // Native spawn/lease operations cannot block the async executor or Agent IO.
         let (owner, reply) = tokio::task::spawn_blocking(move || {
             let reply = companion.handle(request);
             (companion, reply)

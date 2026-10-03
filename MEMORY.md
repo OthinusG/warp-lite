@@ -555,3 +555,16 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   group/job activity, retaining ownership on observation failure. Source 65e1b86,
   GitHub run 37110078158, passed all three remote targets. Concurrent identity-file
   contention is transient: wait within a bound rather than rejecting attachment.
+
+- User correction, 2026-10-03: SSH work means extending the already working
+  same-project Agent communication to remote SSH Agents, plus concise status.
+  Do not make a complete SSH project/file/transfer/session-management product a
+  prerequisite. Active specs use S1–S5; former R0–R7 manager specs are archived.
+  Reuse existing Broker/MCP, terminal adapters and collaboration panel; manual
+  companion placement is sufficient. Private run MCP source 9a8e692 passed
+  Linux/macOS/Windows in GitHub run 37110965089; live workflow remains pending.
+
+- User correction, 2026-10-03: scope reduction requires deleting previously
+  produced redundant code/features and wiring, not leaving dormant foundations.
+  Keep only what is required for SSH same-project Agent communication and concise
+  existing-panel status. Preserve original terminal/local communication behavior.

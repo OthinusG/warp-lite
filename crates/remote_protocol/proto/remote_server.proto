@@ -50,7 +50,6 @@ message ManagedRequest {
   oneof operation {
     ManagedInitialize initialize = 1;
     ProjectOpen project_open = 2;
-    HostStatusRequest host_status = 3;
     TerminalLaunch terminal_launch = 4;
     TerminalControl terminal_control = 5;
     TerminalList terminal_list = 6;
@@ -61,7 +60,6 @@ message ManagedResponse {
   oneof result {
     ManagedInitialized initialized = 1;
     ProjectOpened project_opened = 2;
-    HostStatus host_status = 3;
     ManagedError error = 4;
     TerminalState terminal_state = 5;
     TerminalStates terminal_states = 6;
@@ -91,10 +89,6 @@ message ProjectOpened {
   ManagedFence fence = 1;
   string canonical_root = 2;
   string root_identity = 3;
-}
-message HostStatusRequest {
-  ManagedFence fence = 1;
-  uint64 query_generation = 2;
 }
 enum ManagedErrorCode {
   MANAGED_ERROR_UNSPECIFIED = 0;
@@ -168,44 +162,7 @@ message TerminalState {
   optional bool processes_active = 15;
 }
 message TerminalStates { repeated TerminalState sessions = 1; }
-enum MetricUnavailable {
-  METRIC_UNAVAILABLE_UNSPECIFIED = 0;
-  METRIC_UNSUPPORTED = 1;
-  METRIC_PERMISSION_DENIED = 2;
-  METRIC_WARMING_UP = 3;
-  METRIC_UNAVAILABLE = 4;
-}
-message CpuMetric {
-  oneof value { float percent = 1; MetricUnavailable unavailable = 2; }
-}
-message MemoryBytes { uint64 used = 1; uint64 total = 2; }
-message MemoryMetric {
-  oneof value { MemoryBytes bytes = 1; MetricUnavailable unavailable = 2; }
-}
-message DiskBytes { uint64 free = 1; uint64 total = 2; }
-message DiskMetric {
-  oneof value { DiskBytes bytes = 1; MetricUnavailable unavailable = 2; }
-}
-message UptimeMetric {
-  oneof value { uint64 seconds = 1; MetricUnavailable unavailable = 2; }
-}
-message HostStatus {
-  ManagedFence fence = 1;
-  uint64 query_generation = 2;
-  uint64 observation_sequence = 3;
-  uint64 sampled_at_unix_millis = 4;
-  string source = 5;
-  string os = 6;
-  string architecture = 7;
-  CpuMetric cpu = 8;
-  MemoryMetric memory = 9;
-  DiskMetric project_disk = 10;
-  UptimeMetric uptime = 11;
-}
-
-// ── Initialize handshake
-
-// Sent by the client immediately after connecting to negotiate the protocol.
+// Legacy upstream protocol declarations below are retained for existing callers.
 message Initialize {}
 
 // Sent by the client to cancel an in-progress request.

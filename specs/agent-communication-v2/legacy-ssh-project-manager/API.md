@@ -1,14 +1,3 @@
-# Active scope notice — SSH Agent Communication Extension
-
-The user narrowed delivery on 2026-10-03 to existing same-project communication
-over SSH and a concise status section. PLAN S1–S5 governs. Active contracts are
-selected native account/project/run identity, bounded managed control,
-project_tasks human operations and private per-launch MCP. Existing local
-messages/tasks/reviews/receipts retain their contracts. File/transfer/deployment,
-federation and full session-manager sections below are historical reference,
-not active delivery requirements. The unmodified former contract is archived in
-legacy-ssh-project-manager/API.md.
-
 # SSH Remote and Collaboration Contracts
 
 Date: 2026-10-03. Status: revised semantic contracts; new remote types/operations below are proposals until implemented. Existing Rust serde/generated MCP schemas remain the executable source for local tools. This document supersedes the enrolled-device SSH contract, retained in [legacy-machine-collaboration/API.md](legacy-machine-collaboration/API.md).

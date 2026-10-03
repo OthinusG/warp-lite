@@ -332,3 +332,30 @@ retained fixtures exercise the actual service startup path.
 Accepted as the lifecycle/backend follow-up only. R2.8 attempt recovery, R2.6
 per-launch MCP, sidebar/live GUI and full fault acceptance remain pending. Later
 MCP edits are not covered by this source gate.
+
+### R2.5 accepted: single account/project service authority
+
+Source `65e1b8671ec860007a5c76d868d442c46c76cec4`,
+[run 37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158),
+passed all three remote native targets and controlled Linux OpenSSH. Concurrent
+SSH attachments share service/boot/native account/project/root identities and
+project task projections while receiving distinct connection UUIDs. A native
+exclusive service.lock permits one account-service owner; at most 32 admitted
+project Brokers own private Stores and reject root-domain replacement. Native
+IPC uses private Unix permissions/current-user Windows pipe ACLs, no remote GUI,
+public listener or installer. Disconnect/reattach and stale/cross-project access
+checks verify service/input ownership. PLAN R2.5 is checked. Private per-launch
+MCP changes, deployment GUI and physical SSH-host matrix remain separate gates.
+
+## User scope correction — 2026-10-03
+
+The user clarified that delivery is the working same-project Agent communication
+extended to SSH, preferably with a concise status panel. The previous full SSH
+project manager was broader than this goal. PLAN/PRODUCT/TECH now define S1–S5;
+previous documents are archived without discarding history or unrelated changes.
+File-manager/transfer/automatic-install/session-dashboard work is no longer a
+prerequisite. Source 9a8e692, run 37110965089, passed private run MCP and actual
+native SDK discovery on all three remote targets. S1/S2 foundations are accepted;
+S3 two-Agent launch workflow, S4 existing-panel integration and S5 focused delivery
+remain pending. Source 65e1b86 native captures also passed both desktop OSes in
+run 37110117064; visual/integration acceptance remains scoped and independent.

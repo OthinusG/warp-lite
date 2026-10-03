@@ -17,7 +17,7 @@ fn result(reply: ServerMessage) -> managed_response::Result {
 }
 
 #[test]
-fn companion_reads_native_project_metrics_and_fences_every_attachment() {
+fn companion_opens_native_project_and_fences_every_attachment() {
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let mut companion = Companion::new(&state.path().join("companion-state")).unwrap();
@@ -34,7 +34,6 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
         initialized.capabilities,
         [
             "project_open",
-            "host_status",
             "retained_terminal",
             "project_tasks",
             "project_mcp"
@@ -58,48 +57,6 @@ fn companion_reads_native_project_metrics_and_fences_every_attachment() {
         root.path().canonicalize().unwrap()
     );
     fence = opened.fence.unwrap();
-    let status_request = |fence: ManagedFence| {
-        request(managed_request::Operation::HostStatus(HostStatusRequest {
-            fence: Some(fence),
-            query_generation: 19,
-        }))
-    };
-    let managed_response::Result::HostStatus(status) =
-        result(companion.handle(status_request(fence.clone())))
-    else {
-        panic!("Expected native metrics")
-    };
-    assert!(valid_status(&status));
-    assert_eq!(status.query_generation, 19);
-    assert_eq!(status.source, "companion_native");
-    assert!(matches!(
-        status.cpu.unwrap().value,
-        Some(cpu_metric::Value::Unavailable(_))
-    ));
-    let Some(disk_metric::Value::Bytes(disk)) = status.project_disk.unwrap().value else {
-        panic!("Expected volume counters")
-    };
-    assert_eq!(disk.total, disk_bytes(root.path()).unwrap().total);
-    assert!(disk.free <= disk.total);
-    let managed_response::Result::HostStatus(cached) =
-        result(companion.handle(status_request(fence.clone())))
-    else {
-        panic!("Expected bounded sample")
-    };
-    assert_eq!(cached.observation_sequence, 1);
-    for field in 0..4 {
-        let mut stale = fence.clone();
-        match field {
-            0 => stale.service_id = Uuid::new_v4().to_string(),
-            1 => stale.service_boot_id = Uuid::new_v4().to_string(),
-            2 => stale.connection_id = Uuid::new_v4().to_string(),
-            _ => stale.project_id = Uuid::new_v4().to_string(),
-        }
-        assert!(
-            matches!(result(companion.handle(status_request(stale))), managed_response::Result::Error(ManagedError { code })
-            if code == i32::from(ManagedErrorCode::ManagedStaleAttachment))
-        );
-    }
     let legacy = ClientMessage {
         request_id: Uuid::new_v4().to_string(),
         message: Some(client_message::Message::RunCommand(RunCommandRequest {
