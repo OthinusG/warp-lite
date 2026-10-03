@@ -178,7 +178,7 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
         ]
         .map(str::to_owned)
         .to_vec(),
-        columns: 80,
+        columns: 240,
         rows: 24,
     };
     let managed_response::Result::TerminalState(state) = first
@@ -246,6 +246,8 @@ async fn retained_terminal_survives_disconnect_and_fences_replay_input_and_owned
     let bounded = second
         .wait_output(&replaced, "BOUNDED_REPLAY_VERIFIED")
         .await;
+    // ConPTY can coalesce repeated screen updates, unlike a raw Unix PTY.
+    #[cfg(unix)]
     assert!(bounded.output_truncated);
     assert!(bounded.output.len() <= 32 * 1024);
     assert!(bounded.output_end - bounded.output_offset <= 256 * 1024);

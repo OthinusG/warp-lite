@@ -30,6 +30,18 @@ struct Output {
     end: u64,
     closed: bool,
 }
+impl Output {
+    fn append(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        self.end = self
+            .end
+            .checked_add(bytes.len() as u64)
+            .ok_or(Error::ManagedUnavailable)?;
+        self.bytes.extend(bytes);
+        let discard = self.bytes.len().saturating_sub(REPLAY_BYTES);
+        self.bytes.drain(..discard);
+        Ok(())
+    }
+}
 struct Input {
     connection: String,
     generation: u64,
@@ -126,13 +138,9 @@ impl Terminals {
                 let Ok(mut output) = collected.lock() else {
                     return;
                 };
-                let Some(end) = output.end.checked_add(count as u64) else {
+                if output.append(&buffer[..count]).is_err() {
                     break;
-                };
-                output.end = end;
-                output.bytes.extend(&buffer[..count]);
-                let discard = output.bytes.len().saturating_sub(REPLAY_BYTES);
-                output.bytes.drain(..discard);
+                }
             }
             if let Ok(mut output) = collected.lock() {
                 output.closed = true;
@@ -337,6 +345,32 @@ impl Terminals {
                 .lock()
                 .map_or(true, |mut s| s.pty.exit_code().ok().flatten().is_none())
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn replay_discards_old_bytes_without_losing_absolute_offsets() {
+        let mut output = Output::default();
+        output.append(&vec![1; REPLAY_BYTES]).unwrap();
+        output.append(b"tail").unwrap();
+        assert_eq!(output.end, REPLAY_BYTES as u64 + 4);
+        assert_eq!(output.bytes.len(), REPLAY_BYTES);
+        assert_eq!(
+            output
+                .bytes
+                .iter()
+                .rev()
+                .take(4)
+                .copied()
+                .collect::<Vec<_>>(),
+            b"liat"
+        );
+        output.end = u64::MAX;
+        assert!(output.append(b"overflow").is_err());
+        assert_eq!(output.bytes.len(), REPLAY_BYTES);
     }
 }
 

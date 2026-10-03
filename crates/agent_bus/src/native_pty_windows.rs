@@ -72,7 +72,7 @@ impl Drop for Attributes {
 pub(super) struct Process {
     handle: Owned<HANDLE>,
     job: Owned<HANDLE>,
-    console: Console,
+    console: Option<Console>,
 }
 // These are independently owned kernel handles; the service serializes process control.
 unsafe impl Send for Process {}
@@ -240,7 +240,7 @@ pub(super) fn spawn(
         let process = Process {
             handle,
             job,
-            console,
+            console: Some(console),
         };
         if ResumeThread(*thread) == u32::MAX {
             return Err(io::Error::last_os_error());
@@ -256,7 +256,8 @@ pub(super) fn spawn(
 }
 impl Process {
     pub(super) fn resize(&self, _: &File, dimensions: Size) -> io::Result<()> {
-        unsafe { ResizePseudoConsole(self.console.0, size(dimensions)).map_err(error) }
+        let console = self.console.as_ref().ok_or(io::ErrorKind::NotConnected)?;
+        unsafe { ResizePseudoConsole(console.0, size(dimensions)).map_err(error) }
     }
     pub(super) fn exit_code(&mut self) -> io::Result<Option<i32>> {
         unsafe {
@@ -265,6 +266,9 @@ impl Process {
                 WAIT_OBJECT_0 => {
                     let mut code = 0;
                     GetExitCodeProcess(*self.handle, &mut code).map_err(error)?;
+                    // The retained owner must release ConPTY after observed exit so
+                    // its output pipe reaches EOF before the session can be released.
+                    self.console.take();
                     Ok(Some(code as i32))
                 }
                 _ => Err(io::Error::last_os_error()),

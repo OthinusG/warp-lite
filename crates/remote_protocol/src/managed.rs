@@ -130,6 +130,40 @@ mod tests {
     use crate::proto::{CpuMetric, DiskMetric, MemoryBytes, MemoryMetric, UptimeMetric};
 
     #[test]
+    fn terminal_state_refuses_invalid_ownership_and_unbounded_replay() {
+        let mut state = crate::proto::TerminalState {
+            fence: Some(ManagedFence {
+                service_id: Uuid::new_v4().to_string(),
+                service_boot_id: Uuid::new_v4().to_string(),
+                connection_id: Uuid::new_v4().to_string(),
+                project_id: Uuid::new_v4().to_string(),
+            }),
+            session_id: Uuid::new_v4().to_string(),
+            run_id: Uuid::new_v4().to_string(),
+            attachment_generation: 1,
+            output_end: 2,
+            output: b"ok".to_vec(),
+            ..crate::proto::TerminalState::default()
+        };
+        assert!(valid_terminal_state(&state));
+        state.output_end = 1;
+        assert!(!valid_terminal_state(&state));
+        state.output_end = 2;
+        state.output_offset = 3;
+        assert!(!valid_terminal_state(&state));
+        state.output_offset = 0;
+        state.output_end = 256 * 1024 + 1;
+        assert!(!valid_terminal_state(&state));
+        state.output_end = 64 * 1024;
+        state.output = vec![0; 32 * 1024 + 1];
+        assert!(!valid_terminal_state(&state));
+        state.output = vec![0; 32 * 1024];
+        assert!(valid_terminal_state(&state));
+        state.run_id = Uuid::nil().to_string();
+        assert!(!valid_terminal_state(&state));
+    }
+
+    #[test]
     fn status_refuses_invalid_metrics_replaced_scopes_and_old_observations() {
         let fence = ManagedFence {
             service_id: Uuid::new_v4().to_string(),
