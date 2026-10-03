@@ -493,3 +493,21 @@ executable/root, bounded argv, inherited binding scrubber, size validation and
 observed exit are explicit. The real process check verifies an actual terminal,
 owned multilingual cwd, Unicode input and resize on each OS. Service session
 retention/replay/generation guards are not implemented by this primitive alone.
+
+SSH profile metadata uses a versioned 64-profile/128-KiB bounded JSON file,
+UUID selection and strict SshProfile validation. Invalid input is never saved;
+corrupt storage reports a fixed failure rather than silently overwriting. Native
+no-follow entry opens prevent reading symlink/reparse targets; atomic saves reuse
+the existing configuration helper. Tests include actual isolated persistence and
+unchanged targets on rejected saves. Live UI/profile integration remains pending.
+Windows native PTY source58804df/run37094628621 revalidates the shared ConPTY
+STARTF_USESTDHANDLES setup after the real child test detected inherited CI stdin.
+Linux/macOS PTY checks passed source892621b; Windows rerun remains pending.
+
+SFTP streaming now separates the 16-MiB editor bound from a caller-limited
+1-TiB transfer ceiling. Both directions use 32-KiB buffers; uploads pin the
+source digest before IO and validate it again before remote reread/commit. No
+resume or conditional overwrite is claimed. Download SHA-256 describes received
+bytes; coarse SFTP size/mtime checks do not lock external writers. Controlled
+CI now checks disk bytes, local writer failure, 16-MiB-plus transfer and changed
+source refusal. This checkpoint is pending exact-source GitHub verification.
