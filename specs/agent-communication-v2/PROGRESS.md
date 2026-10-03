@@ -1,6 +1,6 @@
 # SSH Agent Communication Progress
 
-Updated: 2026-10-04. Active scope: [PLAN.md](PLAN.md) S0–S5. Five of six items
+Updated: 2026-10-04. Active scope: [PLAN.md](PLAN.md) S0–S5. All six items
 are accepted. Earlier project-manager/M0–M7/R0–R7 chronology is
 [archived](legacy-ssh-project-manager/PROGRESS.md), not an active backlog.
 
@@ -11,7 +11,7 @@ are accepted. Earlier project-manager/M0–M7/R0–R7 chronology is
 | S2 Fresh per-run private MCP | Accepted | source9a8e692/[run37110965089](https://github.com/OthinusG/warp-lite/actions/runs/37110965089) |
 | S3 SSH terminal communication | Accepted | source06aa074/run37122708969 |
 | S4 Existing panel and concise status | Accepted | source4fcb0c3/[desktop run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300) |
-| S5 Final regression and delivery | Pending desktop/package completion | source4fcb0c3/[remote run37138932460](https://github.com/OthinusG/warp-lite/actions/runs/37138932460) passed all three remote targets |
+| S5 Final regression and delivery | Accepted | source4fcb0c3/[remote run37138932460](https://github.com/OthinusG/warp-lite/actions/runs/37138932460) and [desktop run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300) |
 
 Final Companion artifacts for Linux x64, macOS arm64 and Windows x64 match
 source4fcb0c3 and their SHA256SUMS, with version/capabilities and license notices.
@@ -183,3 +183,41 @@ The earlier Windows failure was fixture readiness: SDK discovery temporarily nam
 the Agent before final registration. Acceptance now waits for that final name,
 without changing product mutation semantics or adding retry machinery.
 S5 remains pending final desktop release packaging and artifact inspection.
+
+### S5 packaging checkpoint — macOS passed, Windows pending
+
+Source4fcb0c3 desktop run37138929300 completed the macOS job successfully,
+including release compilation, bundle metadata and strict deep codesign checks.
+Downloaded artifact11281186350 and verified nested archive CRC, executable modes,
+Warpai/warp-agent, icon/signature and copyright metadata. Its SHA256 matches
+GitHub's artifact digest: 16afaeb2b5273d0a1789599073b8f0354f900959aa32c2ae7a21a9c9bdaea73c.
+Windows default/platform, application tests and native capture passed; release
+packaging is still running. S5 is not accepted until that package is checked.
+
+### S5 accepted — 2026-10-04
+
+Tested source: 4fcb0c3c0f7f1354c7f79bb53d10f6a9ec31b66e. Remote
+[run37138932460](https://github.com/OthinusG/warp-lite/actions/runs/37138932460)
+succeeded on Linux x64, macOS arm64 and Windows x64, including controlled Linux
+OpenSSH two-Agent messaging/task/review, project/run isolation and disconnect
+checks. Desktop [run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300)
+succeeded on macOS and Windows: local bus/history regressions, default and
+warp_platform checks, focused app tests, native action/capture and release packaging.
+No eight-hour manager soak was requested or run.
+
+Downloaded desktop review artifacts and verified source/digest provenance and
+archive CRC. macOS artifact11281186350 contains executable Warpai/warp-agent,
+icon, signature and correct bundle/copyright metadata; CI strict deep codesign
+passed. Windows artifact11281363517 contains the installer and portable archive,
+x64 Warpai/warp-agent, six runtime DLLs, bootstrap, icon, OpenConsole and bundled
+resources (142 portable entries). Windows artifact SHA256 matches GitHub:
+3d7b6c87397b00dd6548c463d12f9a8d58c39a2e7623176b621e8d8084e8a3d2.
+All three companion binaries already match manifests and SHA256SUMS with licenses.
+Reviewed current-source narrow 320px/1.25 zoom light connected and dark disconnected
+SSH fixtures on both desktop OSes, in addition to S4 live image review.
+
+README documents the existing panel's three transient fields, system SSH trust/
+authentication, source-matched manual companion placement and explicit Agent launch.
+S0–S5 are complete. Final acceptance documentation changes no tested Rust source
+or workflow. Review packages are available from these runs; no release publication,
+paid vendor model call or physical cross-device acceptance is claimed.

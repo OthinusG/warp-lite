@@ -1,6 +1,6 @@
 # SSH Agent Collaboration Native UI Checkpoint
 
-Date: 2026-10-03. Active scope: [PLAN.md](PLAN.md) S4. The existing collaboration
+Date: 2026-10-04. Active scope: [PLAN.md](PLAN.md) S4. The existing collaboration
 panel, native editors/text buttons and theme/soft-wrapping rules are the visual
 source. Earlier local and superseded manager evidence is
 [archived](legacy-ssh-project-manager/UI-CHECKPOINT.md).
@@ -29,4 +29,6 @@ primary control was observed in these states.
 The shared client path separately passed controlled Linux OpenSSH in remote
 run37138932460. Desktop captures use actual local native companion processes,
 not a desktop SSH server or synthetic Store. Paid vendor sessions and physical
-cross-device runs are not claimed. Final release packaging belongs to S5.
+cross-device runs are not claimed. Final release packaging passed S5 in the same
+source-matched desktop run. Current-source narrow 320px/1.25 zoom light connected
+and dark disconnected fixtures were also reviewed on both OSes without overlap.

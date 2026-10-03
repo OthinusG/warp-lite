@@ -1,6 +1,6 @@
 # SSH Agent Communication Extension Plan
 
-Date: 2026-10-03. Status: scope corrected by the user; implementation in progress.
+Date: 2026-10-04. Status: S0–S5 accepted; source4fcb0c3 review builds verified.
 This plan replaces the broad SSH project-manager delivery. The objective is to
 extend working same-project Agent communication to Agents running through SSH,
 with concise connection/Agent/communication status in the existing panel.
@@ -56,11 +56,14 @@ functionality are preserved; redundant additions are deleted with focused regres
   Reuse reviewed native controls; static review precedes live integration.
   Accepted source 4fcb0c3, run 37138929300: native actions passed on macOS and
   Windows; eight live SSH screenshots per OS reviewed with retained drafts.
-- [ ] **S5 — Focused regression and delivery.** Local communication remains
+- [x] **S5 — Focused regression and delivery.** Local communication remains
   functional. Verify same/different project, fresh/stale run, disconnect/reconnect
   and exact response scope. GitHub-only Rust checks on relevant targets, both
   desktop builds and focused native UI review. Record exact-source evidence and
   update PROGRESS after each completed item; document explicit helper setup.
+  Accepted source 4fcb0c3: remote run 37138932460 and desktop run 37138929300
+  succeeded. Both desktop release packages and all three companion artifacts
+  were checked against source/digests; no paid vendor or physical-device claim.
 
 ## Working rules
 

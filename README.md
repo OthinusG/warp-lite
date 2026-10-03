@@ -54,7 +54,7 @@ Automatic delivery preserves user drafts and does not answer permission requests
 
 The source is maintained directly in this repository. Automated protocol checks and authenticated tests with real vendor agents are separate: **live vendor acceptance is still pending**, and the feature is not yet part of the published release. See [coverage and setup](specs/agent-communication/COVERAGE.md), [receiver state audit](specs/agent-communication/RECEIVER-STATES.md), [expected behavior](specs/agent-communication/PRODUCT.md), and the [GitHub validation workflow](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml).
 
-### SSH Agent communication: in development
+### SSH Agent communication: validated review builds
 
 Extend the existing same-project communication to CLI Agents running through SSH.
 Agents in the same remote project share a private Broker/Store on that account;
@@ -71,8 +71,11 @@ history without restoring device authority.
 Remote project authority, private per-run MCP and explicit Agent launch have passed
 three-platform checks, including two native Agent processes exchanging a message
 and completing a reviewed task through controlled OpenSSH. Native panel actions
-and screenshot review passed on macOS and Windows at source4fcb0c3; final desktop
-release packaging remains pending.
+and screenshot review passed on macOS and Windows at source4fcb0c3. Both desktop
+release packages and Linux/macOS/Windows companion artifacts passed final checks.
+The source-matched [desktop review packages](https://github.com/OthinusG/warp-lite/actions/runs/37138929300)
+and [companion artifacts](https://github.com/OthinusG/warp-lite/actions/runs/37138932460)
+are available from GitHub Actions; published v0.5.7-lite remains unchanged.
 
 For the panel, enable Agent communication and open **Agent collaboration >
 Connect SSH project**. Enter a system SSH alias, the absolute remote project root

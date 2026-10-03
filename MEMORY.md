@@ -610,3 +610,14 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   native acceptance must wait for that final name before addressing a human message.
   Keep product request identity/fencing unchanged; do not retry an obsolete name.
   S5 release packaging is still pending.
+
+- SSH communication scope S0–S5 completed on 2026-10-04 at tested source
+  4fcb0c3c0f7f1354c7f79bb53d10f6a9ec31b66e. Remote run37138932460 passed
+  Linux/macOS/Windows plus controlled Linux OpenSSH two-Agent messaging/tasks.
+  Desktop run37138929300 passed macOS/Windows default/platform, app/local
+  regressions, native actions/screenshots and release packaging. Downloaded
+  package digests/source match GitHub; macOS bundle and Windows installer/
+  portable runtime contents checked. Final acceptance edits are documentation only.
+  Use README's transient existing-panel selection and manual source-matched helper
+  setup. Paid vendor sessions, physical cross-device tests and release publication
+  are not claimed. Earlier pending manager/checkpoint notes are historical.

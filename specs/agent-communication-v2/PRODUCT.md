@@ -1,6 +1,6 @@
 # SSH Agent Communication Extension
 
-Date: 2026-10-03. Status: active scope clarified by the user.
+Date: 2026-10-04. Status: scoped engineering acceptance complete; review builds available.
 
 Extend existing same-project Agent communication to CLI Agents running through
 SSH. Keep the current terminal dialogue and collaboration messages/tasks/history;

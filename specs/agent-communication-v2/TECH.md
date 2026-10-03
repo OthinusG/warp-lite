@@ -1,6 +1,7 @@
 # SSH Agent Communication Extension Technical Scope
 
-Date: 2026-10-03. Active scope follows the user correction and PLAN S1–S5.
+Date: 2026-10-04. Active scope follows the user correction and PLAN S0–S5.
+All six items are accepted; exact-source evidence is in PROGRESS.md.
 
 ## Reuse and authority
 
