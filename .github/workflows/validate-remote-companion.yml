@@ -41,6 +41,8 @@ jobs:
         run: choco install protoc -y
       - name: Verify shared control wire without desktop dependencies
         run: cargo test -p remote_protocol --locked
+      - name: Lint shared control wire
+        run: cargo clippy -p remote_protocol --all-targets --locked -- -D warnings
       - name: Verify private project communication and standalone companion
         run: |
           cargo test -p warp-agent-bus --lib companion:: --locked

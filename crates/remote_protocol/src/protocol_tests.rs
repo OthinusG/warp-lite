@@ -147,6 +147,24 @@ fn try_extract_request_id_from_empty_bytes() {
 }
 
 #[test]
+fn request_id_length_rejects_overflow_and_truncation_without_losing_valid_ids() {
+    for last in 2..=127 {
+        let mut payload = vec![0x0a, 0x81];
+        payload.extend_from_slice(&[0x80; 8]);
+        payload.extend_from_slice(&[last, b'x']);
+        assert_eq!(try_extract_request_id(&payload), None);
+    }
+    for payload in [&[0x0a, 0x80][..], &[0x0a, 2, b'x'][..]] {
+        assert_eq!(try_extract_request_id(payload), None);
+    }
+    let id = "x".repeat(128);
+    let mut payload = vec![0x0a, 0x80, 1];
+    payload.extend_from_slice(id.as_bytes());
+    payload.push(0x0f);
+    assert_eq!(try_extract_request_id(&payload), Some(id));
+}
+
+#[test]
 fn try_extract_request_id_from_garbage_bytes() {
     // Completely random bytes that don't form a valid protobuf.
     // This may or may not decode depending on what prost makes of it,

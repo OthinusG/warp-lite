@@ -221,11 +221,8 @@ fn try_extract_request_id(buf: &[u8]) -> Option<String> {
     if buf.first() != Some(&0x0a) {
         return None;
     }
-    let buf = &buf[1..];
-
-    // Decode varint-encoded string length.
-    let (len, consumed) = decode_varint(buf)?;
-    let buf = &buf[consumed..];
+    let mut buf = &buf[1..];
+    let len = usize::try_from(prost::encoding::decode_varint(&mut buf).ok()?).ok()?;
 
     if buf.len() < len {
         return None;
@@ -236,23 +233,6 @@ fn try_extract_request_id(buf: &[u8]) -> Option<String> {
         return None;
     }
     Some(s.to_string())
-}
-
-/// Decodes a protobuf varint from the start of `buf`.
-/// Returns `(value, bytes_consumed)` or `None` if the varint is malformed.
-fn decode_varint(buf: &[u8]) -> Option<(usize, usize)> {
-    let mut result: u64 = 0;
-    for (i, &byte) in buf.iter().enumerate() {
-        if i >= 10 {
-            // Varint too long.
-            return None;
-        }
-        result |= ((byte & 0x7F) as u64) << (i * 7);
-        if byte & 0x80 == 0 {
-            return Some((result as usize, i + 1));
-        }
-    }
-    None
 }
 
 #[cfg(test)]

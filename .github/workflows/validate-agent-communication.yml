@@ -67,6 +67,7 @@ jobs:
       - name: Check Windows default and platform application
         if: ${{ !inputs.protocol_only }}
         run: |
+          cargo test -p remote_server --locked
           cargo check -p warp --bin warp-oss --locked
           cargo check -p warp --bin warp-oss --features warp_platform --locked
       - name: Verify Windows legacy metadata and credential cleanup
@@ -186,7 +187,9 @@ jobs:
           retention-days: 7
       - name: Check default Lite application
         if: ${{ !inputs.protocol_only }}
-        run: cargo check -p warp --bin warp-oss --locked
+        run: |
+          cargo test -p remote_server --locked
+          cargo check -p warp --bin warp-oss --locked
       - name: Check platform application
         if: ${{ !inputs.protocol_only }}
         run: cargo check -p warp --bin warp-oss --features warp_platform --locked

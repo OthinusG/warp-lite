@@ -1,5 +1,23 @@
 # Project Memory
 
+## Quality comparison and integration — 2026-10-04
+
+- User authorized direct per-feature implementation comparison for PLAN S0–S5,
+  compatible replacements, unified acceptance, proven-unused-code cleanup,
+  default-branch integration and obsolete-branch removal. The actual default
+  branch is `warp-lite/main`; preserve terminal core and `warp_platform` consumers.
+- Request-ID recovery must use the locked prost varint decoder plus checked
+  integer conversion. The old handwritten decoder truncated overflowing tenth
+  bytes into short lengths. Preserve partial field-1 extraction when later
+  protobuf bytes are corrupt. No new protocol or dependency is required.
+- portable-pty child termination is not a substitute for the companion's full
+  native group/job exit observation. The openssh crate is Unix-only; keep system
+  OpenSSH for both desktop platforms. Do not change the accepted task/receipt
+  engine just to replace it with a generic messaging server.
+- `search-before-build-compare` was installed with only SKILL.md. Its complete
+  references, decision kernel and viewer were found in the skills-manager cached
+  package; comparison artifacts remain in the OS temporary directory.
+
 ## Product Boundary
 
 - Current platform scope (user correction 2026-10-03): local desktop GUI targets macOS/Windows; SSH Remote environments and the repository-owned companion target Linux/macOS/Windows. Linux helper builds and focused remote tests are authorized; Linux desktop/UI remains excluded. This supersedes the broader Linux exclusion recorded on 2026-10-01.
