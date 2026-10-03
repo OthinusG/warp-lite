@@ -19,7 +19,8 @@ fn result(reply: ServerMessage) -> managed_response::Result {
 #[test]
 fn companion_reads_native_project_metrics_and_fences_every_attachment() {
     let root = tempfile::tempdir().unwrap();
-    let mut companion = Companion::new(&root.path().join("companion-state")).unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let mut companion = Companion::new(&state.path().join("companion-state")).unwrap();
     let init = || {
         request(managed_request::Operation::Initialize(ManagedInitialize {
             protocol_major: PROTOCOL_MAJOR,

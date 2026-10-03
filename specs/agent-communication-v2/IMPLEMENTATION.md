@@ -195,3 +195,13 @@ Tests cover stable reopen, replaced root, concurrent lock, corrupt UUID and
 Unix symlink rejection. Unsupported directory birth identity fails admission.
 Service boot/connection still change; retained task/PTYS remain unimplemented.
 These latest identity/flush changes require new exact-source CI.
+
+Upstream cloud installer removal: disable the inherited install_binary network
+deployment boundary, remove its Oz download template/helper and developer deploy
+script, retain ordinary SSH and manually provisioned legacy protocol support.
+The new companion is a different bounded protocol and must not be substituted
+into the inherited proxy command. New managed installation remains pending.
+Identity source6ab9021 passed Windows native private-directory identity tests and
+20 real retired-endpoint refusal repetitions. macOS/Linux failed only test cleanup
+when the state directory lived inside the replaced project root; isolate test
+state from the root before revalidation.

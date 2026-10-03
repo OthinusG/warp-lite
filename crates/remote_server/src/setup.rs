@@ -156,72 +156,8 @@ pub fn binary_check_command() -> String {
     format!("{} --version", remote_server_binary())
 }
 
-/// Returns the version string used to pin remote-server installs on
-/// channels that take the versioned path (i.e. everything except
-/// [`Channel::Local`] and [`Channel::Oss`]). Prefers the baked-in
-/// `GIT_RELEASE_TAG` from [`ChannelState::app_version`]; falls back to
-/// `CARGO_PKG_VERSION` so the path / install URL is deterministic even on
-/// dev `cargo run` builds without a release tag. The `CARGO_PKG_VERSION`
-/// fallback is not expected to map to a real `/download/cli` artifact —
-/// it exists to produce a clean install-time failure rather than silently
-/// fall through to the unversioned (Local/Oss-only) path.
-fn pinned_version() -> &'static str {
-    ChannelState::app_version().unwrap_or(env!("CARGO_PKG_VERSION"))
-}
-
-/// The install script template, loaded from a standalone `.sh` file for
-/// readability. Placeholders like `{download_base_url}` are substituted by
-/// [`install_script`].
-const INSTALL_SCRIPT_TEMPLATE: &str = include_str!("install_remote_server.sh");
-
-/// Returns the install script that downloads and installs the CLI binary.
-///
-/// The script detects the remote architecture via `uname -m`, downloads the
-/// correct Oz CLI tarball from the download URL (with os, arch, package, and
-/// channel query params), and extracts it to the install directory.
-///
-/// All parameters (URL, channel, directory, binary name) are derived
-/// internally from the current channel configuration.
-pub fn install_script() -> String {
-    INSTALL_SCRIPT_TEMPLATE
-        .replace("{download_base_url}", &download_url())
-        .replace("{channel}", download_channel())
-        .replace("{install_dir}", &remote_server_dir())
-        .replace("{binary_name}", binary_name())
-}
-
-/// Construct the download URL from the server root URL.
-///
-/// For example, given `https://app.warp.dev`, returns
-/// `https://app.warp.dev/download/cli`.
-fn download_url() -> String {
-    let base = ChannelState::server_root_url();
-    let base = base.trim_end_matches('/');
-    format!("{base}/download/cli")
-}
-
-/// Maps the client's [`Channel`] to the server's download channel parameter.
-///
-/// The server recognises `"stable"`, `"preview"`, and `"dev"`.  Local and
-/// Integration builds map to `"dev"` so they fetch dogfood artifacts.
-fn download_channel() -> &'static str {
-    match ChannelState::channel() {
-        Channel::Stable => "stable",
-        Channel::Preview => "preview",
-        Channel::Dev | Channel::Local | Channel::Integration => "dev",
-        Channel::Oss => {
-            // TODO(alokedesai): need to figure out how remote server works with warp-oss
-            // For now, return what Dev returns.
-            "dev"
-        }
-    }
-}
-
 /// Timeout for the binary existence check.
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
-
-/// Timeout for the install script.
-pub const INSTALL_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[cfg(test)]
 #[path = "setup_tests.rs"]

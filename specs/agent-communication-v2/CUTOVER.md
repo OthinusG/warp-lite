@@ -128,6 +128,14 @@ Code being implemented does not justify keeping the wrong product. Passing old t
 
 **Gate:** Linux/macOS/Windows remote companion launches from built source; Windows detection does not require uname; there is no cloud account/install dependency. Old installer reachability is audited and fenced rather than accidentally revived.
 
+Source checkpoint: the inherited automatic installer now returns a fixed disabled
+error before network/file work. The Oz/cloud URL/template helpers, unused script
+SSH helper and obsolete local Oz cross-deploy script are removed. Ordinary SSH
+and manually provisioned legacy server checks/proxy behavior remain. Independent
+read-companion review artifacts are built in GitHub; explicit deployment and full
+managed service compatibility remain pending. No new companion is substituted
+for the incompatible legacy proxy command.
+
 ## D11 — FTP/FTPS proposal: exclude entirely
 
 The user confirmed SFTP-only on 2026-10-03. No FTP/FTPS implementation was found in this feature work; this is a planning removal, not a claim that an FTP library was deleted.

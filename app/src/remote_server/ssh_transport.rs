@@ -1,6 +1,6 @@
 //! SSH-specific implementation of [`RemoteTransport`].
 //!
-//! [`SshTransport`] uses an existing SSH ControlMaster socket to check/install
+//! [`SshTransport`] uses an existing SSH ControlMaster socket to check
 //! the remote server binary and to launch the `remote-server-proxy` process
 //! whose stdin/stdout become the protocol channel.
 use std::future::Future;
@@ -14,8 +14,8 @@ use warpui::r#async::executor;
 
 use remote_server::client::RemoteServerClient;
 use remote_server::manager::RemoteServerExitStatus;
-use remote_server::setup::{self, RemotePlatform, CHECK_TIMEOUT, INSTALL_TIMEOUT};
-use remote_server::ssh::{run_ssh_command, run_ssh_script, ssh_args};
+use remote_server::setup::{self, RemotePlatform, CHECK_TIMEOUT};
+use remote_server::ssh::{run_ssh_command, ssh_args};
 use remote_server::transport::{Connection, RemoteTransport};
 
 /// SSH transport: connects via a ControlMaster socket.
@@ -80,42 +80,8 @@ impl RemoteTransport for SshTransport {
     }
 
     fn install_binary(&self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>> {
-        let socket_path = self.socket_path.clone();
-        Box::pin(async move {
-            let script = setup::install_script();
-            let binary_path = setup::remote_server_binary();
-            log::info!("Installing remote server binary to {binary_path}");
-            match run_ssh_script(&socket_path, &script, INSTALL_TIMEOUT).await {
-                Ok(output) if output.status.success() => {
-                    // Post-install verification: confirm the binary actually
-                    // landed at the expected path and is functional. This
-                    // catches silent install failures (e.g. tilde-expansion
-                    // bugs) that would otherwise surface as a cryptic
-                    // "Response channel closed" error during the IPC handshake.
-                    log::info!("Running post-install verification for {binary_path}");
-                    match run_ssh_command(&socket_path, &setup::binary_check_command(), CHECK_TIMEOUT)
-                        .await
-                    {
-                        Ok(output) if output.status.success() => Ok(()),
-                        Ok(output) => {
-                            let code = output.status.code().unwrap_or(-1);
-                            let stderr =
-                                String::from_utf8_lossy(&output.stderr).trim().to_string();
-                            Err(format!(
-                                "Post-install verification failed: binary not found or not \
-                                 executable at {binary_path} (exit {code}): {stderr}"
-                            ))
-                        }
-                        Err(e) => Err(format!("Post-install verification failed: {e:#}")),
-                    }
-                }
-                Ok(output) => {
-                    let code = output.status.code().unwrap_or(-1);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    Err(format!("install script failed (exit {code}): {stderr}"))
-                }
-                Err(e) => Err(format!("{e:#}")),
-            }
+        Box::pin(async {
+            Err("Automatic upstream server installation is disabled; ordinary SSH remains available.".into())
         })
     }
 

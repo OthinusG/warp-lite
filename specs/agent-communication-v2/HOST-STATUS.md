@@ -1,6 +1,6 @@
 # SSH Task Panel Host Status
 
-Date: 2026-10-03. User requirement: SR41. Status: specified, not implemented.
+Date: 2026-10-03. User requirement: SR41. Status: bounded companion reads and controlled Linux SSH evidence exist; live GUI integration and full acceptance are pending.
 
 ## Behavior and visual authority
 

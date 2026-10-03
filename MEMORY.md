@@ -445,3 +445,13 @@ Persistent identity uses nonsecret account-local metadata with native private
 permissions and std File::try_lock (supported by pinned Rust1.92). Root identity
 requires native directory identity plus creation time; unsupported birth identity
 must not silently become path-string equality. This does not add retained runs.
+
+Upstream cloud installer removal: disable the inherited install_binary network
+deployment boundary, remove its Oz download template/helper and developer deploy
+script, retain ordinary SSH and manually provisioned legacy protocol support.
+The new companion is a different bounded protocol and must not be substituted
+into the inherited proxy command. New managed installation remains pending.
+Identity source6ab9021 passed Windows native private-directory identity tests and
+20 real retired-endpoint refusal repetitions. macOS/Linux failed only test cleanup
+when the state directory lived inside the replaced project root; isolate test
+state from the root before revalidation.

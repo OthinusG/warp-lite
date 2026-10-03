@@ -75,8 +75,10 @@ planned transfer protocol; FTP/FTPS and cross-host device federation are exclude
 The previous invitation/device-grant design is superseded. The current source
 removes its native enrollment worker and production gateway/client; schema v7
 retains legacy history and unresolved requests while revoking device authority.
-This cutover does not implement SSH Remote; companion, files and sessions remain
-pending. See the revised [implementation plan](specs/agent-communication-v2/PLAN.md),
+Source now includes a small read-only companion, scoped native host metrics and
+structured SFTP reads; controlled Linux SSH/SFTP and three-platform companion
+checks have passed. GUI integration, installation, writes/transfers, retained
+sessions and remote Agent task execution remain pending. See the revised [implementation plan](specs/agent-communication-v2/PLAN.md),
 [product behavior](specs/agent-communication-v2/PRODUCT.md),
 [source removal inventory](specs/agent-communication-v2/CUTOVER.md) and
 [pending acceptance gates](specs/agent-communication-v2/ACCEPTANCE.md).

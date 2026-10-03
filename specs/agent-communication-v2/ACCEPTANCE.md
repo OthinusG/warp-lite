@@ -232,3 +232,22 @@ tests and both review-package builds passed. Real credential-provider and SSH
 runtime acceptance remain pending. These results validate the
 cutover implementation, not R1–R7 or SR41 runtime behavior. The workspace's 17
 implementation paths match this source; its current branch/index was preserved.
+
+
+## Managed read and SFTP source checkpoint — 2026-10-03
+
+Source `fc8964c`, [run 37090383877](https://github.com/OthinusG/warp-lite/actions/runs/37090383877),
+passed shared protobuf, native host metrics/root fencing, standalone process,
+SSH argument/shell encoding and SFTP parser checks on Linux/macOS/Windows.
+A controlled Linux loopback OpenSSH account exercised actual companion status
+and independent file-only SFTP with no companion path. Unicode/spaces/shell
+metacharacters preserved exact binary bytes; traversal/symlink escape and reads
+after disconnect were refused. All three review companions include source/target
+provenance, checksums and inherited notices. This is partial V02/V04/V05/V09
+evidence, not completed GUI, installation, transfer or retained-session gates.
+
+Source `6ab9021` adds persistent native account/root identity and a flushed
+retired-endpoint refusal after a native-suite failure exposed Tokio stdio's no-op
+shutdown. Its exact-source identity/flush checks are pending. New SR41 native
+fixtures are implemented, but captures and visual review remain pending. V01–V24
+stay open; no paid vendor/physical-host acceptance is inferred.
