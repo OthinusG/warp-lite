@@ -28,9 +28,6 @@ use tokio::net::{UnixListener, UnixStream};
 use uuid::Uuid;
 use subtle::ConstantTimeEq;
 
-#[cfg(all(test, any(target_os = "macos", windows)))]
-#[path = "remote_control.rs"]
-pub(crate) mod remote_control;
 use crate::readiness::{Activity, Draft};
 
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
@@ -110,30 +107,6 @@ struct State {
     store: Store,
     terminals: HashMap<String, Terminal>,
     programs: Option<HashSet<String>>,
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    remote_active: bool,
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    remote_owner: Option<Uuid>,
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    remote_presence: HashMap<String, remote_control::ActorPresence>,
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    remote_connection_sequence: u64,
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    remote_native_connections: HashMap<String, (u64, Uuid)>,
-}
-#[cfg(all(test, any(target_os = "macos", windows)))]
-impl State {
-    fn expire_remote_presence(&mut self) -> Result<()> {
-        let expired: Vec<_> = self.remote_presence.iter()
-            .filter(|(actor, presence)| !self.remote_active || !presence.valid(&self.store, actor))
-            .map(|(actor, presence)| (actor.clone(), presence.mutation_epoch()))
-            .collect();
-        for (actor, epoch) in expired {
-            self.store.observe_remote_disconnect(&actor, &epoch)?;
-            self.remote_presence.remove(&actor);
-        }
-        Ok(())
-    }
 }
 struct Shared {
     state: Mutex<State>,
@@ -234,16 +207,6 @@ impl RunningBroker {
                 store,
                 terminals: HashMap::new(),
                 programs: None,
-                #[cfg(all(test, any(target_os = "macos", windows)))]
-                remote_active: false,
-                #[cfg(all(test, any(target_os = "macos", windows)))]
-                remote_owner: None,
-                #[cfg(all(test, any(target_os = "macos", windows)))]
-                remote_presence: HashMap::new(),
-                #[cfg(all(test, any(target_os = "macos", windows)))]
-                remote_connection_sequence: 0,
-                #[cfg(all(test, any(target_os = "macos", windows)))]
-                remote_native_connections: HashMap::new(),
             }),
             changed: Condvar::new(),
             stopped: AtomicBool::new(false),
@@ -1164,10 +1127,6 @@ impl Broker {
     fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
         let state = self.shared.state.lock()
             .map_err(|_| coordinator_unavailable("Broker unavailable"))?;
-        #[cfg(all(test, any(target_os = "macos", windows)))]
-        let mut state = state;
-        #[cfg(all(test, any(target_os = "macos", windows)))]
-        state.expire_remote_presence()?;
         Ok(state)
     }
     /// Trusted local panel mutations under the deterministic operator principal.
@@ -1283,21 +1242,14 @@ impl Broker {
                 .filter_map(|binding| binding.live.as_ref())
                 .find(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH
                     && live.agent.as_ref().is_some_and(|actor| actor.id == agent.id));
-            #[cfg(all(test, any(target_os = "macos", windows)))]
-            let remote_online = state.remote_active && state.remote_presence.get(&agent.id)
-                .is_some_and(|presence| presence.valid(&state.store, &agent.id));
-            #[cfg(not(all(test, any(target_os = "macos", windows))))]
-            let remote_online = false;
             let device = agent.terminal.strip_prefix("remote:")
                 .and_then(|qualified| qualified.split_once(':')).map(|(device, _)| device.to_owned())
                 .unwrap_or_else(|| "local".into());
             let workspace = state.store.physical_root(&agent).ok();
             let observed = live.map(|live| live.observed.elapsed().as_millis() as u64);
-            #[cfg(all(test, any(target_os = "macos", windows)))]
-            let observed = observed.or_else(|| remote_online.then(|| state.remote_presence[&agent.id].age_ms()));
-            json!({"agent": agent, "online": live.is_some() || remote_online,
+            json!({"agent": agent, "online": live.is_some(),
                 "device": device, "workspace": workspace, "last_observed_ms": observed,
-                "observation_source": if live.is_some() { Some("local observation") } else if remote_online { Some("presence receipt") } else { None },
+                "observation_source": if live.is_some() { Some("local observation") } else { None },
                 "delivery_phase": live.and_then(|live| live.delivery.as_ref()).map(|(_, phase, _)| *phase),
                 "delivery_retained": live.and_then(|live| live.delivery.as_ref()).map(|(_, _, retained)| *retained),
                 "activity": live.map(|live| live.activity),
@@ -1375,19 +1327,10 @@ fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
                 .as_ref()
                 .is_some_and(|agent| agent.id == task.assignee)
         });
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    let remote = state.remote_presence.get(&task.assignee)
-        .filter(|presence| state.remote_active && presence.valid(&state.store, &task.assignee));
-    #[cfg(all(test, any(target_os = "macos", windows)))]
-    let (remote_online, remote_executing) = (remote.is_some(), remote.is_some_and(|presence|
-        presence.executing(&state.store, &task.assignee, task.executing_run.as_deref())));
-    #[cfg(not(all(test, any(target_os = "macos", windows))))]
-    let (remote_online, remote_executing) = (false, false);
     (
-        live.is_some() || remote_online,
+        live.is_some(),
         matches!(task.state.as_str(), "running" | "cancel_requested")
-            && !live.is_some_and(|live| task.executing_run.as_deref() == Some(live.run.as_str()))
-            && !remote_executing,
+            && !live.is_some_and(|live| task.executing_run.as_deref() == Some(live.run.as_str())),
     )
 }
 fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> Result<&'a Live> {

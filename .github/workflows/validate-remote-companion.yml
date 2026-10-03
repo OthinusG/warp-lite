@@ -48,11 +48,11 @@ jobs:
           cargo test -p warp-agent-bus --test native_pty --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
-      - name: Verify retired endpoint refusal flushes before process exit
+      - name: Verify local communication and retained history migrations
         run: |
-          for attempt in {1..20}; do
-            cargo test -p warp-agent-bus --test coordination retired_remote_stdio_refuses_with_a_bounded_nonretryable_frame --locked
-          done
+          cargo test -p warp-agent-bus --lib storage::tests --locked
+          cargo test -p warp-agent-bus --test coordination --locked
+          cargo test -p warp-agent-bus --test local_spaces --locked
       - name: Verify real controlled SSH companion on Linux
         if: runner.os == 'Linux'
         env:

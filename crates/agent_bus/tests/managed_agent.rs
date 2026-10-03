@@ -63,6 +63,14 @@ fn managed_agent_child() {
             },
         )
         .unwrap();
+        let heartbeat = format!("agent-heartbeat-{}", std::env::var(TERMINAL).unwrap());
+        std::fs::write(&heartbeat, "0").unwrap();
+        std::thread::spawn(move || {
+            for tick in 1u64.. {
+                std::fs::write(&heartbeat, tick.to_string()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        });
         println!("MCP_NATIVE_RUN={}", registered["run"].as_str().unwrap());
     }
     println!("REMOTE_ROOT={}", std::env::current_dir().unwrap().display());
@@ -428,6 +436,21 @@ async fn disconnected_agent_cannot_be_adopted_by_another_connection() {
         .wait_output(&state, &format!("MCP_NATIVE_RUN={}", state.run_id))
         .await;
     first.disconnect().await;
+    let heartbeat = root
+        .path()
+        .join(format!("agent-heartbeat-{}", state.session_id));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let before = std::fs::read_to_string(&heartbeat).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        if !before.is_empty() && std::fs::read_to_string(&heartbeat).unwrap() == before {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Disconnected Agent remained alive"
+        );
+    }
     let mut next = Attachment::open(root.path()).await;
     for action in [
         TerminalAction::TerminalRead,

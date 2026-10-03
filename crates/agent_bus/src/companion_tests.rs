@@ -79,7 +79,7 @@ fn companion_opens_native_project_and_fences_every_attachment() {
         std::fs::rename(root.path(), &renamed).unwrap();
         std::fs::create_dir(root.path()).unwrap();
         assert!(
-            matches!(result(companion.handle(status_request(fence))), managed_response::Result::Error(ManagedError { code })
+            matches!(result(companion.handle(request(managed_request::Operation::ProjectTasks(ProjectTasksRequest { fence: Some(fence), query_generation: 1, command_json: serde_json::to_vec(&TaskCommand::Panel(crate::transport::PanelQuery::default())).unwrap() })))), managed_response::Result::Error(ManagedError { code })
             if code == i32::from(ManagedErrorCode::ManagedStaleAttachment))
         );
         std::fs::remove_dir(renamed).unwrap();

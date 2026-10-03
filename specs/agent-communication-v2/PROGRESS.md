@@ -1034,3 +1034,12 @@ Agent IO/private-MCP/isolation checks. README follows the corrected scope.
 Cleanup source 468b490 run 37113128671 failed at compilation because service idle
 logic inherited Instant through the removed metrics import. Fixed with an explicit
 service import. No cleanup acceptance is claimed before a successful rerun.
+
+S0 also removes the superseded device enrollment/authentication, federation client,
+remote actor registration, remote gateway and device pending-intent runtime modules
+(about 5,000 lines). Keep schema migration, read-only provenance and stored original
+intents; retired controller operations return feature_unavailable. Added a raw-v6
+migration check proving uncertain attempts, receipts, pending intent and backup
+survive without the deleted runtime. Native disconnect acceptance now observes the
+actual child heartbeat stopping, in addition to refusal of another connection.
+These changes are pending exact-source CI; S0 remains unchecked.

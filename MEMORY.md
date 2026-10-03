@@ -568,3 +568,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   produced redundant code/features and wiring, not leaving dormant foundations.
   Keep only what is required for SSH same-project Agent communication and concise
   existing-panel status. Preserve original terminal/local communication behavior.
+
+- SSH pruning, 2026-10-03: connection-owned Agent IO replaces retained session
+  management. Disconnect revokes MCP and stops the owned native group/job; failed
+  activity/stop observation cannot authorize owner release. Removed device runtime
+  must not remove v6 migration, original pending intents or read-only provenance.
+  New cleanup/migration checks are pending GitHub verification.

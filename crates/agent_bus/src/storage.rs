@@ -24,17 +24,6 @@ use std::{
 };
 use uuid::Uuid;
 
-#[path = "remote_auth.rs"]
-mod remote_auth;
-#[path = "remote_actors.rs"]
-mod remote_actors;
-pub use remote_actors::RemoteActor;
-#[path = "remote_pending.rs"]
-mod remote_pending;
-pub use remote_pending::RemoteIntent;
-pub(crate) use remote_actors::RemoteWorkspace;
-pub(crate) use remote_auth::RemotePrincipal;
-
 pub(crate) const SCHEMA_VERSION: &str = "7";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
 pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":7}"#;
@@ -796,20 +785,6 @@ impl Store {
             .map(AgentRow::agent))
     }
 
-    pub(crate) fn coordinator_id(&self) -> Result<Uuid> {
-        self.transaction(|| {
-            let existing = diesel::sql_query("SELECT value FROM meta WHERE key='coordinator_id'")
-                .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
-            if let Some(existing) = existing {
-                return Uuid::parse_str(&existing.value).map_err(|_| invalid_state("Coordinator identity is unavailable"));
-            }
-            let id = Uuid::new_v4();
-            diesel::sql_query("INSERT INTO meta(key,value) VALUES ('coordinator_id',?)")
-                .bind::<Text, _>(id.to_string()).execute(&mut *self.connection.borrow_mut())?;
-            Ok(id)
-        })
-    }
-
     pub(crate) fn workspace_binding(&self, id: &str) -> Result<WorkspaceBinding> {
         let row = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE id = ?")
             .bind::<Text, _>(id)
@@ -838,13 +813,26 @@ impl Store {
         if !actor.project.starts_with("space:") || actor.program == OPERATOR_PROGRAM {
             return Ok(());
         }
-        if let Some(authorized) = self.remote_authorized(actor)? {
-            ensure!(authorized, scope_denied("Remote participation was revoked"));
-            return Ok(());
-        }
+        ensure!(self.remote_physical_root(actor)?.is_none(),
+            scope_denied("Legacy remote participation was revoked"));
         ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id AND w.space_id=b.space_id JOIN space_members AS m ON m.space_id=b.space_id AND m.agent=b.agent WHERE b.agent=? AND b.revoked=0 AND ?='space:' || b.space_id", &[&actor.id, &actor.project])? == 1,
             scope_denied("Shared participation was revoked; open a new shared pane"));
         Ok(())
+    }
+
+    /// Retired device provenance is read-only; it never identifies a local checkout.
+    fn remote_physical_root(&self, actor: &Agent) -> Result<Option<String>> {
+        Ok(diesel::sql_query("SELECT 'remote:' || b.device || ':' || w.checkout AS value FROM remote_actor_bindings AS b JOIN remote_workspaces AS w ON w.id=b.workspace_id WHERE b.agent=?")
+            .bind::<Text, _>(&actor.id).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?
+            .map(|row| row.value))
+    }
+
+    fn reservation_path(&self, actor: &Agent, workspace: &str, path: &str) -> Result<String> {
+        if self.remote_physical_root(actor)?.is_some() {
+            normalize_relative_path(path)
+        } else {
+            crate::normalize_workspace_path(workspace, path)
+        }
     }
 
     /// Historical provenance remains readable by the operator after membership is revoked.
@@ -1507,12 +1495,14 @@ impl Store {
         let actor = Self::operator(project);
         match operation {
             ControllerOperation::SpaceList { cursor, limit } => return self.space_list(project, cursor.as_deref(), *limit),
-            ControllerOperation::DeviceList => return self.device_list(),
+            ControllerOperation::DeviceList | ControllerOperation::InvitationCreate { .. }
+            | ControllerOperation::DeviceGrantUpdate { .. } | ControllerOperation::DeviceRevoke { .. }
+            | ControllerOperation::RemoteWorkspaceMap { .. } => return Err(crate::domain(
+                "feature_unavailable", "Device collaboration was retired", false, None)),
             ControllerOperation::PurgePreview => return self.purge_preview(project),
             ControllerOperation::HistoryExport { after, limit } => {
                 return self.history_export(project, *after, *limit)
             }
-            ControllerOperation::InvitationCreate { .. } => return self.create_invitation(project, operation),
             _ => {}
         }
         let serialized = serde_json::to_string(operation)?;
@@ -3364,11 +3354,10 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
-            ControllerOperation::RemoteWorkspaceMap { device_id, expected_generation, space_id, checkout_id, label, repository_id, .. } => {
-                let principal = RemotePrincipal { device: device_id.to_string(), generation: *expected_generation };
-                let workspace = self.map_remote_workspace_in_transaction(&principal, *space_id, *checkout_id, label, *repository_id)?;
-                Ok(json!({"workspace_id": workspace.id, "device_id": workspace.device, "space_id": workspace.space, "checkout_id": workspace.checkout}))
-            }
+            ControllerOperation::DeviceList | ControllerOperation::InvitationCreate { .. }
+            | ControllerOperation::DeviceGrantUpdate { .. } | ControllerOperation::DeviceRevoke { .. }
+            | ControllerOperation::RemoteWorkspaceMap { .. } => Err(crate::domain(
+                "feature_unavailable", "Device collaboration was retired", false, None)),
             ControllerOperation::ReservationUpdate { reservation_id, workspace, expected_owner, expected_expires_at, ttl_seconds, reason, .. } => {
                 text(reason)?;
                 let row = self.reservation_row(workspace, reservation_id)?;
@@ -3399,9 +3388,6 @@ impl Store {
                     Ok(json!({"released": [reservation_id], "execution_stopped": false}))
                 }
             }
-            ControllerOperation::DeviceGrantUpdate { device_id, expected_generation, space_id, mode, .. } =>
-                self.update_device_grant(project, device_id, *expected_generation, space_id, mode.as_deref()),
-            ControllerOperation::DeviceRevoke { device_id, .. } => self.revoke_device(project, device_id),
             ControllerOperation::SpaceCreate { name, .. } => self.space_create(project, actor, name),
             ControllerOperation::SpaceJoin { space_id, agent, .. } => {
                 self.space_join(project, actor, space_id, agent)
@@ -3524,7 +3510,8 @@ impl Store {
         self.space(space_id)?
             .ok_or_else(|| scope_denied("Space not found"))?;
         let member = self.agent(project, agent)?;
-        self.revoke_remote_actor(agent, space_id)?;
+        diesel::sql_query("UPDATE remote_actor_bindings SET revoked=1,current_epoch=NULL WHERE agent=? AND space_id=?")
+            .bind::<Text, _>(agent).bind::<Text, _>(space_id).execute(&mut *self.connection.borrow_mut())?;
         diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE agent=? AND space_id=?")
             .bind::<Text, _>(&member.id).bind::<Text, _>(space_id)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -7984,10 +7971,57 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&invalid), "invalid_input");
-        let devices = store
-            .execute_controller("/project", &ControllerOperation::DeviceList)
-            .unwrap();
-        assert_eq!(devices["devices"], json!([]));
+        let devices = store.execute_controller("/project", &ControllerOperation::DeviceList).unwrap_err();
+        assert_eq!(code(&devices), "feature_unavailable");
+    }
+
+    #[test]
+    fn v6_cutover_keeps_uncertain_work_and_original_intents_without_device_runtime() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("bus.sqlite");
+        let path = database.to_str().unwrap();
+        let store = Store::open(path).unwrap();
+        let worker = store.register("legacy", "codex", "/legacy", "legacy-worker").unwrap();
+        let local = store.register("local", "codex", "/local", "local-worker").unwrap();
+        let task = store.execute(&Store::operator("/legacy"), OPERATOR_EPOCH, &Operation::TaskAssign {
+            to: worker.name.clone(), description: "Legacy work".into(), acceptance: "Preserve uncertainty".into(),
+            reviewer: None, dependencies: vec![], start_deadline: None,
+            execution_timeout_seconds: None, review_timeout_seconds: None, request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let task_id = task["id"].as_str().unwrap();
+        let start = transition(task_id, 1, &Uuid::new_v4().to_string());
+        let receipt = store.execute(&worker, "legacy-run", &start).unwrap();
+        let before = store.operator_task("/legacy", task_id).unwrap();
+        diesel::sql_query("INSERT INTO remote_actor_bindings VALUES (?, 'old-device', 'old-workspace', 'old-space', 'old-native', 'legacy-run', 0)")
+            .bind::<Text, _>(&worker.id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        store.connection.borrow_mut().batch_execute(
+            "INSERT INTO devices VALUES ('old-device','Legacy','unused',1,0,0);
+             INSERT INTO remote_runs VALUES ('legacy-run','old-actor','old-native-run',0,0);
+             INSERT INTO invitations VALUES ('old-invite','unused','[]',0,0);
+             INSERT INTO remote_pending_intents VALUES ('old-coordinator','old-device','old-space','old-actor','old-run','old-request','original intent',NULL,0);
+             UPDATE meta SET value='6' WHERE key='schema_version';").unwrap();
+        store.set_legacy_payload(SENTINEL_V6).unwrap();
+        drop(store);
+        let upgraded = Store::open(path).unwrap();
+        let after = upgraded.operator_task("/legacy", task_id).unwrap();
+        assert_eq!(after.state, "running");
+        assert_eq!(after.description, before.description);
+        assert_eq!(after.version, before.version + 1);
+        assert_eq!(after.attempts[0].certainty, "unknown");
+        assert!(after.attempts[0].finished_at.is_none());
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM devices WHERE revoked=0", &[]).unwrap(), 0);
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM remote_actor_bindings WHERE revoked=0", &[]).unwrap(), 0);
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM remote_runs WHERE closed=0", &[]).unwrap(), 0);
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM invitations WHERE consumed=0", &[]).unwrap(), 0);
+        assert_eq!(upgraded.count("SELECT COUNT(*) AS count FROM remote_pending_intents WHERE operation='original intent' AND response IS NULL", &[]).unwrap(), 1);
+        let saved = diesel::sql_query("SELECT response AS value FROM requests WHERE actor=? AND request_id=?")
+            .bind::<Text, _>(&worker.id).bind::<Text, _>(start.request_id().unwrap())
+            .get_result::<ValueRow>(&mut *upgraded.connection.borrow_mut()).unwrap().value;
+        assert_eq!(serde_json::from_str::<Value>(&saved).unwrap(), receipt);
+        assert!(upgraded.execute(&local, "local-run", &Operation::AgentList).is_ok());
+        assert_eq!(read_legacy_payload(&format!("{path}.pre-upgrade-v6")).unwrap().as_deref(), Some(SENTINEL_V6));
+        drop(upgraded);
+        assert_eq!(Store::open(path).unwrap().operator_task("/legacy", task_id).unwrap().version, after.version);
     }
 
     #[test]
