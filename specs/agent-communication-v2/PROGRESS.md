@@ -765,3 +765,30 @@ retired-endpoint refusal after a native-suite failure exposed Tokio stdio's no-o
 shutdown. Its exact-source identity/flush checks are pending. New SR41 native
 fixtures are implemented, but captures and visual review remain pending. V01–V24
 stay open; no paid vendor/physical-host acceptance is inferred.
+
+## Task-by-task acceptance resumed — 2026-10-03
+
+### R0.6 accepted: legacy storage cutover
+
+Rechecked source `d71d8b1` and successful GitHub run
+[37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672).
+The current `storage.rs` is byte-identical to that accepted source. Both desktop
+OS suites verified v6 backup, retained original intents/receipts/history, revoked
+legacy device authority, unknown unfinished remote execution and unchanged local
+active attempts. PLAN R0.6 is checked; the remaining R0 gates stay open.
+
+### Retained terminal implementation and pending acceptance
+
+The account service now owns bounded native PTYs independently of clean SSH
+attachments. Immutable launch UUIDs, exact run/attachment fences, sequential
+input, explicit attach/detach/Stop/release, output replay and active-run idle
+fencing are implemented. HostClient exposes the same scoped operations; a
+controlled Linux SSH test checks actual remote cwd/input/detach/reattach/Stop.
+
+Source `18dfb73`, run `37094247053`, passed Linux/macOS; Windows exposed missing
+ConPTY standard-handle initialization. Source `10cdf1d`, run `37094569241`, passed
+Linux/macOS including actual SSH; Windows passed native IO but retained release
+waited indefinitely for a ConPTY output EOF while its owner retained HPCON.
+Source `d1022f8` closes the console only after observed exit. Three-platform
+run `37094854747` and full desktop/native-capture run `37094856739` are pending.
+No R2/R4/GUI/vendor gate is checked by this implementation checkpoint.

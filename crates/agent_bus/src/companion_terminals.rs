@@ -289,7 +289,14 @@ impl Terminals {
                     }
                     let state = session.state(fence, None)?;
                     drop(session);
-                    lock(&self.0)?.remove(&request.session_id);
+                    let mut sessions = lock(&self.0)?;
+                    if sessions
+                        .get(&request.session_id)
+                        .is_none_or(|current| !Arc::ptr_eq(current, &owner))
+                    {
+                        return Err(Error::ManagedStaleAttachment);
+                    }
+                    sessions.remove(&request.session_id);
                     return Ok(state);
                 }
                 _ => return Err(Error::ManagedInvalidInput),

@@ -1,5 +1,6 @@
 //! Native connection/project preview; live IO waits for the screenshot gate.
 use crate::appearance::Appearance;
+mod profiles;
 use serde::Deserialize;
 use warpui::{
     accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},

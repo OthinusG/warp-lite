@@ -76,7 +76,7 @@ File browsing and terminal foundations may be developed independently after iden
 - [ ] **R0.3** Define the typed remote environment/project/connection identities and ownership before extending storage. Document all remote-vs-local path call sites and proposed migrations.
 - [ ] **R0.4** Disable/remove app enrollment worker, invitation/device UI plans and obsolete gateway entrypoints only after a schema/compatibility fixture is in place. Preserve local task/operator APIs and shared secure-storage hardening.
 - [ ] **R0.5** Fence legacy credentials and profiles; expose old metadata only for export/removal. Do not automatically turn a device profile into a trusted SSH project.
-- [ ] **R0.6** Inventory legacy device tables, actors, cursors and unresolved intents; retain unknown work/history and original backups. Implement read-only legacy interpretation before deleting active writes.
+- [x] **R0.6** Inventory legacy device tables, actors, cursors and unresolved intents; retain unknown work/history and original backups. Implement read-only legacy interpretation before deleting active writes. Storage source `d71d8b1`, run `37041826672`, remains byte-identical; see PROGRESS.
 - [ ] **R0.7** Replace obsolete tests with same-invariant tests for the new service, while retaining migration fixtures. Verify no cloud installer/login/billing dependency becomes reachable.
 - **Exit:** V01, V02 and V18. Removal has a concrete dependency map and restores neither old authorization nor old mutations. Source removal is future work; writing this plan does not delete code.
 

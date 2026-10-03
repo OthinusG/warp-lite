@@ -11,6 +11,17 @@ use std::{
 pub(super) struct Process {
     child: Child,
 }
+impl Drop for Process {
+    fn drop(&mut self) {
+        if matches!(self.child.try_wait(), Ok(None)) {
+            // Failure during admission must not orphan a successfully spawned run.
+            // The still-unreaped owned child fences process-group ID reuse.
+            if unsafe { libc::kill(-(self.child.id() as i32), libc::SIGKILL) } == 0 {
+                let _ = self.child.wait();
+            }
+        }
+    }
+}
 fn size(value: Size) -> libc::winsize {
     libc::winsize {
         ws_row: value.rows,

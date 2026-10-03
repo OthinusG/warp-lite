@@ -398,3 +398,23 @@ companion proxy disconnect/reconnect proves same boot/run, stale lease rejection
 input ordering, replay/truncation, project isolation and explicit owned Stop.
 Controlled Linux SSH repeats detach/reattach on the remote service. These checks
 do not establish native GUI input, vendor readiness or V13–V15 in full.
+
+### Bounded streaming file reads
+
+SFTP read_to writes 32-KiB chunks into the caller-owned partial writer and
+returns the received byte count and SHA-256. An explicit per-transfer limit is
+required (at most 1 TiB); editor read remains limited to 16 MiB. Failed local
+writes report LocalIo, never publish the final destination, and close the remote
+handle. Size/type/mtime changes observed across the read report Conflict. These
+metadata checks are not a filesystem lock or an atomic source snapshot; external
+writes that preserve coarse SFTP metadata remain possible. Queue publication,
+local sync, destination conflict checks and cancellation belong to the transfer
+controller, which is not implemented by this streaming primitive.
+
+Streaming uploads pin profile/root/destination/UUID partial/size/SHA-256 before
+IO. prepare_upload_from reads at most 32 KiB per chunk and verifies the complete
+source against that original digest; changed/short/long sources retain an owned
+partial and report Conflict without publishing a destination. Remote verification
+also streams to a sink; a large file never requires an in-memory copy. The current
+non-overwriting commit and original-intent reconciliation apply unchanged. Resume,
+conditional overwrite/editor save and durable queue state remain separate work.

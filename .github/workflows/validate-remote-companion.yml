@@ -43,8 +43,7 @@ jobs:
         run: cargo test -p remote_protocol --locked
       - name: Verify native scoped metrics and standalone companion
         run: |
-          cargo test -p warp-agent-bus --lib companion::tests --locked
-          cargo test -p warp-agent-bus --lib companion::identity::tests --locked
+          cargo test -p warp-agent-bus --lib companion:: --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test native_pty --locked
           cargo test -p warp-agent-bus --test ssh_profiles --locked
