@@ -2376,28 +2376,45 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }),
         )
         .with_step(
-            TestStep::new("new tab uses reviewed shared scope")
-                .add_named_assertion(
-                    "pending admission precedes native discovery",
-                    move |app, window| {
-                        let panel =
-                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                        warpui::async_assert!(
-                            panel.read(app, |panel, _| panel.connected
-                                && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot
-                                    .admission
-                                    == "shared"
-                                    && snapshot.project.starts_with("space:")
-                                    && snapshot.agents.is_empty()))
-                                && app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
-                                    .path_if_local(window)
-                                    .and_then(|path| warp_agent_bus::project_root(path).ok())
-                                    .as_deref()
-                                    == Some(shared_root.as_str()))
-                        )
-                    },
-                )
+            TestStep::new("capture new shared tab before admission")
                 .with_take_screenshot("live-workspace-shared-tab.png"),
+        )
+        .with_step(
+            TestStep::new("new shared tab keeps reviewed native root").add_named_assertion(
+                "exact native project",
+                move |app, window| {
+                    warpui::async_assert!(app.read(|ctx| crate::workspace::ActiveSession::as_ref(
+                        ctx
+                    )
+                    .path_if_local(window)
+                    .and_then(|path| warp_agent_bus::project_root(path).ok())
+                    .as_deref()
+                        == Some(shared_root.as_str())))
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("new shared tab reconnects task panel").add_named_assertion(
+                "current projection connected",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.connected))
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("new tab uses reviewed shared scope").add_named_assertion(
+                "pending admission precedes native discovery",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.admission == "shared"
+                            && snapshot.project.starts_with("space:")
+                            && snapshot.agents.is_empty())))
+                },
+            ),
         )
         .with_step(
             TestStep::new("register deterministic shared participant").with_action(

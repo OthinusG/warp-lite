@@ -20,7 +20,18 @@ impl Identity {
     pub fn open(directory: &Path) -> std::io::Result<Self> {
         private_directory(directory)?;
         let lock = private_file(&directory.join("identity.lock"))?;
-        lock.try_lock().map_err(std::io::Error::other)?;
+        // Concurrent attachments share this identity; brief contention is not
+        // authentication failure. Bound waiting if another owner stalls.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match lock.try_lock() {
+                Ok(()) => break,
+                Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => return Err(std::io::Error::other(error)),
+            }
+        }
         let mut file = private_file(&directory.join("service.id"))?;
         let id = match file.metadata()?.len() {
             0 => {
@@ -192,8 +203,11 @@ pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
     }
     let path_string = HSTRING::from(path.as_os_str());
     if !path.try_exists()? {
-        unsafe { CreateDirectoryW(&path_string, Some(&attributes)) }
-            .map_err(std::io::Error::other)?;
+        if let Err(error) = unsafe { CreateDirectoryW(&path_string, Some(&attributes)) } {
+            if error.code() != windows::Win32::Foundation::ERROR_ALREADY_EXISTS.to_hresult() {
+                return Err(std::io::Error::other(error));
+            }
+        }
     }
     use std::os::windows::fs::MetadataExt;
     let metadata = std::fs::symlink_metadata(path)?;
@@ -241,6 +255,33 @@ pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn concurrent_attachments_wait_for_one_persistent_identity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let state = tmp.path().join("state");
+        private_directory(&state).unwrap();
+        let lock = private_file(&state.join("identity.lock")).unwrap();
+        lock.try_lock().unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(9));
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let state = state.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    Identity::open(&state).unwrap().service_id
+                })
+            })
+            .collect();
+        barrier.wait();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        drop(lock);
+        let expected = Identity::open(&state).unwrap().service_id;
+        for worker in workers {
+            assert_eq!(worker.join().unwrap(), expected);
+        }
+    }
 
     #[test]
     fn identity_persists_without_accepting_corruption_links_or_replaced_roots() {
