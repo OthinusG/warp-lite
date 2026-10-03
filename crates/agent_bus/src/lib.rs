@@ -8,6 +8,7 @@ pub mod session;
 pub mod storage;
 pub mod transport;
 pub mod companion;
+pub mod ssh_remote;
 
 pub use storage::{Store, WorkspaceBinding};
 

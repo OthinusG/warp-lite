@@ -302,3 +302,14 @@ use, including UUID identities, monotonically ordered observations, 8 KiB
 size, finite CPU bounds and consistent byte counters. GUI receipt age is local
 monotonic time; fifteen seconds is stale. This first read path does not claim
 retained sessions, writable task authority, installation or GUI integration.
+
+
+The executable `SshProfile` stores UUID/display target/user/port and optional
+system configuration, jump-alias and identity-file references, plus explicit
+remote root/companion path/shell. It never loads private keys. Command argv and
+remote command encoding are distinct: POSIX single-quote escaping or native
+PowerShell UTF-16 EncodedCommand. Machine channels strictly require an already
+trusted host and noninteractive authentication; explicit interactive terminals
+use OpenSSH fingerprint review. The read client fails closed on timeout or
+correlation/fence mismatch. It does not yet expose authentication reason parsing,
+stable account identity, install, transfers or retained sessions.

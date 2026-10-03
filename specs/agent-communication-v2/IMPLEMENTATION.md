@@ -124,3 +124,15 @@ The three-platform workflow runs real standalone process and native-root tests.
 First shared-codec run 37088358866 passed macOS/Windows but Linux protoc 3.6
 required the proto3 optional flag; the build script now explicitly supplies it.
 Exact new-source tests are pending.
+
+
+Source `861bd6c`, GitHub run 37088825313, passed shared wire, scoped native
+metrics and actual standalone stdio tests on Linux/macOS/Windows. This proves
+read-channel primitives only. Safe SSH profile metadata and system SSH client
+are now in source: separate interactive ask/clean batch paths, strict machine
+host checking, no terminal capability or Vibe configuration forwarding, bounded
+requests, remote shell encoding and exact-response fencing. The Linux workflow
+provisions its own loopback SSH daemon/keys and checks an actual remote companion.
+These keys exist only in the isolated runner, are never printed, and are removed
+after the check. Controlled SSH checks, new static SR41 captures and default/
+platform app checks for the extended protobuf remain pending.

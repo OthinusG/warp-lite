@@ -422,3 +422,8 @@ that distinction until per-account private service ownership and retained PTYs
 are implemented. CI Linux's older protoc needs experimental_allow_proto3_optional
 for the inherited schema. Native volume checks compare total/bounds rather than
 exact free bytes, which can change between samples.
+
+Read companion source 861bd6c/run 37088825313 passed Linux/macOS/Windows wire,
+native-root/metrics and real process stdio tests. No durable PTY/task or GUI/live
+SSH acceptance is implied. Managed machine SSH must not inherit VIBE_MCP_SERVERS;
+it removes that variable alongside the existing native binding scrubber.

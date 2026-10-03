@@ -49,4 +49,179 @@
   {"state": "stale", "guidance": "The displayed snapshot is stale. Refresh before changing task ownership; an old response cannot replace the currently selected space.", "sections": [{"title": "Tasks", "rows": ["42 · last observed Running · current state unknown"]}]},
   {"state": "capacity", "guidance": "Storage capacity is limited. Export history and preview eligible archived records before purging; unread messages and unresolved work are retained.", "sections": [{"title": "Capacity", "rows": ["Active queue 1000 / 1000 · archive completed work to recover capacity", "Database soft budget reached · no silent eviction"]}]},
   {"state": "failed", "guidance": "Could not read collaboration state. Refresh after the local broker recovers. Terminal input remains available.", "sections": [{"title": "Failure", "rows": ["coordinator_unavailable · no task transition was confirmed"]}]}
+,
+{
+  "state": "ssh-host-ready",
+  "guidance": "Task 42 · running · exact producing project; host health does not prove Agent readiness.",
+  "sections": [
+    {
+      "title": "Remote host · Ready",
+      "rows": [
+        "research-linux-node · account researcher",
+        "Project /srv/research/checkout",
+        "SSH ready · SFTP ready · companion ready · MCP ready",
+        "CPU 24% · Memory 6.2 / 16 GiB · Project disk 180 / 512 GiB free",
+        "companion_native · observed 2s ago"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime 3d 2h",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "42 · selected producing host/project · Running"
+      ]
+    }
+  ]
+},
+{
+  "state": "ssh-host-authentication",
+  "guidance": "Review the verified host fingerprint and authenticate through system SSH. Task writes remain disabled.",
+  "sections": [
+    {
+      "title": "Remote host · Authentication required",
+      "rows": [
+        "research-linux-node · account researcher",
+        "Project /srv/research/checkout",
+        "SSH authentication required · SFTP unavailable · companion unavailable · MCP unavailable",
+        "CPU unavailable · Memory unavailable · Project disk unavailable",
+        "No observation"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime unavailable",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "Task access and mutations follow the scoped connection state."
+      ]
+    }
+  ]
+},
+{
+  "state": "ssh-host-sftp-only",
+  "guidance": "File-only connection. Deploy or select a compatible companion for remote task access.",
+  "sections": [
+    {
+      "title": "Remote host · SSH / SFTP ready",
+      "rows": [
+        "research-linux-node · account researcher",
+        "Project /srv/research/checkout",
+        "SSH ready · SFTP ready · companion unavailable · MCP unavailable",
+        "CPU unavailable · Memory unavailable · Project disk unavailable",
+        "No companion observation"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime unavailable",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "Task access and mutations follow the scoped connection state."
+      ]
+    }
+  ]
+},
+{
+  "state": "ssh-host-partial",
+  "guidance": "Inspect separate SFTP and MCP failures. Missing counters do not display as zero.",
+  "sections": [
+    {
+      "title": "Remote host · Connected with unavailable capabilities",
+      "rows": [
+        "research-linux-node · account researcher",
+        "Project /srv/research/checkout",
+        "SSH ready · SFTP failed · companion ready · MCP failed",
+        "CPU warming up · Memory permission denied · Project disk unsupported",
+        "companion_native · observed 1s ago"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime 3d 2h",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "Task access and mutations follow the scoped connection state."
+      ]
+    }
+  ]
+},
+{
+  "state": "ssh-host-stale",
+  "guidance": "Task 42 was running at disconnect; execution is unknown. Reconnect before changing ownership.",
+  "sections": [
+    {
+      "title": "Remote host · Offline · stale last sample",
+      "rows": [
+        "research-linux-node · account researcher",
+        "Project /srv/research/checkout",
+        "SSH offline · SFTP offline · companion offline · MCP offline",
+        "Last CPU 24% · Last memory 6.2 / 16 GiB · Last project disk 180 / 512 GiB free",
+        "companion_native · last observation 2m ago · stale"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime 3d 2h",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "Task access and mutations follow the scoped connection state."
+      ]
+    }
+  ]
+},
+{
+  "state": "ssh-host-long",
+  "guidance": "Task 42 · running. A reply from the previously selected project is discarded; this task retains its producing host.",
+  "sections": [
+    {
+      "title": "Remote host · Ready",
+      "rows": [
+        "research-cluster-node-with-a-long-qualified-hostname.example.internal · account researcher",
+        "Project /srv/research/projects/materials-chemistry/remote-worktree-with-spaces-and-多语言",
+        "SSH ready · SFTP ready · companion ready · MCP ready",
+        "CPU 98% · Memory 15.4 / 16 GiB · Project disk 1.2 / 512 GiB free",
+        "companion_native · observed 3s ago"
+      ]
+    },
+    {
+      "title": "System details",
+      "rows": [
+        "Remote Linux · x86_64 · uptime 3d 2h",
+        "Resource metrics do not imply task completion, transfer completion or process exit."
+      ]
+    },
+    {
+      "title": "Task",
+      "rows": [
+        "Task access and mutations follow the scoped connection state."
+      ]
+    }
+  ]
+}
 ]

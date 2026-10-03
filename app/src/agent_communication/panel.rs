@@ -1845,7 +1845,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .add_named_assertion("previous state wraps", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     warpui::async_assert!(
-                        panel.read(app, |panel, _| panel.selected == 8)
+                        panel.read(app, |panel, _| panel.selected + 1 == panel.fixtures.len())
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 }),
@@ -3254,6 +3254,12 @@ mod tests {
             "stale",
             "capacity",
             "failed",
+            "ssh-host-ready",
+            "ssh-host-authentication",
+            "ssh-host-sftp-only",
+            "ssh-host-partial",
+            "ssh-host-stale",
+            "ssh-host-long",
         ] {
             let fixture = fixtures
                 .iter()

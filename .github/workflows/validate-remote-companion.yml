@@ -45,3 +45,45 @@ jobs:
         run: |
           cargo test -p warp-agent-bus --lib companion::tests --locked
           cargo test -p warp-agent-bus --test companion --locked
+          cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+      - name: Verify real controlled SSH companion on Linux
+        if: runner.os == 'Linux'
+        env:
+          WARP_TEST_SSH_CONFIG: ${{ runner.temp }}/warpai-ssh-fixture/client.conf
+          WARP_TEST_REMOTE_ROOT: ${{ runner.temp }}/SSH project with spaces 多语言
+        run: |
+          sudo apt-get install -y openssh-server
+          sudo mkdir -p /run/sshd
+          fixture_dir="$RUNNER_TEMP/warpai-ssh-fixture"
+          mkdir -m 700 "$fixture_dir"
+          mkdir -p "$WARP_TEST_REMOTE_ROOT"
+          ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host"
+          ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/client"
+          awk '{print "[127.0.0.1]:22222 "$1" "$2}' "$fixture_dir/host.pub" > "$fixture_dir/known_hosts"
+          cat > "$fixture_dir/server.conf" <<EOF
+          Port 22222
+          ListenAddress 127.0.0.1
+          HostKey $fixture_dir/host
+          PidFile $fixture_dir/sshd.pid
+          AuthorizedKeysFile $fixture_dir/client.pub
+          AllowUsers $(id -un)
+          PubkeyAuthentication yes
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          UsePAM no
+          PermitRootLogin no
+          StrictModes yes
+          EOF
+          cat > "$WARP_TEST_SSH_CONFIG" <<EOF
+          Host warpai-test
+            HostName 127.0.0.1
+            User $(id -un)
+            Port 22222
+            IdentityFile $fixture_dir/client
+            IdentitiesOnly yes
+            UserKnownHostsFile $fixture_dir/known_hosts
+          EOF
+          sudo /usr/sbin/sshd -f "$fixture_dir/server.conf" -E "$fixture_dir/server.log"
+          trap 'sudo kill "$(cat "$fixture_dir/sshd.pid")"; rm -rf "$fixture_dir"' EXIT
+          export WARP_TEST_COMPANION_PATH="$PWD/target/debug/warpai-companion"
+          cargo test -p warp-agent-bus --test ssh_companion --locked -- --ignored

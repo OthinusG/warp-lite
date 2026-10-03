@@ -173,3 +173,13 @@ light/dark and 125% text; preserve the terminal draft and closed-panel default.
 Inspect status labels, wrapping, metric units, sample age and task/header scope
 agreement before live integration. Sample metrics stay explicitly labeled as
 fixtures. The prior 115 captures do not pass this new checkpoint.
+
+
+SR41 fixed fixtures now reuse the existing wrapping section renderer, with
+producing host/account/root, independent capabilities, native-resource source/age
+and system details. Six states cover ready, authentication, SFTP-only, partial
+capability/metric failure, stale/offline and long multilingual roots with high
+utilization. No live metrics are wired yet. The capture harness includes these
+48 native combinations, bringing its expected total to 163; image review and
+new GUI behavior remain pending. Existing roster fixtures remain historical and
+are removed only after sidebar parity, as required by R6.
