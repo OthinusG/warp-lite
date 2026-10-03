@@ -12,6 +12,7 @@ use crate::ssh_remote::{RemoteShell, SshProfile};
 
 const MAX_PACKET: usize = 1024 * 1024;
 const MAX_FILE: usize = 16 * 1024 * 1024;
+const MAX_TRANSFER: u64 = 1024 * 1024 * 1024 * 1024;
 const MAX_ENTRIES: usize = 2000;
 const CHUNK: u32 = 32768;
 
@@ -29,6 +30,7 @@ pub enum SftpError {
     EndOfFile,
     Conflict,
     CommitUnknown,
+    LocalIo,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -78,6 +80,12 @@ pub enum UploadState {
     Confirmed,
     Conflict,
     Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileDigest {
+    pub size: u64,
+    pub sha256: [u8; 32],
 }
 
 struct Cursor<'a>(&'a [u8]);
@@ -408,32 +416,58 @@ impl SftpClient {
     }
 
     pub async fn read(&mut self, relative: &str) -> Result<Vec<u8>, SftpError> {
+        let mut bytes = Vec::new();
+        self.read_to(relative, &mut bytes, MAX_FILE as u64).await?;
+        Ok(bytes)
+    }
+
+    /// Streams into the caller's owned partial; errors never publish a destination.
+    pub async fn read_to<W: tokio::io::AsyncWrite + Unpin>(
+        &mut self,
+        relative: &str,
+        writer: &mut W,
+        limit: u64,
+    ) -> Result<FileDigest, SftpError> {
+        if limit > MAX_TRANSFER {
+            return Err(SftpError::CapacityExceeded);
+        }
         let path = self.scoped_path(relative).await?;
         let attrs = self.stat_path(&path).await?;
         if !attrs.is_regular_file() {
             return Err(SftpError::Unsupported);
         }
-        if attrs.size.is_some_and(|size| size > MAX_FILE as u64) {
+        if attrs.size.is_some_and(|size| size > limit) {
             return Err(SftpError::CapacityExceeded);
         }
         let handle = self.handle(3, &path).await?;
-        let result = self.read_handle(&handle).await;
+        let result = self.read_handle(&handle, writer, limit).await;
         let closed = self.close_handle(&handle).await;
         match result {
-            Ok(bytes) => {
+            Ok(digest) => {
                 closed?;
-                Ok(bytes)
+                if attrs.size.is_some_and(|size| size != digest.size)
+                    || self.stat_path(&path).await? != attrs
+                {
+                    return Err(SftpError::Conflict);
+                }
+                Ok(digest)
             }
             Err(error) => Err(error),
         }
     }
 
-    async fn read_handle(&mut self, handle: &[u8]) -> Result<Vec<u8>, SftpError> {
-        let mut bytes = Vec::new();
+    async fn read_handle<W: tokio::io::AsyncWrite + Unpin>(
+        &mut self,
+        handle: &[u8],
+        writer: &mut W,
+        limit: u64,
+    ) -> Result<FileDigest, SftpError> {
+        let mut size = 0u64;
+        let mut hash = Sha256::new();
         loop {
             let mut payload = Vec::new();
             string(&mut payload, handle);
-            payload.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+            payload.extend_from_slice(&size.to_be_bytes());
             payload.extend_from_slice(&CHUNK.to_be_bytes());
             let reply = match self.request(5, payload).await {
                 Err(SftpError::EndOfFile) => break,
@@ -448,12 +482,21 @@ impl SftpClient {
             if chunk.is_empty() || chunk.len() > CHUNK as usize {
                 return Err(SftpError::Protocol);
             }
-            if bytes.len() + chunk.len() > MAX_FILE {
+            if size + chunk.len() as u64 > limit {
                 return Err(SftpError::CapacityExceeded);
             }
-            bytes.extend_from_slice(chunk);
+            writer
+                .write_all(chunk)
+                .await
+                .map_err(|_| SftpError::LocalIo)?;
+            hash.update(chunk);
+            size += chunk.len() as u64;
         }
-        Ok(bytes)
+        writer.flush().await.map_err(|_| SftpError::LocalIo)?;
+        Ok(FileDigest {
+            size,
+            sha256: hash.finalize().into(),
+        })
     }
 
     /// Resolve the parent remotely, preserving the final link as an entry.
@@ -528,6 +571,28 @@ impl SftpClient {
         if bytes.len() > MAX_FILE {
             return Err(SftpError::CapacityExceeded);
         }
+        self.upload_intent_digest(
+            destination,
+            FileDigest {
+                size: bytes.len() as u64,
+                sha256: Sha256::digest(bytes).into(),
+            },
+        )
+    }
+
+    /// The source digest is computed before any remote mutation and retained by the caller.
+    pub fn upload_intent_digest(
+        &self,
+        destination: &str,
+        digest: FileDigest,
+    ) -> Result<UploadReceipt, SftpError> {
+        self.relative_path(destination)?;
+        if destination.is_empty() || destination.split('/').any(str::is_empty) {
+            return Err(SftpError::InvalidName);
+        }
+        if digest.size > MAX_TRANSFER {
+            return Err(SftpError::CapacityExceeded);
+        }
         let parent = destination.rsplit_once('/').map(|(parent, _)| parent);
         let leaf = format!(".warpai-upload-{}.partial", Uuid::new_v4());
         let partial = parent.map_or(leaf.clone(), |parent| format!("{parent}/{leaf}"));
@@ -536,15 +601,15 @@ impl SftpClient {
             canonical_root: self.canonical_root.clone(),
             destination: destination.into(),
             partial,
-            size: bytes.len() as u64,
-            sha256: Sha256::digest(bytes).into(),
+            size: digest.size,
+            sha256: digest.sha256,
         })
     }
 
     fn validate_receipt(&self, receipt: &UploadReceipt) -> Result<(), SftpError> {
         if receipt.profile_id != self.profile_id
             || receipt.canonical_root != self.canonical_root
-            || receipt.size > MAX_FILE as u64
+            || receipt.size > MAX_TRANSFER
         {
             return Err(SftpError::Conflict);
         }
@@ -575,6 +640,15 @@ impl SftpClient {
         {
             return Err(SftpError::Conflict);
         }
+        self.prepare_upload_from(receipt, &mut &bytes[..]).await
+    }
+
+    pub async fn prepare_upload_from<R: tokio::io::AsyncRead + Unpin>(
+        &mut self,
+        receipt: &UploadReceipt,
+        source: &mut R,
+    ) -> Result<(), SftpError> {
+        self.validate_receipt(receipt)?;
         let path = self.scoped_entry(&receipt.partial).await?;
         let mut payload = Vec::new();
         string(&mut payload, path.as_bytes());
@@ -608,12 +682,31 @@ impl SftpClient {
             }
         };
         let result: Result<(), SftpError> = async {
-            for (index, chunk) in bytes.chunks(CHUNK as usize).enumerate() {
+            let mut offset = 0u64;
+            let mut hash = Sha256::new();
+            let mut buffer = vec![0u8; CHUNK as usize];
+            loop {
+                let len = source
+                    .read(&mut buffer)
+                    .await
+                    .map_err(|_| SftpError::LocalIo)?;
+                if len == 0 {
+                    break;
+                }
+                if offset + len as u64 > receipt.size {
+                    return Err(SftpError::Conflict);
+                }
+                let chunk = &buffer[..len];
                 let mut payload = Vec::new();
                 string(&mut payload, &handle);
-                payload.extend_from_slice(&(index as u64 * CHUNK as u64).to_be_bytes());
+                payload.extend_from_slice(&offset.to_be_bytes());
                 string(&mut payload, chunk);
                 self.mutation(6, payload).await?;
+                hash.update(chunk);
+                offset += len as u64;
+            }
+            if offset != receipt.size || <[u8; 32]>::from(hash.finalize()) != receipt.sha256 {
+                return Err(SftpError::Conflict);
             }
             Ok(())
         }
@@ -637,9 +730,10 @@ impl SftpClient {
         if !attrs.is_regular_file() || attrs.size != Some(receipt.size) {
             return Ok(false);
         }
-        let bytes = self.read(relative).await?;
-        Ok(bytes.len() as u64 == receipt.size
-            && <[u8; 32]>::from(Sha256::digest(&bytes)) == receipt.sha256)
+        let digest = self
+            .read_to(relative, &mut tokio::io::sink(), receipt.size)
+            .await?;
+        Ok(digest.size == receipt.size && digest.sha256 == receipt.sha256)
     }
 
     pub async fn reconcile_upload(

@@ -74,6 +74,33 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
     let bytes = sftp.read("Unicode 空格;$(shell).bin").await.unwrap();
     let expected: Vec<u8> = (0..257).flat_map(|_| 0u8..=255).collect();
     assert_eq!(bytes, expected);
+    let local = tempfile::tempdir().unwrap();
+    let partial = local.path().join("download.partial");
+    let mut output = tokio::fs::File::create(&partial).await.unwrap();
+    let digest = sftp
+        .read_to("Unicode 空格;$(shell).bin", &mut output, 1024 * 1024)
+        .await
+        .unwrap();
+    assert_eq!(digest.size, expected.len() as u64);
+    use sha2::{Digest, Sha256};
+    assert_eq!(digest.sha256, <[u8; 32]>::from(Sha256::digest(&expected)));
+    assert_eq!(tokio::fs::read(&partial).await.unwrap(), expected);
+    assert_eq!(
+        sftp.read_to("Unicode 空格;$(shell).bin", &mut tokio::io::sink(), 16)
+            .await,
+        Err(SftpError::CapacityExceeded)
+    );
+    let (mut closed, receiver) = tokio::io::duplex(1);
+    drop(receiver);
+    assert_eq!(
+        sftp.read_to("Unicode 空格;$(shell).bin", &mut closed, 1024 * 1024)
+            .await,
+        Err(SftpError::LocalIo)
+    );
+    assert_eq!(
+        sftp.read("Unicode 空格;$(shell).bin").await.unwrap(),
+        expected
+    );
     assert!(matches!(
         sftp.stat("outside-link/passwd").await,
         Err(SftpError::PathEscape)
@@ -126,6 +153,40 @@ async fn controlled_ssh_uses_companion_fences_and_file_only_sftp() {
     assert_eq!(sftp.read(&renamed).await.unwrap(), expected);
     sftp.remove(&renamed).await.unwrap();
     sftp.remove(&directory).await.unwrap();
+    // Transfer exceeds the editor ceiling without an in-memory file buffer.
+    use tokio::io::AsyncReadExt;
+    let size = 16 * 1024 * 1024 + 13;
+    let mut hash = Sha256::new();
+    for _ in 0..512 {
+        hash.update([0x5au8; 32768]);
+    }
+    hash.update([0x5au8; 13]);
+    let digest = warp_agent_bus::sftp::FileDigest {
+        size,
+        sha256: hash.finalize().into(),
+    };
+    let large = format!("streamed-{}.bin", Uuid::new_v4());
+    let intent = sftp.upload_intent_digest(&large, digest.clone()).unwrap();
+    sftp.prepare_upload_from(&intent, &mut tokio::io::repeat(0x5a).take(size))
+        .await
+        .unwrap();
+    sftp.commit_upload(&intent).await.unwrap();
+    assert_eq!(sftp.read(&large).await, Err(SftpError::CapacityExceeded));
+    assert_eq!(
+        sftp.read_to(&large, &mut tokio::io::sink(), size)
+            .await
+            .unwrap(),
+        digest
+    );
+    sftp.remove(&large).await.unwrap();
+    let changed = sftp
+        .upload_intent("source-changed.bin", b"original")
+        .unwrap();
+    assert_eq!(
+        sftp.prepare_upload_from(&changed, &mut &b"modified"[..])
+            .await,
+        Err(SftpError::Conflict)
+    );
     assert!(matches!(
         sftp.stat(&directory).await,
         Err(SftpError::Missing)
