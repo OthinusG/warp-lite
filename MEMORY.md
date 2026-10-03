@@ -475,3 +475,12 @@ reuse, fresh connection IDs and duplicate-owner rejection; Linux SSH tests now
 require one shared service boot. Task Store/PTY retention still require integration.
 SFTP source4104bae/run37091911301 passed all three focused platform suites and
 controlled Linux byte upload/reconnect/conflict/rename/delete checks.
+
+Native Connections/Projects source is now a separate existing Tools Panel view
+with seven fixed design states. It is exposed only in the isolated debug preview
+until its visual gate passes; no mock connection is a production capability.
+Capture adds 56 width/theme/zoom combinations and draft assertions (219 PNGs
+per OS). Live profile forms and remote IO remain pending this native image review.
+Account-service source31a21d3/run37092447246 passed all three focused platform
+suites, real stdio detach/reattach and duplicate-owner checks, and actual Linux
+SSH shared-boot plus SFTP mutation checks. No PTY retention claim follows.

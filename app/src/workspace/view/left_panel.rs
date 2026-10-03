@@ -68,10 +68,12 @@ struct MouseStateHandles {
     warp_drive_button: MouseStateHandle,
     conversation_list_view_button: MouseStateHandle,
     collaboration_button: MouseStateHandle,
+    remote_projects_button: MouseStateHandle,
 }
 
 #[derive(Clone, Debug)]
 pub enum LeftPanelAction {
+    RemoteProjects,
     Collaboration,
     ProjectExplorer,
     GlobalSearch { entry_focus: GlobalSearchEntryFocus },
@@ -99,6 +101,7 @@ pub enum LeftPanelEvent {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolPanelView {
+    RemoteProjects,
     Collaboration,
     ProjectExplorer,
     GlobalSearch { entry_focus: GlobalSearchEntryFocus },
@@ -172,6 +175,7 @@ pub struct LeftPanelView {
     warp_drive_view: ViewHandle<DrivePanel>,
     conversation_list_view: ViewHandle<ConversationListView>,
     collaboration_view: ViewHandle<crate::agent_communication::panel::CollaborationPanel>,
+    remote_projects_view: ViewHandle<crate::ssh_remote::RemoteProjectsView>,
     active_view: active_view_state::ActiveViewState,
     toolbelt_buttons: Vec<ToolbeltButtonConfig>,
     active_pane_group: Option<WeakViewHandle<PaneGroup>>,
@@ -239,6 +243,7 @@ impl LeftPanelView {
             }
         });
 
+        let remote_projects_view = ctx.add_typed_action_view(crate::ssh_remote::RemoteProjectsView::new);
         let active_view = views.first().copied().unwrap_or(ToolPanelView::WarpDrive);
         let toolbelt_buttons = views
             .iter()
@@ -315,6 +320,7 @@ impl LeftPanelView {
             warp_drive_view,
             conversation_list_view,
             collaboration_view,
+            remote_projects_view,
             active_view: active_view_state::new(active_view),
             toolbelt_buttons,
             active_pane_group: None,
@@ -381,6 +387,11 @@ impl LeftPanelView {
         ctx: &ViewContext<Self>,
     ) -> ToolbeltButtonConfig {
         match view {
+            ToolPanelView::RemoteProjects => ToolbeltButtonConfig {
+                icon: Icon::FileCopy, active_icon: None,
+                tooltip_text: "Connections / Projects".into(), action: LeftPanelAction::RemoteProjects,
+                render_with_active_state: false, tooltip_keybinding_names: vec![], tooltip_keybinding: None,
+            },
             ToolPanelView::Collaboration => ToolbeltButtonConfig {
                 icon: Icon::MessageChatSquare,
                 active_icon: None,
@@ -664,6 +675,7 @@ impl LeftPanelView {
 
     pub fn focus_active_view_on_entry(&mut self, ctx: &mut ViewContext<Self>) {
         match self.active_view.get() {
+            ToolPanelView::RemoteProjects => ctx.focus(&self.remote_projects_view),
             ToolPanelView::Collaboration => {},
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(ctx) {
@@ -833,6 +845,7 @@ impl LeftPanelView {
     fn update_button_active_states(&mut self) {
         for button in &mut self.toolbelt_buttons {
             button.render_with_active_state = match &button.action {
+                LeftPanelAction::RemoteProjects => self.active_view.get() == ToolPanelView::RemoteProjects,
                 LeftPanelAction::Collaboration => self.active_view.get() == ToolPanelView::Collaboration,
                 LeftPanelAction::ProjectExplorer => {
                     self.active_view.get() == ToolPanelView::ProjectExplorer
@@ -923,6 +936,7 @@ impl LeftPanelView {
         ctx: &mut ViewContext<Self>,
     ) {
         match action {
+            LeftPanelAction::RemoteProjects => active_view_state::set(self, ToolPanelView::RemoteProjects, ctx),
             LeftPanelAction::Collaboration => {
                 active_view_state::set(self, ToolPanelView::Collaboration, ctx);
             }
@@ -1053,6 +1067,7 @@ impl View for LeftPanelView {
         // Focus the active tool panel view on-left-panel-focus.
         if focus_ctx.is_self_focused() {
             match self.active_view.get() {
+                ToolPanelView::RemoteProjects => ctx.focus(&self.remote_projects_view),
                 ToolPanelView::Collaboration => ctx.focus(&self.collaboration_view),
                 ToolPanelView::ProjectExplorer => {
                     if let Some(view) = self.active_file_tree_view(ctx) {
@@ -1087,6 +1102,7 @@ impl View for LeftPanelView {
                                 LeftPanelAction::GlobalSearch { .. } => &self.mouse_state_handles.global_search_button,
                                 LeftPanelAction::WarpDrive => &self.mouse_state_handles.warp_drive_button,
                                 LeftPanelAction::ConversationListView => &self.mouse_state_handles.conversation_list_view_button,
+                                LeftPanelAction::RemoteProjects => &self.mouse_state_handles.remote_projects_button,
                                 LeftPanelAction::Collaboration => &self.mouse_state_handles.collaboration_button,
                             };
                             Self::render_button(button_config, mouse_state.clone(), appearance)
@@ -1100,6 +1116,7 @@ impl View for LeftPanelView {
         };
 
         let content_area: Box<dyn Element> = match self.active_view.get() {
+            ToolPanelView::RemoteProjects => Shrinkable::new(1., ChildView::new(&self.remote_projects_view).finish()).finish(),
             ToolPanelView::Collaboration => Shrinkable::new(1.0, ChildView::new(&self.collaboration_view).finish()).finish(),
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(app) {

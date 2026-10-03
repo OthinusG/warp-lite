@@ -3243,6 +3243,45 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }),
     );
+    for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
+        for width in [320, 600] {
+            for zoom in [1.0, 1.25] {
+                for (selected, fixture) in crate::ssh_remote::fixtures().iter().enumerate() {
+                    let filename = format!("{theme_name}-{width}-{zoom}-{}.png", fixture.state);
+                    filenames.push(filename.clone());
+                    let theme = theme.clone();
+                    driver = driver.with_step(TestStep::new(&filename)
+                        .with_action(move |app, window, _| {
+                            app.update(|ctx| {
+                                let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                                Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                                ctx.set_zoom_factor(zoom);
+                                ResizableData::as_ref(ctx).get_all_handles(window).unwrap()
+                                    .left_panel_width.lock().unwrap().set_size(width as f32);
+                            });
+                            let root = app.root_view::<RootView>(window).unwrap();
+                            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                            workspace.update(app, |workspace, ctx| {
+                                if !workspace.is_left_panel_open(ctx) { workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx); }
+                            });
+                            let tools = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                            tools.update(app, |tools, ctx| tools.handle_action(&LeftPanelAction::RemoteProjects, ctx));
+                            let projects = app.views_of_type::<crate::ssh_remote::RemoteProjectsView>(window).unwrap()[0].clone();
+                            projects.update(app, |view, ctx| {
+                                view.selected = selected;
+                                view.scroll = Default::default();
+                                ctx.focus(&projects);
+                                ctx.notify();
+                            });
+                        })
+                        .add_named_assertion("connection preview preserves the terminal draft", |app, window| {
+                            warpui::async_assert!(checkpoint_draft(app, window) == "unsent collaboration draft")
+                        })
+                        .with_take_screenshot(filename));
+                }
+            }
+        }
+    }
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();

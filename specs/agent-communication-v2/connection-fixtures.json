@@ -1,0 +1,100 @@
+[
+  {
+    "state": "connections-empty",
+    "guidance": "No SSH projects configured. Add a profile or use an existing OpenSSH alias.",
+    "sections": [
+      {
+        "title": "SSH profiles",
+        "rows": [
+          "Host or alias · User · Port · Jump-host reference · Identity-file reference",
+          "Only connection metadata is stored. Keys and passwords stay with system SSH."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-authenticating",
+    "guidance": "Authenticate in the ordinary SSH terminal. Machine channels remain closed until verification succeeds.",
+    "sections": [
+      {
+        "title": "Selected profile",
+        "rows": [
+          "Research server · researcher@research.example.org:22",
+          "Root /srv/research/checkout · Jump-host alias bastion",
+          "SSH authenticating · SFTP not connected · Companion not connected · MCP unavailable"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-host-verification",
+    "guidance": "Review the host fingerprint in the system SSH prompt before trusting this host.",
+    "sections": [
+      {
+        "title": "Host identity",
+        "rows": [
+          "research.example.org:22 · First connection",
+          "Fingerprint review required · No trust decision recorded",
+          "A changed host key blocks unattended control and file operations."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-ready",
+    "guidance": "Open this remote project explicitly. Restoring a saved layout never launches old commands.",
+    "sections": [
+      {
+        "title": "Project",
+        "rows": [
+          "Research server · account researcher · Linux x86_64",
+          "Canonical root /srv/research/checkout",
+          "SSH ready · SFTP ready · Companion compatible · MCP not connected",
+          "No remote Agent session is running."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-failed",
+    "guidance": "Host verification failed. Review the host change using system SSH before reconnecting.",
+    "sections": [
+      {
+        "title": "Connection",
+        "rows": [
+          "research.example.org:22 · Changed host key",
+          "SSH blocked · SFTP unavailable · Companion unavailable · MCP unavailable",
+          "No project request or file mutation was submitted."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-reconnecting",
+    "guidance": "Reconnecting to the original selected project. Cached results are stale and writes remain disabled.",
+    "sections": [
+      {
+        "title": "Original project",
+        "rows": [
+          "Research server · account researcher · /srv/research/checkout",
+          "SSH reconnecting · SFTP disconnected · Companion disconnected · MCP offline",
+          "Task history is retained. Remote execution is unknown until the exact owner confirms it."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "connections-disabled",
+    "guidance": "The system SSH executable is unavailable. Install or enable the native OpenSSH client.",
+    "sections": [
+      {
+        "title": "Prerequisites",
+        "rows": [
+          "SSH unavailable · SFTP unavailable · Companion not checked · MCP unavailable",
+          "A file-only SFTP profile does not require a companion path.",
+          "No FTP or cloud-account fallback is available."
+        ]
+      }
+    ]
+  }
+]

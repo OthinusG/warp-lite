@@ -132,6 +132,7 @@ pub mod settings_view;
 pub mod tab_configs;
 #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 mod agent_communication;
+mod ssh_remote;
 pub mod terminal;
 pub mod themes;
 use crate::ai::active_agent_views_model::ActiveAgentViewsModel;

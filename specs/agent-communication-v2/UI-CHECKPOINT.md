@@ -183,3 +183,11 @@ utilization. No live metrics are wired yet. The capture harness includes these
 48 native combinations, bringing its expected total to 163; image review and
 new GUI behavior remain pending. Existing roster fixtures remain historical and
 are removed only after sidebar parity, as required by R6.
+
+Connections/Projects now has a separate native Tools Panel preview using existing
+wrapping text, theme, button, scrolling and accessibility components. Seven fixed
+states cover empty/authenticating/host verification/ready/failed/reconnecting/
+missing OpenSSH. Preview is available only in the isolated debug capture profile,
+with no fabricated production connection. Capture matrix adds 56 PNGs (219 total
+per OS) and checks the original unsent terminal draft. Exact-source native capture
+and visual review remain pending; live profile/connection binding follows this gate.

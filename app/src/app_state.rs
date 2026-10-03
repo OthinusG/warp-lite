@@ -314,6 +314,7 @@ pub enum CodeReviewPaneSnapshot {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum LeftPanelDisplayedTab {
+    RemoteProjects,
     Collaboration,
     FileTree,
     GlobalSearch,
@@ -324,6 +325,7 @@ pub enum LeftPanelDisplayedTab {
 impl From<ToolPanelView> for LeftPanelDisplayedTab {
     fn from(view: ToolPanelView) -> Self {
         match view {
+            ToolPanelView::RemoteProjects => LeftPanelDisplayedTab::RemoteProjects,
             ToolPanelView::Collaboration => LeftPanelDisplayedTab::Collaboration,
             ToolPanelView::ProjectExplorer => LeftPanelDisplayedTab::FileTree,
             ToolPanelView::GlobalSearch { .. } => LeftPanelDisplayedTab::GlobalSearch,
