@@ -149,7 +149,11 @@ impl Process {
             else {
                 continue;
             };
-            if unsafe { libc::getpgid(pid) } == self.child.id() as i32 {
+            let group = unsafe { libc::getpgid(pid) };
+            if group < 0 && io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH) {
+                return Err(io::Error::other("Owned process group is unavailable"));
+            }
+            if group == self.child.id() as i32 {
                 pids.push(sysinfo::Pid::from_u32(pid as u32));
                 if pids.len() >= 4096 {
                     return Err(io::Error::other("Owned process group exceeds its bound"));
