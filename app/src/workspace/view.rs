@@ -18656,7 +18656,11 @@ impl Workspace {
                 Align::new(
                     self.render_tab_bar_icon_button(
                         appearance,
-                        icons::Icon::Menu,
+                        if vertical_tabs_active {
+                            icons::Icon::Menu
+                        } else {
+                            icons::Icon::WarpaiToolPanel
+                        },
                         &self.mouse_states.left_panel_icon,
                         action,
                         tooltip_text.to_string(),
@@ -18703,7 +18707,7 @@ impl Workspace {
                 Align::new(
                     self.render_tab_bar_icon_button(
                         appearance,
-                        icons::Icon::Tool2,
+                        icons::Icon::WarpaiToolPanel,
                         &self.mouse_states.tools_panel_icon,
                         WorkspaceAction::ToggleLeftPanel,
                         tooltip_text.to_string(),

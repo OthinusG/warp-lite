@@ -26,6 +26,10 @@ No new surface, dependency, protocol or configuration behavior.
 - The main workspace top-right Settings button uses the supplied terminal glyph
   without its enclosing ring, with a transparent background and native theme tint.
   Both tab-bar variants retain their existing Settings action and hover behavior.
+- The top-right Tools panel entry uses the supplied four-row bullet/list glyph
+  without its rectangular frame, with alpha transparency and native theme tint.
+  Horizontal and vertical tab layouts retain panel toggling, active state and
+  tooltips. The separate vertical Tabs panel entry keeps its existing menu glyph.
 
 ## Tasks and verification
 
@@ -88,6 +92,7 @@ focus and disabled/submitting rules do not change. Final native review is pendin
 | Spacing | GAP_TIGHT/ROW/SECTION; 4px label/editor separation | Narrow forms and zoom captures |
 | Actions | Existing button themes and wrapping rows | Native action assertions and narrow panels |
 | Settings icon | Supplied >_ reference, ring removed; transparent 1254px PNG with native tint | Alpha/bundle checks and native top-right capture review |
+| Tools panel icon | Supplied four-row list reference, frame removed; transparent 1254px PNG with native tint | Alpha/bundle checks, both tab layouts and panel actions |
 | Documentation | Raw macOS warm images with vertical tabs | Source/digest/provenance and full image review |
 
 The icon asset is `app/assets/bundled/png/warpai-settings.png`. The existing

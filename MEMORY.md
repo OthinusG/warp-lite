@@ -811,3 +811,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   omit the anonymous avatar's circular background. Preserve Settings actions,
   other settings glyphs and application bundle branding. Include this final icon
   in the unified native screenshot, functional and package acceptance gate.
+
+- The top-right Tools panel entry also uses a user-supplied icon: four rows of
+  circles and rounded bars, reconstructed at 1254px with transparent background
+  and no rectangular frame. Replace both horizontal/vertical Tools entry glyphs,
+  preserving the separate vertical Tabs panel menu and existing actions/state.
+  Supersede desktop run 37209810520; remote run 37209810625 passed but must be
+  regenerated for matching final source. Finish icon changes before new captures.
