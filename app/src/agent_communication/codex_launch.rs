@@ -20,7 +20,18 @@ fn session_prefix_for_shell(prefix: &[String], shell: ShellType) -> String {
     }).collect::<Vec<_>>().join(" ")
 }
 
-fn adapted_command(command: &str, prefix: &[String], shell: ShellType) -> String {
+fn adapted_command(
+    command: &str,
+    prefix: &[String],
+    shell: ShellType,
+    options: &warp_agent_bus::launch::LaunchOptions,
+) -> String {
+    let words = shlex::split(command).unwrap();
+    let prefix = if warp_agent_bus::session::codex_needs_no_daemon(&words[1..], options) {
+        prefix
+    } else {
+        &prefix[1..]
+    };
     let tail = command.trim_start().strip_prefix("codex").unwrap();
     format!("codex {}{tail}", session_prefix_for_shell(prefix, shell))
 }
@@ -132,7 +143,7 @@ impl TerminalView {
                     }
                 });
                 // Keep the original tail verbatim: reserializing it would change shell expansion.
-                let command = adapted_command(&event.command, &prefix, shell_type);
+                let command = adapted_command(&event.command, &prefix, shell_type, &options);
                 view.codex_mcp_launch = Some((event.command.trim().to_owned(), command.clone()));
                 let mut adapted = event;
                 adapted.command = command;
@@ -151,19 +162,31 @@ mod tests {
     #[test]
     fn original_codex_arguments_and_expansion_are_preserved() {
         let prefix = setup::codex_session_prefix(Path::new("/app with spaces/warpai-agent"));
+        let options = warp_agent_bus::launch::LaunchOptions::from_help(
+            "codex",
+            "  --no-daemon  Embedded\n  -m, --model <MODEL>  Model",
+        );
         for command in [
             "codex",
+            "codex --no-daemon --yolo",
+            "codex --model=--no-daemon",
             "codex --yolo",
             "codex resume --last",
             "codex fork session-id",
             "codex --model \"$MODEL\" 'a prompt with spaces'",
             "codex --cd '../other project'",
         ] {
-            let adapted = adapted_command(command, &prefix, ShellType::Zsh);
+            let adapted = adapted_command(command, &prefix, ShellType::Zsh, &options);
             let arguments = shlex::split(&adapted).unwrap();
             let original = shlex::split(command).unwrap();
-            assert_eq!(&arguments[1..1 + prefix.len()], prefix);
-            assert_eq!(&arguments[1 + prefix.len()..], &original[1..]);
+            let expected =
+                if warp_agent_bus::session::codex_needs_no_daemon(&original[1..], &options) {
+                    &prefix[..]
+                } else {
+                    &prefix[1..]
+                };
+            assert_eq!(&arguments[1..1 + expected.len()], expected);
+            assert_eq!(&arguments[1 + expected.len()..], &original[1..]);
             assert!(adapted.ends_with(command.strip_prefix("codex").unwrap()));
             assert!(adapted.starts_with("codex "));
         }

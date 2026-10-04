@@ -137,3 +137,8 @@ altering the user's shell directory. Preserve existing adapter behavior for
 other vendors. Registered identities cannot move to another project; immutable
 shared workspace bindings remain immutable. Verify with a real stdio child
 whose cwd differs from its original terminal's scope and rerun native acceptance.
+
+Native Codex rejects duplicate --no-daemon flags. Reuse the installed-arity
+classifier to omit the generated flag when the user already supplied it; a
+model value or literal prompt named --no-daemon is not a flag. Preserve all
+original arguments and apply the same rule to local and explicit remote launch.

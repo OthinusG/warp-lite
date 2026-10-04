@@ -201,16 +201,26 @@ pub fn codex_accepts_peer_prompt(args: &[String], options: &crate::launch::Launc
     .0 != CodexMode::Native
 }
 
+/// Reuse option arity so values and prompts named --no-daemon are never treated as flags.
+pub fn codex_needs_no_daemon(args: &[String], options: &crate::launch::LaunchOptions) -> bool {
+    !codex_launch_mode(
+        &args.iter().map(OsString::from).collect::<Vec<_>>(),
+        options,
+    )
+    .2
+}
+
 fn codex_launch_mode(
     args: &[OsString],
     options: &crate::launch::LaunchOptions,
-) -> (CodexMode, bool) {
+) -> (CodexMode, bool, bool) {
     use crate::launch::Arity;
     let mut args = args.iter().peekable();
     let mut first_positional = true;
     let mut mode = CodexMode::Shared;
     let mut positional = Vec::new();
     let mut last = false;
+    let mut no_daemon = false;
     let mut initial_work = false;
     while let Some(arg) = args.next() {
         let arg = arg.to_string_lossy();
@@ -255,7 +265,7 @@ fn codex_launch_mode(
                         | "stdio-to-uds"
                 )
             {
-                return (CodexMode::Native, false);
+                return (CodexMode::Native, false, no_daemon);
             }
             positional.push(arg.into_owned());
             first_positional = false;
@@ -284,7 +294,7 @@ fn codex_launch_mode(
             name,
             "--remote" | "--remote-auth-token-env" | "--help" | "-h" | "--version" | "-V"
         ) {
-            return (CodexMode::Native, false);
+            return (CodexMode::Native, false, no_daemon);
         }
         if matches!(
             name,
@@ -300,10 +310,11 @@ fn codex_launch_mode(
         ) {
             mode = CodexMode::Embedded;
         }
+        no_daemon |= name == "--no-daemon";
         last |= name == "--last";
         initial_work |= matches!(name, "--image" | "-i");
         let Some(arity) = options.0.get(name) else {
-            return (CodexMode::Native, false);
+            return (CodexMode::Native, false, no_daemon);
         };
         let value = match arity {
             Arity::Value | Arity::Values | Arity::BlockedValue | Arity::BlockedValues => {
@@ -312,7 +323,7 @@ fn codex_launch_mode(
                         .map(|value| value.to_string_lossy().into_owned())
                 });
                 let Some(value) = value else {
-                    return (CodexMode::Native, false);
+                    return (CodexMode::Native, false, no_daemon);
                 };
                 if matches!(arity, Arity::Values | Arity::BlockedValues) {
                     while args
@@ -364,12 +375,12 @@ fn codex_launch_mode(
                         | "mcp_oauth_refresh_coordination"
                 )
             }) {
-                return (CodexMode::Native, false);
+                return (CodexMode::Native, false, no_daemon);
             }
             mode = CodexMode::Embedded;
         }
         if name == "--disable" && value.as_deref() == Some("daemon_auto_start") {
-            return (CodexMode::Native, false);
+            return (CodexMode::Native, false, no_daemon);
         }
     }
     // Native resume/fork shifts SESSION_ID into PROMPT when --last is set.
@@ -379,7 +390,7 @@ fn codex_launch_mode(
         Some("resume" | "fork") => positional.len() > if last { 1 } else { 2 },
         Some(_) => true,
     };
-    (mode, initial_work)
+    (mode, initial_work, no_daemon)
 }
 
 /// Native runtime options bind one Codex process without modifying vendor configuration.
@@ -421,14 +432,15 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     if let Some(relay) = &relay {
         let config = relay.config(companion.as_ref().unwrap());
         let mut native = if name == "codex" {
-            codex_mcp_prefix(
+            let mut prefix = codex_mcp_prefix(
                 companion.as_ref().unwrap(),
                 &["forward".into(), relay.endpoint.clone()],
                 &[],
-            )
-            .into_iter()
-            .map(OsString::from)
-            .collect::<Vec<_>>()
+            );
+            if codex_launch_mode(&args, &binding.options).2 {
+                prefix.remove(0);
+            }
+            prefix.into_iter().map(OsString::from).collect::<Vec<_>>()
         } else {
             vec![
                 "--mcp-config".into(),
@@ -497,6 +509,23 @@ mod tests {
                 codex_launch_mode(&args, &options).0,
                 CodexMode::Shared,
                 "{args:?}"
+            );
+        }
+        for (words, needs) in [
+            (vec!["--no-daemon", "--yolo"], false),
+            (vec!["--model", "--no-daemon"], true),
+            (vec!["--", "--no-daemon"], true),
+            (vec!["--yolo"], true),
+        ] {
+            assert_eq!(
+                codex_needs_no_daemon(
+                    &words
+                        .iter()
+                        .map(|word| (*word).to_owned())
+                        .collect::<Vec<_>>(),
+                    &options
+                ),
+                needs
             );
         }
         for args in ["--no-daemon --yolo", "-pprofile", "-cmodel=x"] {
