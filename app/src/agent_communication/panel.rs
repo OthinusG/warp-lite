@@ -1,3 +1,5 @@
+/Users/wqin/workplace/warp-lite/app/src/agent_communication/panel.rs:
+
 //! Native collaboration projection; explicit sample mode retains the accepted fixtures.
 use crate::appearance::Appearance;
 use crate::ui_components::blended_colors;
@@ -1550,10 +1552,13 @@ impl View for CollaborationPanel {
                         .finish(),
                 );
             }
+            if let Some(buttons) = button_row(buttons) {
+                body.add_child(buttons);
+            }
             if let Some(snapshot) = &self.snapshot {
                 for row in &snapshot.agents {
                     let id = row.agent.id.clone();
-                    buttons.push(
+                    body.add_child(
                         builder
                             .button(ButtonVariant::Text, self.agent_task_buttons[&id].clone())
                             .with_text_label(format!("Tasks assigned to {}", row.agent.name))
@@ -1566,9 +1571,6 @@ impl View for CollaborationPanel {
                             .finish(),
                     );
                 }
-            }
-            if let Some(buttons) = button_row(buttons) {
-                body.add_child(buttons);
             }
         }
         if !self.preview {
@@ -1600,6 +1602,7 @@ impl View for CollaborationPanel {
         }
         if !self.preview && self.query.history && self.form.is_none() {
             body.add_child(self.render_controls(app));
+            let mut buttons = Vec::new();
             for (index, label, action) in [
                 (1, "First export page", Some(Action::FirstHistory)),
                 (
@@ -1621,19 +1624,23 @@ impl View for CollaborationPanel {
                     .button(ButtonVariant::Text, self.history_buttons[index].clone())
                     .with_text_label(label.into());
                 if let Some(action) = action.filter(|_| self.connected) {
-                    body.add_child(
+                    buttons.push(
                         button
                             .build()
                             .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
                             .finish(),
                     );
                 } else {
-                    body.add_child(button.disabled().build().finish());
+                    buttons.push(button.disabled().build().finish());
                 }
+            }
+            if let Some(buttons) = button_row(buttons) {
+                body.add_child(buttons);
             }
         }
         if !self.preview && self.show_messages {
             if let Some(snapshot) = &self.snapshot {
+                let mut buttons = Vec::new();
                 for (index, label, action) in [
                     (0, "First message page", Some(Action::FirstMessages)),
                     (
@@ -1643,7 +1650,7 @@ impl View for CollaborationPanel {
                     ),
                 ] {
                     if let Some(action) = action {
-                        body.add_child(
+                        buttons.push(
                             builder
                                 .button(
                                     ButtonVariant::Text,
@@ -1657,6 +1664,9 @@ impl View for CollaborationPanel {
                                 .finish(),
                         );
                     }
+                }
+                if let Some(buttons) = button_row(buttons) {
+                    body.add_child(buttons);
                 }
                 let mut seen = std::collections::HashSet::new();
                 for message in &snapshot.messages {
@@ -1682,6 +1692,7 @@ impl View for CollaborationPanel {
         }
         if !self.preview && self.show_spaces {
             if let Some(snapshot) = &self.snapshot {
+                let mut buttons = Vec::new();
                 for (index, label, action) in [
                     (1, "First space page", Some(Action::FirstSpaces)),
                     (
@@ -1698,7 +1709,7 @@ impl View for CollaborationPanel {
                     ),
                 ] {
                     if let Some(action) = action {
-                        body.add_child(
+                        buttons.push(
                             builder
                                 .button(ButtonVariant::Text, self.scope_buttons[index].clone())
                                 .with_text_label(label.into())
@@ -1709,6 +1720,9 @@ impl View for CollaborationPanel {
                                 .finish(),
                         );
                     }
+                }
+                if let Some(buttons) = button_row(buttons) {
+                    body.add_child(buttons);
                 }
                 for workspace in snapshot.spaces.iter().flat_map(|space| &space.workspaces) {
                     let id = workspace.id.clone();
@@ -1730,6 +1744,7 @@ impl View for CollaborationPanel {
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
+                let mut buttons = Vec::new();
                 for (index, label, action) in [
                     (4, "First reservation page", Some(Action::FirstReservations)),
                     (
@@ -1739,7 +1754,7 @@ impl View for CollaborationPanel {
                     ),
                 ] {
                     if let Some(action) = action {
-                        body.add_child(
+                        buttons.push(
                             builder
                                 .button(ButtonVariant::Text, self.page_buttons[index].clone())
                                 .with_text_label(label.into())
@@ -1750,6 +1765,9 @@ impl View for CollaborationPanel {
                                 .finish(),
                         );
                     }
+                }
+                if let Some(buttons) = button_row(buttons) {
+                    body.add_child(buttons);
                 }
             }
         }
