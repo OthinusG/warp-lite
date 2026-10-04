@@ -1,5 +1,7 @@
 # Native MCP Coverage
 
+**English technical reference** | [中文使用指南](../../docs/AGENTS.zh-CN.md)
+
 Scope update (2026-10-03): this document records the original local collaboration
 behavior/coverage. The active remote product is [SSH Remote project management](../agent-communication-v2/PLAN.md):
 SSH/SFTP only, remote Linux/macOS/Windows and local macOS/Windows GUI. Local
