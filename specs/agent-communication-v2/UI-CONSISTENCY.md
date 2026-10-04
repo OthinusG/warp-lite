@@ -91,11 +91,21 @@ focus and disabled/submitting rules do not change. Final native review is pendin
 | Settings palette | surface_1 background for secondary status; theme warning override | Light/Dark/Claude Warm settings captures |
 | Spacing | GAP_TIGHT/ROW/SECTION; 4px label/editor separation | Narrow forms and zoom captures |
 | Actions | Existing button themes and wrapping rows | Native action assertions and narrow panels |
-| Settings icon | Supplied >_ reference, ring removed; transparent 1254px PNG with native tint | Alpha/bundle checks and native top-right capture review |
-| Tools panel icon | Supplied four-row list reference, frame removed; transparent 1254px PNG with native tint | Alpha/bundle checks, both tab layouts and panel actions |
+| Settings icon | Supplied >_ reference, ring removed; transparent SVG geometry with native tint | Alpha/bundle checks and native top-right capture review |
+| Tools panel icon | Supplied four-row list reference, frame removed; transparent SVG geometry with native tint | Alpha/bundle checks, both tab layouts and panel actions |
 | Documentation | Raw macOS warm images with vertical tabs | Source/digest/provenance and full image review |
 
-The icon asset is `app/assets/bundled/png/warpai-settings.png`. The existing
+The icon assets are `app/assets/bundled/svg/warpai-settings.svg` and
+`app/assets/bundled/svg/warpai-tool-panel.svg`. The existing
 bundled-image renderer supplies theme tint; the anonymous avatar variant removes
 its circular accent background. Other Settings glyphs and application bundle
 icons are unchanged. Native verification follows the combined-source gate.
+
+## Vector icon checkpoint — 2026-10-04
+
+The user corrected the asset format to SVG for all six newly supplied/mapped
+icons. Agent logos and toolbar glyphs now use real vector geometry with explicit
+viewBox and transparent backgrounds; no embedded raster or external resource is
+allowed. All central mappings and the Hermes technical plan use SVG paths.
+See [the icon workflow](../../docs/ICON-WORKFLOW.md) for future asset production,
+reference migration, PNG removal and source-matched native acceptance.

@@ -2,9 +2,9 @@
 
 ## Implementation
 
-- Add `Icon::HermesLogo` mapped to `bundled/png/hermes.png`.
+- Add `Icon::HermesLogo` mapped to `bundled/svg/hermes.svg`.
 - Wire `CLIAgent::icon()` to return `Some(Icon::HermesLogo)` instead of `None`.
-- Bundle a transparent RGBA Hermes bust PNG and render it as an original-color image in CLI Agent tab/status circles.
+- Bundle a transparent vector Hermes bust SVG and render it as an original-color image in CLI Agent tab/status circles.
 - Accept both `hermes` and `hermes-agent` command prefixes with arguments.
 - Add `hermes` to the input classifier shell keyword set.
 - Maintain the implementation directly in repository source; no patch replay or restoration script is required.

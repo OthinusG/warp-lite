@@ -818,3 +818,11 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   preserving the separate vertical Tabs panel menu and existing actions/state.
   Supersede desktop run 37209810520; remote run 37209810625 passed but must be
   regenerated for matching final source. Finish icon changes before new captures.
+
+- Icon format correction: all six icons (DeepSeek, Qoder, Trae, Hermes, workspace
+  Settings and Tools panel) must be real SVG assets under bundled/svg, never PNG
+  or raster embedded in SVG. Central mappings and technical references migrate
+  together before the six PNGs are deleted. Follow docs/ICON-WORKFLOW.md for new
+  icons: reference, vector geometry, rendering/reference QA, all-call-site update,
+  PNG removal, commit, then native screenshots/acceptance. Desktop run 37210399364
+  is superseded by this change; remote 37210399494 is historical passed evidence.
