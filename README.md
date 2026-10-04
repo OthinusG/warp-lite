@@ -88,7 +88,7 @@ for supported configuration paths and current verification.
 
 ### Start working
 
-1. Install a build that includes agent collaboration from the table below.
+1. Build the current source using the [development guide](docs/DEVELOPMENT.md); see the download table for published package availability.
 2. Install and authenticate your preferred CLI agents using their own tools.
 3. Open **Settings > Features > Agent communication** and select the agents that may participate.
 4. Start new agent sessions in the same project. Restart existing sessions when their CLI requires it to load MCP configuration.
@@ -96,7 +96,8 @@ for supported configuration paths and current verification.
 
 ### Codex: type your usual command
 
-With Agent communication enabled and Codex selected, start Codex normally:
+With Agent communication enabled and Codex selected, start Codex normally in a
+local Warpai terminal:
 
 ```sh
 codex
@@ -115,7 +116,9 @@ updates keep working. It does not replace `codex`, change PATH or CODEX_HOME,
 copy an executable, or read/write Codex configuration. Unsupported versions
 start normally with a visible MCP warning. Help, login, MCP administration,
 batch commands, explicit remote connections and user aliases remain native.
-Commands entered outside Warpai are unaffected.
+Automatic adaptation targets native macOS/Windows local shells. WSL commands
+retain native behavior. For managed SSH projects, use the explicit remote
+companion contract. Commands entered outside Warpai are unaffected.
 
 You can disable communication or uncheck an agent to revoke its live access.
 Warpai removes only the configuration it owns, preserving unrelated user settings.
@@ -159,24 +162,24 @@ want to try:
 | Build | Includes | Downloads |
 | --- | --- | --- |
 | **Published release — `v0.5.7-lite`** | Terminal essentials. These packages retain the historical **WarpLite** name and do not include the current agent collaboration or SSH extension. | [macOS app ZIP and DMG; Windows x64 installer and portable ZIP](https://github.com/OthinusG/warpai/releases/tag/v0.5.7-lite) |
-| **Validated Warpai review build** | Current local agent collaboration and SSH project panels. Desktop checks, native actions and screenshot review passed on macOS and Windows. | [Desktop packages](https://github.com/OthinusG/warpai/actions/runs/37152975773) · [Matching remote companions](https://github.com/OthinusG/warpai/actions/runs/37152973196) |
+| **Current Warpai source** | Local CLI agent collaboration, session-only native Codex MCP and SSH project panels. | [Build guide](docs/DEVELOPMENT.md) · [Verification record](specs/DEEP-CLEANUP.md) |
 
 For the published release, drag **WarpLite.app** from the macOS DMG into
 Applications. On Windows, run **WarpLiteSetup-x64.exe**, or extract the portable
 ZIP and launch **WarpLite.exe**.
 
-For collaboration, use the review run's **Warpai-agent-communication-macos** or
-**Warpai-agent-communication-windows** artifact. Extract the downloaded artifact
-first, then open the included app ZIP, installer or portable ZIP. GitHub Actions
-artifact downloads may require a GitHub sign-in and expire; use a successful
-[current validation run](https://github.com/OthinusG/warpai/actions/workflows/validate-agent-communication.yml)
-if the linked artifacts are no longer available. Match the remote companion's
-source manifest to the desktop build you choose.
+Current installers will be produced after the icon update. The current source
+and verification record include the native Codex adaptation described above;
+older review packages predate it. Build desktop and remote companion from the
+same source revision using the [development guide](docs/DEVELOPMENT.md).
+GitHub Actions verification artifacts may require sign-in and have a retention
+period; a successful code check does not imply that an installer was produced.
 
-The engineering gate includes real native processes and controlled OpenSSH
-message/task/review tests. It does not certify every authenticated vendor/version
-or physical remote host. [Detailed verification](specs/agent-communication-v2/QUALITY.md)
-is available for evaluating the review build.
+Engineering verification includes real native processes and controlled OpenSSH
+message/task/review tests. Native macOS Codex 0.160.0 also passed two simultaneous
+sessions and four completed model/MCP turns. Coverage for other authenticated
+vendors and physical remote hosts is tracked in the
+[agent compatibility guide](specs/agent-communication/COVERAGE.md).
 
 ## Local-first by design
 

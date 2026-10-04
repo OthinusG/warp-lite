@@ -28,3 +28,14 @@ Manual companion placement and system SSH authentication are sufficient. Paid
 vendor model sessions and physical cross-device SSH are not claimed by fixture
 acceptance. No file manager, transfer queue, retained-session UX or eight-hour
 manager soak is required by this delivery.
+
+## Native Codex ownership and deep cleanup — 2026-10-05
+
+Source f6fa053 passed remote run
+[37230080613](https://github.com/OthinusG/warpai/actions/runs/37230080613) on
+Linux/macOS/Windows, preserving local coordination and controlled SSH behavior.
+The original macOS Codex 0.160.0 separately passed two simultaneous participants
+and four completed model/MCP turns with source-matched agent_bus inputs. See
+[compatibility coverage](../agent-communication/COVERAGE.md) and
+[cleanup evidence](../DEEP-CLEANUP.md). Icon revision and release packaging are
+explicitly deferred; historical package acceptance does not certify this source.

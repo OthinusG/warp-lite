@@ -242,15 +242,15 @@
 
 ## Build And Release
 
-- Primary check: `cargo check -p warp --bin warp-oss`.
-- App packaging: `script/build-warp-lite-app.sh` (macOS), `script/build-warp-lite-windows.ps1` (Windows x64).
-- Release artifacts include `WarpLite.app.zip`, `WarpLite.dmg`, `WarpLiteSetup-x64.exe`, and `WarpLite-windows-x64.zip`.
+- Primary check (GitHub only in this workspace): `cargo check -p warpai --bin warpai --locked`; also check `warp_platform`.
+- App packaging: `script/build-warpai-app.sh` (macOS), `script/build-warpai-windows.ps1` (Windows x64).
+- Historical published artifacts retain their WarpLite filenames. Current source targets Warpai; icon revision and packaging/release are deferred.
 
 ## Maintenance
 
 - Upstream changes are historically selected and applied with provenance rather than merged wholesale.
 - User decision on 2026-10-01: retire automatic upstream synchronization, restoration scripts and replayable patches. Keep changes as direct committed source. Retain independent GitHub compilation, testing and tagged releases; do not remove provenance or licenses. GitHub fork-network metadata is separate from the source maintenance decision.
-- `OthinusG/warp-lite` is a fork of `terzigolu/warp-lite`; both default to `warp-lite/main` and do not use `master`.
+- Historical fork provenance: `OthinusG/warp-lite` derived from `terzigolu/warp-lite`, originally on `warp-lite/main`. Current repository identity/default-branch integration is recorded in the final delivery section.
 - Project Explorer and persisted ToolsPanel migration are maintained directly in source, alongside CLI integrations, platform fixes, branding and native agent communication.
 - Workspace initialization restores the right-side Tools Panel button for older persisted toolbar configurations that omit it.
 - Standalone macOS releases build an existing repository tag. Windows release automation reads that successful run's release-target artifact and builds the same tag rather than the latest branch or release.
@@ -281,7 +281,7 @@
 
 - User clarification: busy delivery is polling, then automatic submission once idle. Manual cancellation pauses automatic submission until the user resumes with a new input; pruning a closed view must also invalidate its broker run.
 
-- README must distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, independent maintenance, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
+- Superseded README direction (before the user requested a product introduction): distinguish the original terzigolu/warp-lite removals and terminal preservation from OthinusG downstream additions. Preserve original release history; document restored Project Explorer, extra CLI integrations/aliases, Windows distribution, independent maintenance, and unreleased agent communication separately. Published v0.5.7-lite assets include both macOS and Windows x64; do not retain the old macOS-only FAQ.
 
 - Full application test compilation exposed an inherited cloud-agent-management test referencing a field gated by `agent_management_view`. Gate that test with the same feature rather than restoring the disabled cloud UI or silently skipping native wake verification.
 
@@ -876,3 +876,14 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Packaging remains an explicit workflow_dispatch operation; icon and release
   work is deferred. Windows PowerShell always uses legacy native quote handling
   even if a variable named PSNativeCommandArgumentPassing is defined.
+
+- Native Codex acceptance passed on 2026-10-05: original Homebrew 0.160.0,
+  two simultaneous --no-daemon clients, two real model/MCP turns each and
+  independent readiness. Used cloud-built 625904f artifacts whose SHA-256/CRC
+  matched; agent_bus sources match f6fa053, including actual native cwd binding. Only test-process trust for the
+  owned fixture was overridden. No vendor command/config/PATH/CODEX_HOME changes.
+
+- Native Codex parser rejects duplicate --no-daemon. Reuse installed option arity
+  to preserve an existing flag without adding another; values/prompts named
+  --no-daemon remain data. Both local and remote launch apply the rule. WSL guest
+  commands stay native rather than probing/injecting a Windows host CLI/bridge.

@@ -1,8 +1,9 @@
-> Ownership correction (2026-10-05): Codex proxy/alias acceptance below is
-> historical and superseded. Current source removes command impersonation and
-> Codex user-config writes. The replacement uses explicit native per-invocation
-> MCP options; local managed-launch UI and native model-level acceptance remain
-> pending. See [current plan](../agent-communication-v2/TECH.md#replacement-plan-native-explicit-session-only-codex-mcp).
+> Ownership correction (2026-10-05): historical Codex proxy/alias acceptance
+> below is superseded. Current source adapts ordinary local native Codex
+> invocations with official per-session MCP options and preserves the installed
+> command and user configuration. Native macOS model acceptance passed; see
+> [current plan](../agent-communication-v2/TECH.md#user-correction-automatic-invocation-adaptation--2026-10-05)
+> and the final verification section below.
 
 # Native MCP Coverage
 
@@ -93,7 +94,7 @@ The common Warp broker and per-launch relay have simulated isolation coverage fo
 
 | Native transport | Implementation | Verification |
 | --- | --- | --- |
-| Codex interactive, resume and fork | Original installed CLI with --no-daemon and per-invocation -c MCP overrides | Native option, directory, update-resolution and shared broker isolation regressions; current source acceptance recorded below when complete |
+| Codex interactive, resume and fork | Original installed CLI with --no-daemon and per-invocation -c MCP overrides | Native option, directory, update-resolution and shared broker isolation regressions; original macOS Codex 0.160.0: two simultaneous clients, two completed model/MCP turns each |
 | Claude and Qoder/QoderCN native interactive clients | Confirmed inline MCP configuration to a per-launch relay | Common relay/setup regressions; two real QoderCN clients independently registered with the 843681f bridge; Claude stopped at native directory trust selection; patched Warpai acceptance pending |
 | Other managed native stdio clients | Existing documented adapters and terminal binding through the common Warp broker | Common protocol/setup coverage; authenticated native acceptance pending |
 | Arbitrary vendor external daemon or explicit remote attachment | No general per-terminal binding guarantee | Requires a verified vendor session context API; not implemented by environment passthrough |
@@ -119,3 +120,20 @@ Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --hel
 All types use the same broker readiness lease and guarded PTY path. Listener existence and stale InProgress presentation no longer block explicit final-action MCP readiness. Opaque OSC notifications cannot establish readiness; only structured lifecycle events or the explicit tool can. Queued work shows a native receiver notification, even before readiness. Send/assign report `delivery: queued`; listing exposes `ready` and `pending_count`. Queued delivery never means acknowledgement or completed work. The application regression installs each available native listener and checks draft/permission protection for every enum type.
 
 Vendor-named launch aliases, runtime command catalogs and PATH injection have been removed. Codex adaptation occurs only at the Warpai execution event. Selecting it does not write its user configuration; disabling it revokes broker authority.
+
+## Native Codex acceptance — 2026-10-05
+
+The original `/opt/homebrew/bin/codex` (package-manager installation, 0.160.0)
+passed `native_clients_complete_two_turns` using the GitHub-built 625904f
+readiness executable and bridge. Two simultaneous native clients registered as
+separate participants; each completed two model turns calling `warp_agent_list`
+and final `warp_agent_ready`. Marking one client busy did not change the other's
+readiness. No vendor executable, user configuration, PATH or CODEX_HOME was
+replaced. The temporary fixture's trust setting was supplied only to that test
+invocation. Archive CRC and GitHub SHA-256 digests matched. The current f6fa053 application checkpoint has byte-identical agent_bus inputs.
+The rerun includes the owned native-directory bridge mode.
+
+This establishes native macOS session MCP behavior. Windows native argument
+passing is covered by the PowerShell application regression; it does not claim
+authenticated Windows model turns or every vendor/version. Application build
+and regression results are recorded in [deep cleanup](../DEEP-CLEANUP.md).

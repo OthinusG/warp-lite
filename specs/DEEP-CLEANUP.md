@@ -189,8 +189,10 @@ Executable/build source: `b86328644c8e77b76e612ae32ddae4695e4565fd`.
   controlled Linux OpenSSH messaging/tasks/review. All three downloaded archives
   and binaries match their source manifests/digests, capabilities and notices.
 - [Desktop run 37212494687](https://github.com/OthinusG/warpai/actions/runs/37212494687)
-  is pending. Native screenshot review, README image replacement, package
-  inspection and default-branch/repository integration remain pending.
+  was paused at the user’s request and is superseded by the native Codex
+  correction and final gates below. It is not current-source acceptance.
+  Updated icon screenshots and release package inspection belong to the next
+  icon/packaging task.
 
 ### Native Codex adaptation and final cleanup — 2026-10-05
 
@@ -215,3 +217,28 @@ Removed the obsolete child-PATH alias stripping branch, an unused broker runtime
 handle and the unused bridge directory setter left behind by proxy removal.
 The simulated native-status helper is test-only; production uses terminal
 lifecycle and final-action MCP readiness.
+
+### Current verification
+
+- Native macOS Codex 0.160.0: two simultaneous original clients, two model turns
+  each, native MCP list/final-ready calls and independent busy/ready state passed.
+  Cloud-built executable/bridge from 625904f; agent_bus inputs remain identical
+  in f6fa053. The rerun includes the actual native-directory bridge mode. Both downloaded artifact CRCs and GitHub SHA-256 digests matched.
+- Static checks passed: changed Rust syntax via rustfmt (no local Rust build),
+  38 tracked Bash/Zsh scripts, workflow YAML, manifest/lock TOML and all local
+  links in the current collaboration specifications and both README languages.
+- Recomputed Cargo/module reachability: 116 target roots, 2,976 Rust files;
+  only the two deliberately preserved unrelated upstream terminal/completer test
+  files remain outside target reachability. The seven parser limitations are
+  existing grammar/macro constructs; supported-target Cargo checks are required.
+- Baseline tracked deletion inventory: 302 files, 41,706,081 bytes. This includes
+  earlier audited removals, naming replacements and the final obsolete modal,
+  marketing asset and retired design-document cleanup. It is not a claim that
+  every remaining upstream compatibility type is unused.
+
+- [Remote gate 37230080613](https://github.com/OthinusG/warpai/actions/runs/37230080613)
+  passed for f6fa053 on Linux/macOS/Windows: protocol and strict remote-wire
+  lint, local relay/readiness/native setup/history, owned native processes/PTYs
+  and controlled Linux OpenSSH message/task/review flow.
+
+Desktop GitHub checks remain pending until their final results below.

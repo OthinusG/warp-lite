@@ -83,7 +83,7 @@ flowchart LR
 
 ### 快速开始
 
-1. 从下方下载表中选择包含 Agent 协作的构建。
+1. 按[开发指南](docs/DEVELOPMENT.zh-CN.md)构建当前源码；已发布安装包的范围见下方下载表。
 2. 使用各 CLI 自己的工具安装并认证 Agent。
 3. 打开 **Settings > Features > Agent communication**，勾选允许参与的 Agent。
 4. 在同一项目中新开 Agent 会话；不支持热加载 MCP 配置的 CLI 需要重启已有会话。
@@ -91,7 +91,7 @@ flowchart LR
 
 ### Codex：直接输入原来的命令
 
-开启 Agent communication 并勾选 Codex 后，照常启动：
+开启 Agent communication 并勾选 Codex 后，在 Warpai 本地终端照常启动：
 
 ```sh
 codex
@@ -108,7 +108,8 @@ Warpai 每次适配启动都重新解析并探测当前安装，因此包管理�
 不会替换 `codex`、修改 PATH 或 CODEX_HOME、复制可执行文件，
 也不会读取或写入 Codex 配置。不支持的版本照常启动，并显示 MCP 提示。
 帮助、登录、MCP 管理、批处理、显式远程连接及用户自定义别名保持原生行为。
-在 Warpai 之外输入的命令不受影响。
+自动适配面向 macOS、Windows 的原生本地 Shell；WSL 命令保持原生行为。
+受管理的 SSH 项目通过远程 companion 启动。在 Warpai 之外输入的命令不受影响。
 
 关闭协作或取消勾选某个 Agent，会立即撤销其当前访问权限。
 Warpai 只清理自己拥有的配置，保留用户的其他设置。
@@ -153,21 +154,21 @@ Warpai 只清理自己拥有的配置，保留用户的其他设置。
 | 构建 | 包含功能 | 下载入口 |
 | --- | --- | --- |
 | **已发布版本 — `v0.5.7-lite`** | 终端基础功能。安装包保留历史名称 **WarpLite**，不包含当前 Agent 协作与 SSH 扩展。 | [macOS 应用 ZIP、DMG；Windows x64 安装器、便携 ZIP](https://github.com/OthinusG/warpai/releases/tag/v0.5.7-lite) |
-| **已通过验收的 Warpai 试用构建** | 当前本地 Agent 协作与 SSH 项目面板。macOS 和 Windows 的桌面检查、原生操作及截图检查均通过。 | [桌面安装包](https://github.com/OthinusG/warpai/actions/runs/37152975773) · [匹配的远程 companion](https://github.com/OthinusG/warpai/actions/runs/37152973196) |
+| **当前 Warpai 源码** | 本地 CLI Agent 协作、Codex 原生会话级 MCP，以及 SSH 项目面板。 | [构建指南](docs/DEVELOPMENT.zh-CN.md) · [验证记录（英文）](specs/DEEP-CLEANUP.md) |
 
 安装已发布版本时，在 macOS 中将 DMG 内的 **WarpLite.app** 拖入 Applications。
 在 Windows 中运行 **WarpLiteSetup-x64.exe**，或解压便携 ZIP 后运行 **WarpLite.exe**。
 
-体验协作功能时，下载试用构建中的 **Warpai-agent-communication-macos**
-或 **Warpai-agent-communication-windows** 产物。
-先解压下载的外层文件，再打开其中的应用 ZIP、安装器或便携 ZIP。
-GitHub Actions 产物下载可能要求登录 GitHub，且有保留期限；
-链接中的产物过期后，请选择一次成功的 [当前验证构建](https://github.com/OthinusG/warpai/actions/workflows/validate-agent-communication.yml)。
-远程 companion 的源码清单应与所选桌面构建匹配。
+当前安装包将在图标更新后构建。当前源码和验证记录包含上文的 Codex
+原生适配；旧试用安装包早于这次改动。请按
+[开发指南](docs/DEVELOPMENT.zh-CN.md)，从同一源码版本构建桌面端和远程 companion。
+GitHub Actions 验证产物可能要求登录 GitHub，且有保留期限；
+代码检查通过并不代表已生成安装包。
 
-工程验收包括真实原生进程和受控 OpenSSH 下的消息、任务及审阅测试，
-未覆盖每个已认证服务商版本或每台实体远程主机。
-试用构建的具体范围见 [详细验收记录（英文）](specs/agent-communication-v2/QUALITY.md)。
+工程验证包括真实原生进程和受控 OpenSSH 下的消息、任务及审阅测试。
+原版 macOS Codex 0.160.0 另已通过两个同时运行的会话及四轮真实模型/MCP 调用。
+其他已认证服务商和实体远程主机的覆盖范围见
+[Agent 兼容性说明（英文）](specs/agent-communication/COVERAGE.md)。
 
 ## 本地优先
 
