@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       protocol_only:
-        description: 'Run both OS protocol suites; skip application checks/releases (capture_ui still builds debug UI)'
+        description: 'Run both OS protocol suites; skip releases (capture_ui also checks/builds the app)'
         type: boolean
         default: false
       capture_ui:

@@ -419,20 +419,27 @@ impl TestDriver {
             None => return,
         };
 
-        let (tx, rx) = futures::channel::oneshot::channel();
-
-        window
-            .as_ctx()
-            .request_frame_capture(Box::new(move |frame| {
-                let _ = tx.send(frame);
-            }));
-        window.as_ctx().request_redraw();
-        let frame = match rx.with_timeout(Duration::from_secs(5)).await {
-            Ok(Ok(frame)) => frame,
-            _ => {
-                log::warn!("VideoRecorder: frame capture timed out after step");
-                return;
+        let mut frame = None;
+        // A busy renderer can drop a capture; retry the frame without replaying UI actions.
+        for attempt in 1..=3 {
+            let (tx, rx) = futures::channel::oneshot::channel();
+            window
+                .as_ctx()
+                .request_frame_capture(Box::new(move |frame| {
+                    let _ = tx.send(frame);
+                }));
+            window.as_ctx().request_redraw();
+            match rx.with_timeout(Duration::from_secs(5)).await {
+                Ok(Ok(captured)) => {
+                    frame = Some(captured);
+                    break;
+                }
+                _ => log::warn!("VideoRecorder: frame capture attempt {attempt}/3 failed"),
             }
+        }
+        let Some(frame) = frame else {
+            log::warn!("VideoRecorder: frame capture failed after step");
+            return;
         };
 
         if let Some(filename) = screenshot_filename.filter(|filename| !filename.is_empty()) {

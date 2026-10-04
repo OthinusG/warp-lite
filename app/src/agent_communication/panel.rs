@@ -2958,7 +2958,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_action(|app, _, _| {
                     // Documentation captures use the application's default warm palette.
                     app.update(|ctx| {
-                        let theme = Settings::theme_for_theme_kind(&ThemeKind::ClaudeWarmLight, ctx);
+                        let theme =
+                            Settings::theme_for_theme_kind(&ThemeKind::ClaudeWarmLight, ctx);
                         Appearance::handle(ctx).update(ctx, |appearance, ctx| {
                             appearance.set_theme(theme, ctx);
                         });
