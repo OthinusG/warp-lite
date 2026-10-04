@@ -155,10 +155,14 @@ impl View for CommunicationSettingsView {
             refresh
         };
         body.add_child(
-            refresh
-                .build()
-                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
-                .finish(),
+            Container::new(
+                refresh
+                    .build()
+                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
+                    .finish(),
+            )
+            .with_margin_top(12.)
+            .finish(),
         );
         Container::new(body.finish())
             .with_margin_bottom(16.)

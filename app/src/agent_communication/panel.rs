@@ -3931,6 +3931,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             status: "Unavailable — refresh agents after updating the executable search path.".into(),
                         },
                     ];
+                    model.status = "Communication is enabled. No CLI agents selected.".into();
                     ctx.notify();
                 });
             });
