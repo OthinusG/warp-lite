@@ -887,3 +887,12 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   to preserve an existing flag without adding another; values/prompts named
   --no-daemon remain data. Both local and remote launch apply the rule. WSL guest
   commands stay native rather than probing/injecting a Windows host CLI/bridge.
+
+- Windows native argv correction (2026-10-05): full application regression found
+  PowerShell 5 splitting an inline MCP path containing spaces; pwsh Standard
+  through .cmd also interpreted metacharacters. Encode whitespace/metacharacters
+  in compact TOML basic-string values with standard Unicode escapes before shell
+  quoting. Preserve decoded values, original command/arguments and user shell
+  preferences. Real CI fixtures cover cmd/ps1, powershell/pwsh, all three modes,
+  plain/spaced/apostrophe/metacharacter/percent/Unicode paths. The isolated quick
+  diagnostic passed 60 cases; it does not replace the application regression.

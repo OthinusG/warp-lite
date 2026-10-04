@@ -147,3 +147,11 @@ WSL guest commands remain native: probing a Windows host installation cannot
 establish a guest Linux CLI/IPC contract. SSH/guest coordination uses the
 explicit remote companion contract; do not inject Windows host bridge paths
 into guest commands. Native macOS/Windows local shells are the automatic scope.
+
+PowerShell adaptation encodes path whitespace and shell metacharacters in the
+compact MCP TOML basic strings with standard Unicode escapes. Codex receives
+identical decoded configuration values without .cmd expansion or legacy argument
+splitting. Select the appropriate embedded-quote representation for the installed
+PowerShell version/native passing mode; never change the user's preference.
+Validate real native argv and parsed TOML through both cmd and ps1 launchers,
+including spaces, apostrophes, metacharacters, percent expansion and Unicode.

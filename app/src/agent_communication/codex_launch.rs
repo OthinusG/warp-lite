@@ -9,13 +9,19 @@ use warpui::{SingletonEntity, ViewContext};
 
 fn session_prefix_for_shell(prefix: &[String], shell: ShellType) -> String {
     prefix.iter().map(|arg| {
-        let literal = shell_quote_arg(arg, shell);
         if shell == ShellType::PowerShell && arg.contains('"') {
+            // This compact override has metacharacters/whitespace only in basic strings.
+            // TOML escapes preserve their values through legacy quoting and .cmd parsing.
+            let encoded = arg.chars().map(|c| {
+                if " &^%!|<>()`$".contains(c) { format!("\\u{:04x}", u32::from(c)) }
+                else { c.to_string() }
+            }).collect::<String>();
+            let literal = shell_quote_arg(&encoded, shell);
             // Windows PowerShell and pwsh Legacy mode drop native embedded quotes.
-            let legacy = shell_quote_arg(&arg.replace('"', "\\\""), shell);
+            let legacy = shell_quote_arg(&encoded.replace('"', "\\\""), shell);
             format!("$(if ($PSVersionTable.PSVersion.Major -lt 7 -or ($PSVersionTable.PSVersion.Major -eq 7 -and $PSVersionTable.PSVersion.Minor -lt 3) -or $PSNativeCommandArgumentPassing -eq 'Legacy' -or ($PSNativeCommandArgumentPassing -eq 'Windows' -and (Get-Command codex).Source -match '\\.(cmd|bat)$')) {{ {legacy} }} else {{ {literal} }})")
         } else {
-            literal
+            shell_quote_arg(arg, shell)
         }
     }).collect::<Vec<_>>().join(" ")
 }
@@ -216,29 +222,57 @@ mod tests {
                 .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
         )
         .unwrap();
-        let prefix =
-            setup::codex_session_prefix(Path::new("C:\\app with spaces\\O'Neil\\warpai-agent.exe"));
-        for shell in ["powershell", "pwsh"] {
-            for mode in ["Legacy", "Windows", "Standard"] {
-                let script = format!(
-                    "$PSNativeCommandArgumentPassing = '{mode}'; codex {}",
-                    session_prefix_for_shell(&prefix, ShellType::PowerShell)
-                );
-                let output = Command::new(shell)
-                    .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-                    .env("PATH", &paths)
-                    .output()
-                    .unwrap();
-                assert!(
-                    output.status.success(),
-                    "{shell} {mode}: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                assert_eq!(
-                    serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
-                    prefix,
-                    "{shell} {mode}"
-                );
+        for wrapper in ["cmd", "ps1"] {
+            if wrapper == "ps1" {
+                std::fs::remove_file(directory.path().join("codex.cmd")).unwrap();
+                std::fs::write(
+                    directory.path().join("codex.ps1"),
+                    format!(
+                        "& {} -c 'import json,sys; print(json.dumps(sys.argv[1:]))' @args",
+                        shell_quote_arg(python, ShellType::PowerShell),
+                    ),
+                )
+                .unwrap();
+            }
+            for path in [
+                r"C:\app\warpai-agent.exe",
+                r"C:\app with spaces\O'Neil\warpai-agent.exe",
+                r"C:\app & tools\warpai-agent.exe",
+                r"C:\app; (tools) ^ unicode\warpai-agent.exe",
+                r"C:\app %WARPAI_DIAGNOSTIC% !tools! 中文\warpai-agent.exe",
+            ] {
+                let prefix = setup::codex_session_prefix(Path::new(path));
+                for shell in ["powershell", "pwsh"] {
+                    for mode in ["Legacy", "Windows", "Standard"] {
+                        let script = format!(
+                            "$PSNativeCommandArgumentPassing = '{mode}'; codex {}",
+                            session_prefix_for_shell(&prefix, ShellType::PowerShell)
+                        );
+                        let output = Command::new(shell)
+                            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+                            .env("PATH", &paths)
+                            .env("WARPAI_DIAGNOSTIC", "unexpected")
+                            .output()
+                            .unwrap();
+                        assert!(
+                            output.status.success(),
+                            "{wrapper} {shell} {mode}: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                        let actual = serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap();
+                        assert_eq!(
+                            actual.len(),
+                            prefix.len(),
+                            "{wrapper} {shell} {mode} {path}"
+                        );
+                        assert_eq!(&actual[..2], &prefix[..2]);
+                        assert_eq!(
+                            toml::from_str::<toml::Value>(&actual[2]).unwrap(),
+                            toml::from_str::<toml::Value>(&prefix[2]).unwrap(),
+                            "{wrapper} {shell} {mode} {path}"
+                        );
+                    }
+                }
             }
         }
     }

@@ -241,4 +241,11 @@ lifecycle and final-action MCP readiness.
   lint, local relay/readiness/native setup/history, owned native processes/PTYs
   and controlled Linux OpenSSH message/task/review flow.
 
-Desktop GitHub checks remain pending until their final results below.
+Desktop run [37230078092](https://github.com/OthinusG/warpai/actions/runs/37230078092)
+passed all macOS checks/regressions; Windows compilation passed but the new
+PowerShell roundtrip regression exposed argument splitting. It is superseded by
+the corrected source below. The isolated Windows diagnostic
+[37233373477](https://github.com/OthinusG/warpai/actions/runs/37233373477) verified
+60 launcher/shell/mode/path combinations with unchanged parsed TOML values.
+The permanent application regression now covers those same boundary cases.
+Final desktop checks remain pending until the corrected-source results below.
