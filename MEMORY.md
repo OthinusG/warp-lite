@@ -849,3 +849,11 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   pending. Older installed app binaries can still contain the withdrawn behavior
   until replaced; do not interrupt active user sessions. Unified CI monitoring
   was explicitly paused by the user; focused rollback verification is separate.
+
+- Rollback verification: source 48072b641f77cd150438984370b0f5703b329ea5
+  passed GitHub run 37219398675 on Linux/macOS/Windows. Included session relay,
+  native adapter, local communication, managed-process/PTY and controlled Linux
+  SSH regressions. Codex configuration no-create/no-write test passed on all
+  platforms; argv[0] impersonation regression passed on both Unix platforms.
+  README/coverage updates are documentation-only successors. This is rollback
+  verification, not new local managed-launch or model-level MCP acceptance.
