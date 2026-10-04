@@ -1,6 +1,9 @@
 # SSH Agent Communication Extension Plan
 
 Date: 2026-10-04. Status: S0–S5 accepted; source4fcb0c3 review builds verified.
+Quality follow-up: cleaned source `8b89938` passed the three-platform remote and
+two-platform desktop workflows. See [replacement decisions and acceptance](QUALITY.md).
+
 This plan replaces the broad SSH project-manager delivery. The objective is to
 extend working same-project Agent communication to Agents running through SSH,
 with concise connection/Agent/communication status in the existing panel.

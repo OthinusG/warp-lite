@@ -80,11 +80,28 @@ passed Linux/macOS/Windows protocol regression and clippy, owned native process
 lifecycle and the controlled Linux OpenSSH message/task/review gate.
 Desktop workflow
 [37147195277](https://github.com/OthinusG/warp-lite/actions/runs/37147195277)
-has passed both OS default/platform checks, application regression and native
-actions/capture steps. Each OS produced 155 verified PNGs with exit code zero,
-no failed native steps and the matching source SHA. Eight live SSH states per OS
-plus narrow/light/zoomed task views were visually reviewed. Release-package
-steps continue for that immutable source while cleaned source is verified on a
-separate branch.
+passed both OS default/platform checks, application regression, native actions,
+155 screenshots per OS and both release-package steps. Eight live SSH states per
+OS plus narrow/light/zoomed task views were visually reviewed before cleanup.
 
-Status: replacement functional acceptance complete; cleaned-source verification pending.
+Cleaned executable/build source `8b8993801a696972ae0ec853d40f9c6cc8e0f582`:
+- [Remote run 37152973196](https://github.com/OthinusG/warp-lite/actions/runs/37152973196)
+  passed all three platforms, including protocol clippy with warnings denied,
+  the overflowing-varint regression, owned process lifecycle and controlled Linux
+  OpenSSH two-Agent message/task/review. 31 successful suites recorded 277 test
+  executions, with no failures. All three companion source/digest/license
+  manifests were checked.
+- [Desktop run 37152975773](https://github.com/OthinusG/warp-lite/actions/runs/37152975773)
+  passed macOS/Windows default and warp_platform checks, 45 successful suites
+  recording 246 test executions, native actions, captures and release packaging.
+  Both diagnostics match this source, exit zero and contain no failed steps.
+  Each OS has 155 verified PNGs; the eight SSH states and narrow/zoomed task views
+  preserve drafts, disable disconnected writes and display reconnect state.
+
+Test counts are executions across platforms, not distinct test cases. Rust
+compilation/testing ran only on GitHub. The optional long-soak jobs were not
+requested in this quality gate. Documentation-only integration commits preserve
+all executable source and build inputs from the tested source above.
+
+Status: final functional and native UI acceptance passed; desktop artifact
+inspection and default-branch integration follow this immutable-source gate.

@@ -25,12 +25,24 @@
   Preserve feature/macro/native-link side effects and all remaining lock versions.
   The local CodeGraph index remains on disk and is ignored in source delivery.
 
+- Dependency audits must include macro expansion: num-derive needs num-traits
+  in warpui_core, and safe_info needs log in vim. Plain identifier search does
+  not establish that a dependency is unused; keep supported-feature CI gates.
+- Cleaned executable/build source `8b8993801a696972ae0ec853d40f9c6cc8e0f582`
+  passed remote run 37152973196 on Linux/macOS/Windows and desktop run
+  37152975773 on macOS/Windows, including default and warp_platform checks.
+  Documentation-only follow-ups preserve those executable/build inputs.
+- Branch cleanup preserves full Git history and a ref audit under
+  `/Users/wqin/.codex/backups/warp-lite/20261004/`; tags are retained.
+  Only included tips and exact retired SSH cutover b149e30 may be deleted;
+  preserve unrelated unmerged work and active PR heads.
+
 ## Product Boundary
 
 - Current platform scope (user correction 2026-10-03): local desktop GUI targets macOS/Windows; SSH Remote environments and the repository-owned companion target Linux/macOS/Windows. Linux helper builds and focused remote tests are authorized; Linux desktop/UI remains excluded. This supersedes the broader Linux exclusion recorded on 2026-10-01.
 
 - Warpai is an independently maintained AGPL local-first terminal derived from warp-lite and Warp, targeting macOS and Windows.
-- The default product excludes AI agents, telemetry, cloud account/login, billing, and related platform surfaces.
+- The default product excludes bundled AI, telemetry, cloud account/login, billing, and related platform surfaces.
 - Project Explorer is a desired terminal-adjacent feature and must be restored without reintroducing excluded product dependencies.
 - User naming decision on 2026-10-01: this version is branded Warpai (application name), with warpai in product prose. Rename menus/settings/notifications, visible package metadata/executables, README, and installer artwork. Preserve existing storage/bundle identifiers and protocol/tool names for compatibility; real upstream URLs and attribution remain accurate. Branding and communication live directly in repository source.
 

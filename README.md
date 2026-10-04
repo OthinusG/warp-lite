@@ -71,10 +71,10 @@ history without restoring device authority.
 Remote project authority, private per-run MCP and explicit Agent launch have passed
 three-platform checks, including two native Agent processes exchanging a message
 and completing a reviewed task through controlled OpenSSH. Native panel actions
-and screenshot review passed on macOS and Windows at source4fcb0c3. Both desktop
+and screenshot review passed on macOS and Windows at source `8b89938`. Both desktop
 release packages and Linux/macOS/Windows companion artifacts passed final checks.
-The source-matched [desktop review packages](https://github.com/OthinusG/warp-lite/actions/runs/37138929300)
-and [companion artifacts](https://github.com/OthinusG/warp-lite/actions/runs/37138932460)
+The source-matched [desktop review packages](https://github.com/OthinusG/warp-lite/actions/runs/37152975773)
+and [companion artifacts](https://github.com/OthinusG/warp-lite/actions/runs/37152973196)
 are available from GitHub Actions; published v0.5.7-lite remains unchanged.
 
 For the panel, enable Agent communication and open **Agent collaboration >
@@ -381,8 +381,8 @@ No. There is no login gate, no sign-up prompt, and no Warpai/Firebase account fl
 Telemetry removal is an explicit product goal: historical telemetry call sites have been cleaned up, and upstream changes that would reintroduce telemetry or outbound network calls are rejected during syncs. Auditing continues before claiming perfect network silence — see [Current Shipped State](#current-shipped-state) for the honest status.
 
 **Does warpai work on Linux or Windows?**
-Desktop targets are macOS and Windows x64. Planned SSH remote projects and their
-companion also target Linux; Linux desktop/UI remains outside the product scope.
+Desktop targets are macOS and Windows x64. SSH remote projects and their
+companion support Linux, macOS and Windows; Linux desktop/UI remains outside the product scope.
 
 **Can I use Codex, Claude Code, QoderCN, or other CLI agents?**
 Yes. Independently installed CLI agents can run in Warpai, and this fork extends command recognition and icons for additional agents and aliases. Agent-to-agent communication requires native MCP support and local setup; see [coverage and setup](specs/agent-communication/COVERAGE.md). It does not enable the upstream bundled AI service.
