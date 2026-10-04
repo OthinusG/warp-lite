@@ -92,9 +92,8 @@ has no consumer.
 
 ### Dependency cleanup
 
-Remove five unused direct dependency edges and their matching lockfile edges:
-`command -> lazy_static`, `node_runtime -> sha2`, `syntax_tree -> warp_util`,
-and the unused `warp-agent-bus` test dependencies `serde_yaml` and `toml`.
+Remove three unused direct dependency edges and their matching lockfile edges:
+`command -> lazy_static`, `node_runtime -> sha2`, `syntax_tree -> warp_util`.
 Their source/build/test targets have no consumers and the declarations add no
 necessary native linking or feature contract. All locked package versions remain.
 The broader token-negative audit was reviewed conservatively: retain macro
@@ -112,6 +111,14 @@ made that all AI-named code or all networking is gone. Historical specifications
 and provenance remain as documentation; they do not restore removed product paths.
 
 ### Verification
+
+A first dependency pass incorrectly limited consumers to each crate directory.
+Desktop setup-test compilation exposed the cross-directory `#[path]` import of
+`app/src/agent_communication/setup.rs` by `warp-agent-bus/tests/setup.rs`.
+Restore the test crate's `serde_yaml`/`toml` dependencies and follow each Cargo
+root's transitive module/include closure across directories for dependency checks.
+Do not count the failed preliminary desktop run as acceptance.
+
 
 Local checks passed: all reviewed removal paths are absent, retained license
 inputs exist, the surviving source graph has only the two preserved upstream
