@@ -8,10 +8,10 @@ the native review driver; they are not customer projects or authenticated vendor
 model sessions.
 
 - Theme: default **Claude Warm Light**, rendered by the native app.
-- Source: `a5699b93f0ab7dca769350812d8c4be66e10e249`.
-- [GitHub desktop run 37184297938](https://github.com/OthinusG/warp-lite/actions/runs/37184297938).
+- Source: `3b315664131933837c735896239ae750f3c674c1`.
+- [GitHub desktop run 37188935250](https://github.com/OthinusG/warp-lite/actions/runs/37188935250).
 - Artifact: `Warpai-collaboration-native-captures-macOS`.
-- Capture set: `capture-9660/collaboration-static/2026-10-04T07-37-36`.
+- Capture set: `capture-96865/collaboration-static/2026-10-04T08-55-17`.
 
 | Documentation image | Original capture | Shows |
 | --- | --- | --- |

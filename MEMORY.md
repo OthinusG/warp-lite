@@ -50,6 +50,28 @@
   application/bridge/ConPTY/OpenConsole, portable runtime files and installer
   header. Paid vendor sessions and physical-host installation are not claimed.
 
+## Product introduction — 2026-10-04
+
+- User wants README to introduce Warpai as a product, with images and concrete
+  advantages, rather than comparing additions against upstream. Lead with the
+  terminal workspace, user-owned CLI collaboration and scoped SSH projects.
+  Keep maintenance/build records in docs/DEVELOPMENT.md. Preserve README core
+  guardrails and license/provenance links.
+- User requested corresponding Chinese documentation and working navigation.
+  Maintain README.zh-CN.md, docs/DEVELOPMENT.zh-CN.md and screenshot provenance
+  alongside their English counterparts. The Chinese agent usage guide is
+  docs/AGENTS.zh-CN.md, linked bidirectionally to the English technical coverage.
+  Keep App menu names and commands unchanged for matching actual UI.
+  Chinese README uses explicit stable anchors; technical/license originals are
+  linked with their language identified rather than silently presented as Chinese.
+- README screenshots are unmodified native Claude Warm Light captures from
+  source 3b31566; sample-data provenance is recorded in docs/images/README.md. Distinguish
+  published v0.5.7-lite terminal packages from current collaboration review builds.
+- User reports an independently designed Warpai icon, but it was not found in
+  this checkout or post-fork image history. Packaging currently retains upstream
+  Mono artwork on macOS and the OSS icon on Windows; do not invent a replacement
+  logo or describe branding assets as fully synchronized.
+
 ## Product Boundary
 
 - Current platform scope (user correction 2026-10-03): local desktop GUI targets macOS/Windows; SSH Remote environments and the repository-owned companion target Linux/macOS/Windows. Linux helper builds and focused remote tests are authorized; Linux desktop/UI remains excluded. This supersedes the broader Linux exclusion recorded on 2026-10-01.
@@ -671,3 +693,25 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Use README's transient existing-panel selection and manual source-matched helper
   setup. Paid vendor sessions, physical cross-device tests and release publication
   are not claimed. Earlier pending manager/checkpoint notes are historical.
+
+- Collaboration UI consistency uses Global Search panel text roles and the shared
+  `settings_page::render_body_item` for local MCP rows. Keep related native actions
+  in wrapping groups and field labels 4px from their editors; preserve all focus,
+  disabled/submitting guards and warnings. Native capture now includes six
+  communication-settings images (light/dark/Claude Warm Light, zoom 1/1.25),
+  with fixed unavailable CLI rows only in the isolated debug profile and no vendor
+  configuration calls. Source 33e717d passed full macOS/Windows regression and
+  packaging run 37180907136. Final source 3b31566 passed both application variants,
+  protocol tests and all 161 native captures per OS in run 37188935250.
+
+- Native screenshot requests can time out or lose their callback on CI. Retry up
+  to three fresh frame requests in the shared post-step capture handler, without
+  replaying UI actions. Preserve exact-count/nonempty PNG acceptance; exhausting
+  retries must not produce an accepted run. This resolved two different Windows
+  missing-frame failures reproduced at source a5699b9.
+
+- User documentation preference on 2026-10-04: README screenshots must show the
+  default Claude Warm Light theme. Reset the native capture theme before the
+  documentation scenarios; use source-matched raw PNGs and update both language
+  captions/provenance. Do not recolor screenshots or change the application's
+  default theme to compensate for the capture driver's earlier Dark selection.

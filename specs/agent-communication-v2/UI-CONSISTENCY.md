@@ -37,14 +37,17 @@ No new surface, dependency, protocol or configuration behavior.
 - Full regression and review packaging:
   [run 37180907136](https://github.com/OthinusG/warp-lite/actions/runs/37180907136),
   source `33e717d26e18d60745c5cc87a73d828d38616e44`, passed on macOS and Windows.
-- Final source `a5699b93f0ab7dca769350812d8c4be66e10e249`:
-  [run 37184297938](https://github.com/OthinusG/warp-lite/actions/runs/37184297938).
-  Default and `warp_platform` checks passed on both OSes. macOS captured 161
-  nonempty PNGs with exit code 0 and no failed action assertions. Windows attempt
-  1 captured 160 PNGs with no failed action assertions, but missed
-  `light-320-1-agents.png`. Attempt 2 also captured 160, missing
-  `light-320-1-tasks.png`. Shared capture previously discarded a single failed
-  request; bounded fresh-frame retries are pending native verification.
+- Final source `3b315664131933837c735896239ae750f3c674c1`:
+  [run 37188935250](https://github.com/OthinusG/warp-lite/actions/runs/37188935250),
+  passed on both OSes. Default and `warp_platform` checks, protocol/persistence/
+  native socket/MCP tests, and native action assertions passed. Each OS captured
+  161 nonempty PNGs with exit code 0 and no failed action assertions.
+- Earlier source `a5699b9`,
+  [run 37184297938](https://github.com/OthinusG/warp-lite/actions/runs/37184297938),
+  reproduced Windows missing-frame failures twice, for different static PNGs.
+  Shared capture previously discarded a single failed request. The final driver
+  retries fresh frames up to three times without replaying UI actions; the exact
+  image-count gate remains unchanged and now passes on both OSes.
 - Visual review confirmed 14px secondary panel titles, semibold section labels,
   12px secondary guidance, wrapping navigation/pagination/form actions and 4px
   label/editor spacing. Warnings retain ordinary contrast. Dynamic agent actions
