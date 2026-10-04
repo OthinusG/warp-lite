@@ -22,7 +22,6 @@ warp_core = { workspace = true }
 async-fs = { workspace = true }
 command.workspace = true
 flate2 = "1.0"
-sha2 = { workspace = true }
 tar = "0.4"
 zip = "2.1"
 

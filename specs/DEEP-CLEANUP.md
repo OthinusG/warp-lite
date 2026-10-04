@@ -90,6 +90,18 @@ has no consumer.
 | Uninvoked channel/cloud release helpers | 4 | 6,970 |
 | Replaced installer artwork | 1 | 234,218 |
 
+### Dependency cleanup
+
+Remove five unused direct dependency edges and their matching lockfile edges:
+`command -> lazy_static`, `node_runtime -> sha2`, `syntax_tree -> warp_util`,
+and the unused `warp-agent-bus` test dependencies `serde_yaml` and `toml`.
+Their source/build/test targets have no consumers and the declarations add no
+necessary native linking or feature contract. All locked package versions remain.
+The broader token-negative audit was reviewed conservatively: retain macro
+requirements (for example `safe_info! -> log` and `num-derive -> num-traits`),
+SQLite bundled linking, explicit runtime/target feature unification and optional
+compatibility-feature dependencies.
+
 ### Retained shared boundaries
 
 Compiled AI/cloud modules still supply types, local CLI harnesses, editor/notebook
