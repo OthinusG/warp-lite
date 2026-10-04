@@ -142,3 +142,8 @@ Native Codex rejects duplicate --no-daemon flags. Reuse the installed-arity
 classifier to omit the generated flag when the user already supplied it; a
 model value or literal prompt named --no-daemon is not a flag. Preserve all
 original arguments and apply the same rule to local and explicit remote launch.
+
+WSL guest commands remain native: probing a Windows host installation cannot
+establish a guest Linux CLI/IPC contract. SSH/guest coordination uses the
+explicit remote companion contract; do not inject Windows host bridge paths
+into guest commands. Native macOS/Windows local shells are the automatic scope.

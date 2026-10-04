@@ -95,7 +95,9 @@ impl TerminalView {
         let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else {
             return false;
         };
-        if session.alias_value("codex").is_some()
+        // A Windows host probe cannot establish the Linux CLI/IPC contract of a WSL guest.
+        if session.is_wsl()
+            || session.alias_value("codex").is_some()
             || session.abbreviation_value("codex").is_some()
             || session.function_names().any(|name| name == "codex")
         {
