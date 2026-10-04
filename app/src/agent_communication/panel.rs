@@ -2048,6 +2048,8 @@ impl CollaborationPanel {
 /// Exercises fixed fixtures and deterministic local operations in an isolated debug profile.
 #[cfg(debug_assertions)]
 pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    use ::settings::Setting as _;
     use crate::{
         root_view::RootView,
         settings::Settings,
@@ -3008,7 +3010,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                         .workspace_view()
                                         .is_some_and(|workspace| workspace
                                             .as_ref(ctx)
-                                            .snapshot(*window, false, ctx)
+                                            .snapshot(window, false, ctx)
                                             .vertical_tabs_panel_open)))
                         )
                     },
