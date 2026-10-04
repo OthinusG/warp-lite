@@ -210,3 +210,8 @@ Removed 18 obsolete enrolled-device/full SSH-manager design documents
 (418,624 bytes). Current specifications link to their immutable Git history
 where historical evidence is needed, rather than keeping abandoned backlogs
 in the working tree. Retained the active SSH project/API/acceptance documents.
+
+Removed the obsolete child-PATH alias stripping branch, an unused broker runtime
+handle and the unused bridge directory setter left behind by proxy removal.
+The simulated native-status helper is test-only; production uses terminal
+lifecycle and final-action MCP readiness.

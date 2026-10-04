@@ -119,7 +119,6 @@ struct Shared {
 pub struct Broker {
     shared: Arc<Shared>,
     pub endpoint: String,
-    runtime: tokio::runtime::Handle,
 }
 /// Live native MCP bindings in a single project.
 #[derive(Clone)]
@@ -212,7 +211,6 @@ impl RunningBroker {
         let broker = Broker {
             shared: shared.clone(),
             endpoint,
-            runtime: runtime.handle().clone(),
         };
         let server = broker.clone();
         #[cfg(windows)]

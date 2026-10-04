@@ -39,16 +39,6 @@ pub(crate) fn without_terminal_binding(command: &mut Command) {
     ] {
         command.env_remove(name);
     }
-    if let (Some(path), Some(launchers)) = (
-        std::env::var_os("PATH"),
-        std::env::var_os("WARP_AGENT_LAUNCH_PATH"),
-    ) {
-        if let Ok(path) = std::env::join_paths(
-            std::env::split_paths(&path).filter(|path| path.as_os_str() != launchers),
-        ) {
-            command.env("PATH", path);
-        }
-    }
 }
 
 /// Native MCP clients receive only this private IPC address, never terminal capabilities.

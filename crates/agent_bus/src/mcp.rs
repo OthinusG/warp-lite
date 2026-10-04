@@ -106,18 +106,12 @@ impl Bridge {
     pub(crate) fn native_activity(&self, ready: bool) -> Result<()> {
         self.native_status(if ready { crate::readiness::Activity::Idle } else { crate::readiness::Activity::Working })
     }
-    pub(crate) fn native_directory(&self, directory: &str) -> Result<()> {
-        *self
-            .directory
-            .lock()
-            .map_err(|_| anyhow!("Bridge unavailable"))? = Some(directory.to_owned());
-        Ok(())
-    }
     pub(crate) fn with_native_directory(&self, directory: String) -> Self {
         let mut bridge = self.clone();
         bridge.directory = Arc::new(Mutex::new(Some(directory)));
         bridge
     }
+    #[cfg(test)]
     pub(crate) fn native_status(&self, status: crate::readiness::Activity) -> Result<()> {
         self.native_bound.store(true, Ordering::Release);
         let mut activity = self.native_ready.lock().map_err(|_| anyhow!("Bridge unavailable"))?;

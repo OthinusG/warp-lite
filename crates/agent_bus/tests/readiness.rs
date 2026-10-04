@@ -541,7 +541,7 @@ finally:
                 server.broker.input_bytes(terminal, b"weekday question\r");
                 writeln!(child.stdin.as_mut().unwrap(), "Reply only with the weekday for 2026-10-02. Call warp_agent_list to verify MCP access, then call warp_agent_ready as your final tool action. Do not change any files.").unwrap();
                 assert_eq!(status(terminal).unwrap()["ready"], false);
-                for other in terminals.iter().filter(|other| *other != terminal) {
+                for other in terminals.iter().filter(|other| *other != *terminal) {
                     assert_eq!(
                         status(other).unwrap()["ready"],
                         true,
