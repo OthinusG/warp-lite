@@ -1,4 +1,5 @@
 //! Local coordination for independently authenticated third-party CLI agents.
+mod codex_launch;
 mod legacy_remote_credentials;
 pub(crate) mod panel;
 pub(crate) mod setup;
@@ -85,8 +86,8 @@ impl AgentCommunication {
                         {
                             if let Ok(project) = project_root(Path::new(directory)) {
                                 let command = terminal_model.block_list().active_block().command_to_string();
-                                let command = command.trim();
                                 let view = view.as_ref(ctx);
+                                let command = view.codex_original_command(command.trim());
                                 let unshadowed = shlex::split(command)
                                     .and_then(|words| words.first().cloned())
                                     .is_some_and(|program| view.active_block_session_id()
@@ -101,6 +102,10 @@ impl AgentCommunication {
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
                                             .is_some_and(|entry| entry.active)));
+                                let project = if *agent == CLIAgent::Codex {
+                                    launch_options.and_then(|options| shlex::split(command).map(|words| options.codex_working_directory(&words[1..], Path::new(directory))))
+                                        .and_then(|directory| project_root(&directory).ok()).unwrap_or(project)
+                                } else { project };
                                 if broker.activate(terminal, program, &project, initial_prompt).is_err() {
                                     log::warn!("Could not activate local agent communication");
                                 }

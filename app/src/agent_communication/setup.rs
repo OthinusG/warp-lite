@@ -213,6 +213,48 @@ fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<Pa
     }
     None
 }
+/// Probe the current package-manager command; never cache its resolved version path.
+pub fn codex_session_options(
+    search_paths: &[PathBuf],
+    bridge: &Path,
+) -> Result<(Vec<String>, warp_agent_bus::launch::LaunchOptions)> {
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Home directory unavailable"))?;
+    let executable = executable("codex", search_paths, &home)
+        .ok_or_else(|| anyhow::anyhow!("Installed Codex command unavailable"))?;
+    let help = output(&executable, &["--help".into()], search_paths)?
+        .ok_or_else(|| anyhow::anyhow!("Codex capability probe failed"))?;
+    let mut options = warp_agent_bus::launch::LaunchOptions::from_help("codex", &help);
+    ensure!(
+        options.0.contains_key("--no-daemon") && options.0.contains_key("-c"),
+        "Installed Codex does not support verified session MCP isolation"
+    );
+    for subcommand in ["resume", "fork"] {
+        if let Ok(Some(help)) = output(
+            &executable,
+            &[subcommand.into(), "--help".into()],
+            search_paths,
+        ) {
+            options
+                .0
+                .extend(warp_agent_bus::launch::LaunchOptions::from_help("codex", &help).0);
+        }
+    }
+    Ok((codex_session_prefix(bridge), options))
+}
+
+/// Only nonsecret variable names enter the CLI override; capabilities remain in the pane environment.
+pub fn codex_session_prefix(bridge: &Path) -> Vec<String> {
+    warp_agent_bus::session::codex_mcp_prefix(
+        bridge,
+        &["mcp".into()],
+        &[
+            "WARP_AGENT_ENDPOINT",
+            "WARP_AGENT_CAPABILITY",
+            "WARP_TERMINAL_SESSION_UUID",
+        ],
+    )
+}
+
 pub fn discover(
     commands: Vec<(String, String)>,
     bridge: &Path,
@@ -251,7 +293,7 @@ pub fn discover(
                 }
             }
             let status = if program == "codex" {
-                "Session MCP requires an explicit Warpai launch; ordinary codex is unchanged"
+                "Automatic session MCP; installed Codex must support --no-daemon"
             } else if adapter.is_some() {
                 "Available"
             } else {
@@ -1008,6 +1050,45 @@ mod tests {
         configure(&installed, false, true).unwrap();
         assert_eq!(std::fs::read_to_string(path).unwrap(), original);
     }
+    #[test]
+    fn codex_session_override_is_valid_and_contains_only_binding_names() {
+        let bridge = Path::new("/application with spaces/O'Neil/warpai-agent");
+        let prefix = codex_session_prefix(bridge);
+        assert_eq!(&prefix[..2], &["--no-daemon", "-c"]);
+        let config: toml::Value = toml::from_str(&prefix[2]).unwrap();
+        let server = &config["mcp_servers"][SERVER];
+        assert_eq!(server["command"].as_str(), bridge.to_str());
+        assert_eq!(server["args"][0].as_str(), Some("mcp"));
+        assert_eq!(server["enabled"].as_bool(), Some(true));
+        assert_eq!(server["env_vars"].as_array().unwrap().len(), 3);
+        assert!(server.get("env").is_none());
+        assert!(server.get("cwd").is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn codex_capabilities_are_reprobed_after_package_manager_update() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let command = directory.path().join("codex");
+        let version_one = directory.path().join("version-one");
+        let version_two = directory.path().join("version-two");
+        for (path, extra) in [(&version_one, "--model"), (&version_two, "--effort")] {
+            std::fs::write(path, format!("#!/bin/sh\nprintf '%s\\n' '  --no-daemon  Isolated' '  -c, --config <KEY>  Override' '  {extra} <VALUE>  Version option'\n")).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        std::os::unix::fs::symlink(&version_one, &command).unwrap();
+        let paths = [directory.path().to_owned()];
+        let (_, first) = codex_session_options(&paths, Path::new("/bridge")).unwrap();
+        assert!(first.0.contains_key("--model"));
+        std::fs::remove_file(&command).unwrap();
+        std::os::unix::fs::symlink(&version_two, &command).unwrap();
+        let (_, second) = codex_session_options(&paths, Path::new("/bridge")).unwrap();
+        assert!(second.0.contains_key("--effort"));
+        assert!(!second.0.contains_key("--model"));
+        assert!(command.is_symlink());
+    }
+
     #[test]
     fn codex_setup_never_reads_or_writes_user_configuration() {
         let directory = tempfile::tempdir().unwrap();

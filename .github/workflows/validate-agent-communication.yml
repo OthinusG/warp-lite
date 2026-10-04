@@ -6,6 +6,10 @@ on:
         description: 'Run both OS protocol suites; skip releases (capture_ui also checks/builds the app)'
         type: boolean
         default: false
+      check_app:
+        description: 'Check both desktop builds and application tests without packaging'
+        type: boolean
+        default: false
       capture_ui:
         description: 'Run the isolated native static and live capture harness after packaging'
         type: boolean
@@ -65,15 +69,16 @@ jobs:
           choco install innosetup -y
           "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Check Windows default and platform application
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ !inputs.protocol_only || inputs.capture_ui || inputs.check_app }}
         run: |
           cargo test -p remote_server --locked
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
       - name: Verify Windows legacy metadata and credential cleanup
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ !inputs.protocol_only || inputs.check_app }}
         run: |
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
@@ -192,15 +197,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Check default Warpai application
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ !inputs.protocol_only || inputs.capture_ui || inputs.check_app }}
         run: |
           cargo test -p remote_server --locked
           cargo check -p warpai --bin warpai --locked
       - name: Check platform application
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ !inputs.protocol_only || inputs.capture_ui || inputs.check_app }}
         run: cargo check -p warpai --bin warpai --features warp_platform --locked
       - name: Test dormant wake and settings configuration
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ !inputs.protocol_only || inputs.check_app }}
         run: |
           cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warpai --lib collaboration_fixtures_cover_required_states_and_long_content --locked
@@ -208,6 +213,7 @@ jobs:
           cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked

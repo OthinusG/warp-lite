@@ -2420,6 +2420,14 @@ struct LocalSessionCanonicalPwdCache {
 pub struct TerminalView {
     pub model: Arc<FairMutex<TerminalModel>>,
     view_handle: WeakViewHandle<Self>,
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
+    pub(crate) codex_mcp_launch_generation: u64,
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    pub(crate) codex_mcp_launch: Option<(String, String)>,
 
     /// The session's size data. This is wrapped in a [`Tracked`] to
     /// guarantee that the [`TerminalView`] is redrawn whenever the
@@ -4143,6 +4151,10 @@ impl TerminalView {
             input,
             inline_menu_positioner,
             view_handle: ctx.handle(),
+            #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+            codex_mcp_launch_generation: 0,
+            #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+            codex_mcp_launch: None,
             size_info: size_info.into(),
             snackbar_header_state: Default::default(),
             colors,
@@ -19525,33 +19537,41 @@ impl TerminalView {
         }
     }
 
+    pub(crate) fn execute_input_command(&mut self, event: &ExecuteCommandEvent, ctx: &mut ViewContext<Self>) {
+        self.update_scroll_position_locking(
+            ScrollPositionUpdate::AfterCommandExecutionStarted,
+            ctx,
+        );
+        if let Some(active_session) = self
+            .active_block_session_id()
+            .and_then(|session_id| self.sessions.as_ref(ctx).get(session_id))
+        {
+            active_session.cancel_active_commands();
+        }
+
+        // Don't steal focus from other parts of the app.
+        if ctx.is_self_or_child_focused() {
+            self.focus_terminal(ctx);
+        }
+
+        ctx.emit(Event::ExecuteCommand(event.clone()));
+
+        if self.block_onboarding_active {
+            self.interrupt_onboarding_blocks(ctx);
+        }
+    }
+
     fn handle_input_event(&mut self, event: &InputEvent, ctx: &mut ViewContext<Self>) {
         match event {
             InputEvent::Enter => self.clear_prompt_suggestions(ctx),
             InputEvent::PageUp => self.page_up(ctx),
             InputEvent::PageDown => self.page_down(ctx),
             InputEvent::ExecuteCommand(event) => {
-                self.update_scroll_position_locking(
-                    ScrollPositionUpdate::AfterCommandExecutionStarted,
-                    ctx,
-                );
-                if let Some(active_session) = self
-                    .active_block_session_id()
-                    .and_then(|session_id| self.sessions.as_ref(ctx).get(session_id))
-                {
-                    active_session.cancel_active_commands();
+                #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+                if self.adapt_codex_mcp_launch(event, ctx) {
+                    return;
                 }
-
-                // Don't steal focus from other parts of the app.
-                if ctx.is_self_or_child_focused() {
-                    self.focus_terminal(ctx);
-                }
-
-                ctx.emit(Event::ExecuteCommand(event.as_ref().clone()));
-
-                if self.block_onboarding_active {
-                    self.interrupt_onboarding_blocks(ctx);
-                }
+                self.execute_input_command(event, ctx);
             }
             InputEvent::ExecuteAIQuery => {
                 // Clear the "enter again to send" ephemeral message if it's currently showing

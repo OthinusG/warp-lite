@@ -754,12 +754,7 @@ impl TerminalView {
         if session.is_remote()
             || !crate::agent_communication::accepts_peer_prompt(
                 &session.agent,
-                &self
-                    .model
-                    .lock()
-                    .block_list()
-                    .active_block()
-                    .command_to_string(),
+                self.codex_original_command(&self.model.lock().block_list().active_block().command_to_string()),
                 ctx,
             )
             || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })

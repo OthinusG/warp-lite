@@ -857,3 +857,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   platforms; argv[0] impersonation regression passed on both Unix platforms.
   README/coverage updates are documentation-only successors. This is rollback
   verification, not new local managed-launch or model-level MCP acceptance.
+
+- Latest Codex UX correction: automatically adapt ordinary Codex invocations
+  inside Warpai, including --yolo and resume, while selected communication is
+  enabled. The explicit-launch-only/pseudo-command plan is superseded. Adapt only
+  the app execution event with official session MCP and --no-daemon; preserve
+  original arguments and cwd, package-manager commands and all user files/PATH.
+  Continue implementation and verification instead of stopping after a plan.

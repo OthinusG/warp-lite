@@ -413,6 +413,12 @@ fn native_clients_complete_two_turns() {
         .broker
         .activate("native", program, &project, true)
         .unwrap();
+    let codex_options = serde_json::to_string(&warp_agent_bus::session::codex_mcp_prefix(
+        &bridge,
+        &["mcp".into()],
+        &[ENDPOINT, CAPABILITY, TERMINAL],
+    ))
+    .unwrap();
     let driver = r#"
 import fcntl,json,os,pty,re,select,signal,struct,subprocess,sys,termios,time
 markers=set()
@@ -426,10 +432,7 @@ def attach_terminal():
  fcntl.ioctl(slave,termios.TIOCSCTTY,0)
 args=[sys.argv[1]]
 if os.path.basename(sys.argv[1])=='codex':
- args+=['--no-daemon']
- config={'command':os.environ['WARP_AGENT_BIN'],'args':['mcp'],'env_vars':['WARP_AGENT_ENDPOINT','WARP_AGENT_CAPABILITY','WARP_TERMINAL_SESSION_UUID']}
- for key,value in config.items():
-  args+=['-c','mcp_servers.warp-lite-communication.'+key+'='+json.dumps(value)]
+ args+=json.loads(os.environ['WARP_READINESS_CODEX_OPTIONS'])
 child=subprocess.Popen(args,stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
 os.close(slave)
 recent=b''
@@ -477,6 +480,7 @@ finally:
         .env(CAPABILITY, capability)
         .env(TERMINAL, "native")
         .env("WARP_AGENT_BIN", &bridge)
+        .env("WARP_READINESS_CODEX_OPTIONS", &codex_options)
         .env_remove("WARP_AGENT_LAUNCH_PATH")
         .env("TERM", "xterm-256color")
         .stdin(Stdio::piped())

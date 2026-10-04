@@ -119,6 +119,45 @@ impl LaunchOptions {
         Self(options)
     }
 
+    /// Resolve Codex's explicit directory override without changing the terminal shell's cwd.
+    pub fn codex_working_directory(
+        &self,
+        args: &[String],
+        cwd: &std::path::Path,
+    ) -> std::path::PathBuf {
+        let mut directory = cwd.to_owned();
+        let mut args = args.iter().peekable();
+        while let Some(arg) = args.next() {
+            if arg == "--" {
+                break;
+            }
+            let (mut name, mut inline) = arg
+                .split_once('=')
+                .map_or((arg.as_str(), None), |(name, value)| (name, Some(value)));
+            if !self.0.contains_key(name) && name.starts_with("-C") && name.len() > 2 {
+                name = "-C";
+                inline = Some(&arg[2..]);
+            }
+            let value = match self.0.get(name) {
+                Some(Arity::Value | Arity::BlockedValue | Arity::Values | Arity::BlockedValues) => {
+                    inline.or_else(|| args.next().map(String::as_str))
+                }
+                _ => inline,
+            };
+            if matches!(name, "-C" | "--cd") {
+                if let Some(value) = value {
+                    directory = cwd.join(value);
+                }
+            }
+            if matches!(self.0.get(name), Some(Arity::Values | Arity::BlockedValues)) {
+                while args.peek().is_some_and(|arg| !arg.starts_with('-')) {
+                    args.next();
+                }
+            }
+        }
+        directory
+    }
+
     /// This never affects agent recognition: uncertain or task-bearing launches await lifecycle readiness.
     pub fn is_empty_interactive(&self, args: &[String]) -> bool {
         let mut args = args.iter().peekable();
@@ -183,6 +222,25 @@ impl LaunchOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn codex_directory_preserves_native_flag_arity() {
+        let options = LaunchOptions::from_help("codex", "  -m, --model <MODEL>  Model\n  -C, --cd <DIR>  Directory\n  -c, --config <KEY>  Config");
+        let root = std::env::temp_dir().join("project");
+        for (args, expected) in [
+            (vec!["--yolo"], root.clone()),
+            (vec!["--model", "--cd=other"], root.clone()),
+            (vec!["--", "--cd", "other"], root.clone()),
+            (
+                vec!["resume", "--last", "-C", "other project"],
+                root.join("other project"),
+            ),
+            (vec!["-Cfirst", "--cd=second"], root.join("second")),
+        ] {
+            let args = args.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            assert_eq!(options.codex_working_directory(&args, &root), expected);
+        }
+    }
 
     #[test]
     fn launch_options_preserve_configuration_and_reject_initial_work() {

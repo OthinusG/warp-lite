@@ -392,6 +392,20 @@ fn codex_launch_mode(
     (mode, initial_work)
 }
 
+/// Native runtime options bind one Codex process without modifying vendor configuration.
+pub fn codex_mcp_prefix(command: &Path, args: &[String], env_vars: &[&str]) -> Vec<String> {
+    let command = json!(command);
+    let args = json!(args);
+    let env_vars = json!(env_vars);
+    vec![
+        "--no-daemon".into(),
+        "-c".into(),
+        format!(
+        "mcp_servers.{SERVER}={{command={command},args={args},env_vars={env_vars},enabled=true}}"
+    ),
+    ]
+}
+
 /// Explicit remote launches execute the installed client with its documented MCP options.
 pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i32> {
     let executable = &binding.executable;
@@ -417,28 +431,20 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     if let Some(relay) = &relay {
         let config = relay.config(companion.as_ref().unwrap());
         let mut native = if name == "codex" {
-            ["command", "args"]
-                .into_iter()
-                .flat_map(|key| {
-                    [
-                        OsString::from("-c"),
-                        format!("mcp_servers.{SERVER}.{key}={}", config[key]).into(),
-                    ]
-                })
-                .chain([
-                    "-c".into(),
-                    format!("mcp_servers.{SERVER}.env_vars=[]").into(),
-                ])
-                .collect::<Vec<_>>()
+            codex_mcp_prefix(
+                companion.as_ref().unwrap(),
+                &["forward".into(), relay.endpoint.clone()],
+                &[],
+            )
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>()
         } else {
             vec![
                 "--mcp-config".into(),
                 json!({"mcpServers": {SERVER: config}}).to_string().into(),
             ]
         };
-        if name == "codex" && binding.options.0.contains_key("--no-daemon") {
-            native.insert(0, "--no-daemon".into());
-        }
         native.append(&mut args);
         args = native;
     }

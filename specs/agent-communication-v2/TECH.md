@@ -137,3 +137,27 @@ package-manager upgrade, two different project roots, two isolated simultaneous
 sessions, unchanged vendor configuration bytes and shell PATH, original provider
 and permissions, broker revocation, and model-level MCP calls. Old proxy probes
 are historical evidence only and cannot certify this replacement.
+
+
+### User correction: automatic invocation adaptation — 2026-10-05
+
+The user clarified that ordinary `codex`, `codex --yolo`, and `codex resume`
+inside Warpai must acquire session MCP automatically. This supersedes the earlier
+explicit-launch-only UI plan. Do not add a `codex with mcp` pseudo-command or a
+separate launch button. The noninterference constraints remain unchanged.
+
+Adapt the terminal command-execution event inside Warpai when communication and
+Codex participation are enabled. Probe the current native CLI outside the UI
+thread, then inject only official `--no-daemon` and `-c` MCP options. Preserve
+the original argument tail, shell expansion, cwd, provider and permission flags.
+Administrative/batch/explicit-remote commands and unsupported syntax retain
+native behavior. Avoid altering an alias, function, or abbreviation owned by the
+user. Disabling communication while a probe is running prevents injection.
+Fence the callback against pane/session/directory replacement and prevent duplicate
+pending launches. Errors must be visible and must never fall back to a proxy.
+
+Acceptance: plain, yolo, resume/fork, quoted arguments, native session cwd,
+package-manager updates, malformed/compound commands, administrative bypass,
+disabled participation, delayed-probe cancellation, and two independent native
+Codex MCP sessions. Verify both native shell argument contracts on desktop OSes.
+No vendor configuration file, shell profile, command alias or PATH is written.
