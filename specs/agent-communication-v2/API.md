@@ -50,3 +50,12 @@ absent when no active run is observed. Offline cached rows are explicitly stale.
 [vendor-arguments...]` joins the same private service, forwards native terminal IO
 and tracks resize. The companion supports mcp and the existing forward relay.
 System SSH and vendor authentication remain user-managed on the remote account.
+
+## Owned local Codex bridge invocation
+
+`warpai-agent mcp --native-directory` captures its OS working directory and
+supplies it through the existing authenticated request directory field before
+MCP discovery. The flag takes no user-supplied path and does not change cwd.
+The Codex per-invocation server uses this mode; other native adapters retain
+`mcp`. Initial local scope follows the verified native directory, while already
+registered or explicitly bound workspace identities cannot change scope.

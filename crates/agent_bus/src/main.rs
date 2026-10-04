@@ -5,7 +5,14 @@ use warp_agent_bus::mcp::{Bridge, INSTRUCTIONS};
 #[tokio::main]
 async fn main() -> Result<()> {
     match std::env::args().nth(1).as_deref() {
-        Some("mcp") => { Bridge::from_env()?.serve(warp_agent_bus::mcp::legacy_transport(rmcp::transport::stdio()).await?).await?.waiting().await?; }
+        Some("mcp") => {
+            let bridge = Bridge::from_env()?;
+            let bridge = if std::env::args().nth(2).as_deref() == Some("--native-directory") {
+                let directory = std::env::current_dir()?;
+                bridge.with_native_directory(directory.to_str().ok_or_else(|| anyhow::anyhow!("Native workspace must be UTF-8"))?.to_owned())
+            } else { bridge };
+            bridge.serve(warp_agent_bus::mcp::legacy_transport(rmcp::transport::stdio()).await?).await?.waiting().await?;
+        }
         Some("remote-stdio") => {
             warp_agent_bus::transport::retired_remote_stdio().await?;
         }

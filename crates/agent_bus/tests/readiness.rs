@@ -42,6 +42,78 @@ fn programs() -> Vec<&'static str> {
 }
 
 #[tokio::test]
+async fn native_codex_bridge_uses_its_actual_workspace() {
+    let temporary = tempfile::tempdir().unwrap();
+    let roots = [
+        temporary.path().join("terminal project"),
+        temporary.path().join("native project"),
+    ];
+    let server = RunningBroker::start(Path::new(":memory:")).unwrap();
+    let mut observers = Vec::new();
+    for (index, root) in roots.iter().enumerate() {
+        std::fs::create_dir(root).unwrap();
+        let terminal = format!("observer-{index}");
+        let capability = server.broker.prepare(&terminal).unwrap();
+        server
+            .broker
+            .activate(
+                &terminal,
+                "codex",
+                &warp_agent_bus::project_root(root).unwrap(),
+                true,
+            )
+            .unwrap();
+        let mut request = Request {
+            protocol_major: transport::PROTOCOL_MAJOR,
+            terminal: terminal.clone(),
+            capability,
+            run: None,
+            defer_initial_ready: false,
+            native_activity: None,
+            directory: None,
+            operation: Operation::AgentRegister { name: terminal },
+        };
+        request.run = call(&server, &request).await["run"]
+            .as_str()
+            .map(str::to_owned);
+        request.operation = Operation::AgentList;
+        observers.push(request);
+    }
+    let capability = server.broker.prepare("native").unwrap();
+    server
+        .broker
+        .activate(
+            "native",
+            "codex",
+            &warp_agent_bus::project_root(&roots[0]).unwrap(),
+            true,
+        )
+        .unwrap();
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
+    command
+        .args(["mcp", "--native-directory"])
+        .current_dir(&roots[1])
+        .env(ENDPOINT, &server.broker.endpoint)
+        .env(CAPABILITY, capability)
+        .env(TERMINAL, "native");
+    let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+    client.list_tools(None).await.unwrap();
+    assert!(!call(&server, &observers[0])
+        .await
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|peer| peer["terminal"] == "native"));
+    assert!(call(&server, &observers[1])
+        .await
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|peer| peer["terminal"] == "native"));
+    client.cancel().await.unwrap();
+}
+
+#[tokio::test]
 async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() {
     let server = RunningBroker::start(Path::new(":memory:")).unwrap();
     let capability = server.broker.prepare("observer").unwrap();
@@ -410,7 +482,7 @@ fn native_clients_complete_two_turns() {
     observer.operation = Operation::AgentList;
     let codex_options = serde_json::to_string(&warp_agent_bus::session::codex_mcp_prefix(
         &bridge,
-        &["mcp".into()],
+        &["mcp".into(), "--native-directory".into()],
         &[ENDPOINT, CAPABILITY, TERMINAL],
     ))
     .unwrap();

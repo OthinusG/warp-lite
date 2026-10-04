@@ -106,7 +106,8 @@ impl Bridge {
     pub(crate) fn native_activity(&self, ready: bool) -> Result<()> {
         self.native_status(if ready { crate::readiness::Activity::Idle } else { crate::readiness::Activity::Working })
     }
-    pub(crate) fn with_native_directory(&self, directory: String) -> Self {
+    /// Bind the native MCP child's workspace before discovery; later scope changes are rejected.
+    pub fn with_native_directory(&self, directory: String) -> Self {
         let mut bridge = self.clone();
         bridge.directory = Arc::new(Mutex::new(Some(directory)));
         bridge

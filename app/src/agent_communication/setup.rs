@@ -246,7 +246,7 @@ pub fn codex_session_options(
 pub fn codex_session_prefix(bridge: &Path) -> Vec<String> {
     warp_agent_bus::session::codex_mcp_prefix(
         bridge,
-        &["mcp".into()],
+        &["mcp".into(), "--native-directory".into()],
         &[
             "WARP_AGENT_ENDPOINT",
             "WARP_AGENT_CAPABILITY",
@@ -1059,6 +1059,7 @@ mod tests {
         let server = &config["mcp_servers"][SERVER];
         assert_eq!(server["command"].as_str(), bridge.to_str());
         assert_eq!(server["args"][0].as_str(), Some("mcp"));
+        assert_eq!(server["args"][1].as_str(), Some("--native-directory"));
         assert_eq!(server["enabled"].as_bool(), Some(true));
         assert_eq!(server["env_vars"].as_array().unwrap().len(), 3);
         assert!(server.get("env").is_none());

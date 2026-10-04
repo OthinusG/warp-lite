@@ -128,3 +128,12 @@ Windows argument handling follows the native
 Windows PowerShell/older pwsh use legacy quoting; current pwsh respects its
 native argument mode, including the Windows-mode .cmd/.bat exception. Generated
 configuration values remain data and original command tails retain expansion.
+
+Codex's invocation-scoped stdio server receives `mcp --native-directory` on the
+owned Warpai bridge. Capture the MCP child's actual working directory before
+discovery through the existing private directory field. This makes native --cd
+and shell-expanded paths authoritative, without copying configuration or
+altering the user's shell directory. Preserve existing adapter behavior for
+other vendors. Registered identities cannot move to another project; immutable
+shared workspace bindings remain immutable. Verify with a real stdio child
+whose cwd differs from its original terminal's scope and rerun native acceptance.
