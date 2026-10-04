@@ -531,8 +531,8 @@ finally:
         }
         if terminals.len() == 2 {
             assert_ne!(
-                status(terminals[0]).unwrap()["run"],
-                status(terminals[1]).unwrap()["run"]
+                status(terminals[0]).unwrap()["id"],
+                status(terminals[1]).unwrap()["id"]
             );
         }
         for (terminal, child, diagnostic) in &mut children {
