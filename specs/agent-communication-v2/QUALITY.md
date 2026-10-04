@@ -103,5 +103,19 @@ compilation/testing ran only on GitHub. The optional long-soak jobs were not
 requested in this quality gate. Documentation-only integration commits preserve
 all executable source and build inputs from the tested source above.
 
-Status: final functional and native UI acceptance passed; desktop artifact
-inspection and default-branch integration follow this immutable-source gate.
+Integration: `903a26e` fast-forwarded `warp-lite/main`. The remote now contains
+only that branch. Deleted 59 obsolete remote branches and four local branches
+after verifying a full-history bundle and exact-tip ref audit at
+`/Users/wqin/.codex/backups/warp-lite/20261004/`. Release tags and the local
+CodeGraph index remain. No other unmerged work or active PR heads existed.
+
+Both final desktop packages were downloaded from the immutable desktop run.
+The macOS bundle contains ARM64 application and Agent bridge, preserved bundle
+identifier, signature files and AGPL notice. The Windows artifact ZIP passed CRC;
+the portable package and installer contain valid executable headers, and the
+application/bridge/ConPTY/OpenConsole binaries are x86_64. Required runtime DLLs,
+bootstrap and resources are present. These are package-structure checks, not
+installation on physical desktops.
+
+Status: replacement, cleanup, final functional/native UI acceptance, artifact
+inspection and default-branch/branch cleanup complete.

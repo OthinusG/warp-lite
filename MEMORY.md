@@ -36,6 +36,19 @@
   `/Users/wqin/.codex/backups/warp-lite/20261004/`; tags are retained.
   Only included tips and exact retired SSH cutover b149e30 may be deleted;
   preserve unrelated unmerged work and active PR heads.
+- Integration at `903a26e` fast-forwarded `warp-lite/main`. Deleted 59 obsolete
+  remote branches and four local branches after verifying the full-history
+  `branches-before-cleanup-903a26e82cf9.bundle` and `branch-audit.json` in the
+  backup directory above. Only the default branch remains; release tags remain.
+  Adding remote.origin.url with git -c appends a URL rather than replacing it;
+  use an explicit destination URL for a single push target. An atomic deletion
+  succeeded at the first URL and a duplicate attempt returned stale tips.
+  Both Git and the GitHub branch API confirmed the deletion result.
+- Exact-source final artifacts were checked: all three companion digests/licenses;
+  155 native PNGs per desktop with source-matched successful diagnostics; ARM64
+  macOS application/bridge and bundle notices; Windows artifact CRC, x86_64
+  application/bridge/ConPTY/OpenConsole, portable runtime files and installer
+  header. Paid vendor sessions and physical-host installation are not claimed.
 
 ## Product Boundary
 
