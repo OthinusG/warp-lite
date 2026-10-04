@@ -871,3 +871,8 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   check_app gate with protocol_only=true to verify desktop builds without making
   installers. Remove inherited hosted-model Codex promotion UI, not third-party
   CLI management. Superseded explicit-only launch text is no longer current.
+
+- Main-branch pushes verify desktop and protocol code without producing installers.
+  Packaging remains an explicit workflow_dispatch operation; icon and release
+  work is deferred. Windows PowerShell always uses legacy native quote handling
+  even if a variable named PSNativeCommandArgumentPassing is defined.

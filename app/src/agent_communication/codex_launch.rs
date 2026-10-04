@@ -13,7 +13,7 @@ fn session_prefix_for_shell(prefix: &[String], shell: ShellType) -> String {
         if shell == ShellType::PowerShell && arg.contains('"') {
             // Windows PowerShell and pwsh Legacy mode drop native embedded quotes.
             let legacy = shell_quote_arg(&arg.replace('"', "\\\""), shell);
-            format!("$(if ($PSNativeCommandArgumentPassing -eq 'Legacy' -or !(Test-Path variable:PSNativeCommandArgumentPassing) -or ($PSNativeCommandArgumentPassing -eq 'Windows' -and (Get-Command codex).Source -match '\\.(cmd|bat)$')) {{ {legacy} }} else {{ {literal} }})")
+            format!("$(if ($PSVersionTable.PSVersion.Major -lt 7 -or $PSNativeCommandArgumentPassing -eq 'Legacy' -or !(Test-Path variable:PSNativeCommandArgumentPassing) -or ($PSNativeCommandArgumentPassing -eq 'Windows' -and (Get-Command codex).Source -match '\\.(cmd|bat)$')) {{ {legacy} }} else {{ {literal} }})")
         } else {
             literal
         }

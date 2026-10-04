@@ -63,7 +63,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Prepare Windows application build
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.protocol_only) || inputs.capture_ui }}
         shell: pwsh
         run: |
           choco install innosetup -y
@@ -137,14 +137,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Prepare Windows packaging dependencies
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.protocol_only }}
         run: bash script/install_cargo_release_deps
       - name: Build and package Windows review artifacts
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.protocol_only }}
         shell: pwsh
         run: script/build-warpai-windows.ps1 -ReleaseTag "0.5.7-review"
       - name: Upload Windows review artifacts
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.protocol_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-agent-communication-windows
@@ -225,14 +225,14 @@ jobs:
           cargo test -p warpai --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
           cargo test -p warpai --lib test_detect_qoder --locked
       - name: Build isolated native UI review artifact
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.protocol_only) || inputs.capture_ui }}
         run: |
           cargo build -p warpai --bin warpai --features release_bundle --locked
           script/build-warpai-app.sh --debug
           codesign --verify --deep --strict WarpaiReview.app
           ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
       - name: Upload isolated native UI review artifact
-        if: ${{ !inputs.protocol_only || inputs.capture_ui }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.protocol_only) || inputs.capture_ui }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-collaboration-UI-review-macos
@@ -274,7 +274,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Build and package review artifacts
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.protocol_only }}
         run: |
           cargo build --release --bin warpai --locked
           cargo build --release -p warp-agent-bus --bin warpai-agent --locked
@@ -284,7 +284,7 @@ jobs:
           codesign --verify --deep --strict Warpai.app
           ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ !inputs.protocol_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.protocol_only }}
         with:
           name: Warpai-agent-communication-macos
           path: Warpai.app.zip
