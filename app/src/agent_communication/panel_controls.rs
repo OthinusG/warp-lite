@@ -734,7 +734,17 @@ impl CollaborationPanel {
                     .iter()
                     .find(|reservation| reservation.id == id.trim())
                 {
-                    body.add_child(builder.span(format!("Original checkout {} · path {} · owner {} · expiry {} · attempt {}", reservation.workspace, reservation.path, reservation.owner, reservation.expires_at, reservation.attempt_id.as_deref().unwrap_or("unlinked"))).with_soft_wrap().build().finish());
+                    body.add_child(note(
+                        appearance,
+                        format!(
+                            "Original checkout {} · path {} · owner {} · expiry {} · attempt {}",
+                            reservation.workspace,
+                            reservation.path,
+                            reservation.owner,
+                            reservation.expires_at,
+                            reservation.attempt_id.as_deref().unwrap_or("unlinked")
+                        ),
+                    ));
                 }
             }
             if form.kind == Kind::Purge {
@@ -743,15 +753,10 @@ impl CollaborationPanel {
                 }
             }
             if form.kind == Kind::Archive {
-                body.add_child(
-                    builder
-                        .span(
-                            "Archive this terminal task while retaining its evidence and history.",
-                        )
-                        .with_soft_wrap()
-                        .build()
-                        .finish(),
-                );
+                body.add_child(note(
+                    appearance,
+                    "Archive this terminal task while retaining its evidence and history.",
+                ));
             }
             if form.kind == Kind::MapWorkspace {
                 body.add_child(builder.span("This mapping applies only to new explicitly joined panes. Changing a checkout's space revokes its earlier shared admissions. Existing private work remains private; matching Git remotes never joins projects.").with_soft_wrap().build().finish());

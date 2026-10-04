@@ -726,7 +726,7 @@ SQL, YAML and whitespace checks passed; GitHub Rust checks remain pending.
 R1–R7 and R0's independently source-built server gate are still unimplemented.
 
 
-R0 follow-up source `a9caea0`, [run 37040051387](https://github.com/OthinusG/warp-lite/actions/runs/37040051387):
+R0 follow-up source `a9caea0`, [run 37040051387](https://github.com/OthinusG/warpai/actions/runs/37040051387):
 macOS and Windows protocol/setup and representative-history checks passed,
 including unchanged local active attempts, retained original receipts and legacy
 profile selection. Both default application checks failed with E0616 because the settings view
@@ -738,7 +738,7 @@ SSH Remote and SR41 host-status collection/rendering remain unimplemented; their
 contracts and static/live acceptance requirements are recorded in HOST-STATUS.md.
 
 
-R0 repair source `d71d8b1`, [run 37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672):
+R0 repair source `d71d8b1`, [run 37041826672](https://github.com/OthinusG/warpai/actions/runs/37041826672):
 macOS and Windows protocol/setup, representative history, default application and
 warp_platform application checks passed. Both OS legacy metadata/credential
 cleanup tests and macOS native configuration, wake and Keychain error-classifier
@@ -750,7 +750,7 @@ implementation paths match this source; its current branch/index was preserved.
 
 ## Managed read and SFTP source checkpoint — 2026-10-03
 
-Source `fc8964c`, [run 37090383877](https://github.com/OthinusG/warp-lite/actions/runs/37090383877),
+Source `fc8964c`, [run 37090383877](https://github.com/OthinusG/warpai/actions/runs/37090383877),
 passed shared protobuf, native host metrics/root fencing, standalone process,
 SSH argument/shell encoding and SFTP parser checks on Linux/macOS/Windows.
 A controlled Linux loopback OpenSSH account exercised actual companion status
@@ -771,7 +771,7 @@ stay open; no paid vendor/physical-host acceptance is inferred.
 ### R0.6 accepted: legacy storage cutover
 
 Rechecked source `d71d8b1` and successful GitHub run
-[37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672).
+[37041826672](https://github.com/OthinusG/warpai/actions/runs/37041826672).
 The current `storage.rs` is byte-identical to that accepted source. Both desktop
 OS suites verified v6 backup, retained original intents/receipts/history, revoked
 legacy device authority, unknown unfinished remote execution and unchanged local
@@ -795,7 +795,7 @@ No R2/R4/GUI/vendor gate is checked by this implementation checkpoint.
 
 ### Retained terminal backend accepted — source 064f5cb
 
-[Run 37104521972](https://github.com/OthinusG/warp-lite/actions/runs/37104521972)
+[Run 37104521972](https://github.com/OthinusG/warpai/actions/runs/37104521972)
 passed Linux/macOS/Windows wire, native PTY, real companion disconnect/reconnect,
 immutable launch replay, replaced input lease, sequential input, bounded replay,
 project isolation and owned Stop/observed-exit/release checks. Controlled Linux
@@ -843,7 +843,7 @@ recipient remains. The background child now reports readiness before its parent
 exits, ignores Unix hangup itself, and the check inspects the actual child's
 process status before/after Stop rather than inferring death from a PTY pipe.
 It also observes Windows owned-job exit until console EOF. Exact-source run
-[37105738779](https://github.com/OthinusG/warp-lite/actions/runs/37105738779) is pending.
+[37105738779](https://github.com/OthinusG/warpai/actions/runs/37105738779) is pending.
 Apple's [group signal implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c)
 filters zombies; its [native process listing](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c)
 includes current and zombie processes. These native semantics are not replaced
@@ -867,7 +867,7 @@ storage or cross-host grouping. PLAN R0.3 is checked independently of those gate
 ### R4.3 accepted: retained run and attachment ownership
 
 Source `3a37ed2904b849c8ca93479a5d9ecb2b925b789b`,
-[run 37105738779](https://github.com/OthinusG/warp-lite/actions/runs/37105738779),
+[run 37105738779](https://github.com/OthinusG/warpai/actions/runs/37105738779),
 passed all three remote platforms and controlled Linux SSH/SFTP. Independent
 session/run/connection/generation IDs gate actual queued input, resize, attach,
 detach, stop and release. Replacement rejects former input/resize/stop; changed
@@ -907,7 +907,7 @@ wire/store source; it cannot establish compilation of source4420e78.
 ### Remote project task backend accepted — source 550753b
 
 Source `550753b33a090b0d0531395f9ced8c8beeebb2fb`,
-[run 37107398041](https://github.com/OthinusG/warp-lite/actions/runs/37107398041),
+[run 37107398041](https://github.com/OthinusG/warpai/actions/runs/37107398041),
 passed all three remote platform suites and controlled Linux SSH/SFTP. Private
 project Store reopening retains tasks/events; same-project connections reconcile
 the original immutable intent, changed content conflicts, other/replaced project
@@ -941,7 +941,7 @@ These changes still need exact-source remote verification; no R2.8 gate is close
 ### R0.4 accepted: native enrollment worker removal
 
 Rechecked the current worker/settings/configuration boundary against source
-`d71d8b1` and [run 37041826672](https://github.com/OthinusG/warp-lite/actions/runs/37041826672).
+`d71d8b1` and [run 37041826672](https://github.com/OthinusG/warpai/actions/runs/37041826672).
 agent_communication.rs, settings_view/agent_communication.rs, setup.rs and
 legacy_remote_credentials.rs are byte-identical to that accepted source.
 The enrollment module, receiver/cancel/status fields, poll and enrollment-only
@@ -954,7 +954,7 @@ are separate pending tasks.
 
 ### Owned process activity and concurrent attachment acceptance — source 65e1b86
 
-[Run 37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158)
+[Run 37110078158](https://github.com/OthinusG/warpai/actions/runs/37110078158)
 passed Linux/macOS/Windows protocol/native/service tests and controlled Linux
 SSH/SFTP. Source `65e1b8671ec860007a5c76d868d442c46c76cec4` proves leader exit and
 PTY EOF cannot authorize release while owned background processes survive;
@@ -988,7 +988,7 @@ pending. No R2.6, vendor adapter, automatic wake or live GUI gate is accepted ye
 ### R2.5 accepted: single account/project service authority
 
 Source `65e1b8671ec860007a5c76d868d442c46c76cec4`,
-[run 37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158),
+[run 37110078158](https://github.com/OthinusG/warpai/actions/runs/37110078158),
 passed all three remote native targets and controlled Linux OpenSSH. Concurrent
 SSH attachments share service/boot/native account/project/root identities and
 project task projections while receiving distinct connection UUIDs. A native

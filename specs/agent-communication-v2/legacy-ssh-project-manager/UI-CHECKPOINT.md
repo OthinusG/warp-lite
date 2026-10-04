@@ -128,7 +128,7 @@ required before live panel integration.
 
 ## Accepted static gate — 2026-10-02
 
-Source `3d66017`, [run 36970541930](https://github.com/OthinusG/warp-lite/actions/runs/36970541930),
+Source `3d66017`, [run 36970541930](https://github.com/OthinusG/warpai/actions/runs/36970541930),
 passed both native capture jobs: 74 PNGs per OS and keyboard/focus/draft assertions.
 All 72 Windows combinations were visually reviewed at native dimensions through
 diagnostic contact sheets; full-resolution detail-end and restored-detail images

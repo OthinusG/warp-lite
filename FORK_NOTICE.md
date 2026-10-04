@@ -1,6 +1,6 @@
-# Fork Notice — warp-lite
+# Fork Notice — Warpai
 
-**warp-lite** is a derivative work of [warpdotdev/warp](https://github.com/warpdotdev/warp), the open-source Warp Terminal released by Denver Technologies, Inc. in 2026.
+**Warpai** derives from [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite) and [warpdotdev/warp](https://github.com/warpdotdev/warp), the open-source Warp Terminal released by Denver Technologies, Inc. in 2026.
 
 ## Provenance
 
@@ -13,19 +13,13 @@ This fork is published under AGPL-3.0-only as required by the upstream license. 
 
 ## What was removed
 
-This fork strips subsystems that the maintainers of warp-lite consider unnecessary for a privacy-respecting local terminal. Removed in early phases:
+Warpai excludes bundled cloud AI, cloud accounts, billing and telemetry product surfaces. The terminal, editor, third-party CLI agent management, native MCP configuration and local/SSH project collaboration remain supported. Shared source needed by these features and stored-data compatibility is retained. The [cleanup record](specs/DEEP-CLEANUP.md) distinguishes source deletion from disabled product surfaces.
 
-- **AI subsystem** — `crates/ai`, `crates/computer_use`, agent mode UI, MCP integration, ambient agents, AI completions
-- **Warp Cloud** — `crates/firebase`, `crates/graphql`, `crates/warp_server_client`, `crates/websocket`, Warp Drive, session sharing, account login
-- **Onboarding wizard** — `crates/onboarding`, first-launch agent setup
-- **Telemetry & crash reporting** — Rudderstack call sites, Sentry crash uploads
-- **Niche side features** — voice input, install detection HTTP route, sleep prevention guard, Warp's custom plugin host
-
-Editor (Zed-fork), LSP, language tree-sitter integrations, Vim mode, and the terminal core (block model, GPU rendering, shell integration) are kept. See [the implementation plan](https://github.com/terzigolu/warp-lite/commits/warp-lite/main) for commit-by-commit removal history.
+The inherited fork's [commit history](https://github.com/terzigolu/warp-lite/commits/warp-lite/main) records earlier removal phases. Those historical changes do not describe every feature or source dependency of current Warpai.
 
 ## Independent maintenance
 
-Warpai is independently maintained on `warp-lite/main`, with development changes on feature branches. Automatic upstream synchronization and patch replay were retired on 2026-10-01; source, tests and release packaging are maintained directly. Historical commits and branches preserve provenance. Independent maintenance does not change the inherited copyright, licensing or derivative-work obligations, and does not by itself change GitHub's fork-network metadata.
+Warpai is independently maintained on `main`, with development changes on feature branches. Automatic upstream synchronization and patch replay were retired on 2026-10-01; source, tests and release packaging are maintained directly. Git history preserves provenance. Independent maintenance does not change the inherited copyright, licensing or derivative-work obligations, and does not by itself change GitHub's fork-network metadata.
 
 ## AGPL §13 disclosure
 
@@ -33,6 +27,6 @@ If this fork is offered over a network (e.g., remote pair-programming, hosted sh
 
 ## Trademarks
 
-"Warp" is a trademark of Denver Technologies, Inc. This fork uses the Warp source code under AGPL but **does not** claim affiliation, endorsement, or sponsorship by Denver Technologies. The fork is named *warp-lite* to signal the derivative relationship while making the lightweight intent explicit.
+"Warp" is a trademark of Denver Technologies, Inc. Warpai uses the Warp source code under AGPL but **does not** claim affiliation, endorsement, or sponsorship by Denver Technologies. The independently maintained product is named *Warpai*; historical upstream names remain in attribution and compatibility records.
 
 If the upstream rights-holders ask for a name change, we will rename promptly.

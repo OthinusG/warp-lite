@@ -15,7 +15,7 @@ No independent dashboard, resource metrics, file actions or session manager.
 
 ## Live gate accepted
 
-Source4fcb0c3/[run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300)
+Source4fcb0c3/[run37138929300](https://github.com/OthinusG/warpai/actions/runs/37138929300)
 passed real private companion/native MCP child action assertions on macOS and
 Windows. Both source-matched diagnostics report exit_code0 and no failed steps;
 each native artifact contains 155 nonempty PNGs. Reviewed all eight live SSH

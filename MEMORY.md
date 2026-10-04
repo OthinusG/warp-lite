@@ -797,3 +797,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   avoid unintended migration. Both native CI captures now reject creation of an
   ordinary-home migration marker. The e9a02ca desktop gate is superseded by this
   correction; its remote acceptance remains valid historical evidence only.
+
+- User corrected delivery ordering: finish UI before screenshots and installation
+  package builds. Cancel interim desktop run 37205655815; its completed checks
+  are partial evidence, not final acceptance. Final UI uses existing secondary
+  notes for archive/reservation metadata and native settings surface_1 status
+  colors, preserving warning overrides and interaction guards. Finish all source
+  changes before dispatching the single combined-source final gate.

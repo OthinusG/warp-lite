@@ -15,7 +15,7 @@ See PRODUCT.md for behavior. `CLIAgentSessionsModel` emits terminal start/end ev
 
 ## Proposed changes
 
-- Add `warp-agent-bus`, a small workspace crate using existing serde, UUID, SQLite/Diesel, Tokio, and the pinned rmcp dependencies. It contains the state machine, durable store, local socket transport, stdio MCP bridge, and companion `warp-agent` executable.
+- Add `warp-agent-bus`, a small workspace crate using existing serde, UUID, SQLite/Diesel, Tokio, and the pinned rmcp dependencies. It contains the state machine, durable store, local socket transport, stdio MCP bridge, and bridge `warpai-agent` executable.
 - A Warp singleton starts a broker after CLI session tracking is registered. Pane creation receives a random per-terminal capability and the broker endpoint. Session start binds the capability to the actual CLI type, project directory, and a fresh run ID. Session end invalidates that run and wakes its waiting requests.
 - A bridge cannot create a terminal binding itself. First registration returns the live run ID; subsequent operations require the same run. Tokens stay in memory/environment and never enter the database or MCP config.
 - Resolve project identity from the canonical terminal working directory's nearest `.git` ancestor; without a repository, use the canonical working directory. Worktrees remain separate project scopes in this release.

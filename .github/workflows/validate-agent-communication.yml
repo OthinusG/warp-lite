@@ -191,7 +191,7 @@ jobs:
           path: acceptance/readiness-*
           if-no-files-found: error
           retention-days: 7
-      - name: Check default Lite application
+      - name: Check default Warpai application
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
         run: |
           cargo test -p remote_server --locked

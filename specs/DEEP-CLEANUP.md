@@ -137,11 +137,11 @@ settings-schema command construction.
 
 Executable/build source: `02d08d484dd7ece33f528383230801d78c1355f5`.
 
-- [Remote acceptance run 37194454441](https://github.com/OthinusG/warp-lite/actions/runs/37194454441)
+- [Remote acceptance run 37194454441](https://github.com/OthinusG/warpai/actions/runs/37194454441)
   passed on Linux/macOS/Windows, including strict Clippy, protocol/persistence,
   owned native PTYs and controlled Linux OpenSSH two-agent messaging/tasks.
   Downloaded companion manifests, capabilities, checksums and notices match.
-- [Desktop acceptance run 37194453713](https://github.com/OthinusG/warp-lite/actions/runs/37194453713)
+- [Desktop acceptance run 37194453713](https://github.com/OthinusG/warpai/actions/runs/37194453713)
   passed macOS/Windows default and `warp_platform` checks, focused application
   regressions, native setup/actions and all 161 captures per OS. Release
   packaging and package inspection are pending.

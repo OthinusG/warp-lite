@@ -102,12 +102,12 @@ and included in the final combined-source GitHub gate.
 
 ## Final delivery sequence
 
-The user reaffirmed on 2026-10-04 that the identity/cleanup functional gate must
-pass before the final UI repair and delivery. After that gate, inspect the native
-static/live captures against `agent-communication-v2/UI-CONSISTENCY.md`, preserve
-the completed user styling, repair remaining visual mismatches and run the
-source-matched native desktop gate again if executable UI changes are needed.
-Only accepted final UI/source may be integrated and delivered.
+The user's latest correction is authoritative: finish all identity, cleanup and
+UI repairs before native screenshots and release packaging. Cancel the superseded
+desktop run rather than build packages from interim UI. Run one complete desktop
+and remote gate for the final combined source, inspect captures/packages, then
+integrate the default branch, rename the repository and remove the merged task
+branch. Preserve the completed user styling throughout.
 
 Native migration must run only from `run_internal()`: the capture driver finishes
 its temporary-home/profile setup while building the driver. An earlier `run()`

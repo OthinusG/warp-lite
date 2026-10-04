@@ -7,11 +7,11 @@ are accepted. Earlier project-manager/M0–M7/R0–R7 chronology is
 | Item | State | Accepted evidence |
 | --- | --- | --- |
 | S0 Redundant implementation removal | Accepted | source70a5e1d/run37123392723 and source06aa074/run37122711581 |
-| S1 Remote private authority | Accepted | source65e1b86/[run37110078158](https://github.com/OthinusG/warp-lite/actions/runs/37110078158) |
-| S2 Fresh per-run private MCP | Accepted | source9a8e692/[run37110965089](https://github.com/OthinusG/warp-lite/actions/runs/37110965089) |
+| S1 Remote private authority | Accepted | source65e1b86/[run37110078158](https://github.com/OthinusG/warpai/actions/runs/37110078158) |
+| S2 Fresh per-run private MCP | Accepted | source9a8e692/[run37110965089](https://github.com/OthinusG/warpai/actions/runs/37110965089) |
 | S3 SSH terminal communication | Accepted | source06aa074/run37122708969 |
-| S4 Existing panel and concise status | Accepted | source4fcb0c3/[desktop run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300) |
-| S5 Final regression and delivery | Accepted | source4fcb0c3/[remote run37138932460](https://github.com/OthinusG/warp-lite/actions/runs/37138932460) and [desktop run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300) |
+| S4 Existing panel and concise status | Accepted | source4fcb0c3/[desktop run37138929300](https://github.com/OthinusG/warpai/actions/runs/37138929300) |
+| S5 Final regression and delivery | Accepted | source4fcb0c3/[remote run37138932460](https://github.com/OthinusG/warpai/actions/runs/37138932460) and [desktop run37138929300](https://github.com/OthinusG/warpai/actions/runs/37138929300) |
 
 Final Companion artifacts for Linux x64, macOS arm64 and Windows x64 match
 source4fcb0c3 and their SHA256SUMS, with version/capabilities and license notices.
@@ -86,7 +86,7 @@ protocol/capture checks (37122711581); no new acceptance mark until completion.
 
 ### S3 accepted — SSH terminal Agent communication
 
-Exact source `06aa074b04c4f87687878c0ea82814789f2bd0a8`, [run 37122708969](https://github.com/OthinusG/warp-lite/actions/runs/37122708969), passed Linux/macOS/Windows focused checks and controlled Linux OpenSSH.
+Exact source `06aa074b04c4f87687878c0ea82814789f2bd0a8`, [run 37122708969](https://github.com/OthinusG/warpai/actions/runs/37122708969), passed Linux/macOS/Windows focused checks and controlled Linux OpenSSH.
 The explicit companion Agent CLI performs real terminal IO. Two native fixture
 processes each initialize/discover the existing MCP SDK and use fresh run bindings
 to send/read a message, assign/start/submit/review a task; another remote root
@@ -104,9 +104,9 @@ IDs/display-name/persistence scaffolding. Exact-source follow-up is pending.
 ### S0 accepted — redundant implementation removed
 
 Backend source `70a5e1d64d17b0c449814bc5a56b1ba6d051d255`,
-[run 37123392723](https://github.com/OthinusG/warp-lite/actions/runs/37123392723), passed Linux/macOS/Windows focused and controlled OpenSSH checks.
+[run 37123392723](https://github.com/OthinusG/warpai/actions/runs/37123392723), passed Linux/macOS/Windows focused and controlled OpenSSH checks.
 Desktop cleanup source `06aa074b04c4f87687878c0ea82814789f2bd0a8`,
-[run 37122711581](https://github.com/OthinusG/warp-lite/actions/runs/37122711581), passed both native desktop builds, protocol/local regressions and captures.
+[run 37122711581](https://github.com/OthinusG/warpai/actions/runs/37122711581), passed both native desktop builds, protocol/local regressions and captures.
 Removed SFTP manager, independent Connections UI/profile persistence, resource
 metrics, retired device runtime and retained-session controls. Original local
 communication, Store migrations and upstream terminal/file behavior remain.
@@ -118,8 +118,8 @@ changes still require their exact-source final regression; no S4 completion clai
 ### S4 existing native panel integration — validation running
 
 Source `3145ce496caa741ed595c96831839a49cbfed806`,
-[remote run 37128408681](https://github.com/OthinusG/warp-lite/actions/runs/37128408681), passed all three remote targets, controlled Linux SSH and local regressions.
-[desktop run 37128408745](https://github.com/OthinusG/warp-lite/actions/runs/37128408745) is checking default/platform builds, native form logic, packages and actual companion-driven panel captures.
+[remote run 37128408681](https://github.com/OthinusG/warpai/actions/runs/37128408681), passed all three remote targets, controlled Linux SSH and local regressions.
+[desktop run 37128408745](https://github.com/OthinusG/warpai/actions/runs/37128408745) is checking default/platform builds, native form logic, packages and actual companion-driven panel captures.
 Panel-only SSH selection, remote typed reads/mutations, explicit human messaging,
 stale/offline write guards and draft-preserving reconnect are implemented. Original
 request content/version/identity are retained; no automatic mutation retry.
@@ -136,8 +136,8 @@ that obstruction; remote Send/Connect forms also omit unrelated navigation/task
 context. The projection assertion now allows 45 seconds for startup and polling.
 
 Exact source `de2a72e6321d6c002b60872db0c30123370f9ff0` is being checked in
-[desktop run 37134464890](https://github.com/OthinusG/warp-lite/actions/runs/37134464890)
-and [remote run 37134467333](https://github.com/OthinusG/warp-lite/actions/runs/37134467333).
+[desktop run 37134464890](https://github.com/OthinusG/warpai/actions/runs/37134464890)
+and [remote run 37134467333](https://github.com/OthinusG/warpai/actions/runs/37134467333).
 Default/platform builds, native actions/screenshots and release packaging must
 complete before S4/S5 are checked. Earlier source82e20c8 passed both desktop
 default/platform checks and focused application tests, but its older native
@@ -154,7 +154,7 @@ Desktop run37134464890 passed default/platform checks and focused application
 tests on both desktop targets. Windows native capture now passed the real remote
 Agent projection, then failed "remote Store confirms the human message". Source
 `aaf731a60bebb4fd97110cf554073865bdec76fe`,
-[native diagnostic run37136879691](https://github.com/OthinusG/warp-lite/actions/runs/37136879691),
+[native diagnostic run37136879691](https://github.com/OthinusG/warpai/actions/runs/37136879691),
 adds only debug capture state flags and bounded operation error codes; no field,
 credential or remote payload is recorded. Message submission versus projection
 failure still needs runtime diagnosis. S4/S5 remain unchecked.
@@ -172,7 +172,7 @@ removed rather than retained as unused instrumentation. Final CI remains pending
 
 ### S4 accepted — 2026-10-04
 
-Source4fcb0c3, [run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300),
+Source4fcb0c3, [run37138929300](https://github.com/OthinusG/warpai/actions/runs/37138929300),
 passed native collaboration action assertions on macOS and Windows. Each artifact
 contains 155 nonempty PNGs and a source-matched diagnostic with exit_code0 and no
 failed steps. Reviewed all eight live SSH images per OS: three-field selection,
@@ -197,10 +197,10 @@ packaging is still running. S5 is not accepted until that package is checked.
 ### S5 accepted — 2026-10-04
 
 Tested source: 4fcb0c3c0f7f1354c7f79bb53d10f6a9ec31b66e. Remote
-[run37138932460](https://github.com/OthinusG/warp-lite/actions/runs/37138932460)
+[run37138932460](https://github.com/OthinusG/warpai/actions/runs/37138932460)
 succeeded on Linux x64, macOS arm64 and Windows x64, including controlled Linux
 OpenSSH two-Agent messaging/task/review, project/run isolation and disconnect
-checks. Desktop [run37138929300](https://github.com/OthinusG/warp-lite/actions/runs/37138929300)
+checks. Desktop [run37138929300](https://github.com/OthinusG/warpai/actions/runs/37138929300)
 succeeded on macOS and Windows: local bus/history regressions, default and
 warp_platform checks, focused app tests, native action/capture and release packaging.
 No eight-hour manager soak was requested or run.

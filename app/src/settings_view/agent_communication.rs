@@ -202,7 +202,7 @@ fn secondary_text(
         .with_style(UiComponentStyles {
             font_size: Some(12.),
             font_color: Some(
-                color.unwrap_or_else(|| blended_colors::text_sub(theme, theme.background())),
+                color.unwrap_or_else(|| blended_colors::text_sub(theme, theme.surface_1())),
             ),
             ..Default::default()
         })

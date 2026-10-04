@@ -8,7 +8,7 @@
 - 标签页：启用 macOS 原生垂直标签页面板。
 - 主题：默认的 **Claude Warm Light**，由原生应用直接渲染。
 - 源码版本：`02d08d484dd7ece33f528383230801d78c1355f5`。
-- [GitHub 桌面验证记录 37194453713](https://github.com/OthinusG/warp-lite/actions/runs/37194453713)。
+- [GitHub 桌面验证记录 37194453713](https://github.com/OthinusG/warpai/actions/runs/37194453713)。
 - 产物名称：`Warpai-collaboration-native-captures-macOS`。
 - 截图目录：`capture-30892/collaboration-static/2026-10-04T11-02-45`。
 

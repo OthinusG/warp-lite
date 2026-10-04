@@ -2,7 +2,7 @@
 
 Date: 2026-10-04. Baseline: accepted source `4fcb0c3`, documentation `1ae36e8`.
 Scope: PLAN S0–S5, followed by repository-wide proven-unused-code cleanup and
-fast-forward integration into `warp-lite/main`. Preserve all accepted behavior.
+fast-forward integration into `main`. Preserve all accepted behavior.
 
 ## Specification and tasks
 
@@ -75,23 +75,23 @@ validation workflows for cleaned source before default-branch integration.
 ## Verification record
 
 Replacement source `5ae1afd`: remote workflow
-[37147192504](https://github.com/OthinusG/warp-lite/actions/runs/37147192504)
+[37147192504](https://github.com/OthinusG/warpai/actions/runs/37147192504)
 passed Linux/macOS/Windows protocol regression and clippy, owned native process
 lifecycle and the controlled Linux OpenSSH message/task/review gate.
 Desktop workflow
-[37147195277](https://github.com/OthinusG/warp-lite/actions/runs/37147195277)
+[37147195277](https://github.com/OthinusG/warpai/actions/runs/37147195277)
 passed both OS default/platform checks, application regression, native actions,
 155 screenshots per OS and both release-package steps. Eight live SSH states per
 OS plus narrow/light/zoomed task views were visually reviewed before cleanup.
 
 Cleaned executable/build source `8b8993801a696972ae0ec853d40f9c6cc8e0f582`:
-- [Remote run 37152973196](https://github.com/OthinusG/warp-lite/actions/runs/37152973196)
+- [Remote run 37152973196](https://github.com/OthinusG/warpai/actions/runs/37152973196)
   passed all three platforms, including protocol clippy with warnings denied,
   the overflowing-varint regression, owned process lifecycle and controlled Linux
   OpenSSH two-Agent message/task/review. 31 successful suites recorded 277 test
   executions, with no failures. All three companion source/digest/license
   manifests were checked.
-- [Desktop run 37152975773](https://github.com/OthinusG/warp-lite/actions/runs/37152975773)
+- [Desktop run 37152975773](https://github.com/OthinusG/warpai/actions/runs/37152975773)
   passed macOS/Windows default and warp_platform checks, 45 successful suites
   recording 246 test executions, native actions, captures and release packaging.
   Both diagnostics match this source, exit zero and contain no failed steps.
