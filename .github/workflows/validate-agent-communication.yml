@@ -79,6 +79,7 @@ jobs:
         run: |
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
+          cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
@@ -214,6 +215,7 @@ jobs:
           cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
+          cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked

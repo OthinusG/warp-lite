@@ -72,6 +72,13 @@ use repo_metadata::watcher::DirectoryWatcher;
 pub fn initialize_app_for_terminal_view(app: &mut App) {
     initialize_settings_for_tests(app);
 
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
+    app.add_singleton_model(|_| crate::agent_communication::AgentCommunication::mock());
+
     app.add_singleton_model(|_| ServerApiProvider::new_for_test());
     app.add_singleton_model(|ctx| ChangelogModel::new(ServerApiProvider::as_ref(ctx).get()));
     app.add_singleton_model(|_| NetworkStatus::new());

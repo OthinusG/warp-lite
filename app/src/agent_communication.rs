@@ -42,6 +42,20 @@ impl Entity for AgentCommunication {
 }
 impl SingletonEntity for AgentCommunication {}
 impl AgentCommunication {
+    #[cfg(test)]
+    pub(crate) fn mock() -> Self {
+        Self {
+            _server: None,
+            preferences: Default::default(),
+            available: Vec::new(),
+            busy: false,
+            status: String::new(),
+            preferences_path: PathBuf::new(),
+            pending: None,
+            notified: HashMap::new(),
+        }
+    }
+
     pub(crate) fn new(ctx: &mut ModelContext<Self>) -> Self {
         let directory =
             warp_core::paths::secure_state_dir().unwrap_or_else(warp_core::paths::state_dir);

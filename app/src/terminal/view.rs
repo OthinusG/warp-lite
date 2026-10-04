@@ -7093,6 +7093,14 @@ impl TerminalView {
         cleared_buffer_len: usize,
         ctx: &mut ViewContext<Self>,
     ) {
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
+        {
+            self.codex_mcp_launch_generation = self.codex_mcp_launch_generation.wrapping_add(1);
+        }
         let did_resolve_prompt_suggestion = self
             .resolve_passive_suggestion(PromptSuggestionResolution::Reject { ctrl_c: true }, ctx);
         if did_resolve_prompt_suggestion {

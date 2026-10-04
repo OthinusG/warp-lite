@@ -4828,6 +4828,27 @@ fn linear_deeplink_via_default_entrypoint_does_not_auto_submit_in_fullscreen() {
     not(target_family = "wasm")
 ))]
 #[test]
+fn codex_pending_launch_is_canceled_by_both_ctrl_c_paths() {
+    App::test((), |mut app| async move {
+        initialize_app_for_terminal_view(&mut app);
+        let terminal = add_window_with_terminal(&mut app, None);
+        terminal.update(&mut app, |view, ctx| {
+            let pending = view.codex_mcp_launch_generation;
+            view.handle_input_event(&InputEvent::CtrlC { cleared_buffer_len: 0 }, ctx);
+            assert_ne!(view.codex_mcp_launch_generation, pending);
+            let pending = view.codex_mcp_launch_generation;
+            view.handle_action(&TerminalAction::CtrlC, ctx);
+            assert_ne!(view.codex_mcp_launch_generation, pending);
+        });
+    })
+}
+
+#[cfg(all(
+    feature = "local_tty",
+    not(feature = "remote_tty"),
+    not(target_family = "wasm")
+))]
+#[test]
 fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
     use warp_agent_bus::{
         transport::{self, Request, RunningBroker},
