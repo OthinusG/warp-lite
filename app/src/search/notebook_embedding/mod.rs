@@ -1,13 +1,4 @@
 // warp-lite stub: notebook embedding (cloud-coupled) removed.
-#[cfg(any())]
-mod _disabled {
-    mod embedded_fuzzy_match;
-    mod notebooks;
-    pub mod searcher;
-    pub mod view;
-    mod workflows;
-}
-
 #[allow(dead_code)]
 pub mod searcher {
     #[derive(Default, Clone, Debug)] pub struct EmbeddingSearcher;

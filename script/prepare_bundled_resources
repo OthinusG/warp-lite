@@ -47,14 +47,9 @@ fi
 # Create the destination directory if it doesn't exist
 mkdir -p "$DEST_DIR"
 
-# Copy bundled resources
-if [ -d "$RESOURCES_SRC/bundled" ]; then
-  echo "Copying bundled resources to $DEST_DIR/bundled"
-  rm -rf "$DEST_DIR/bundled"
-  cp -R "$RESOURCES_SRC/bundled" "$DEST_DIR/bundled"
-else
-  echo "Warning: No bundled directory found at $RESOURCES_SRC/bundled" >&2
-fi
+# Clear legacy bundled skills when reusing a packaging directory.
+rm -rf "$DEST_DIR/bundled"
+mkdir -p "$DEST_DIR/bundled"
 
 if [ -n "$GIT_RELEASE_TAG" ]; then
   VERSION_METADATA_DIR="$DEST_DIR/bundled/metadata"
@@ -63,18 +58,6 @@ if [ -n "$GIT_RELEASE_TAG" ]; then
   echo "Writing bundled Warp version metadata to $VERSION_METADATA_PATH"
   mkdir -p "$VERSION_METADATA_DIR"
   printf '{\n  "warp_version": "%s"\n}\n' "$GIT_RELEASE_TAG" > "$VERSION_METADATA_PATH"
-fi
-
-# Copy channel-gated skills matching the current release channel.
-GATED_SRC="$REPO_ROOT/resources/channel-gated-skills"
-DEST_SKILLS="$DEST_DIR/bundled/skills"
-
-if [ -n "$CHANNEL" ] && [ -d "$GATED_SRC" ]; then
-  echo "Copying channel-gated skills for channel '$CHANNEL'..."
-  "$SCRIPT_DIR/copy_conditional_skills" \
-    "$CHANNEL" \
-    "$GATED_SRC" \
-    "$DEST_SKILLS"
 fi
 
 # Generate third-party license attribution.
@@ -87,7 +70,6 @@ ADDITIONAL_LICENSES=(
     "Hack Font|MIT|app/assets/bundled/fonts/hack/LICENSE.md"
     "Roboto Font|SIL Open Font License|app/assets/bundled/fonts/roboto/LICENSE.txt"
     "bash-preexec|MIT|app/assets/bundled/bootstrap/bash-preexec-LICENSE.md"
-    "Claude API Skill|Apache-2.0|resources/bundled/skills/claude-api/LICENSE.txt"
     "rudder-sdk-rust|MIT|app/src/server/telemetry/LICENSE-RUDDER-SDK-RUST.txt"
     "Windows Terminal|MIT|app/assets/windows/LICENSE-WINDOWS-TERMINAL"
     "GitHub Desktop|MIT|app/src/code_review/GITHUB-DESKTOP-LICENSE"

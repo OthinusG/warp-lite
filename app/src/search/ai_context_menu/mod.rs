@@ -1,24 +1,5 @@
 // warp-lite stub: AI context menu removed. Public surface preserved as no-ops.
 
-#[cfg(any())]
-mod _disabled_subtree {
-    mod blocks;
-    mod code;
-    mod commands;
-    mod conversations;
-    mod diffset;
-    mod files;
-    pub mod mixer;
-    mod notebooks;
-    mod rules;
-    pub mod search;
-    #[cfg(not(target_family = "wasm"))]
-    mod skills;
-    mod styles;
-    pub mod view;
-    mod workflows;
-}
-
 /// Safely truncate a string at the given byte index, ensuring we don't split UTF-8 characters
 pub fn safe_truncate(s: &mut String, new_len: usize) {
     if new_len >= s.len() {

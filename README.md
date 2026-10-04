@@ -163,9 +163,10 @@ Warpai cloud service.
 
 Your commands, SSH sessions and independently installed agents can still use the
 network. Agent providers retain their own accounts, pricing and data policies.
-Some inherited AI/cloud code remains in the source behind disabled or separate
-product paths; the repository does not claim that every such source file is gone
-or that all network activity is impossible.
+Unused inherited AI search implementations, bundled upstream AI skills and
+unreferenced cloud release helpers have been removed. Shared code needed by the
+terminal, editor, local CLI integration and stored-data compatibility remains;
+see the [source cleanup record](specs/DEEP-CLEANUP.md).
 
 ## Develop and contribute
 

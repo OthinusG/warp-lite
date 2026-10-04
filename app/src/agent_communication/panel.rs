@@ -2955,9 +2955,31 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("native evidence source is opened")
-                .with_action(|app, _, _| {
-                    // Documentation captures use the application's default warm palette.
+                .with_action(|app, window, _| {
+                    // README captures use the default warm palette and macOS vertical tabs.
                     app.update(|ctx| {
+                        #[cfg(target_os = "macos")]
+                        {
+                            crate::settings::TabSettings::handle(ctx).update(
+                                ctx,
+                                |settings, ctx| {
+                                    settings
+                                        .use_vertical_tabs
+                                        .set_value(true, ctx)
+                                        .expect("Enable vertical tabs for macOS README captures");
+                                },
+                            );
+                            let origin = ctx.window_bounds(&window).unwrap().origin();
+                            ctx.set_and_cache_window_bounds(
+                                window,
+                                pathfinder_geometry::rect::RectF::new(
+                                    origin,
+                                    pathfinder_geometry::vector::vec2f(1440., 1000.),
+                                ),
+                            );
+                        }
+                        #[cfg(not(target_os = "macos"))]
+                        let _ = window;
                         let theme =
                             Settings::theme_for_theme_kind(&ThemeKind::ClaudeWarmLight, ctx);
                         Appearance::handle(ctx).update(ctx, |appearance, ctx| {
@@ -2975,6 +2997,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .file_name()
                             .is_some_and(|name| name == "capture-evidence.rs")))))
                 })
+                .add_named_assertion(
+                    "macOS documentation uses visible vertical tabs",
+                    |app, window| {
+                        warpui::async_assert!(
+                            !cfg!(target_os = "macos")
+                                || app
+                                    .root_view::<RootView>(window)
+                                    .is_some_and(|root| root.read(app, |root, ctx| root
+                                        .workspace_view()
+                                        .is_some_and(|workspace| workspace
+                                            .as_ref(ctx)
+                                            .vertical_tabs_panel_open)))
+                        )
+                    },
+                )
                 .with_take_screenshot("live-evidence-file-open.png"),
         )
         .with_step(

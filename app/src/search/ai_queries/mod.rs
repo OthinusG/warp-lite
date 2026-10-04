@@ -1,9 +1,4 @@
 // warp-lite stub: AI queries removed.
-#[cfg(any())]
-mod _disabled {
-    pub mod fuzzy_match;
-}
-
 #[allow(dead_code)]
 pub mod fuzzy_match {
     #[derive(Default, Clone, Debug)] pub struct FuzzyMatch;
