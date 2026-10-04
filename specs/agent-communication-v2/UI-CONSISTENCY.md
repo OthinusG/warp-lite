@@ -16,6 +16,8 @@ No new surface, dependency, protocol or configuration behavior.
 - Form labels stay adjacent to their editor; warnings retain ordinary contrast.
 - MCP controls align with other settings, with separate command/status lines.
 - Existing native static/light/dark/zoom and live action captures pass on both OSes.
+- README images use unmodified native Claude Warm Light captures. Settings captures
+  also include this default palette; standard Light and Dark remain covered.
 - Default and `warp_platform` application checks run on GitHub; no local Rust build.
 
 ## Tasks and verification

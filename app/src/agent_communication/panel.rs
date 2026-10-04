@@ -2955,6 +2955,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("native evidence source is opened")
+                .with_action(|app, _, _| {
+                    // Documentation captures use the application's default warm palette.
+                    app.update(|ctx| {
+                        let theme = Settings::theme_for_theme_kind(&ThemeKind::ClaudeWarmLight, ctx);
+                        Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                            appearance.set_theme(theme, ctx);
+                        });
+                    });
+                })
                 .add_named_assertion("existing code viewer has the owned file", |app, window| {
                     let views = app
                         .views_of_type::<crate::code::view::CodeView>(window)
@@ -3907,23 +3916,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         TestStep::new("open native communication settings").with_action(|app, window, _| {
             // Fixed visual data stays in the isolated debug profile and never configures a CLI.
             app.update(|ctx| {
-            super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
-                model.available = vec![
-                    super::setup::Available {
-                        command: "codex".into(),
-                        program: "codex".into(),
-                        installed: None,
-                        status: "Not installed — install the CLI to enable project-local MCP access.".into(),
-                    },
-                    super::setup::Available {
-                        command: "claude".into(),
-                        program: "claude".into(),
-                        installed: None,
-                        status: "Unavailable — refresh agents after updating the executable search path.".into(),
-                    },
-                ];
-                ctx.notify();
-            });
+                super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.available = vec![
+                        super::setup::Available {
+                            command: "codex".into(),
+                            program: "codex".into(),
+                            installed: None,
+                            status: "Not installed — install the CLI to enable project-local MCP access.".into(),
+                        },
+                        super::setup::Available {
+                            command: "claude".into(),
+                            program: "claude".into(),
+                            installed: None,
+                            status: "Unavailable — refresh agents after updating the executable search path.".into(),
+                        },
+                    ];
+                    ctx.notify();
+                });
             });
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -3938,7 +3947,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             });
         }),
     );
-    for (theme_kind, theme_name) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+    for (theme_kind, theme_name) in [
+        (ThemeKind::Light, "light"),
+        (ThemeKind::Dark, "dark"),
+        (ThemeKind::ClaudeWarmLight, "claude-warm"),
+    ] {
         for zoom in [1., 1.25] {
             let filename = format!("settings-communication-{theme_name}-{zoom}.png");
             filenames.push(filename.clone());
