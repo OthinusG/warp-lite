@@ -94,6 +94,10 @@ for supported configuration paths and current verification.
 4. Start new agent sessions in the same project. Restart existing sessions when their CLI requires it to load MCP configuration.
 5. Open **Agent collaboration** to inspect agents, exchange messages and follow tasks.
 
+Codex runs from its original installation. Automatic Codex configuration and
+command interception have been withdrawn; the replacement uses explicit,
+session-only MCP options. Local managed Codex launch integration is pending.
+
 You can disable communication or uncheck an agent to revoke its live access.
 Warpai removes only the configuration it owns, preserving unrelated user settings.
 

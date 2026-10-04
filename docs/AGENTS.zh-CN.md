@@ -1,3 +1,7 @@
+> 2026-10-05 更新：已撤回 Codex 同名命令替换、后台代理和用户配置写入。
+> 普通 `codex` 命令使用原版安装；替代方案仅在显式协作会话中传入原生 MCP 参数，
+> 本地启动入口与新版真实模型验收尚未完成。下文涉及旧 Codex 代理的验证记录属于历史证据。
+
 # Agent 使用与兼容性
 
 [English technical reference](../specs/agent-communication/COVERAGE.md) | **中文使用指南** · [返回产品介绍](../README.zh-CN.md)
