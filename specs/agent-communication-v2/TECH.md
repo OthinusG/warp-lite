@@ -122,3 +122,9 @@ package-manager updates, malformed/compound commands, administrative bypass,
 disabled participation, delayed-probe cancellation, and two independent native
 Codex MCP sessions. Verify both native shell argument contracts on desktop OSes.
 No vendor configuration file, shell profile, command alias or PATH is written.
+
+Windows argument handling follows the native
+[PowerShell parsing contract](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_parsing?view=powershell-7.5):
+Windows PowerShell/older pwsh use legacy quoting; current pwsh respects its
+native argument mode, including the Windows-mode .cmd/.bat exception. Generated
+configuration values remain data and original command tails retain expansion.

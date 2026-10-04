@@ -13,7 +13,7 @@ fn session_prefix_for_shell(prefix: &[String], shell: ShellType) -> String {
         if shell == ShellType::PowerShell && arg.contains('"') {
             // Windows PowerShell and pwsh Legacy mode drop native embedded quotes.
             let legacy = shell_quote_arg(&arg.replace('"', "\\\""), shell);
-            format!("$(if ($PSVersionTable.PSVersion.Major -lt 7 -or $PSNativeCommandArgumentPassing -eq 'Legacy' -or !(Test-Path variable:PSNativeCommandArgumentPassing) -or ($PSNativeCommandArgumentPassing -eq 'Windows' -and (Get-Command codex).Source -match '\\.(cmd|bat)$')) {{ {legacy} }} else {{ {literal} }})")
+            format!("$(if ($PSVersionTable.PSVersion.Major -lt 7 -or ($PSVersionTable.PSVersion.Major -eq 7 -and $PSVersionTable.PSVersion.Minor -lt 3) -or $PSNativeCommandArgumentPassing -eq 'Legacy' -or ($PSNativeCommandArgumentPassing -eq 'Windows' -and (Get-Command codex).Source -match '\\.(cmd|bat)$')) {{ {legacy} }} else {{ {literal} }})")
         } else {
             literal
         }
@@ -84,10 +84,9 @@ impl TerminalView {
         let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else {
             return false;
         };
-        let shell = session.shell();
-        if shell.alias_value("codex").is_some()
-            || shell.abbreviation_value("codex").is_some()
-            || shell.function_names().any(|name| name == "codex")
+        if session.alias_value("codex").is_some()
+            || session.abbreviation_value("codex").is_some()
+            || session.function_names().any(|name| name == "codex")
         {
             return false;
         }
