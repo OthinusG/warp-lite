@@ -3,7 +3,7 @@
 Date: 2026-10-04. Active scope: [PLAN.md](PLAN.md) S4. The existing collaboration
 panel, native editors/text buttons and theme/soft-wrapping rules are the visual
 source. Earlier local and superseded manager evidence is
-[archived](legacy-ssh-project-manager/UI-CHECKPOINT.md).
+[archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/UI-CHECKPOINT.md).
 
 ## Static gate accepted
 

@@ -1,7 +1,7 @@
 # SSH Agent Communication Removal Inventory
 
 Active scope is [PLAN.md](PLAN.md) S0–S5. The former manager inventory is
-[archived](legacy-ssh-project-manager/CUTOVER.md) and is not an active backlog.
+[archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/CUTOVER.md) and is not an active backlog.
 
 S0 removed the new SFTP/file manager, Connections UI/profile persistence, host
 resource metrics, retained-session list/detach/reattach/takeover and retired

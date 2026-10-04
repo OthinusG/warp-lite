@@ -116,7 +116,6 @@ pub fn init(app: &mut AppContext) {
     view::openwarp_launch_modal::init(app);
     #[cfg(feature = "cloud_mode")]
     view::cloud_agent_capacity_modal::init(app);
-    view::codex_modal::init(app);
     #[cfg(feature = "warp_platform")]
     view::free_tier_limit_hit_modal::init(app);
     view::global_search::view::GlobalSearchView::init(app);

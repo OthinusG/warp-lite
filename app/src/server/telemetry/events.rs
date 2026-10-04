@@ -1121,7 +1121,6 @@ pub enum TelemetryAgentViewEntryOrigin {
     ContinueConversationButton,
     ViewPassiveCodeDiffDetails,
     ResumeConversationButton,
-    CodexModal,
     LongRunningCommand,
     HistoryMenu,
     InlineConversationMenu,
@@ -1172,7 +1171,6 @@ impl From<AgentViewEntryOrigin> for TelemetryAgentViewEntryOrigin {
             AgentViewEntryOrigin::ContinueConversationButton => Self::ContinueConversationButton,
             AgentViewEntryOrigin::ViewPassiveCodeDiffDetails => Self::ViewPassiveCodeDiffDetails,
             AgentViewEntryOrigin::ResumeConversationButton => Self::ResumeConversationButton,
-            AgentViewEntryOrigin::CodexModal => Self::CodexModal,
             AgentViewEntryOrigin::InlineHistoryMenu => Self::HistoryMenu,
             AgentViewEntryOrigin::InlineConversationMenu => Self::InlineConversationMenu,
             AgentViewEntryOrigin::PromptChip => Self::PromptChip,
@@ -2761,10 +2759,6 @@ pub enum TelemetryEvent {
         /// Whether the shortcuts view is now visible.
         is_visible: bool,
     },
-    /// Emitted when the Codex modal is opened.
-    CodexModalOpened,
-    /// Emitted when the user clicks "Use Codex" in the Codex modal.
-    CodexModalUseCodexClicked,
     /// Emitted when the cloud agent capacity modal is opened.
     CloudAgentCapacityModalOpened,
     /// Emitted when the cloud agent capacity modal is dismissed.
@@ -4500,8 +4494,6 @@ impl TelemetryEvent {
             TelemetryEvent::AgentShortcutsViewToggled { is_visible } => Some(json!({
                 "is_visible": is_visible,
             })),
-            TelemetryEvent::CodexModalOpened => None,
-            TelemetryEvent::CodexModalUseCodexClicked => None,
             TelemetryEvent::LinearIssueLinkOpened => None,
             TelemetryEvent::CloudAgentCapacityModalOpened => None,
             TelemetryEvent::CloudAgentCapacityModalDismissed => None,
@@ -4979,8 +4971,6 @@ impl TelemetryEvent {
             | TelemetryEvent::CLIAgentRichInputSubmitted { .. }
             | TelemetryEvent::ToggleCLIAgentToolbarSetting { .. }
             | TelemetryEvent::ToggleUseAgentToolbarSetting { .. }
-            | TelemetryEvent::CodexModalOpened
-            | TelemetryEvent::CodexModalUseCodexClicked
             | TelemetryEvent::LinearIssueLinkOpened
             | TelemetryEvent::CloudAgentCapacityModalOpened
             | TelemetryEvent::CloudAgentCapacityModalDismissed
@@ -5541,7 +5531,6 @@ impl TelemetryEventDesc for TelemetryEventDiscriminants {
             }
             Self::ToggleCLIAgentToolbarSetting { .. } => EnablementState::Always,
             Self::ToggleUseAgentToolbarSetting { .. } => EnablementState::Always,
-            Self::CodexModalOpened | Self::CodexModalUseCodexClicked => EnablementState::Always,
             Self::LinearIssueLinkOpened => EnablementState::Always,
             Self::CloudAgentCapacityModalOpened
             | Self::CloudAgentCapacityModalDismissed
@@ -6088,8 +6077,6 @@ impl TelemetryEventDesc for TelemetryEventDiscriminants {
             Self::CLIAgentRichInputSubmitted { .. } => "CLIAgentRichInput.Submitted",
             Self::ToggleCLIAgentToolbarSetting { .. } => "CLIAgentFooter.SettingToggled",
             Self::ToggleUseAgentToolbarSetting { .. } => "UseAgentToolbar.SettingToggled",
-            Self::CodexModalOpened => "CodexModal.Opened",
-            Self::CodexModalUseCodexClicked => "CodexModal.UseCodexClicked",
             Self::LinearIssueLinkOpened => "Linear.IssueLinkOpened",
             Self::CloudAgentCapacityModalOpened => "AmbientAgent.ConcurrencyModal.Opened",
             Self::CloudAgentCapacityModalDismissed => "AmbientAgent.ConcurrencyModal.Dismissed",
@@ -6953,8 +6940,6 @@ impl TelemetryEventDesc for TelemetryEventDiscriminants {
             Self::ToggleUseAgentToolbarSetting { .. } => {
                 "User toggled the Use Agent footer setting"
             }
-            Self::CodexModalOpened => "User opened the Codex modal",
-            Self::CodexModalUseCodexClicked => "User clicked 'Use Codex' in the Codex modal",
             Self::LinearIssueLinkOpened => {
                 "User opened a warp://linear deeplink to work on an issue"
             }

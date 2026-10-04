@@ -2,7 +2,7 @@
 
 Date: 2026-10-04. Active scope: [PLAN.md](PLAN.md). Exact-source evidence and
 acceptance updates are recorded in [PROGRESS.md](PROGRESS.md). Earlier full
-SSH project-manager gates and local verification history are [archived](legacy-ssh-project-manager/ACCEPTANCE.md).
+SSH project-manager gates and local verification history are [archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/ACCEPTANCE.md).
 
 | Item | Completion check | State |
 | --- | --- | --- |

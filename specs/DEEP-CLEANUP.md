@@ -39,8 +39,9 @@ that the vertical tab panel is visible before capturing the documentation scene.
 2. Delete proven unused files, then remove newly orphaned dependencies and assets.
 3. Review default and supported-feature module wiring and script/resource paths.
 4. Run focused static checks and both existing GitHub validation workflows with
-   full application regressions, native UI capture and packaging.
-5. Verify source-matched desktop/companion artifacts, visual behavior and links.
+   full application regressions without packaging.
+5. Verify native process behavior, desktop compilation and documentation links.
+   Icon changes and release packaging are deferred by the user on 2026-10-05.
 6. Update project memory, fast-forward the accepted default branch, and remove
    this task's merged temporary branch.
 
@@ -120,6 +121,10 @@ and provenance remain as documentation; they do not restore removed product path
 
 ### Verification
 
+The following source `02d08d4` records are historical cleanup evidence. Identity,
+settings migration, user-completed formatting/UI changes and the final vector
+icons are covered by the integrated checkpoint below.
+
 A first dependency pass incorrectly limited consumers to each crate directory.
 Desktop setup-test compilation exposed the cross-directory `#[path]` import of
 `app/src/agent_communication/setup.rs` by `warp-agent-bus/tests/setup.rs`.
@@ -155,6 +160,53 @@ Executable/build source: `02d08d484dd7ece33f528383230801d78c1355f5`.
   against the baseline. All locked package/version/source/checksum sets remain
   identical; only the three reviewed dependency edges change.
 
-Final delivery changes after the executable/build source above are documentation,
+At that historical checkpoint, delivery changes after the source above were documentation,
 original PNGs and deletion of unconsumed generated Yarn state. They do not change
 Rust source, manifests, workflows or executable/resource build inputs.
+
+### Integrated identity, cleanup and vector icon checkpoint
+
+The identity follow-up removes 35 unconsumed obsolete cloud/Oz/synchronization
+documents and four replaced/unused Rust source files: 39 files, 444,578 bytes.
+Combined source/document/resource cleanup removes 278 files, 40,780,046 bytes;
+engineering renames and the six PNG-to-SVG replacements are not counted as unused
+file removals. Keep macOS UserDefaults for the required Apple press-and-hold OS
+integration. Preserve independently installed Agent management, shared terminal
+code, protocol compatibility, stored data and copyright/license notices.
+
+The combined scope includes the Warpai package/executables/bundle identity,
+canonical `.config/.warpai` root and non-destructive legacy import, the completed
+user UI/format changes, native panel/settings consistency and six real vector
+icons. Final production flow is recorded in [the icon workflow](../docs/ICON-WORKFLOW.md).
+The remote acceptance fixture now atomically replaces heartbeats so terminating
+the owned child cannot leave a truncated file and falsely report a live process.
+No production stop behavior or acceptance assertion is weakened.
+
+Executable/build source: `b86328644c8e77b76e612ae32ddae4695e4565fd`.
+
+- [Remote run 37212494323](https://github.com/OthinusG/warpai/actions/runs/37212494323)
+  passed Linux/macOS/Windows, including Windows owned-process disconnect and
+  controlled Linux OpenSSH messaging/tasks/review. All three downloaded archives
+  and binaries match their source manifests/digests, capabilities and notices.
+- [Desktop run 37212494687](https://github.com/OthinusG/warpai/actions/runs/37212494687)
+  is pending. Native screenshot review, README image replacement, package
+  inspection and default-branch/repository integration remain pending.
+
+### Native Codex adaptation and final cleanup — 2026-10-05
+
+Removed the inherited hosted-model Codex promotion modal, its constructor/state,
+rendering, URI/actions, preferred-hosted-model accessor and unused telemetry
+variants. It is unrelated to third-party Codex CLI management, which is retained.
+Removed the orphaned `codex_integration.png` (486,090 bytes). Current plugin
+specifications now reference the generic native modal pattern.
+
+Updated both README languages and the compatibility/technical documentation for
+automatic per-invocation Codex MCP. Removed the superseded explicit-only launch
+plan and command-alias description. Verification must include current native
+session isolation, argument preservation, upgrade resolution and desktop builds.
+No release package is built in this final cleanup gate.
+
+Removed 18 obsolete enrolled-device/full SSH-manager design documents
+(418,624 bytes). Current specifications link to their immutable Git history
+where historical evidence is needed, rather than keeping abandoned backlogs
+in the working tree. Retained the active SSH project/API/acceptance documents.

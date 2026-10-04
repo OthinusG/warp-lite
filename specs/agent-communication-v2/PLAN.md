@@ -76,6 +76,6 @@ mutation identity and unknown execution. No secret values in code/docs/logs.
 No model-call budget was supplied: deterministic remote-process checks establish
 engineering behavior; paid vendor validation is reported separately when needed.
 
-The previous R0–R7 plan is archived in legacy-ssh-project-manager/PLAN.md.
+The previous R0–R7 plan is archived in https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/PLAN.md.
 Historical PROGRESS/ACCEPTANCE remains evidence, not a requirement to finish the
 archived product. The earlier full-product time estimate does not apply here.

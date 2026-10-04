@@ -864,3 +864,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   the app execution event with official session MCP and --no-daemon; preserve
   original arguments and cwd, package-manager commands and all user files/PATH.
   Continue implementation and verification instead of stopping after a plan.
+
+- Final delivery scope (2026-10-05): finish automatic native Codex adaptation,
+  bilingual documentation, verified deep cleanup and main/repository integration.
+  Leave icon modification and packaging/release to the next task. Use the new
+  check_app gate with protocol_only=true to verify desktop builds without making
+  installers. Remove inherited hosted-model Codex promotion UI, not third-party
+  CLI management. Superseded explicit-only launch text is no longer current.

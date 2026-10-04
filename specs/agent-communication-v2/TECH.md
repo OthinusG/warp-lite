@@ -41,7 +41,7 @@ both desktop build checks and focused native screenshots/draft checks. Local
 communication remains a required regression. Update PROGRESS per accepted item.
 
 The detailed former manager architecture is archived in
-legacy-ssh-project-manager/TECH.md and is not a delivery checklist.
+https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/TECH.md and is not a delivery checklist.
 
 ### S3 minimum launch path (accepted)
 
@@ -81,8 +81,9 @@ and terminal focus actions cannot use local desktop paths or terminal IDs.
 User acceptance rejects transparent replacement of installed Agent commands.
 Warpai must not create vendor-named launchers, prepend a private launcher directory
 to PATH, dispatch its bridge by a vendor executable name, or force Codex through
-a custom daemon/WebSocket frontend. Ordinary `codex` keeps its native executable,
-arguments, working directory, configuration and package-manager update path.
+a custom daemon/WebSocket frontend. Ordinary `codex` keeps its native executable, original arguments, working
+directory, configuration and package-manager update path; the execution event
+adds documented per-invocation MCP overrides only when participation is enabled.
 
 Remove automatic aliases/catalog publication and Codex daemon proxy interception.
 Preserve independently installed Agent management, native MCP configuration,
@@ -97,46 +98,6 @@ resolution, project directory and argument preservation, and a bridge regression
 that cannot dispatch as `codex`. Rust checks/tests run on GitHub. The earlier
 desktop/source acceptance is superseded; final screenshots/packages must use
 this corrected source when the user resumes unified acceptance monitoring.
-
-
-### Replacement plan: native, explicit, session-only Codex MCP
-
-Use the official installed CLI directly. The installed 0.160.0 help confirms
-repeatable `-c key=value` runtime overrides and `--no-daemon`. Reference:
-https://developers.openai.com/codex/cli/reference and
-https://developers.openai.com/codex/mcp.
-
-1. Ordinary terminal commands remain ordinary commands. No aliases, executable
-   copies, shell hooks, PATH interception, CODEX_HOME replacement, vendor file
-   changes, or daemon proxy are permitted.
-2. An explicit Warpai-managed launch resolves the current package-manager command
-   path on each launch, probes native capabilities, and runs that executable in
-   the selected project directory. Do not canonicalize a package-manager symlink
-   into a cached versioned executable. Preserve user launch arguments and flags.
-3. Supply only the communication server through native `-c` overrides for that
-   invocation. Retain the user's other MCP servers, provider, authentication and
-   permissions. For a version exposing `--no-daemon`, use it to isolate the
-   managed session from an already-running daemon. A version without a verified
-   session isolation contract runs normally but is not advertised as managed MCP.
-4. Reuse the private broker and existing MCP stdio bridge. Relay credentials stay
-   in private runtime state, never command arguments or vendor configuration.
-   Disabling communication revokes broker authority without editing Codex files.
-5. Do not inject parameters into arbitrary user-typed `codex` commands. Local
-   managed launch UI integration is a separate implementation task after the
-   rollback; it must be explicit, visible, and covered by native acceptance.
-
-Rollback implementation removes the alias/catalog/proxy and makes the legacy
-serialized Codex adapter a no-op so existing preferences still load. Previously
-written vendor configuration is preserved rather than automatically edited.
-Explicit remote launch already uses native per-invocation MCP options and the
-selected project's cwd. The local managed UI is not yet delivered; ordinary
-Codex remains available and does not automatically receive the communication MCP.
-
-Acceptance must verify original executable resolution before/after a simulated
-package-manager upgrade, two different project roots, two isolated simultaneous
-sessions, unchanged vendor configuration bytes and shell PATH, original provider
-and permissions, broker revocation, and model-level MCP calls. Old proxy probes
-are historical evidence only and cannot certify this replacement.
 
 
 ### User correction: automatic invocation adaptation — 2026-10-05

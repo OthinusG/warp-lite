@@ -34,4 +34,4 @@ The remote companion supports Linux/macOS/Windows; local desktop remains
 macOS/Windows. Deterministic remote fixtures do not claim paid vendor compliance.
 
 The former full SSH project-manager design is archived in
-legacy-ssh-project-manager/PRODUCT.md.
+https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/PRODUCT.md.

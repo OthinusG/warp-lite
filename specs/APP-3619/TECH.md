@@ -28,7 +28,7 @@ The existing `post_install_hint` is removed. The auto-install success toast read
 
 ## 2. Modal View
 
-New file: `workspace/view/plugin_install_modal.rs`, following the `CodexModal` pattern (standalone view, centered overlay, backdrop, Escape to close).
+New file: `workspace/view/plugin_install_modal.rs`, following the native modal pattern (standalone view, centered overlay, backdrop, Escape to close).
 
 ### View struct
 
@@ -59,7 +59,7 @@ enum PluginInstallModalEvent { Close }
 
 ## 3. Workspace Wiring
 
-Follows the standard modal pattern (like `CodexModal` at `workspace/view.rs:817,1573,12878,18110`):
+Follows the standard workspace modal pattern:
 
 - `is_plugin_install_modal_open` on `WorkspaceState` (add to `is_any_non_palette_modal_open` and `close_all_modals` in `workspace/util.rs`)
 - `plugin_install_modal: ViewHandle<PluginInstallModal>` on `Workspace`

@@ -344,7 +344,7 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
     assert_eq!(status(&server, &peers[0], "worker").await["ready"], true);
 }
 
-/// Opt-in authenticated vendor check: one PTY/frontend at a time, with isolated broker state.
+/// Opt-in authenticated vendor check: simultaneous native Codex clients and isolated broker state.
 #[cfg(target_os = "macos")]
 #[test]
 #[ignore = "starts installed vendor clients and requests two small model turns"]
@@ -408,11 +408,6 @@ fn native_clients_complete_two_turns() {
         .as_str()
         .map(str::to_owned);
     observer.operation = Operation::AgentList;
-    let capability = server.broker.prepare("native").unwrap();
-    server
-        .broker
-        .activate("native", program, &project, true)
-        .unwrap();
     let codex_options = serde_json::to_string(&warp_agent_bus::session::codex_mcp_prefix(
         &bridge,
         &["mcp".into()],
@@ -433,6 +428,8 @@ def attach_terminal():
 args=[sys.argv[1]]
 if os.path.basename(sys.argv[1])=='codex':
  args+=json.loads(os.environ['WARP_READINESS_CODEX_OPTIONS'])
+ # Trust only this test-owned repository for this invocation; never write user config.
+ args+=['-c','projects={'+json.dumps(sys.argv[2])+'={trust_level="trusted"}}']
 child=subprocess.Popen(args,stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
 os.close(slave)
 recent=b''
@@ -470,76 +467,108 @@ finally:
   child.wait(timeout=3)
  os.close(master)
 "#;
-    let diagnostic = temporary.path().join("diagnostic.json");
-    let mut child = Command::new("python3")
-        .args(["-u", "-c", driver])
-        .arg(&executable)
-        .arg(&project)
-        .arg(&diagnostic)
-        .env(ENDPOINT, &server.broker.endpoint)
-        .env(CAPABILITY, capability)
-        .env(TERMINAL, "native")
-        .env("WARP_AGENT_BIN", &bridge)
-        .env("WARP_READINESS_CODEX_OPTIONS", &codex_options)
-        .env_remove("WARP_AGENT_LAUNCH_PATH")
-        .env("TERM", "xterm-256color")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+    let terminals: &[&str] = if program == "codex" {
+        &["native-one", "native-two"]
+    } else {
+        &["native-one"]
+    };
+    let mut children = Vec::new();
+    for terminal in terminals {
+        let capability = server.broker.prepare(terminal).unwrap();
+        server
+            .broker
+            .activate(terminal, program, &project, true)
+            .unwrap();
+        let diagnostic = temporary.path().join(format!("{terminal}.json"));
+        let child = Command::new("python3")
+            .args(["-u", "-c", driver])
+            .arg(&executable)
+            .arg(&project)
+            .arg(&diagnostic)
+            .env(ENDPOINT, &server.broker.endpoint)
+            .env(CAPABILITY, capability)
+            .env(TERMINAL, terminal)
+            .env("WARP_AGENT_BIN", &bridge)
+            .env("WARP_READINESS_CODEX_OPTIONS", &codex_options)
+            .env_remove("WARP_AGENT_LAUNCH_PATH")
+            .env("TERM", "xterm-256color")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        children.push((terminal, child, diagnostic));
+    }
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let status = || {
+        let status = |terminal: &str| {
             transport::call(&server.broker.endpoint, &observer)
                 .unwrap()
                 .as_array()
                 .unwrap()
                 .iter()
-                .find(|peer| peer["terminal"] == "native")
+                .find(|peer| peer["terminal"] == terminal)
                 .cloned()
         };
-        let wait_ready = |child: &mut std::process::Child| {
+        let wait_ready = |terminal: &str, child: &mut std::process::Child, diagnostic: &Path| {
             let deadline = Instant::now() + Duration::from_secs(60);
             loop {
-                if let Some(peer) = status() {
+                if let Some(peer) = status(terminal) {
                     if peer["ready"] == true {
                         return peer;
                     }
                 }
                 assert!(
                     child.try_wait().unwrap().is_none() && Instant::now() < deadline,
-                    "{program} did not return idle: {:?}; indicators: {}",
-                    status(),
-                    std::fs::read_to_string(&diagnostic).unwrap_or_default()
+                    "{program} {terminal} did not return idle: {:?}; indicators: {}",
+                    status(terminal),
+                    std::fs::read_to_string(diagnostic).unwrap_or_default()
                 );
                 std::thread::sleep(Duration::from_millis(100));
             }
         };
-        wait_ready(&mut child);
-        for turn in 0..2 {
-            std::thread::sleep(Duration::from_millis(1500));
-            // Represents the app's real input submission; no automatic approval is made.
-            server.broker.input_bytes("native", b"weekday question\r");
-            writeln!(child.stdin.as_mut().unwrap(), "Reply only with the weekday for 2026-10-02. Before finishing, call warp_agent_ready as your final tool action. Do not change any files.").unwrap();
-            assert_eq!(status().unwrap()["ready"], false);
-            let peer = wait_ready(&mut child);
-            println!(
-                "{program}: turn {} completed, ready={}, source={}",
-                turn + 1,
-                peer["ready"],
-                peer["readiness_source"]
+        for (terminal, child, diagnostic) in &mut children {
+            wait_ready(terminal, child, diagnostic);
+        }
+        if terminals.len() == 2 {
+            assert_ne!(
+                status(terminals[0]).unwrap()["run"],
+                status(terminals[1]).unwrap()["run"]
             );
         }
+        for (terminal, child, diagnostic) in &mut children {
+            for turn in 0..2 {
+                std::thread::sleep(Duration::from_millis(1500));
+                server.broker.input_bytes(terminal, b"weekday question\r");
+                writeln!(child.stdin.as_mut().unwrap(), "Reply only with the weekday for 2026-10-02. Call warp_agent_list to verify MCP access, then call warp_agent_ready as your final tool action. Do not change any files.").unwrap();
+                assert_eq!(status(terminal).unwrap()["ready"], false);
+                for other in terminals.iter().filter(|other| *other != terminal) {
+                    assert_eq!(
+                        status(other).unwrap()["ready"],
+                        true,
+                        "Another terminal lost its readiness"
+                    );
+                }
+                let peer = wait_ready(terminal, child, diagnostic);
+                println!(
+                    "{program} {terminal}: turn {} completed, ready={}, source={}",
+                    turn + 1,
+                    peer["ready"],
+                    peer["readiness_source"]
+                );
+            }
+        }
     }));
-    drop(child.stdin.take());
-    let cleanup_deadline = Instant::now() + Duration::from_secs(10);
-    while child.try_wait().unwrap().is_none() && Instant::now() < cleanup_deadline {
-        std::thread::sleep(Duration::from_millis(100));
+    for (_, child, _) in &mut children {
+        drop(child.stdin.take());
+        let cleanup_deadline = Instant::now() + Duration::from_secs(10);
+        while child.try_wait().unwrap().is_none() && Instant::now() < cleanup_deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        if child.try_wait().unwrap().is_none() {
+            child.kill().unwrap();
+        }
+        child.wait().unwrap();
     }
-    if child.try_wait().unwrap().is_none() {
-        child.kill().unwrap();
-    }
-    child.wait().unwrap();
     if let Err(panic) = outcome {
         std::panic::resume_unwind(panic);
     }

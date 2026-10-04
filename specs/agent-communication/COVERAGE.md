@@ -23,7 +23,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | --- | --- | --- | --- |
 | Claude Code | claude | Installed `claude mcp add --help` | Eligible |
 | Gemini | gemini | [Official MCP guide](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md) | Eligible |
-| Codex | codex | Installed native `-c` / `--no-daemon` help | Explicit native remote launch; local managed launch pending |
+| Codex | codex | Installed native `-c` / `--no-daemon` help | Eligible with native --no-daemon; automatic session MCP |
 | Amp | amp | [Official MCP guide](https://ampcode.com/docs/customize/mcp) | Eligible; local CLI only |
 | Droid | droid | [Official connectors documentation](https://docs.factory.ai/harness/connectors) | Eligible |
 | OpenCode | opencode | [Official MCP configuration](https://opencode.ai/docs/mcp-servers/) | Eligible |
@@ -75,7 +75,7 @@ Use **Settings > Features > Agent communication**. The switch is off by default.
 
 Warpai owns only `warp-lite-communication`, not a user's existing `warp-agent` server or unrelated MCP configuration. JSON/YAML updates preserve unrelated values; TOML uses a marked block and preserves existing text. Malformed configurations, ownership collisions, user edits to the managed entry, and symlinks stop the operation. Preferences and cleanup metadata are machine-local. The packaged bridge is `/Applications/Warpai.app/Contents/MacOS/warpai-agent` on macOS and `warpai-agent.exe` beside Warpai on Windows.
 
-The bridge inherits `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its Warpai terminal. Ordinary Codex commands receive no automatic MCP configuration. Explicit managed Codex launches use native invocation overrides; the local launch UI remains pending. Gemini and Hermes receive runtime variable references. Values are never persisted in configuration or metadata. Other eligible native stdio clients inherit the terminal environment through their native subprocess contract. A process launched outside a managed Warpai terminal cannot participate.
+The bridge inherits `WARP_AGENT_ENDPOINT`, `WARP_AGENT_CAPABILITY`, and `WARP_TERMINAL_SESSION_UUID` from its Warpai terminal. Eligible ordinary Codex commands inside Warpai receive per-invocation native MCP overrides and --no-daemon when communication and Codex are selected. Each launch resolves and probes the current installation; no vendor command, PATH, CODEX_HOME or Codex configuration is modified. Gemini and Hermes receive runtime variable references. Values are never persisted in configuration or metadata. Other eligible native stdio clients inherit the terminal environment through their native subprocess contract. A process launched outside a managed Warpai terminal cannot participate.
 
 Documented adapters cover every named managed type and alias. Codex uses session-only overrides and never reads/writes its user configuration through the adapter; Grok uses TOML tables; Trae uses its native YAML server list; DeepSeek Harness uses a dedicated insertion in the home Cordis patch; other named clients use their native JSON/YAML sections or confirmed native CLI setup contracts. Custom literal toolbar commands retain native contract probing. Aliases of the same client share one configuration and one settings row. Qoder and QoderCN are separate clients with independent rows and authorization; an unavailable Qoder launcher must not suppress QoderCN discovery. No shell-tool communication fallback is added.
 
@@ -93,13 +93,10 @@ The common Warp broker and per-launch relay have simulated isolation coverage fo
 
 | Native transport | Implementation | Verification |
 | --- | --- | --- |
-| Codex default shared app-server | Native daemon/proxy; session-local MCP overrides on owned thread creation/resume/fork | GitHub protocol tests; two real same-project Codex TUI clients independently registered and reported idle with the 843681f bridge; patched Warpai wake/model acceptance pending |
-| Codex embedded/profile/config modes | Dedicated native MCP override with the same private relay; preserves native backend selection | Option-mode/isolation regressions; two real --no-daemon clients independently registered with the 843681f bridge; other embedded modes and patched Warpai acceptance pending |
+| Codex interactive, resume and fork | Original installed CLI with --no-daemon and per-invocation -c MCP overrides | Native option, directory, update-resolution and shared broker isolation regressions; current source acceptance recorded below when complete |
 | Claude and Qoder/QoderCN native interactive clients | Confirmed inline MCP configuration to a per-launch relay | Common relay/setup regressions; two real QoderCN clients independently registered with the 843681f bridge; Claude stopped at native directory trust selection; patched Warpai acceptance pending |
 | Other managed native stdio clients | Existing documented adapters and terminal binding through the common Warp broker | Common protocol/setup coverage; authenticated native acceptance pending |
 | Arbitrary vendor external daemon or explicit remote attachment | No general per-terminal binding guarantee | Requires a verified vendor session context API; not implemented by environment passthrough |
-
-Codex loaded-thread resume can ignore overrides when another client is subscribed or a turn is running, as shown in the [native thread processor](https://github.com/openai/codex/blob/rust-v0.159.2/codex-rs/app-server/src/request_processors/thread_processor.rs). Concurrent attachments to the same already-loaded conversation are not established as isolated participants.
 
 Codex explicit remote endpoints, unknown launch syntax and server-feature compatibility overrides retain native behavior; they are not claimed as transparently bound shared transports. No shared daemon is restarted to acquire a pane's environment.
 
@@ -121,4 +118,4 @@ Qodercn is a confirmed native stdio MCP client: installed `qodercn mcp add --hel
 
 All types use the same broker readiness lease and guarded PTY path. Listener existence and stale InProgress presentation no longer block explicit final-action MCP readiness. Opaque OSC notifications cannot establish readiness; only structured lifecycle events or the explicit tool can. Queued work shows a native receiver notification, even before readiness. Send/assign report `delivery: queued`; listing exposes `ready` and `pending_count`. Queued delivery never means acknowledgement or completed work. The application regression installs each available native listener and checks draft/permission protection for every enum type.
 
-Private native launch aliases read the current shared runtime catalog after settings changes. Retired aliases preserve native execution; initial feature activation requires a new pane to inherit launch PATH. The catalog contains no terminal credentials.
+Vendor-named launch aliases, runtime command catalogs and PATH injection have been removed. Codex adaptation occurs only at the Warpai execution event. Selecting it does not write its user configuration; disabling it revokes broker authority.

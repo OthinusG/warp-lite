@@ -717,15 +717,6 @@ impl LLMPreferences {
         self.models_by_feature.coding.default_llm_info()
     }
 
-    /// Returns the preferred Codex model, if set by the server.
-    pub fn get_preferred_codex_model(&self) -> Option<&LLMInfo> {
-        self.models_by_feature
-            .agent_mode
-            .preferred_codex_model_id
-            .as_ref()
-            .and_then(|id| self.models_by_feature.agent_mode.info_for_id(id))
-    }
-
     #[cfg(feature = "integration_tests")]
     pub fn is_available_agent_mode_llm(&self, id: &LLMId) -> bool {
         self.models_by_feature.agent_mode.info_for_id(id).is_some()

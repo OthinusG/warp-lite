@@ -2426,7 +2426,11 @@ pub struct TerminalView {
         not(target_family = "wasm")
     ))]
     pub(crate) codex_mcp_launch_generation: u64,
-    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
     pub(crate) codex_mcp_launch: Option<(String, String)>,
 
     /// The session's size data. This is wrapped in a [`Tracked`] to
@@ -19537,7 +19541,11 @@ impl TerminalView {
         }
     }
 
-    pub(crate) fn execute_input_command(&mut self, event: &ExecuteCommandEvent, ctx: &mut ViewContext<Self>) {
+    pub(crate) fn execute_input_command(
+        &mut self,
+        event: &ExecuteCommandEvent,
+        ctx: &mut ViewContext<Self>,
+    ) {
         self.update_scroll_position_locking(
             ScrollPositionUpdate::AfterCommandExecutionStarted,
             ctx,

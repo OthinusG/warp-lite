@@ -2,7 +2,7 @@
 
 Updated: 2026-10-04. Active scope: [PLAN.md](PLAN.md) S0–S5. All six items
 are accepted. Earlier project-manager/M0–M7/R0–R7 chronology is
-[archived](legacy-ssh-project-manager/PROGRESS.md), not an active backlog.
+[archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/PROGRESS.md), not an active backlog.
 
 | Item | State | Accepted evidence |
 | --- | --- | --- |

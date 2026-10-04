@@ -1,7 +1,7 @@
 # SSH Agent Communication API
 
 The active scope is PLAN S0–S5. The former manager contract is archived in
-legacy-ssh-project-manager/API.md and is not an implementation checklist.
+https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/API.md and is not an implementation checklist.
 
 ## Transport and authority
 

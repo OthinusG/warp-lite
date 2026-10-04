@@ -46,7 +46,7 @@ The chip has two modes depending on context:
 
 ### Layout
 
-Custom modal view following the `CodexModal` pattern (centered overlay, semi-transparent backdrop, Escape to close, click-outside to dismiss via `Dismiss` element).
+Custom modal view following the native modal pattern (centered overlay, semi-transparent backdrop, Escape to close, click-outside to dismiss via `Dismiss` element).
 
 - Title from `PluginInstallInstructions.title` (e.g. "Install Warp Plugin for Claude Code")
 - Subtitle from `PluginInstallInstructions.subtitle`
