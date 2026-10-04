@@ -804,3 +804,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   notes for archive/reservation metadata and native settings surface_1 status
   colors, preserving warning overrides and interaction guards. Finish all source
   changes before dispatching the single combined-source final gate.
+
+- User supplied a terminal >_ glyph for the main workspace top-right Settings
+  entry. Recreated it as a transparent 1254px PNG without the enclosing ring.
+  Use the existing bundled icon renderer and theme tint in both tab-bar variants;
+  omit the anonymous avatar's circular background. Preserve Settings actions,
+  other settings glyphs and application bundle branding. Include this final icon
+  in the unified native screenshot, functional and package acceptance gate.

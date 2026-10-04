@@ -23,6 +23,9 @@ No new surface, dependency, protocol or configuration behavior.
 - README images use unmodified native Claude Warm Light captures. Settings captures
   also include this default palette; standard Light and Dark remain covered.
 - Default and `warp_platform` application checks run on GitHub; no local Rust build.
+- The main workspace top-right Settings button uses the supplied terminal glyph
+  without its enclosing ring, with a transparent background and native theme tint.
+  Both tab-bar variants retain their existing Settings action and hover behavior.
 
 ## Tasks and verification
 
@@ -84,4 +87,10 @@ focus and disabled/submitting rules do not change. Final native review is pendin
 | Settings palette | surface_1 background for secondary status; theme warning override | Light/Dark/Claude Warm settings captures |
 | Spacing | GAP_TIGHT/ROW/SECTION; 4px label/editor separation | Narrow forms and zoom captures |
 | Actions | Existing button themes and wrapping rows | Native action assertions and narrow panels |
+| Settings icon | Supplied >_ reference, ring removed; transparent 1254px PNG with native tint | Alpha/bundle checks and native top-right capture review |
 | Documentation | Raw macOS warm images with vertical tabs | Source/digest/provenance and full image review |
+
+The icon asset is `app/assets/bundled/png/warpai-settings.png`. The existing
+bundled-image renderer supplies theme tint; the anonymous avatar variant removes
+its circular accent background. Other Settings glyphs and application bundle
+icons are unchanged. Native verification follows the combined-source gate.

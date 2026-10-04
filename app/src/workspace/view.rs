@@ -19826,7 +19826,7 @@ impl Workspace {
             .unwrap_or(DEFAULT_USER_DISPLAY_NAME.to_owned());
 
         let avatar_content = if self.auth_state.is_anonymous_or_logged_out() {
-            AvatarContent::Icon(icons::Icon::Gear)
+            AvatarContent::Icon(icons::Icon::WarpaiSettings)
         } else {
             self.auth_state
                 .user_photo_url()
@@ -19842,12 +19842,24 @@ impl Workspace {
             UiComponentStyles {
                 width: Some(20.),
                 height: Some(20.),
-                border_radius: Some(CornerRadius::with_all(Radius::Percentage(50.))),
+                border_radius: if is_anonymous {
+                    None
+                } else {
+                    Some(CornerRadius::with_all(Radius::Percentage(50.)))
+                },
                 font_family_id: Some(appearance.ui_font_family()),
                 font_weight: Some(Weight::Bold),
-                background: Some(appearance.theme().accent().into()),
+                background: if is_anonymous {
+                    None
+                } else {
+                    Some(appearance.theme().accent().into())
+                },
                 font_size: Some(12.),
-                font_color: Some(ColorU::black()),
+                font_color: Some(if is_anonymous {
+                    appearance.theme().active_ui_text_color().into()
+                } else {
+                    ColorU::black()
+                }),
                 ..Default::default()
             },
         );
@@ -19965,7 +19977,7 @@ impl Workspace {
         Align::new(
             self.render_tab_bar_icon_button(
                 appearance,
-                icons::Icon::Gear,
+                icons::Icon::WarpaiSettings,
                 &self.mouse_states.settings_icon,
                 WorkspaceAction::ShowSettings,
                 "Settings".to_string(),
