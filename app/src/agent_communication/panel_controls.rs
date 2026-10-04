@@ -1,5 +1,5 @@
 //! Native human intent bound to the original scope/version, using existing editors.
-use super::{Action, CollaborationPanel};
+use super::{button_row, detail, heading, note, Action, CollaborationPanel};
 use crate::{
     appearance::Appearance,
     editor::{EditorView, Event, SingleLineEditorOptions, TextOptions},
@@ -707,27 +707,19 @@ impl CollaborationPanel {
     }
 
     pub(super) fn render_controls(&self, app: &AppContext) -> Box<dyn Element> {
-        let builder = Appearance::as_ref(app).ui_builder();
+        let appearance = Appearance::as_ref(app);
+        let builder = appearance.ui_builder();
         let mut body = Flex::column().with_spacing(12.);
         if let Some(form) = &self.form {
-            body.add_child(
-                builder
-                    .span(form.kind.label())
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
+            body.add_child(heading(appearance, form.kind.label()));
             if let Some(task) = &form.task {
-                body.add_child(
-                    builder
-                        .span(format!(
-                            "Task {} · original revision {} · version {}",
-                            task.id, task.revision, task.version
-                        ))
-                        .with_soft_wrap()
-                        .build()
-                        .finish(),
-                );
+                body.add_child(note(
+                    appearance,
+                    format!(
+                        "Task {} · original revision {} · version {}",
+                        task.id, task.revision, task.version
+                    ),
+                ));
             }
             if form.kind.overrides() {
                 body.add_child(builder.span("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.").with_soft_wrap().build().finish());
@@ -766,26 +758,23 @@ impl CollaborationPanel {
                 body.add_child(builder.span("Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.").with_soft_wrap().build().finish());
             }
             for (label, field) in form.kind.labels().iter().zip(&form.fields) {
-                body.add_child(builder.span(*label).with_soft_wrap().build().finish());
-                if form.submitting {
-                    body.add_child(
-                        builder
-                            .span(field.as_ref(app).buffer_text(app))
-                            .with_soft_wrap()
-                            .build()
-                            .finish(),
-                    );
+                let value = if form.submitting {
+                    detail(appearance, field.as_ref(app).buffer_text(app))
                 } else {
-                    body.add_child(ChildView::new(field).finish());
-                }
+                    ChildView::new(field).finish()
+                };
+                body.add_child(
+                    Flex::column()
+                        .with_spacing(4.)
+                        .with_child(heading(appearance, *label))
+                        .with_child(value)
+                        .finish(),
+                );
             }
-            body.add_child(
-                builder
-                    .span(form.error.clone())
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
+            if !form.error.is_empty() {
+                body.add_child(detail(appearance, form.error.clone()));
+            }
+            let mut buttons = Vec::new();
             for (index, label, action) in [
                 (0, "Confirm operation", Action::ConfirmControl),
                 (1, "Close form", Action::CancelControl),
@@ -800,12 +789,15 @@ impl CollaborationPanel {
                 } else {
                     button
                 };
-                body.add_child(
+                buttons.push(
                     button
                         .build()
                         .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
                         .finish(),
                 );
+            }
+            if let Some(buttons) = button_row(buttons) {
+                body.add_child(buttons);
             }
         } else {
             let mut kinds = if self.query.history {
@@ -851,13 +843,8 @@ impl CollaborationPanel {
                     _ => {}
                 }
             }
-            body.add_child(
-                builder
-                    .span("Human controls")
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
+            body.add_child(heading(appearance, "Human controls"));
+            let mut buttons = Vec::new();
             for (index, kind) in kinds.into_iter().enumerate() {
                 let button = builder
                     .button(ButtonVariant::Text, self.control_buttons[index].clone())
@@ -867,7 +854,7 @@ impl CollaborationPanel {
                 } else {
                     button.disabled()
                 };
-                body.add_child(
+                buttons.push(
                     button
                         .build()
                         .on_click(move |ctx, _, _| {
@@ -876,7 +863,10 @@ impl CollaborationPanel {
                         .finish(),
                 );
             }
-            body.add_child(builder.span("Cancellation requests do not stop the CLI process. Native approvals and terminal drafts remain under your control.").with_soft_wrap().build().finish());
+            if let Some(buttons) = button_row(buttons) {
+                body.add_child(buttons);
+            }
+            body.add_child(note(appearance, "Cancellation requests do not stop the CLI process. Native approvals and terminal drafts remain under your control."));
         }
         body.finish()
     }
@@ -903,7 +893,6 @@ impl CollaborationPanel {
             .as_ref()
             .is_some_and(|form| !form.submitting && !form.error.is_empty())
     }
-
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use std::{cell::RefCell, collections::HashMap};
-use warpui::elements::{ChildView, Container, Expanded, Flex, MouseStateHandle, ParentElement};
+use warpui::elements::{ChildView, Container, Flex, MouseStateHandle, ParentElement};
 use warpui::ui_components::{
     button::ButtonVariant, components::UiComponent, switch::SwitchStateHandle,
 };
@@ -77,9 +77,8 @@ impl View for CommunicationSettingsView {
                 .build()
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Enable))
                 .finish(),
-            None,
+            Some("Configure local MCP access for selected CLI agents. Communication stays within each project.".into()),
         ));
-        body.add_child(builder.paragraph("Configure local MCP access for selected CLI agents. Communication stays within each project.".to_owned()).build().finish());
         if model.preferences.enabled || !model.preferences.selected.is_empty() {
             let mut rows = model.available.clone();
             // Keep removed executables visible so owned configuration can still be cleaned up.
@@ -121,28 +120,24 @@ impl View for CommunicationSettingsView {
                     checkbox
                 };
                 let command = row.command.clone();
-                body.add_child(
-                    Flex::row()
-                        .with_child(
-                            checkbox
-                                .build()
-                                .on_click(move |ctx, _, _| {
-                                    ctx.dispatch_typed_action(Action::Select(command.clone()))
-                                })
-                                .finish(),
-                        )
-                        .with_child(
-                            Expanded::new(
-                                1.,
-                                builder
-                                    .paragraph(format!("{} — {}", row.command, row.status))
-                                    .build()
-                                    .finish(),
-                            )
-                            .finish(),
-                        )
+                body.add_child(render_body_item::<Action>(
+                    row.command,
+                    None,
+                    LocalOnlyIconState::Hidden,
+                    if model.busy || row.installed.is_none() {
+                        ToggleState::Disabled
+                    } else {
+                        ToggleState::Enabled
+                    },
+                    appearance,
+                    checkbox
+                        .build()
+                        .on_click(move |ctx, _, _| {
+                            ctx.dispatch_typed_action(Action::Select(command.clone()))
+                        })
                         .finish(),
-                );
+                    Some(row.status),
+                ));
             }
         }
         body.add_child(builder.paragraph(model.status.clone()).build().finish());
@@ -152,7 +147,7 @@ impl View for CommunicationSettingsView {
             ).build().finish());
         }
         let refresh = builder
-            .button(ButtonVariant::Text, self.refresh.clone())
+            .button(ButtonVariant::Secondary, self.refresh.clone())
             .with_text_label("Refresh agents / retry cleanup".to_owned());
         let refresh = if model.busy {
             refresh.disabled()

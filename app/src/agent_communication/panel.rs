@@ -1,9 +1,11 @@
 //! Native collaboration projection; explicit sample mode retains the accepted fixtures.
 use crate::appearance::Appearance;
+use crate::ui_components::blended_colors;
 #[path = "panel_controls.rs"]
 mod controls;
 use serde::Deserialize;
 use std::{
+    borrow::Cow,
     collections::HashMap,
     sync::Arc,
     time::{Duration, Instant},
@@ -19,12 +21,82 @@ use warpui::{
     elements::{
         ClippedScrollStateHandle, ClippedScrollable, Container, DispatchEventResult, Element,
         EventHandler, Fill, Flex, MouseStateHandle, Padding, ParentElement, ScrollbarWidth,
-        Shrinkable,
+        Shrinkable, Wrap,
     },
-    ui_components::{button::ButtonVariant, components::UiComponent},
+    fonts::Weight,
+    ui_components::{
+        button::ButtonVariant,
+        components::{UiComponent, UiComponentStyles},
+    },
     units::IntoPixels,
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext,
 };
+
+// Text roles match the existing Tools Panel views: Global Search uses a 14px sub-text
+// title and 12px secondary status text; section headings follow settings sub-headers.
+fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> {
+    let theme = appearance.theme();
+    appearance
+        .ui_builder()
+        .span(text)
+        .with_style(UiComponentStyles {
+            font_size: Some(14.),
+            font_color: Some(blended_colors::text_sub(theme, theme.background())),
+            ..Default::default()
+        })
+        .with_soft_wrap()
+        .build()
+        .finish()
+}
+
+fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
+    appearance
+        .ui_builder()
+        .span(text)
+        .with_style(UiComponentStyles {
+            font_weight: Some(Weight::Semibold),
+            ..Default::default()
+        })
+        .with_soft_wrap()
+        .build()
+        .finish()
+}
+
+fn note(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
+    let theme = appearance.theme();
+    appearance
+        .ui_builder()
+        .span(text)
+        .with_style(UiComponentStyles {
+            font_size: Some(12.),
+            font_color: Some(blended_colors::text_sub(theme, theme.background())),
+            ..Default::default()
+        })
+        .with_soft_wrap()
+        .build()
+        .finish()
+}
+
+fn detail(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
+    appearance
+        .ui_builder()
+        .span(text)
+        .with_soft_wrap()
+        .with_selectable(true)
+        .build()
+        .finish()
+}
+
+/// Lays related buttons out in wrapping runs instead of one full-width row each.
+fn button_row(buttons: Vec<Box<dyn Element>>) -> Option<Box<dyn Element>> {
+    (!buttons.is_empty()).then(|| {
+        Wrap::row()
+            .with_spacing(12.)
+            .with_run_spacing(4.)
+            .with_children(buttons)
+            .finish()
+    })
+}
 
 #[derive(Deserialize)]
 struct Fixture {
@@ -282,16 +354,22 @@ impl CollaborationPanel {
 
     /// Closing or switching tools fences pending replies and stops new projection reads.
     pub(crate) fn set_visible(&mut self, visible: bool, ctx: &mut ViewContext<Self>) {
-        if self.visible == visible { return; }
+        if self.visible == visible {
+            return;
+        }
         self.visible = visible;
         self.generation += 1;
         self.connected = false;
-        if visible && !self.preview { self.refresh(ctx); }
+        if visible && !self.preview {
+            self.refresh(ctx);
+        }
         ctx.notify();
     }
 
     fn refresh(&mut self, ctx: &mut ViewContext<Self>) {
-        if !self.visible { return; }
+        if !self.visible {
+            return;
+        }
         let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
@@ -1138,7 +1216,9 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::Exit => {
-                    ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
+                    ctx.dispatch_typed_action_deferred(
+                        crate::workspace::WorkspaceAction::FocusLeftPanel,
+                    );
                     return;
                 }
             }
@@ -1164,9 +1244,8 @@ impl TypedActionView for CollaborationPanel {
                 self.scroll.scroll_by((*delta).into_pixels());
                 ctx.notify();
             }
-            Action::Exit => {
-                ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel)
-            }
+            Action::Exit => ctx
+                .dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel),
             _ => {}
         }
     }
@@ -1210,40 +1289,25 @@ impl View for CollaborationPanel {
         let hide_navigation = self.form.as_ref().is_some_and(|form| {
             matches!(form.kind, controls::Kind::ConnectSsh | controls::Kind::Send)
         });
-        let mut header = Flex::column().with_spacing(12.);
-        header.add_child(
-            builder
-                .span("Agent collaboration")
-                .with_soft_wrap()
-                .build()
-                .finish(),
-        );
-        header.add_child(
-            builder
-                .span(if self.preview {
-                    format!("Design preview — sample data · {}", fixture.state)
-                } else {
-                    format!(
-                        "{} collaboration · {}",
-                        if self.remote.is_some() {
-                            "SSH"
-                        } else {
-                            "Local"
-                        },
-                        fixture.state
-                    )
-                })
-                .with_soft_wrap()
-                .build()
-                .finish(),
-        );
-        header.add_child(
-            builder
-                .span(fixture.guidance.clone())
-                .with_soft_wrap()
-                .build()
-                .finish(),
-        );
+        let mut header = Flex::column().with_spacing(8.);
+        header.add_child(panel_title(appearance, "Agent collaboration"));
+        header.add_child(note(
+            appearance,
+            if self.preview {
+                format!("Design preview — sample data · {}", fixture.state)
+            } else {
+                format!(
+                    "{} collaboration · {}",
+                    if self.remote.is_some() {
+                        "SSH"
+                    } else {
+                        "Local"
+                    },
+                    fixture.state
+                )
+            },
+        ));
+        header.add_child(note(appearance, fixture.guidance.clone()));
         header.add_child(
             builder
                 .button(ButtonVariant::Text, self.next.clone())
@@ -1260,7 +1324,7 @@ impl View for CollaborationPanel {
                 .finish(),
         );
         if !self.preview {
-            let mut connection_controls = Flex::row().with_spacing(8.);
+            let mut connection_controls = Wrap::row().with_spacing(12.).with_run_spacing(4.);
             for (index, label, action) in [
                 (
                     0,
@@ -1298,26 +1362,13 @@ impl View for CollaborationPanel {
         }
         let mut body = Flex::column().with_spacing(12.);
         let render_section = |section: &Section| {
-            let mut column = Flex::column().with_spacing(12.);
-            column.add_child(
-                builder
-                    .span(section.title.clone())
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
+            let mut column = Flex::column().with_spacing(4.);
+            column.add_child(heading(appearance, section.title.clone()));
             for row in &section.rows {
                 column.add_child(
-                    Container::new(
-                        builder
-                            .span(row.clone())
-                            .with_soft_wrap()
-                            .with_selectable(true)
-                            .build()
-                            .finish(),
-                    )
-                    .with_padding_left(8.)
-                    .finish(),
+                    Container::new(detail(appearance, row.clone()))
+                        .with_padding_left(8.)
+                        .finish(),
                 );
             }
             column.finish()
@@ -1338,8 +1389,9 @@ impl View for CollaborationPanel {
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
+                let mut navigation = Wrap::row().with_spacing(12.).with_run_spacing(4.);
                 if self.remote.is_none() && !hide_navigation {
-                    header.add_child(
+                    navigation.add_child(
                         builder
                             .button(ButtonVariant::Text, self.scope_buttons[0].clone())
                             .with_text_label("Spaces and workspaces".into())
@@ -1349,7 +1401,7 @@ impl View for CollaborationPanel {
                     );
                 }
                 if !hide_navigation {
-                    header.add_child(
+                    navigation.add_child(
                         builder
                             .button(ButtonVariant::Text, self.history_buttons[0].clone())
                             .with_text_label("History and storage".into())
@@ -1364,7 +1416,7 @@ impl View for CollaborationPanel {
                     || self.query.history
                 {
                     if !hide_navigation {
-                        header.add_child(
+                        navigation.add_child(
                             builder
                                 .button(ButtonVariant::Text, self.page_buttons[0].clone())
                                 .with_text_label("Back to agents and tasks".into())
@@ -1374,15 +1426,9 @@ impl View for CollaborationPanel {
                         );
                     }
                 } else {
-                    body.add_child(builder.span("Tasks").with_soft_wrap().build().finish());
+                    body.add_child(heading(appearance, "Tasks"));
                     if snapshot.tasks.is_empty() {
-                        body.add_child(
-                            builder
-                                .span("No tasks on this page.")
-                                .with_soft_wrap()
-                                .build()
-                                .finish(),
-                        );
+                        body.add_child(note(appearance, "No tasks on this page."));
                     }
                     for task in &snapshot.tasks {
                         let id = task.id.clone();
@@ -1410,6 +1456,7 @@ impl View for CollaborationPanel {
                                 .finish(),
                         );
                     }
+                    let mut buttons = Vec::new();
                     for (label, action, index) in [
                         ("First task page", Some(Action::FirstTasks), 0),
                         (
@@ -1428,7 +1475,7 @@ impl View for CollaborationPanel {
                         ),
                     ] {
                         if let Some(action) = action {
-                            body.add_child(
+                            buttons.push(
                                 builder
                                     .button(ButtonVariant::Text, self.page_buttons[index].clone())
                                     .with_text_label(label.into())
@@ -1440,6 +1487,12 @@ impl View for CollaborationPanel {
                             );
                         }
                     }
+                    if let Some(buttons) = button_row(buttons) {
+                        body.add_child(buttons);
+                    }
+                }
+                if !hide_navigation {
+                    header.add_child(navigation.finish());
                 }
             }
         }
@@ -1460,6 +1513,7 @@ impl View for CollaborationPanel {
             && !self.query.history
             && self.form.is_none()
         {
+            let mut buttons = Vec::new();
             for (label, state, action) in [
                 (
                     format!(
@@ -1487,7 +1541,7 @@ impl View for CollaborationPanel {
                     Action::FilterTaskAssignee(None),
                 ),
             ] {
-                body.add_child(
+                buttons.push(
                     builder
                         .button(ButtonVariant::Text, state)
                         .with_text_label(label)
@@ -1499,7 +1553,7 @@ impl View for CollaborationPanel {
             if let Some(snapshot) = &self.snapshot {
                 for row in &snapshot.agents {
                     let id = row.agent.id.clone();
-                    body.add_child(
+                    buttons.push(
                         builder
                             .button(ButtonVariant::Text, self.agent_task_buttons[&id].clone())
                             .with_text_label(format!("Tasks assigned to {}", row.agent.name))
@@ -1512,6 +1566,9 @@ impl View for CollaborationPanel {
                             .finish(),
                     );
                 }
+            }
+            if let Some(buttons) = button_row(buttons) {
+                body.add_child(buttons);
             }
         }
         if !self.preview {
@@ -3830,6 +3887,46 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }),
     );
+    driver = driver.with_step(
+        TestStep::new("open native communication settings").with_action(|app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| {
+                workspace.handle_action(
+                    &WorkspaceAction::ShowSettingsPageWithSearch {
+                        search_query: "agent communication".into(),
+                        section: Some(crate::settings_view::SettingsSection::Features),
+                    },
+                    ctx,
+                );
+            });
+        }),
+    );
+    for (theme_kind, theme_name) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for zoom in [1., 1.25] {
+            let filename = format!("settings-communication-{theme_name}-{zoom}.png");
+            filenames.push(filename.clone());
+            let theme_kind = theme_kind.clone();
+            driver = driver.with_step(
+                TestStep::new(&format!("native communication settings {theme_name} at {zoom}"))
+                    .with_action(move |app, window, _| {
+                        app.update(|ctx| {
+                            let theme = Settings::theme_for_theme_kind(&theme_kind, ctx);
+                            Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                                appearance.set_theme(theme, ctx);
+                            });
+                            ctx.set_zoom_factor(zoom);
+                        });
+                    })
+                    .add_named_assertion("communication settings is visible", |app, window| {
+                        warpui::async_assert!(app
+                            .views_of_type::<crate::settings_view::agent_communication::CommunicationSettingsView>(window)
+                            .is_some_and(|views| !views.is_empty()))
+                    })
+                    .with_take_screenshot(filename),
+            );
+        }
+    }
     let driver = driver.with_on_finish(move |_, _, _| {
         let directory = directory.clone();
         let filenames = filenames.clone();
