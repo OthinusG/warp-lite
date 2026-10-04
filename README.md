@@ -72,7 +72,8 @@ Remote project authority, private per-run MCP and explicit Agent launch have pas
 three-platform checks, including two native Agent processes exchanging a message
 and completing a reviewed task through controlled OpenSSH. Native panel actions
 and screenshot review passed on macOS and Windows at source `8b89938`. Both desktop
-release packages and Linux/macOS/Windows companion artifacts passed final checks.
+release packages built successfully; Linux/macOS/Windows companion artifacts
+passed source and digest checks.
 The source-matched [desktop review packages](https://github.com/OthinusG/warp-lite/actions/runs/37152975773)
 and [companion artifacts](https://github.com/OthinusG/warp-lite/actions/runs/37152973196)
 are available from GitHub Actions; published v0.5.7-lite remains unchanged.
