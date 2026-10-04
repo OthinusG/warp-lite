@@ -1,5 +1,3 @@
-/Users/wqin/workplace/warp-lite/app/src/agent_communication/panel.rs:
-
 //! Native collaboration projection; explicit sample mode retains the accepted fixtures.
 use crate::appearance::Appearance;
 use crate::ui_components::blended_colors;
@@ -3908,7 +3906,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     driver = driver.with_step(
         TestStep::new("open native communication settings").with_action(|app, window, _| {
             // Fixed visual data stays in the isolated debug profile and never configures a CLI.
-            super::AgentCommunication::handle(app).update(app, |model, ctx| {
+            app.update(|ctx| {
+            super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.available = vec![
                     super::setup::Available {
                         command: "codex".into(),
@@ -3924,6 +3923,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     },
                 ];
                 ctx.notify();
+            });
             });
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
