@@ -68,7 +68,10 @@ fn managed_agent_child() {
         std::fs::write(&heartbeat, "0").unwrap();
         std::thread::spawn(move || {
             for tick in 1u64.. {
-                std::fs::write(&heartbeat, tick.to_string()).unwrap();
+                // Forced termination must not leave a truncated heartbeat and mimic a live child.
+                let mut next = tempfile::NamedTempFile::new_in(".").unwrap();
+                write!(next, "{tick}").unwrap();
+                next.persist(&heartbeat).unwrap();
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
         });

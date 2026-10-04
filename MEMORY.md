@@ -826,3 +826,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   icons: reference, vector geometry, rendering/reference QA, all-call-site update,
   PNG removal, commit, then native screenshots/acceptance. Desktop run 37210399364
   is superseded by this change; remote 37210399494 is historical passed evidence.
+
+- Windows remote run 37211788439 exposed an acceptance-fixture race: killing the
+  owned Agent between heartbeat truncation and write can leave an empty file,
+  which the unchanged nonempty/stability assertion treats as still alive. Use
+  same-directory NamedTempFile writes and atomic persist for fixture heartbeats;
+  preserve production process-stop behavior, deadlines and ownership assertions.
+  Rerun both gates from the same final source after this fixture correction.
