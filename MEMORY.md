@@ -783,3 +783,17 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   the final repository/default branch will be OthinusG/warpai and main.
   Static manifest/lock/workflow/shell/documentation checks passed; full GitHub
   acceptance of this combined source remains pending.
+
+- Final delivery ordering reaffirmed by the user: finish identity/cleanup
+  acceptance, then repair remaining UI mismatches against UI-CONSISTENCY.md and
+  verify native captures before pushing the default branch. Preserve the existing
+  user styling rather than replacing already-correct controls. Remote source
+  e9a02ca passed Linux/macOS/Windows run 37205656289; desktop gate remains pending.
+
+- Startup isolation correction: `run()` must not migrate user data before the
+  capture driver configures its temporary home/profile. Keep the single migration
+  call at the beginning of `run_internal()`, after `Builder::build()` runs setup
+  and before logging/preferences/state. Completion/help/worker entrypoints also
+  avoid unintended migration. Both native CI captures now reject creation of an
+  ordinary-home migration marker. The e9a02ca desktop gate is superseded by this
+  correction; its remote acceptance remains valid historical evidence only.

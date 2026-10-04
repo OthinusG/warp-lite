@@ -99,3 +99,18 @@ Cleanup removes 39 additional tracked files (444,578 bytes), excluding engineeri
 script/specification renames. Combined with the earlier deep cleanup this is
 278 removed files. User-completed panel and formatting changes are preserved
 and included in the final combined-source GitHub gate.
+
+## Final delivery sequence
+
+The user reaffirmed on 2026-10-04 that the identity/cleanup functional gate must
+pass before the final UI repair and delivery. After that gate, inspect the native
+static/live captures against `agent-communication-v2/UI-CONSISTENCY.md`, preserve
+the completed user styling, repair remaining visual mismatches and run the
+source-matched native desktop gate again if executable UI changes are needed.
+Only accepted final UI/source may be integrated and delivered.
+
+Native migration must run only from `run_internal()`: the capture driver finishes
+its temporary-home/profile setup while building the driver. An earlier `run()`
+call bypassed that isolation and has been removed. Native CI must verify that
+capture does not create an ordinary-home migration marker. Help/completion and
+worker dispatch must not perform a desktop settings import.

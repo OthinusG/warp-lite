@@ -501,8 +501,6 @@ fn apply_scroll_multiplier(event: &mut Event, app: &AppContext) {
 
 /// Runs the app. If a subcommand was requested, it'll be run instead of the main application.
 pub fn run() -> Result<()> {
-    #[cfg(not(target_family = "wasm"))]
-    user_data_migration::migrate().context("Cannot migrate Warpai user data")?;
     // Perform any necessary platform-specific initialization.
     platform::init();
 

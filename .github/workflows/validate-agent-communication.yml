@@ -103,7 +103,10 @@ jobs:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion.exe
         run: |
+          $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/.warpai/.legacy-migration-complete'
+          $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
           $captureProcess = Start-Process -FilePath "$PWD/target/debug/warpai.exe" -WorkingDirectory "$PWD/target/debug" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
           # Keep only panic source locations, never the raw application log or payload.
           $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
           New-Item -ItemType Directory -Path $env:WARP_COLLABORATION_CAPTURE -Force | Out-Null
@@ -236,8 +239,12 @@ jobs:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion
         run: |
+          ordinary_marker="$HOME/.config/.warpai/.legacy-migration-complete"
+          ordinary_before=0
+          if [[ -e "$ordinary_marker" ]]; then ordinary_before=1; fi
           capture_exit=0
           WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
+          if [[ "$ordinary_before" == 0 ]]; then test ! -e "$ordinary_marker"; fi
           python3 script/test-native-capture-diagnostic.py
           python3 script/native-capture-diagnostic.py --log "$RUNNER_TEMP/collaboration-capture.log" --output "$WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code "$capture_exit"
           test "$capture_exit" -eq 0
