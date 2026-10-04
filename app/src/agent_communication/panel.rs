@@ -2960,7 +2960,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     app.update(|ctx| {
                         #[cfg(target_os = "macos")]
                         {
-                            crate::settings::TabSettings::handle(ctx).update(
+                            crate::workspace::tab_settings::TabSettings::handle(ctx).update(
                                 ctx,
                                 |settings, ctx| {
                                     settings
@@ -3008,6 +3008,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                         .workspace_view()
                                         .is_some_and(|workspace| workspace
                                             .as_ref(ctx)
+                                            .snapshot(*window, false, ctx)
                                             .vertical_tabs_panel_open)))
                         )
                     },
