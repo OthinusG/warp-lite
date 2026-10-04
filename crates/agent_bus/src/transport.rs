@@ -159,10 +159,6 @@ pub struct PanelQuery {
     pub history_after: Option<u64>,
 }
 impl RunningBroker {
-    /// Executable aliases live beside the private broker socket and disappear with the app.
-    pub fn launcher_directory(&self) -> std::path::PathBuf {
-        self.directory.join("launchers")
-    }
     pub fn start(database: &Path) -> Result<Self> {
         let store = Store::open(
             database

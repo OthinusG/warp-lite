@@ -833,3 +833,19 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   same-directory NamedTempFile writes and atomic persist for fixture heartbeats;
   preserve production process-stop behavior, deadlines and ownership assertions.
   Rerun both gates from the same final source after this fixture correction.
+
+- User correction: starting CI is not completing acceptance. Keep working through
+  desktop regressions, native screenshot review, package inspection and accepted
+  default-branch/repository integration. A running compilation must be reported
+  as pending, never as passed, and must not end the authorized delivery work.
+
+- Codex ownership correction (2026-10-05): never impersonate vendor commands,
+  prepend app aliases to PATH, proxy Codex's daemon/frontend, pin package-manager
+  version paths, or write Codex user configuration for MCP. Preserve third-party
+  Agent management. Use explicit original-CLI launches with verified native
+  per-invocation MCP options and session isolation; user-typed commands stay
+  untouched. The legacy Codex adapter must load but never read/write its file.
+  Local managed-launch integration and new native model-level acceptance remain
+  pending. Older installed app binaries can still contain the withdrawn behavior
+  until replaced; do not interrupt active user sessions. Unified CI monitoring
+  was explicitly paused by the user; focused rollback verification is separate.

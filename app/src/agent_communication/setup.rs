@@ -250,7 +250,9 @@ pub fn discover(
                     }
                 }
             }
-            let status = if adapter.is_some() {
+            let status = if program == "codex" {
+                "Session MCP requires an explicit Warpai launch; ordinary codex is unchanged"
+            } else if adapter.is_some() {
                 "Available"
             } else {
                 "Automatic native MCP setup is unavailable for this installed version"
@@ -557,10 +559,6 @@ pub fn vibe_environment(
     );
     Ok(())
 }
-fn codex_block(bridge: &Path) -> String {
-    let command = toml::Value::String(bridge.to_string_lossy().into_owned());
-    format!("{START}\n[mcp_servers.{SERVER}]\ncommand = {command}\nargs = [\"mcp\"]\nenv_vars = [\"WARP_AGENT_ENDPOINT\", \"WARP_AGENT_CAPABILITY\", \"WARP_TERMINAL_SESSION_UUID\"]\n{END}\n")
-}
 pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
     match &installed.adapter {
         Adapter::Vibe(path) => {
@@ -689,37 +687,8 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             }
             atomic_write(path, serde_yaml::to_string(&root)?.as_bytes())
         }
-        Adapter::Codex(path) => {
-            let text = match std::fs::read_to_string(path) {
-                Ok(s) => s,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-                Err(e) => return Err(e.into()),
-            };
-            let parsed: toml::Value = toml::from_str(&text)
-                .map_err(|_| anyhow::anyhow!("Invalid Codex TOML; configuration was preserved"))?;
-            let block = codex_block(&installed.bridge);
-            let present = parsed
-                .get("mcp_servers")
-                .and_then(|v| v.get(SERVER))
-                .is_some();
-            if present {
-                ensure!(
-                    owned && text.contains(&block),
-                    "Communication configuration was changed or belongs to the user; preserved"
-                );
-            }
-            if enable && present || !enable && !present {
-                return Ok(());
-            }
-            let next = if enable {
-                format!("{text}\n{block}")
-            } else {
-                text.replacen(&block, "", 1)
-            };
-            toml::from_str::<toml::Value>(&next)
-                .map_err(|_| anyhow::anyhow!("Invalid generated Codex configuration"))?;
-            atomic_write(path, next.as_bytes())
-        }
+        // Session-only configuration: never inspect or modify the user's Codex files.
+        Adapter::Codex(_) => Ok(()),
         Adapter::Json { path, key, value } | Adapter::Yaml { path, key, value } => {
             let text = match std::fs::read(path) {
                 Ok(s) => s,
@@ -1040,10 +1009,34 @@ mod tests {
         assert_eq!(std::fs::read_to_string(path).unwrap(), original);
     }
     #[test]
+    fn codex_setup_never_reads_or_writes_user_configuration() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.toml");
+        let installed = Installed {
+            active: true,
+            program: "codex".into(),
+            executable: "codex".into(),
+            adapter: Adapter::Codex(path.clone()),
+            bridge: "/bridge".into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        for enable in [true, false] {
+            configure(&installed, enable, false).unwrap();
+            assert!(!path.exists());
+        }
+        // Invalid TOML also stays untouched: this path must not read vendor configuration.
+        let original = b"user configuration [ invalid TOML";
+        std::fs::write(&path, original).unwrap();
+        for enable in [true, false] {
+            configure(&installed, enable, true).unwrap();
+            assert_eq!(std::fs::read(&path).unwrap(), original);
+        }
+    }
+    #[test]
     fn managed_configuration_is_reversible_and_preserves_user_settings() {
         let directory = tempfile::tempdir().unwrap();
         for adapter in [
-            Adapter::Codex(directory.path().join("config.toml")),
             Adapter::Toml {
                 path: directory.path().join("grok.toml"),
                 value: json!({"command":"/bridge", "args":["mcp"]}),

@@ -1,3 +1,9 @@
+> Ownership correction (2026-10-05): Codex proxy/alias acceptance below is
+> historical and superseded. Current source removes command impersonation and
+> Codex user-config writes. The replacement uses explicit native per-invocation
+> MCP options; local managed-launch UI and native model-level acceptance remain
+> pending. See [current plan](../agent-communication-v2/TECH.md#replacement-plan-native-explicit-session-only-codex-mcp).
+
 # Native MCP Coverage
 
 **English technical reference** | [中文使用指南](../../docs/AGENTS.zh-CN.md)

@@ -32,11 +32,28 @@ async fn main() {
                     "Native executable must be absolute"
                 );
                 warp_agent_bus::mcp::Bridge::from_env()?;
+                let options = if program == "codex" {
+                    let help = tokio::time::timeout(
+                        std::time::Duration::from_secs(8),
+                        tokio::process::Command::new(&executable)
+                            .arg("--help")
+                            .kill_on_drop(true)
+                            .output(),
+                    )
+                    .await??;
+                    anyhow::ensure!(help.status.success(), "Native CLI capability probe failed");
+                    warp_agent_bus::launch::LaunchOptions::from_help(
+                        &program,
+                        &String::from_utf8_lossy(&help.stdout),
+                    )
+                } else {
+                    Default::default()
+                };
                 warp_agent_bus::session::launch(
                     &warp_agent_bus::session::NativeLaunch {
                         program,
                         executable,
-                        options: Default::default(),
+                        options,
                     },
                     arguments.collect(),
                 )

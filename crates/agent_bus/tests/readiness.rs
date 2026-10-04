@@ -282,16 +282,21 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
         call(&server, &peers[1]).await;
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
         peers[1].operation = Operation::AgentReady;
-        assert_eq!(call(&server, &peers[1]).await["ready"], false,
-            "A model cannot announce idle during its active delegated execution");
+        assert_eq!(
+            call(&server, &peers[1]).await["ready"],
+            false,
+            "A model cannot announce idle during its active delegated execution"
+        );
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
         server.broker.readiness("worker", true);
         tokio::time::sleep(Duration::from_millis(850)).await;
         let hidden = status(&server, &peers[2], "worker").await;
         assert!(hidden["tasks"].as_array().unwrap().is_empty());
         assert_eq!(hidden["can_auto_submit"], true);
-        assert_eq!(hidden["can_start_task"], false,
-            "Private task content must stay hidden without advertising another execution grant");
+        assert_eq!(
+            hidden["can_start_task"], false,
+            "Private task content must stay hidden without advertising another execution grant"
+        );
         peers[1].operation = serde_json::from_value(json!({"op":"task_submit","task_id":task["id"],"revision":1,"result":"Friday","evidence":"Calendar checked","request_id":Uuid::new_v4().to_string()})).unwrap();
         let result = call(&server, &peers[1]).await;
         assert!(result["instruction"]
@@ -300,21 +305,30 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
             .contains("warp_agent_ready"));
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], true);
         call(&server, &start_request).await;
-        assert_eq!(status(&server, &peers[0], "worker").await["ready"], true,
-            "Replaying an old start must not revoke readiness after submission");
+        assert_eq!(
+            status(&server, &peers[0], "worker").await["ready"],
+            true,
+            "Replaying an old start must not revoke readiness after submission"
+        );
         let submission_request = peers[1].clone();
         server.broker.input_bytes("worker", b"New user work\r");
         assert_eq!(status(&server, &peers[0], "worker").await["ready"], false);
         call(&server, &submission_request).await;
-        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false,
-            "An identical submission replay must not make a later user turn idle");
+        assert_eq!(
+            status(&server, &peers[0], "worker").await["ready"],
+            false,
+            "An identical submission replay must not make a later user turn idle"
+        );
         peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":1,"accepted":false,"feedback":"Repeat the check","request_id":Uuid::new_v4().to_string()})).unwrap();
         call(&server, &peers[0]).await;
         peers[1].operation = serde_json::from_value(json!({"op":"task_start","task_id":task["id"],"revision":2,"request_id":Uuid::new_v4().to_string()})).unwrap();
         call(&server, &peers[1]).await;
         call(&server, &submission_request).await;
-        assert_eq!(status(&server, &peers[0], "worker").await["ready"], false,
-            "Replaying an old submission must not announce idle during a newer attempt");
+        assert_eq!(
+            status(&server, &peers[0], "worker").await["ready"],
+            false,
+            "Replaying an old submission must not announce idle during a newer attempt"
+        );
         peers[1].operation = serde_json::from_value(json!({"op":"task_submit","task_id":task["id"],"revision":2,"result":"Friday","evidence":"Calendar checked again","request_id":Uuid::new_v4().to_string()})).unwrap();
         call(&server, &peers[1]).await;
         peers[0].operation = serde_json::from_value(json!({"op":"task_review","task_id":task["id"],"revision":2,"accepted":true,"feedback":"Verified","request_id":Uuid::new_v4().to_string()})).unwrap();
@@ -322,7 +336,10 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
     }
     peers[0].operation = serde_json::from_value(json!({"op":"task_create_pool","description":"Inspect weekday","acceptance":"Return weekday","eligible":["worker"],"request_id":Uuid::new_v4().to_string()})).unwrap();
     let task = call(&server, &peers[0]).await;
-    peers[1].operation = serde_json::from_value(json!({"op":"task_claim","task_id":task["id"],"request_id":Uuid::new_v4().to_string()})).unwrap();
+    peers[1].operation = serde_json::from_value(
+        json!({"op":"task_claim","task_id":task["id"],"request_id":Uuid::new_v4().to_string()}),
+    )
+    .unwrap();
     call(&server, &peers[1]).await;
     assert_eq!(status(&server, &peers[0], "worker").await["ready"], true);
 }
@@ -333,14 +350,9 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
 #[ignore = "starts installed vendor clients and requests two small model turns"]
 fn native_clients_complete_two_turns() {
     use std::{
-        collections::BTreeMap,
         io::Write,
         process::{Command, Stdio},
         time::Instant,
-    };
-    use warp_agent_bus::{
-        launch::LaunchOptions,
-        session::{self, NativeLaunch},
     };
     let executable = std::env::var("WARP_READINESS_NATIVE")
         .expect("Set WARP_READINESS_NATIVE to an absolute installed CLI path");
@@ -353,7 +365,12 @@ fn native_clients_complete_two_turns() {
     let temporary = tempfile::tempdir().unwrap();
     let repository = temporary.path().join("fixture repository");
     std::fs::create_dir(&repository).unwrap();
-    assert!(Command::new("git").args(["init", "--quiet"]).arg(&repository).status().unwrap().success());
+    assert!(Command::new("git")
+        .args(["init", "--quiet"])
+        .arg(&repository)
+        .status()
+        .unwrap()
+        .success());
     let project = warp_agent_bus::project_root(&repository).unwrap();
     let bridge = std::env::var_os("WARP_ACCEPTANCE_BRIDGE")
         .map(std::path::PathBuf::from)
@@ -362,8 +379,14 @@ fn native_clients_complete_two_turns() {
     assert!(bridge.is_file());
     let version = Command::new(&executable).arg("--version").output().unwrap();
     assert!(version.status.success(), "Native version probe failed");
-    println!("Native acceptance: {program}; OS: {}; CLI version: {}", std::env::consts::OS,
-        String::from_utf8_lossy(&version.stdout).lines().next().unwrap_or("unknown"));
+    println!(
+        "Native acceptance: {program}; OS: {}; CLI version: {}",
+        std::env::consts::OS,
+        String::from_utf8_lossy(&version.stdout)
+            .lines()
+            .next()
+            .unwrap_or("unknown")
+    );
     let server = RunningBroker::start(Path::new(":memory:")).unwrap();
     let mut observer = Request {
         protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
@@ -390,21 +413,6 @@ fn native_clients_complete_two_turns() {
         .broker
         .activate("native", program, &project, true)
         .unwrap();
-    let help = Command::new(&executable).arg("--help").output().unwrap();
-    let launches = BTreeMap::from([(
-        program.to_owned(),
-        NativeLaunch {
-            executable: std::path::PathBuf::from(&executable),
-            program: program.into(),
-            options: LaunchOptions::from_help(program, &String::from_utf8_lossy(&help.stdout)),
-        },
-    )]);
-    session::install_launchers(
-        temporary.path(),
-        &bridge,
-        &launches,
-    )
-    .unwrap();
     let driver = r#"
 import fcntl,json,os,pty,re,select,signal,struct,subprocess,sys,termios,time
 markers=set()
@@ -417,7 +425,11 @@ def attach_terminal():
  os.setsid()
  fcntl.ioctl(slave,termios.TIOCSCTTY,0)
 args=[sys.argv[1]]
-if os.path.basename(sys.argv[1])=='codex' and os.environ.get('WARP_READINESS_EMBEDDED')=='1': args.append('--no-daemon')
+if os.path.basename(sys.argv[1])=='codex':
+ args+=['--no-daemon']
+ config={'command':os.environ['WARP_AGENT_BIN'],'args':['mcp'],'env_vars':['WARP_AGENT_ENDPOINT','WARP_AGENT_CAPABILITY','WARP_TERMINAL_SESSION_UUID']}
+ for key,value in config.items():
+  args+=['-c','mcp_servers.warp-lite-communication.'+key+'='+json.dumps(value)]
 child=subprocess.Popen(args,stdin=slave,stdout=slave,stderr=slave,cwd=sys.argv[2],preexec_fn=attach_terminal)
 os.close(slave)
 recent=b''
@@ -458,14 +470,13 @@ finally:
     let diagnostic = temporary.path().join("diagnostic.json");
     let mut child = Command::new("python3")
         .args(["-u", "-c", driver])
-        .arg(temporary.path().join(program))
+        .arg(&executable)
         .arg(&project)
         .arg(&diagnostic)
         .env(ENDPOINT, &server.broker.endpoint)
         .env(CAPABILITY, capability)
         .env(TERMINAL, "native")
         .env("WARP_AGENT_BIN", &bridge)
-        .env(session::LAUNCHES, serde_json::to_string(&launches).unwrap())
         .env_remove("WARP_AGENT_LAUNCH_PATH")
         .env("TERM", "xterm-256color")
         .stdin(Stdio::piped())
@@ -494,7 +505,8 @@ finally:
                 assert!(
                     child.try_wait().unwrap().is_none() && Instant::now() < deadline,
                     "{program} did not return idle: {:?}; indicators: {}",
-                    status(), std::fs::read_to_string(&diagnostic).unwrap_or_default()
+                    status(),
+                    std::fs::read_to_string(&diagnostic).unwrap_or_default()
                 );
                 std::thread::sleep(Duration::from_millis(100));
             }
@@ -527,4 +539,21 @@ finally:
     if let Err(panic) = outcome {
         std::panic::resume_unwind(panic);
     }
+}
+
+/// A vendor executable name must never turn the owned MCP bridge into that vendor.
+#[cfg(unix)]
+#[test]
+fn bridge_cannot_impersonate_codex() {
+    use std::os::unix::process::CommandExt;
+    let launch =
+        json!({"codex": {"executable": "/usr/bin/true", "program": "codex", "options": {}}});
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"))
+        .arg0("codex")
+        .arg("--help")
+        .env("WARP_AGENT_LAUNCHES", launch.to_string())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Usage: warpai-agent"));
 }
