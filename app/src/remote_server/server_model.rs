@@ -380,17 +380,16 @@ impl ServerModel {
 
         let outcome = match msg.message {
             Some(client_message::Message::Initialize(_)) => self.handle_initialize(&request_id),
-            Some(client_message::Message::Managed(_)) => {
-                HandlerOutcome::Sync(server_message::Message::Managed(
-                    remote_server::proto::ManagedResponse {
-                        result: Some(remote_server::proto::managed_response::Result::Error(
-                            remote_server::proto::ManagedError {
-                                code: remote_server::proto::ManagedErrorCode::ManagedFeatureUnavailable.into(),
-                            },
-                        )),
-                    },
-                ))
-            }
+            Some(client_message::Message::Managed(_)) => HandlerOutcome::Sync(
+                server_message::Message::Managed(remote_server::proto::ManagedResponse {
+                    result: Some(remote_server::proto::managed_response::Result::Error(
+                        remote_server::proto::ManagedError {
+                            code: remote_server::proto::ManagedErrorCode::ManagedFeatureUnavailable
+                                .into(),
+                        },
+                    )),
+                }),
+            ),
             Some(client_message::Message::SessionBootstrapped(msg)) => {
                 self.handle_session_bootstrapped(msg);
                 return;

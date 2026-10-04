@@ -3,7 +3,6 @@
 //! Some of the code in this module is adapted from GitHub Desktop, which is licensed under the MIT license,
 //! Copyright (c) GitHub, Inc.  See GITHUB-DESKTOP-LICENSE in this directory.
 
-use warp_core::{safe_warn};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -13,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use warp_core::safe_warn;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "local_fs")] {
@@ -1553,8 +1553,7 @@ impl DiffStateModel {
             return;
         }
 
-        if let Err(e) = &diffs.changes {
-        }
+        if let Err(e) = &diffs.changes {}
 
         self.state = InternalDiffState::Loaded((&diffs).into());
         ctx.emit(DiffStateModelEvent::NewDiffsComputed(diffs.changes.ok()));

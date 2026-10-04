@@ -725,7 +725,10 @@ fn test_detect_aifx_agent_run_claude_wrong_team() {
 }
 #[test]
 fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
-    let options = warp_agent_bus::launch::LaunchOptions::from_help("codex", "  --no-daemon  Embedded mode\n  -m, --model <MODEL>  Model");
+    let options = warp_agent_bus::launch::LaunchOptions::from_help(
+        "codex",
+        "  --no-daemon  Embedded mode\n  -m, --model <MODEL>  Model",
+    );
     for agent in enum_iterator::all::<CLIAgent>() {
         for command in agent.command_prefixes() {
             assert_eq!(
@@ -733,7 +736,10 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
                 *command != "vibe-acp",
                 "Incorrect stdin contract for {command}"
             );
-            assert_eq!(agent.starts_at_empty_prompt(command, &options), *command != "vibe-acp");
+            assert_eq!(
+                agent.starts_at_empty_prompt(command, &options),
+                *command != "vibe-acp"
+            );
             assert!(!agent.accepts_peer_prompt(&format!("{command} --print")));
         }
     }

@@ -4,8 +4,6 @@ pub mod file_backed;
 pub mod in_memory;
 #[cfg(target_family = "wasm")]
 pub mod local_storage;
-#[cfg(target_os = "windows")]
-pub mod registry_backed;
 #[cfg(feature = "user_preferences-toml")]
 pub mod toml_backed;
 #[cfg(target_os = "macos")]

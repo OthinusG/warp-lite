@@ -1,4 +1,3 @@
-use warp_core::{ ui::appearance::Appearance};
 use crate::{
     ai::agent::SuggestedAgentModeWorkflow,
     modal::{Modal, ModalEvent},
@@ -14,6 +13,7 @@ use crate::{
 };
 use pathfinder_geometry::vector::vec2f;
 use std::{collections::HashMap, default::Default, sync::Arc};
+use warp_core::ui::appearance::Appearance;
 use warpui::{
     elements::{
         ChildAnchor, Empty, OffsetPositioning, PositionedElementAnchor,

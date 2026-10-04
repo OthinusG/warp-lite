@@ -80,7 +80,6 @@ use super::{
     local_code_editor::{LocalCodeEditorEvent, LocalCodeEditorView},
 };
 
-
 type SaveCallback =
     Box<dyn FnOnce(SaveOutcome, &mut CodeView, &mut ViewContext<CodeView>) + Send + Sync + 'static>;
 

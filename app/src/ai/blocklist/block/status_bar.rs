@@ -725,8 +725,7 @@ impl BlocklistAIStatusBar {
             // Get the current tip from the model
             self.current_tip = tip_model.as_ref(ctx).current_tip().cloned();
 
-            if let Some(tip) = self.current_tip.as_ref() {
-            }
+            if let Some(tip) = self.current_tip.as_ref() {}
         } else {
             self.current_tip = None;
         }

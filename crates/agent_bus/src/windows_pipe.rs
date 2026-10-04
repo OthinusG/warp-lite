@@ -89,7 +89,7 @@ mod tests {
 
     #[tokio::test]
     async fn kernel_pipe_dacl_has_only_the_current_user_and_connects_locally() {
-        let endpoint = format!(r"\\.\pipe\warp-agent-acl-{}", uuid::Uuid::new_v4());
+        let endpoint = format!(r"\\.\pipe\warpai-agent-acl-{}", uuid::Uuid::new_v4());
         let pipe = create(&endpoint, true).unwrap();
         let mut descriptor = PSECURITY_DESCRIPTOR::default();
         unsafe {

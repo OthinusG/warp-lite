@@ -32,8 +32,13 @@ use warpui::{
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext,
 };
 
-// Text roles match the existing Tools Panel views: Global Search uses a 14px sub-text
-// title and 12px secondary status text; section headings follow settings sub-headers.
+/// Shared panel spacing so every row, section and button run keeps one rhythm.
+const GAP_TIGHT: f32 = 4.;
+const GAP_ROW: f32 = 8.;
+const GAP_SECTION: f32 = 12.;
+
+// Text roles: the 14px semibold primary title outranks semibold section headings;
+// 12px secondary text carries status and guidance.
 fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> {
     let theme = appearance.theme();
     appearance
@@ -41,7 +46,8 @@ fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> 
         .span(text)
         .with_style(UiComponentStyles {
             font_size: Some(14.),
-            font_color: Some(blended_colors::text_sub(theme, theme.background())),
+            font_weight: Some(Weight::Semibold),
+            font_color: Some(theme.active_ui_text_color().into()),
             ..Default::default()
         })
         .with_soft_wrap()
@@ -91,8 +97,8 @@ fn detail(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dy
 fn button_row(buttons: Vec<Box<dyn Element>>) -> Option<Box<dyn Element>> {
     (!buttons.is_empty()).then(|| {
         Wrap::row()
-            .with_spacing(12.)
-            .with_run_spacing(4.)
+            .with_spacing(GAP_SECTION)
+            .with_run_spacing(GAP_TIGHT)
             .with_children(buttons)
             .finish()
     })
@@ -1289,42 +1295,33 @@ impl View for CollaborationPanel {
         let hide_navigation = self.form.as_ref().is_some_and(|form| {
             matches!(form.kind, controls::Kind::ConnectSsh | controls::Kind::Send)
         });
-        let mut header = Flex::column().with_spacing(8.);
+        let mut header = Flex::column().with_spacing(GAP_ROW);
         header.add_child(panel_title(appearance, "Agent collaboration"));
+        let state = if self.preview {
+            format!("Design preview — sample data · {}", fixture.state)
+        } else {
+            format!(
+                "{} collaboration · {}",
+                if self.remote.is_some() {
+                    "SSH"
+                } else {
+                    "Local"
+                },
+                fixture.state
+            )
+        };
         header.add_child(note(
             appearance,
-            if self.preview {
-                format!("Design preview — sample data · {}", fixture.state)
+            if fixture.guidance.is_empty() {
+                state
             } else {
-                format!(
-                    "{} collaboration · {}",
-                    if self.remote.is_some() {
-                        "SSH"
-                    } else {
-                        "Local"
-                    },
-                    fixture.state
-                )
+                format!("{state} — {}", fixture.guidance)
             },
         ));
-        header.add_child(note(appearance, fixture.guidance.clone()));
-        header.add_child(
-            builder
-                .button(ButtonVariant::Text, self.next.clone())
-                .with_text_label(
-                    if self.preview {
-                        "Next preview state"
-                    } else {
-                        "Refresh"
-                    }
-                    .to_owned(),
-                )
-                .build()
-                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture))
-                .finish(),
-        );
+        let mut connection_controls = Wrap::row()
+            .with_spacing(GAP_SECTION)
+            .with_run_spacing(GAP_TIGHT);
         if !self.preview {
-            let mut connection_controls = Wrap::row().with_spacing(12.).with_run_spacing(4.);
             for (index, label, action) in [
                 (
                     0,
@@ -1341,8 +1338,14 @@ impl View for CollaborationPanel {
                 if index > 0 && self.remote.is_none() {
                     continue;
                 }
+                // The SSH entry point is the panel's primary action; the rest stay secondary text.
+                let variant = if index == 0 {
+                    ButtonVariant::Secondary
+                } else {
+                    ButtonVariant::Text
+                };
                 let button = builder
-                    .button(ButtonVariant::Text, self.remote_buttons[index].clone())
+                    .button(variant, self.remote_buttons[index].clone())
                     .with_text_label(label.into());
                 let button = if (index != 1 && self.form.is_some())
                     || !super::AgentCommunication::as_ref(app).preferences.enabled
@@ -1358,16 +1361,31 @@ impl View for CollaborationPanel {
                         .finish(),
                 );
             }
-            header.add_child(connection_controls.finish());
         }
-        let mut body = Flex::column().with_spacing(12.);
+        connection_controls.add_child(
+            builder
+                .button(ButtonVariant::Text, self.next.clone())
+                .with_text_label(
+                    if self.preview {
+                        "Next preview state"
+                    } else {
+                        "Refresh"
+                    }
+                    .to_owned(),
+                )
+                .build()
+                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture))
+                .finish(),
+        );
+        header.add_child(connection_controls.finish());
+        let mut body = Flex::column().with_spacing(GAP_SECTION);
         let render_section = |section: &Section| {
-            let mut column = Flex::column().with_spacing(4.);
+            let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, section.title.clone()));
             for row in &section.rows {
                 column.add_child(
                     Container::new(detail(appearance, row.clone()))
-                        .with_padding_left(8.)
+                        .with_padding_left(GAP_ROW)
                         .finish(),
                 );
             }
@@ -1389,7 +1407,9 @@ impl View for CollaborationPanel {
         }
         if !self.preview {
             if let Some(snapshot) = &self.snapshot {
-                let mut navigation = Wrap::row().with_spacing(12.).with_run_spacing(4.);
+                let mut navigation = Wrap::row()
+                    .with_spacing(GAP_SECTION)
+                    .with_run_spacing(GAP_TIGHT);
                 if self.remote.is_none() && !hide_navigation {
                     navigation.add_child(
                         builder
@@ -1815,12 +1835,12 @@ impl View for CollaborationPanel {
         EventHandler::new(
             Container::new(
                 Flex::column()
-                    .with_spacing(12.)
+                    .with_spacing(GAP_SECTION)
                     .with_child(header.finish())
                     .with_child(Shrinkable::new(1.0, scroll).finish())
                     .finish(),
             )
-            .with_padding(Padding::uniform(12.))
+            .with_padding(Padding::uniform(GAP_SECTION))
             .finish(),
         )
         .on_keydown(|ctx, _, key| {
@@ -2048,8 +2068,6 @@ impl CollaborationPanel {
 /// Exercises fixed fixtures and deterministic local operations in an isolated debug profile.
 #[cfg(debug_assertions)]
 pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Result<()> {
-    #[cfg(target_os = "macos")]
-    use ::settings::Setting as _;
     use crate::{
         root_view::RootView,
         settings::Settings,
@@ -2060,6 +2078,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             WorkspaceAction,
         },
     };
+    #[cfg(target_os = "macos")]
+    use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
 
     std::fs::create_dir_all(&directory)?;
@@ -2379,15 +2399,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 warpui::async_assert!(
-                    panel.read(app, |panel, _| panel
-                        .snapshot
-                        .as_ref()
-                        .is_some_and(|snapshot| snapshot.tasks.len() == 1
+                    panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
+                        |snapshot| snapshot.tasks.len() == 1
                             && snapshot.agents.iter().any(|agent| !agent.online
                                 && agent.device.as_deref() == Some("local")
                                 && agent.workspace.as_deref() == Some(snapshot.project.as_str())
-                                && agent.last_observed_ms.is_none())))
-                        && checkpoint_draft(app, window) == "unsent collaboration draft"
+                                && agent.last_observed_ms.is_none())
+                    )) && checkpoint_draft(app, window) == "unsent collaboration draft"
                 )
             },
         ));
@@ -3391,15 +3409,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         panel.handle_action(&Action::CopyHistory, ctx);
                     });
                 })
-                .add_named_assertion("export preserves original scope ordering and relationships", move |app, window| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    let copied = panel.update(app, |_, ctx| ctx.clipboard().read());
-                    let parsed = serde_json::from_str::<serde_json::Value>(&copied.plain_text).ok();
-                    let original = expected.lock().unwrap().clone();
-                    warpui::async_assert!(original.is_some() && parsed == original
-                        && copied.paths.is_none() && copied.html.is_none() && copied.images.is_none()
-                        && checkpoint_draft(app, window) == "unsent collaboration draft")
-                }),
+                .add_named_assertion(
+                    "export preserves original scope ordering and relationships",
+                    move |app, window| {
+                        let panel =
+                            app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        let copied = panel.update(app, |_, ctx| ctx.clipboard().read());
+                        let parsed =
+                            serde_json::from_str::<serde_json::Value>(&copied.plain_text).ok();
+                        let original = expected.lock().unwrap().clone();
+                        warpui::async_assert!(
+                            original.is_some()
+                                && parsed == original
+                                && copied.paths.is_none()
+                                && copied.html.is_none()
+                                && copied.images.is_none()
+                                && checkpoint_draft(app, window) == "unsent collaboration draft"
+                        )
+                    },
+                ),
         );
     }
     driver = driver
@@ -3715,8 +3743,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 |snapshot| uuid::Uuid::parse_str(&snapshot.project).is_ok()
                                     && snapshot.agents.iter().any(|row| row.online
                                         && row.agent.program == "fixture"
-                                        && row.agent.name == format!("fixture-{}", row.agent.terminal)
-                                    && row.run.as_ref().is_some_and(|run| uuid::Uuid::parse_str(run).is_ok()))
+                                        && row.agent.name
+                                            == format!("fixture-{}", row.agent.terminal)
+                                        && row
+                                            .run
+                                            .as_ref()
+                                            .is_some_and(|run| uuid::Uuid::parse_str(run).is_ok()))
                             ))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
@@ -3947,11 +3979,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     }
                 });
             })
-            .add_named_assertion("hidden panel is fenced and draft retained", |app, window| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| !panel.visible && !panel.connected)
-                    && checkpoint_draft(app, window) == "unsent collaboration draft")
-            }),
+            .add_named_assertion(
+                "hidden panel is fenced and draft retained",
+                |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(
+                        panel.read(app, |panel, _| !panel.visible && !panel.connected)
+                            && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                },
+            ),
     );
     driver = driver.with_step(
         TestStep::new("open native communication settings").with_action(|app, window, _| {

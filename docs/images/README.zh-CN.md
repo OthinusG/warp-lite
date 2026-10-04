@@ -5,11 +5,12 @@
 这些图片是原生 macOS 应用输出的原始 PNG 截图，未经修改。
 截图中的项目、Agent 和任务是原生验收驱动使用的样例，不是用户项目或经过认证的服务商模型会话。
 
+- 标签页：启用 macOS 原生垂直标签页面板。
 - 主题：默认的 **Claude Warm Light**，由原生应用直接渲染。
-- 源码版本：`3b315664131933837c735896239ae750f3c674c1`。
-- [GitHub 桌面验证记录 37188935250](https://github.com/OthinusG/warp-lite/actions/runs/37188935250)。
+- 源码版本：`02d08d484dd7ece33f528383230801d78c1355f5`。
+- [GitHub 桌面验证记录 37194453713](https://github.com/OthinusG/warp-lite/actions/runs/37194453713)。
 - 产物名称：`Warpai-collaboration-native-captures-macOS`。
-- 截图目录：`capture-96865/collaboration-static/2026-10-04T08-55-17`。
+- 截图目录：`capture-30892/collaboration-static/2026-10-04T11-02-45`。
 
 | 文档图片 | 原始截图 | 内容 |
 | --- | --- | --- |

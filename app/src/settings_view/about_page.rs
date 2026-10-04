@@ -115,7 +115,13 @@ impl SettingsWidget for AboutPageWidget {
                     .with_max_width(350.)
                     .finish(),
                 )
-                .with_child(ui_builder.span("Warpai").build().with_margin_top(16.).finish())
+                .with_child(
+                    ui_builder
+                        .span("Warpai")
+                        .build()
+                        .with_margin_top(16.)
+                        .finish(),
+                )
                 .with_child(version_row.finish())
                 .with_child(
                     ui_builder

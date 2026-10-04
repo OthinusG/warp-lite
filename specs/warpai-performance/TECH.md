@@ -1,4 +1,4 @@
-# Warp Lite Performance and Source Slimming — Technical Plan
+# Warpai Performance and Source Slimming — Technical Plan
 
 ## Context
 
@@ -33,10 +33,10 @@ These files may receive narrow import/type-boundary edits, but they must never b
 - Phase 0 static benchmark tooling is implemented in
   `script/benchmark-warp-lite.sh`.
 - Phase 1 runtime harness is partially implemented in
-  `script/benchmark-warp-lite-runtime.sh`: process/window readiness proxies and
+  `script/benchmark-warpai-runtime.sh`: process/window readiness proxies and
   idle RSS/CPU sampling exist. During active development it is validated only
   with `--dry-run`; a real cold/warm baseline requires an isolated window with
-  no existing Warp Lite process. First shell-prompt readiness and sustained
+  no existing Warpai process. First shell-prompt readiness and sustained
   output/large-scrollback measurements remain Phase 1 follow-ups.
 - The Phase 2 boundary `warp_platform = []` exists in `app/Cargo.toml`. The
   first compile-green leaf slice places the 475-LOC `billing` module and its
@@ -132,7 +132,7 @@ Add a macOS-only runtime harness after the static report is established.
 
 The harness will:
 
-1. Require an explicit `.app` path; defaulting to `/Applications/WarpLite.app` is acceptable only when present.
+1. Require an explicit `.app` path; defaulting to `/Applications/Warpai.app` is acceptable only when present.
 2. Canonicalize the selected executable and refuse before launch when any
    process already uses that exact executable path. There is no override during
    an active development session.
@@ -141,7 +141,7 @@ The harness will:
 4. Measure cold and warm launch using an application signpost or a narrowly scoped readiness marker. Wall-clock delay alone is not sufficient.
 5. Sample resident memory and CPU after a fixed 30-second idle settling window.
 6. Record machine model, macOS version, architecture, and build revision separately from comparable metrics.
-7. Leave raw samples under `target/warp-lite-benchmarks/`, which remains untracked.
+7. Leave raw samples under `target/warpai-benchmarks/`, which remains untracked.
 
 Add a native smoke checklist for window visibility, shell prompt readiness, command execution, pane split, tab creation, alternate-screen entry/exit, and large output. This validates Behavior 1–3 and 9–13.
 
@@ -150,7 +150,7 @@ Add a native smoke checklist for window visibility, shell prompt readiness, comm
 Do not begin by deleting modules. First make product ownership explicit.
 
 1. Inventory `app/Cargo.toml` features and map each direct AI/cloud/account dependency to its compile consumers.
-2. Introduce one positive product boundary, tentatively named `warp_platform`, for upstream Warp service features. Warp Lite defaults must omit it.
+2. Introduce one positive product boundary, tentatively named `warp_platform`, for upstream Warp service features. Warpai defaults must omit it.
 3. Gate top-level product modules in `app/src/lib.rs` and their initialization sites behind that boundary.
 4. Keep neutral local types outside the gated modules. Where a terminal-core consumer imports a type from an AI/cloud crate, move the minimal type into an existing neutral crate when ownership is clear; otherwise introduce a small compatibility module inside `app`.
 5. Add compile-time checks that the default lite feature set does not enable forbidden product features.
@@ -238,7 +238,7 @@ Keep `git cherry-pick -x` provenance and the existing allowlist approach.
 ### Phase 0
 
 - Run `script/benchmark-warp-lite.sh`.
-- Run it again with `--output target/warp-lite-benchmarks/baseline.txt`.
+- Run it again with `--output target/warpai-benchmarks/baseline.txt`.
 - Diff stdout and the persisted report, excluding no fields; they must match.
 - Test the script against missing binary/app paths through `--binary` and
   `--app`.
@@ -260,7 +260,7 @@ Keep `git cherry-pick -x` provenance and the existing allowlist approach.
 
 Map to PRODUCT Behavior 1–4 and 9–13:
 
-- Build release binary and `WarpLite.app`.
+- Build release binary and `Warpai.app`.
 - Install the release-built app into `/Applications`.
 - Verify a visible usable window and ready shell prompt.
 - Execute a command, create a tab, split a pane, search history, enter/exit an alternate-screen application, and produce large output.

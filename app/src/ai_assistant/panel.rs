@@ -74,7 +74,8 @@ const BODY_FONT_SIZE: f32 = 13.;
 const TITLE_FONT_SIZE: f32 = 16.;
 const ZERO_STATE_HELP_TEXT_FONT_SIZE: f32 = 12.;
 
-const ZERO_STATE_HELP_TEXT: &str = "Shift + ctrl + space a block or text selection to ask Warpai AI.";
+const ZERO_STATE_HELP_TEXT: &str =
+    "Shift + ctrl + space a block or text selection to ask Warpai AI.";
 const SCRIPT_ZERO_STATE_PROMPT: &str = "Write a script to connect to an AWS EC2 instance.";
 const GIT_ZERO_STATE_PROMPT: &str = "How do I undo the most recent commits in git?";
 const FILES_ZERO_STATE_PROMPT: &str = "How do I find all files containing specific text?";
@@ -421,7 +422,6 @@ impl AIAssistantPanelView {
             // Not supported by the AI Assistant. Only supported by blocklist AI.
             AskAIType::FromBlocks { .. } => (),
         }
-
     }
 
     fn is_prompt_too_long(&self, prompt: &str) -> bool {

@@ -71,14 +71,23 @@ mod tests {
         let storage = Storage::default();
         let owned = key(coordinator, device).unwrap();
         let unrelated = key(coordinator, other).unwrap();
-        storage.values.borrow_mut().insert(owned.clone(), "synthetic-owned".into());
-        storage.values.borrow_mut().insert(unrelated.clone(), "synthetic-other".into());
+        storage
+            .values
+            .borrow_mut()
+            .insert(owned.clone(), "synthetic-owned".into());
+        storage
+            .values
+            .borrow_mut()
+            .insert(unrelated.clone(), "synthetic-other".into());
         remove(&storage, coordinator, device).unwrap();
         remove(&storage, coordinator, device).unwrap();
         assert!(!storage.values.borrow().contains_key(&owned));
         assert!(storage.values.borrow().contains_key(&unrelated));
         assert!(remove(&storage, Uuid::nil(), device).is_err());
-        let locked = Storage { mode: 1, ..Default::default() };
+        let locked = Storage {
+            mode: 1,
+            ..Default::default()
+        };
         assert!(remove(&locked, coordinator, device).is_err());
         assert!(owned.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
     }

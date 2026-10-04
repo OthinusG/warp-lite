@@ -483,8 +483,7 @@ impl AuthManager {
                 ctx.spawn(
                     async { warp_isolation_platform::detect() },
                     |_, platform, ctx| {
-                        if let Some(platform) = platform {
-                        }
+                        if let Some(platform) = platform {}
                     },
                 );
 

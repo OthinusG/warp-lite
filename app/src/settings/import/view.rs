@@ -891,7 +891,6 @@ impl SettingsImportView {
                 })
                 .collect_vec()
         });
-
     }
 }
 
@@ -1099,8 +1098,7 @@ impl TypedActionView for SettingsImportView {
                 // Set the current config to expand.
                 self.configs[*idx].expanded = true;
                 // Only send the telemetry event if the new selected item is different.
-                if old_selected_idx.is_none_or(|old_idx| old_idx != *idx) {
-                }
+                if old_selected_idx.is_none_or(|old_idx| old_idx != *idx) {}
                 // The radio button state already updates, since each element is a child of a RadioButtonItem.
                 ctx.notify();
             }

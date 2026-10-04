@@ -3,8 +3,8 @@ use std::{
     ops::Range,
 };
 
-use crate::workflows::workflow::Argument;
 use crate::workflows::handlebars_parser::{ParsedArgumentResult, ParsedArgumentsIterator};
+use crate::workflows::workflow::Argument;
 
 /// Represents arguments for workflow to be viewed and edited in ArgumentsEditorView.
 ///

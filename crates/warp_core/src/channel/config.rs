@@ -48,8 +48,8 @@ impl WarpServerConfig {
         // Empty strings caused panics in Url::parse during startup
         // (e.g. server_api.rs `Server root URL must be valid`).
         Self {
-            server_root_url: "https://invalid.warp-lite.localhost/".into(),
-            rtc_server_url: "wss://invalid.warp-lite.localhost/".into(),
+            server_root_url: "https://invalid.warpai.localhost/".into(),
+            rtc_server_url: "wss://invalid.warpai.localhost/".into(),
             session_sharing_server_url: None,
             firebase_auth_api_key: "".into(),
         }
@@ -72,7 +72,7 @@ impl OzConfig {
         // warp-lite (Phase 4): Oz/ambient agent endpoint removed.
         // Use RFC-2606 invalid TLD so URL parses but any call DNS-fails.
         Self {
-            oz_root_url: "https://invalid.warp-lite.localhost/".into(),
+            oz_root_url: "https://invalid.warpai.localhost/".into(),
             workload_audience_url: None,
         }
     }

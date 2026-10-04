@@ -9,7 +9,7 @@
 #   - cargo-about installed and on PATH
 #
 # Usage:
-#   pwsh script/build-warp-lite-windows.ps1 [-ReleaseTag "v0.5.7-lite"]
+#   pwsh script/build-warpai-windows.ps1 [-ReleaseTag "v0.5.7-lite"]
 #
 # Outputs:
 #   ./WarpaiSetup-x64.exe
@@ -39,22 +39,22 @@ $env:CARGO_BIN_NAME = "oss"
 $env:WARP_APP_NAME = "Warpai"
 $env:CARGO_FULL_PROFILE = $CargoProfile
 
-# 1. Compile warp-oss binary
-Write-Host "==> [1/4] Building warp-oss binary ($PlatformTarget, profile: $CargoProfile)..."
-cargo build -p warp --profile $CargoProfile --bin warp-oss --features "release_bundle,gui,nld_improvements" --target $PlatformTarget --locked
+# 1. Compile warpai binary
+Write-Host "==> [1/4] Building warpai binary ($PlatformTarget, profile: $CargoProfile)..."
+cargo build -p warpai --profile $CargoProfile --bin warpai --features "release_bundle,gui,nld_improvements" --target $PlatformTarget --locked
 if ($LASTEXITCODE -ne 0) {
     throw "cargo build failed with exit code $LASTEXITCODE"
 }
 
-cargo build -p warp-agent-bus --profile $CargoProfile --bin warp-agent --target $PlatformTarget --locked
+cargo build -p warp-agent-bus --profile $CargoProfile --bin warpai-agent --target $PlatformTarget --locked
 if ($LASTEXITCODE -ne 0) { throw "Agent companion build failed" }
 
-$WarpOssExe = "$TargetOutputDir\warp-oss.exe"
-if (-not (Test-Path $WarpOssExe)) {
-    throw "Build failed: $WarpOssExe not found"
+$WarpaiExe = "$TargetOutputDir\warpai.exe"
+if (-not (Test-Path $WarpaiExe)) {
+    throw "Build failed: $WarpaiExe not found"
 }
 
-Copy-Item $WarpOssExe "$TargetOutputDir\Warpai.exe" -Force
+
 
 # 2. Prepare bundled resources
 Write-Host "==> [2/4] Preparing bundled resources..."
@@ -92,8 +92,8 @@ $PortableDir = "$RepoRoot\target\Warpai-portable-x64"
 if (Test-Path $PortableDir) { Remove-Item $PortableDir -Recurse -Force }
 New-Item -ItemType Directory -Path $PortableDir -Force | Out-Null
 
-Copy-Item "$TargetOutputDir\warp-agent.exe" "$PortableDir\warp-agent.exe" -Force
-Copy-Item "$TargetOutputDir\warp-oss.exe" "$PortableDir\Warpai.exe" -Force
+Copy-Item "$TargetOutputDir\warpai-agent.exe" "$PortableDir\warpai-agent.exe" -Force
+Copy-Item "$TargetOutputDir\warpai.exe" "$PortableDir\Warpai.exe" -Force
 Copy-Item "$RepoRoot\app\assets\windows\x64\conpty.dll" "$PortableDir\conpty.dll" -Force
 Copy-Item "$RepoRoot\app\assets\windows\x64\dxcompiler.dll" "$PortableDir\dxcompiler.dll" -Force
 Copy-Item "$RepoRoot\app\assets\windows\x64\dxil.dll" "$PortableDir\dxil.dll" -Force

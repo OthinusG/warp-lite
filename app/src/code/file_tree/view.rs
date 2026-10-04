@@ -2280,7 +2280,6 @@ impl FileTreeView {
             )
         };
 
-
         ctx.emit(FileTreeEvent::OpenFile {
             path: path.to_path_buf(),
             target,

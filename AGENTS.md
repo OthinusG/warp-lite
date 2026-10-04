@@ -1,4 +1,4 @@
-# warp-lite Agent Guide
+# Warpai Agent Guide
 
 ## Purpose
 
@@ -20,12 +20,12 @@ Maintain Warpai as an independently maintained local-first terminal derived from
 ## Verification
 
 - Run focused tests for changed logic.
-- Run `cargo check -p warp --bin warp-oss` for Rust application changes when feasible.
+- Run `cargo check -p warpai --bin warpai` for Rust application changes when feasible.
 - Validate shell scripts with `bash -n` or `zsh -n`, matching their shebang.
 - Validate workflow YAML and dry-run automation paths when available.
 - Preserve unrelated user changes in a dirty worktree.
 
 ## Release
 
-- Reuse `script/build-warp-lite-app.sh`, `script/build-warp-lite-windows.ps1`, and the standalone GitHub Actions release workflows.
+- Reuse `script/build-warpai-app.sh`, `script/build-warpai-windows.ps1`, and the standalone GitHub Actions release workflows.
 - GitHub builds tagged repository source directly; retain provenance, copyright and license notices.

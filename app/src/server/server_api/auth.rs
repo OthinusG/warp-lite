@@ -1,9 +1,9 @@
 use std::{result::Result as StdResult, sync::Arc};
 
+use crate::server::firebase_types::{FetchAccessTokenResponse, FirebaseError};
 use anyhow::{anyhow, bail, Context as _, Result};
 use async_trait::async_trait;
 use cynic::{MutationBuilder, QueryBuilder};
-use crate::server::firebase_types::{FetchAccessTokenResponse, FirebaseError};
 use futures::FutureExt;
 use instant::Duration;
 #[cfg(test)]

@@ -44,11 +44,10 @@ use super::model::{
     self, ActiveMCPServer, CurrentUserInformation, MCPEnvironmentVariables, NewActiveMCPServer,
     NewApp, NewCommand, NewFolder, NewNotebook, NewServerExperiment, NewTab, NewTabGroup, NewTeam,
     NewWindow, NewWorkspace, NewWorkspaceMetadata, NewWorkspaceTeam, ObjectMetadata,
-    ObjectPermissions, Project, Tab, TabGroup, Window,
-    WorkspaceMetadata as WorkspaceMetadataModel, AI_DOCUMENT_PANE_KIND, AI_FACT_PANE_KIND,
-    CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND, EXECUTION_PROFILE_EDITOR_PANE_KIND,
-    MCP_SERVER_PANE_KIND, NOTEBOOK_PANE_KIND, SETTINGS_PANE_KIND, TERMINAL_PANE_KIND,
-    WELCOME_PANE_KIND, WORKFLOW_PANE_KIND,
+    ObjectPermissions, Project, Tab, TabGroup, Window, WorkspaceMetadata as WorkspaceMetadataModel,
+    AI_DOCUMENT_PANE_KIND, AI_FACT_PANE_KIND, CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND,
+    EXECUTION_PROFILE_EDITOR_PANE_KIND, MCP_SERVER_PANE_KIND, NOTEBOOK_PANE_KIND,
+    SETTINGS_PANE_KIND, TERMINAL_PANE_KIND, WELCOME_PANE_KIND, WORKFLOW_PANE_KIND,
 };
 use super::schema;
 use super::{

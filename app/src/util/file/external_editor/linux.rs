@@ -78,7 +78,7 @@ impl EditorMetadata {
     ///
     /// ```ignore
     /// use std::path::PathBuf;
-    /// use warp::util::file::external_editor::linux::EditorMetadata;
+    /// use warpai::util::file::external_editor::linux::EditorMetadata;
     ///
     /// let desktop_file_path = PathBuf::from("/var/lib/snapd/desktop/applications/webstorm_webstorm.desktop");
     /// let metadata = EditorMetadata::try_new(desktop_file_path)?;

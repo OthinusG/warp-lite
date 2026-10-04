@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     ChannelState::set(state);
 
-    warp::run()
+    warpai::run()
 }
 
 // If we're not using an external plist, embed the following as the Info.plist.
@@ -35,15 +35,15 @@ embed_plist::embed_info_plist_bytes!(r#"
     <key>CFBundleDevelopmentRegion</key>
     <string>English</string>
     <key>CFBundleDisplayName</key>
-    <string>WarpLocal</string>
+    <string>WarpaiLocal</string>
     <key>CFBundleExecutable</key>
     <string>warp</string>
     <key>CFBundleIdentifier</key>
-    <string>dev.warp.Warpai-Local</string>
+    <string>dev.warpai.WarpaiLocal</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>WarpLocal</string>
+    <string>WarpaiLocal</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

@@ -21,10 +21,10 @@ use crate::server::ids::SyncId;
 use crate::settings::AgentModeCommandExecutionPredicate;
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::CloudModel;
-use crate::{LaunchMode, TelemetryEvent};
 use crate::{
     cloud_object::model::generic_string_model::GenericStringObjectId, server::ids::ClientId,
 };
+use crate::{LaunchMode, TelemetryEvent};
 
 use super::{
     AIExecutionProfile, ActionPermission, CloudAIExecutionProfileModel, WriteToPtyPermission,
@@ -295,7 +295,6 @@ impl AIExecutionProfilesModel {
         self.profile_id_to_sync_id
             .insert(profile_id, SyncId::ClientId(client_id));
 
-
         ctx.emit(AIExecutionProfilesModelEvent::ProfileCreated);
 
         Some(profile_id)
@@ -500,8 +499,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if let Some(model_id) = &llm_id {
-        }
+        if let Some(model_id) = &llm_id {}
     }
 
     pub fn set_coding_model(
@@ -522,8 +520,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if let Some(model_id) = &model_id {
-        }
+        if let Some(model_id) = &model_id {}
     }
 
     pub fn set_cli_agent_model(
@@ -544,8 +541,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if let Some(model_id) = &model_id {
-        }
+        if let Some(model_id) = &model_id {}
     }
 
     pub fn set_computer_use_model(
@@ -566,8 +562,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if let Some(model_id) = &model_id {
-        }
+        if let Some(model_id) = &model_id {}
     }
 
     pub fn set_apply_code_diffs(
@@ -587,7 +582,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_read_files(
@@ -607,7 +601,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_execute_commands(
@@ -627,7 +620,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_write_to_pty(
@@ -672,7 +664,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_computer_use(
@@ -697,8 +688,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if current_value != Some(*permission) {
-        }
+        if current_value != Some(*permission) {}
     }
 
     pub fn set_ask_user_question(
@@ -723,8 +713,7 @@ impl AIExecutionProfilesModel {
             ctx,
         );
 
-        if current_value != Some(permission) {
-        }
+        if current_value != Some(permission) {}
     }
 
     pub fn set_web_search_enabled(
@@ -744,7 +733,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_autosync_plans_to_warp_drive(
@@ -764,7 +752,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn set_profile_name(
@@ -784,7 +771,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn add_to_command_allowlist(
@@ -804,7 +790,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn remove_from_command_allowlist(
@@ -822,7 +807,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn add_to_directory_allowlist(
@@ -842,7 +826,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn remove_from_directory_allowlist(
@@ -860,7 +843,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn add_to_command_denylist(
@@ -880,7 +862,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn remove_from_command_denylist(
@@ -898,7 +879,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn add_to_mcp_allowlist(
@@ -918,7 +898,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn remove_from_mcp_allowlist(
@@ -936,7 +915,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn add_to_mcp_denylist(
@@ -956,7 +934,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     pub fn remove_from_mcp_denylist(
@@ -974,7 +951,6 @@ impl AIExecutionProfilesModel {
             },
             ctx,
         );
-
     }
 
     /// `edit_profile_internal` edits an AIExecutionProfile and upserts the changed profile to the cloud

@@ -413,8 +413,7 @@ impl TypedActionView for SuggestedUnitTestsView {
                 });
                 ctx.notify();
 
-                if let Ok(checked) = checked {
-                }
+                if let Ok(checked) = checked {}
             }
             SuggestedUnitTestsAction::OpenSettings => {
                 ctx.emit(SuggestedUnitTestsEvent::OpenSettings)

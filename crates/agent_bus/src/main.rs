@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
             let endpoint = std::env::args().nth(2).ok_or_else(|| anyhow::anyhow!("Missing native MCP relay"))?;
             warp_agent_bus::session::forward(&endpoint).await?;
         }
-        _ => bail!("Usage: warp-agent <mcp|instructions>. Configure this executable as a local stdio MCP server in a managed Warp Lite terminal."),
+        _ => bail!("Usage: warpai-agent <mcp|instructions>. Configure this executable as a local stdio MCP server in a managed Warp Lite terminal."),
     }
     Ok(())
 }

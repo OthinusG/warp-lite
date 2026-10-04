@@ -3102,7 +3102,6 @@ impl EditorView {
                             item_count,
                             query_length,
                         } => {
-
                             ctx.emit(Event::SetAIContextMenuOpen(false));
                             ctx.focus_self();
                             ctx.notify();
@@ -3112,7 +3111,6 @@ impl EditorView {
                             item_count,
                             query_length,
                         } => {
-
                             ctx.emit(Event::AcceptAIContextMenuItem(action.clone()));
                             ctx.focus_self();
                             ctx.notify();
@@ -5227,7 +5225,6 @@ impl EditorView {
         }
 
         let is_udi_enabled = InputSettings::as_ref(ctx).is_universal_developer_input_enabled(ctx);
-
 
         self.process_attached_images_future_handle = Some(ctx.spawn(
             async move {

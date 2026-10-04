@@ -1,4 +1,4 @@
-use crate::{editor::Event as EditorEvent};
+use crate::editor::Event as EditorEvent;
 use itertools::Itertools;
 use warp_editor::editor::NavigationKey;
 use warpui::{

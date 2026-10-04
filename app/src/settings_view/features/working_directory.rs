@@ -207,7 +207,6 @@ impl TypedActionView for WorkingDirectoryView {
                     ));
                 });
 
-
                 // Redraw settings in case we switched in or out of advanced mode.
                 ctx.notify();
             }

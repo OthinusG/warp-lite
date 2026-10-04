@@ -10,7 +10,7 @@
 //!
 //! The declarations file is an append-only UTF-8 JSONL file. The Rust pipeline only ever
 //! *reads* it; the sibling bash generator `snapshot-declarations.sh` (shipped in
-//! `warp-agent-docker`) is the primary writer, and operators may hand-edit entries.
+//! `warpai-agent-docker`) is the primary writer, and operators may hand-edit entries.
 //!
 //! Each non-empty line is a JSON object with:
 //! - `version`: `1`,

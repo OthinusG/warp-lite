@@ -200,8 +200,14 @@ impl CLIAgentSessionListener {
                     return;
                 };
                 if let Some(event) = me.inner.handle_event(parsed) {
-                    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
-                    if event.event == CLIAgentEventType::IdlePrompt && me.inner.supports_rich_status() {
+                    #[cfg(all(
+                        feature = "local_tty",
+                        not(feature = "remote_tty"),
+                        not(target_family = "wasm")
+                    ))]
+                    if event.event == CLIAgentEventType::IdlePrompt
+                        && me.inner.supports_rich_status()
+                    {
                         crate::agent_communication::readiness(me.terminal_view_id, true);
                     }
                     CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions_model, ctx| {
@@ -264,7 +270,12 @@ mod tests {
     #[test]
     fn opaque_approval_and_question_notifications_never_announce_idle() {
         for agent in [CLIAgent::Codex, CLIAgent::Grok] {
-            for body in ["Approval requested by server", "Codex wants to edit file", "Plan mode prompt: Review plan", "Question: Choose a target"] {
+            for body in [
+                "Approval requested by server",
+                "Codex wants to edit file",
+                "Plan mode prompt: Review plan",
+                "Question: Choose a target",
+            ] {
                 let event = Osc9FallbackSessionHandler::parse_osc9_text(agent, body).unwrap();
                 assert_eq!(event.event, CLIAgentEventType::PermissionRequest);
                 assert!(!agent_supports_rich_status(&agent));

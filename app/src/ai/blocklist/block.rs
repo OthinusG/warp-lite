@@ -2478,8 +2478,7 @@ impl AIBlock {
             .iter()
             .filter_map(|citation| citation.for_telemetry(ctx))
             .collect_vec();
-        if !surfaced_citations.is_empty() {
-        }
+        if !surfaced_citations.is_empty() {}
 
         // This is used to trigger the theme chooser opening when the theme chooser onboarding block is active.
         if let Some(text_message) = output.text_from_agent_output().last() {
@@ -3755,7 +3754,6 @@ impl AIBlock {
             .block_list_mut()
             .mark_rich_content_dirty(ctx.view_id());
         ctx.notify();
-
     }
 
     fn handle_suggested_prompt_view_event(
@@ -4238,8 +4236,7 @@ impl AIBlock {
         let flattened = attach_pending_imported_comments(pending, repo_path);
         let thread_count = flattened.len();
 
-        if !self.model.is_restored() {
-        }
+        if !self.model.is_restored() {}
 
         let cards: Vec<CommentViewCard> = flattened
             .into_iter()
@@ -5803,8 +5800,7 @@ impl TypedActionView for AIBlock {
                     .status(ctx)
                     .output_to_render()
                     .and_then(|output| output.get().server_output_id.clone());
-                if let Some(citation) = citation.for_telemetry(ctx) {
-                }
+                if let Some(citation) = citation.for_telemetry(ctx) {}
             }
             AIBlockAction::OpenAIFactCollection => {
                 ctx.emit(AIBlockEvent::OpenAIFactCollection { sync_id: None });
@@ -5871,12 +5867,11 @@ impl TypedActionView for AIBlock {
                 {
                     *checked = !*checked;
                     BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
-                                match model.set_should_autoexecute_readonly_commands(*checked, ctx) {
-                                    Ok(_) => {
-                                    }
-                                    Err(e) => report_error!(e),
-                                }
-                            });
+                        match model.set_should_autoexecute_readonly_commands(*checked, ctx) {
+                            Ok(_) => {}
+                            Err(e) => report_error!(e),
+                        }
+                    });
                 }
             }
             AIBlockAction::ToggleAutoreadFilesSpeedbumpCheckbox => {
@@ -5891,8 +5886,7 @@ impl TypedActionView for AIBlock {
                     };
                     BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
                         match model.set_coding_permissions(permission, ctx) {
-                            Ok(_) => {
-                            }
+                            Ok(_) => {}
                             Err(e) => report_error!(e),
                         }
                     });
@@ -5912,8 +5906,7 @@ impl TypedActionView for AIBlock {
                     };
                     BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
                         match model.set_coding_permissions(permission, ctx) {
-                            Ok(_) => {
-                            }
+                            Ok(_) => {}
                             Err(e) => report_error!(e),
                         }
                     });
@@ -5984,7 +5977,6 @@ impl TypedActionView for AIBlock {
                         DismissibleToast::default(String::from("Thank you for the feedback!"));
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
-
             }
             AIBlockAction::ClearOtherSelections {
                 source_view_id,
@@ -6089,8 +6081,7 @@ impl TypedActionView for AIBlock {
                 if let CodeSource::Skill {
                     reference, origin, ..
                 } = source
-                {
-                }
+                {}
 
                 #[cfg(feature = "local_fs")]
                 {

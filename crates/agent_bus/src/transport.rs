@@ -174,7 +174,7 @@ impl RunningBroker {
         #[cfg(windows)]
         let runtime_root = std::env::temp_dir();
         // macOS TMPDIR can exceed the Unix socket path limit before adding a filename.
-        let directory = runtime_root.join(format!("warp-agent-{}", Uuid::new_v4()));
+        let directory = runtime_root.join(format!("warpai-agent-{}", Uuid::new_v4()));
         std::fs::create_dir(&directory)?;
         #[cfg(unix)]
         {
@@ -184,7 +184,7 @@ impl RunningBroker {
         #[cfg(unix)]
         let endpoint = directory.join("bus.sock").to_string_lossy().into_owned();
         #[cfg(windows)]
-        let endpoint = format!(r"\\.\pipe\warp-agent-{}", Uuid::new_v4());
+        let endpoint = format!(r"\\.\pipe\warpai-agent-{}", Uuid::new_v4());
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()

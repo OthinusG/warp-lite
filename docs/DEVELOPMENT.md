@@ -30,15 +30,15 @@ Local documentation, script syntax, formatting and static checks do not require
 a Rust build. Commands below describe the build steps for configured build hosts:
 
 ```sh
-cargo check -p warp --bin warp-oss --locked
-cargo check -p warp --bin warp-oss --features warp_platform --locked
-cargo build --release -p warp --bin warp-oss --locked
-cargo build --release -p warp-agent-bus --bin warp-agent --locked
+cargo check -p warpai --bin warpai --locked
+cargo check -p warpai --bin warpai --features warp_platform --locked
+cargo build --release -p warpai --bin warpai --locked
+cargo build --release -p warp-agent-bus --bin warpai-agent --locked
 ```
 
 For macOS packaging, reuse
-[build-warp-lite-app.sh](../script/build-warp-lite-app.sh). For Windows, reuse
-[build-warp-lite-windows.ps1](../script/build-warp-lite-windows.ps1) and the
+[build-warpai-app.sh](../script/build-warpai-app.sh). For Windows, reuse
+[build-warpai-windows.ps1](../script/build-warpai-windows.ps1) and the
 [installer resources](../script/windows/README.md). Preserve existing bundle and
 storage identifiers when changing visible branding.
 
@@ -66,7 +66,7 @@ existing repository tag, packages the app and creates its release. The
 and attaches installer/portable artifacts; it also supports explicit dispatch.
 Validation artifacts are review builds, separate from tagged published releases.
 
-The default branch is `warp-lite/main`. Preserve copyright, license notices and
+The default branch is `main`. Preserve copyright, license notices and
 historical provenance. Do not delete unrelated unmerged work or active PR heads.
 
 Historical terminal integration audits remain in

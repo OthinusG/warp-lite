@@ -1,4 +1,3 @@
-use crate::cmd_or_ctrl_shift;
 use crate::ai::active_agent_views_model::ActiveAgentViewsModel;
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::{AIAgentHarness, AIConversation, AIConversationId};
@@ -21,6 +20,7 @@ use crate::auth::auth_manager::AuthManager;
 use crate::auth::auth_view_modal::AuthViewVariant;
 use crate::auth::AuthStateProvider;
 use crate::cloud_object::Space;
+use crate::cmd_or_ctrl_shift;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::code::view::CodeViewAction;
@@ -153,10 +153,10 @@ use session_sharing_protocol::sharer::SessionSourceType;
 use settings::Setting as _;
 
 use crate::code::active_file::ActiveFileModel;
-use crate::util::bindings::{is_binding_pty_compliant, CustomAction};
-use crate::workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType};
 use crate::palette::PaletteMode;
 use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
+use crate::util::bindings::{is_binding_pty_compliant, CustomAction};
+use crate::workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType};
 use crate::workspace::tab_group::TabGroupId;
 use crate::workspace::{
     self, CommandSearchOptions, PaneViewLocator, TabBarLocation, WorkspaceAction,
@@ -2591,7 +2591,6 @@ impl PaneGroup {
                 }
                 ctx.emit(Event::OpenSettings(SettingsSection::Teams));
                 ctx.notify();
-
             }
         }
     }
@@ -5497,11 +5496,26 @@ impl PaneGroup {
         ModelHandle<Box<dyn TerminalManager>>,
     ) {
         add_session_focus_env_vars(&mut env_vars, terminal_session_uuid);
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
-        let agent_terminal = crate::agent_communication::prepare(&mut env_vars, startup_directory.as_deref(), communication_workspace, ctx);
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
+        let agent_terminal = crate::agent_communication::prepare(
+            &mut env_vars,
+            startup_directory.as_deref(),
+            communication_workspace,
+            ctx,
+        );
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
         if communication_workspace.is_some() && agent_terminal.is_none() {
-            ctx.dispatch_typed_action(&crate::workspace::WorkspaceAction::CollaborationAdmissionFailed);
+            ctx.dispatch_typed_action(
+                &crate::workspace::WorkspaceAction::CollaborationAdmissionFailed,
+            );
         }
 
         cfg_if::cfg_if! {
@@ -5550,7 +5564,11 @@ impl PaneGroup {
         }
 
         let terminal_view = terminal_manager.as_ref(ctx).view();
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
         crate::agent_communication::bind(&terminal_view, agent_terminal);
         (terminal_view, terminal_manager)
     }

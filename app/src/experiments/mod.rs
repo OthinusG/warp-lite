@@ -26,7 +26,6 @@ use std::{collections::HashMap, hash::Hasher};
 
 use warpui::{AppContext, SingletonEntity};
 
-
 /// Number of buckets we are using to partition user traffic. The largest valid
 /// bucket index is NUM_BUCKETS - 1.
 const NUM_BUCKETS: u16 = 1000;

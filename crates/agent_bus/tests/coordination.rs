@@ -22,7 +22,7 @@ fn managed_programs() -> Vec<String> {
 #[test]
 fn every_managed_type_delegates_reviews_and_recovers() {
     let path: PathBuf =
-        std::env::temp_dir().join(format!("warp-agent-test-{}.sqlite", request_id()));
+        std::env::temp_dir().join(format!("warpai-agent-test-{}.sqlite", request_id()));
     {
         let store = Store::open(path.to_str().unwrap()).unwrap();
         let reviewer = store
@@ -428,7 +428,7 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
             .broker
             .activate(&terminal, program, "/project", false)
             .unwrap();
-        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
         command
             .arg("mcp")
             .env(ENDPOINT, &server.broker.endpoint)
@@ -490,7 +490,7 @@ async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization
         let terminal = request_id();
         let capability = server.broker.prepare(&terminal).unwrap();
         server.broker.activate(&terminal, "agy", "/project", false).unwrap();
-        let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"))
+        let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"))
             .arg("mcp")
             .env(ENDPOINT, &server.broker.endpoint)
             .env(CAPABILITY, capability)
@@ -1328,7 +1328,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
     use warp_agent_bus::transport::{CAPABILITY, ENDPOINT, TERMINAL};
     let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
     let capability = server.broker.prepare("starting").unwrap();
-    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
     command
         .arg("mcp")
         .env(ENDPOINT, &server.broker.endpoint)
@@ -1359,7 +1359,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
 #[tokio::test]
 async fn retired_remote_stdio_refuses_with_a_bounded_nonretryable_frame() {
     // Compatibility refusal never discovers a daily controller or accepts old credentials.
-    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
     command.arg("remote-stdio")
         .env("WARP_DATA_PROFILE", format!("gateway-test-{}", Uuid::new_v4()))
         .kill_on_drop(true);

@@ -2,7 +2,6 @@
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use uuid::Uuid;
 use std::{
     collections::BTreeMap,
     io::Write,
@@ -10,6 +9,7 @@ use std::{
     process::Stdio,
     time::Duration,
 };
+use uuid::Uuid;
 
 pub const SERVER: &str = "warp-lite-communication";
 const START: &str = "# BEGIN WARP LITE COMMUNICATION";
@@ -26,19 +26,27 @@ pub(super) struct LegacyRemoteProfile {
     #[serde(default = "cleanup_pending")]
     pub cleanup_pending: bool,
 }
-fn cleanup_pending() -> bool { true }
+fn cleanup_pending() -> bool {
+    true
+}
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Preferences {
     pub enabled: bool,
     pub selected: BTreeMap<String, Installed>,
     // Legacy metadata is retained for export/cleanup, never used for SSH admission.
-    #[serde(default, alias = "remote_profiles", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default,
+        alias = "remote_profiles",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub(super) legacy_remote_profiles: Vec<LegacyRemoteProfile>,
 }
 impl Preferences {
     pub fn legacy_cleanup_pending(&self) -> bool {
-        self.legacy_remote_profiles.iter().any(|profile| profile.cleanup_pending)
+        self.legacy_remote_profiles
+            .iter()
+            .any(|profile| profile.cleanup_pending)
     }
     pub fn programs(&self) -> std::collections::HashSet<String> {
         if !self.enabled {
@@ -107,9 +115,9 @@ pub struct Available {
 
 pub fn companion() -> Result<PathBuf> {
     let path = std::env::current_exe()?.with_file_name(if cfg!(windows) {
-        "warp-agent.exe"
+        "warpai-agent.exe"
     } else {
-        "warp-agent"
+        "warpai-agent"
     });
     ensure!(path.is_file(), "Bundled communication bridge is missing");
     Ok(path)
@@ -224,12 +232,21 @@ pub fn discover(
             }
             let adapter = adapter(&home, &command, &executable, bridge, &search_paths);
             let help = output(&executable, &["--help".into()], &search_paths)
-                .ok().flatten().unwrap_or_default();
-            let mut launch_options = warp_agent_bus::launch::LaunchOptions::from_help(&program, &help);
+                .ok()
+                .flatten()
+                .unwrap_or_default();
+            let mut launch_options =
+                warp_agent_bus::launch::LaunchOptions::from_help(&program, &help);
             if program == "codex" {
                 for command in ["resume", "fork"] {
-                    if let Ok(Some(help)) = output(&executable, &[command.into(), "--help".into()], &search_paths) {
-                        launch_options.0.extend(warp_agent_bus::launch::LaunchOptions::from_help(&program, &help).0);
+                    if let Ok(Some(help)) = output(
+                        &executable,
+                        &[command.into(), "--help".into()],
+                        &search_paths,
+                    ) {
+                        launch_options.0.extend(
+                            warp_agent_bus::launch::LaunchOptions::from_help(&program, &help).0,
+                        );
                     }
                 }
             }
@@ -834,14 +851,22 @@ mod tests {
             "alias": "old-host", "coordinator": Uuid::new_v4(), "device": Uuid::new_v4(),
             "generation": 1, "spaces": [Uuid::new_v4()],
         });
-        let selected = BTreeMap::from([("codex".to_owned(), Installed {
-            active: true, program: "codex".into(), executable: "/native/codex".into(),
-            adapter: Adapter::Codex("/native/config.toml".into()), bridge: "/native/warp-agent".into(),
-            search_paths: vec![], launch_options: Default::default(),
-        })]);
+        let selected = BTreeMap::from([(
+            "codex".to_owned(),
+            Installed {
+                active: true,
+                program: "codex".into(),
+                executable: "/native/codex".into(),
+                adapter: Adapter::Codex("/native/config.toml".into()),
+                bridge: "/native/warpai-agent".into(),
+                search_paths: vec![],
+                launch_options: Default::default(),
+            },
+        )]);
         let preferences: Preferences = serde_json::from_value(serde_json::json!({
             "enabled": true, "selected": selected, "remote_profiles": [profile.clone()],
-        })).unwrap();
+        }))
+        .unwrap();
         assert!(preferences.enabled);
         assert_eq!(preferences.legacy_remote_profiles.len(), 1);
         assert!(preferences.legacy_remote_profiles[0].cleanup_pending);
@@ -849,13 +874,17 @@ mod tests {
         let encoded = serde_json::to_value(&preferences).unwrap();
         assert!(encoded.get("remote_profiles").is_none());
         assert_eq!(encoded["legacy_remote_profiles"][0]["alias"], "old-host");
-        assert_eq!(encoded["selected"], serde_json::to_value(&selected).unwrap());
+        assert_eq!(
+            encoded["selected"],
+            serde_json::to_value(&selected).unwrap()
+        );
         assert!(preferences.programs().contains("codex"));
         let roundtrip: Preferences = serde_json::from_value(encoded).unwrap();
         assert!(roundtrip.legacy_remote_profiles[0].cleanup_pending);
         let old: Preferences = serde_json::from_value(serde_json::json!({
             "enabled": false, "selected": {},
-        })).unwrap();
+        }))
+        .unwrap();
         assert!(old.legacy_remote_profiles.is_empty());
         assert!(!old.legacy_cleanup_pending());
         for field in ["credential", "invitation", "capability", "private_key"] {
@@ -972,7 +1001,11 @@ mod tests {
         else {
             panic!("Cursor must use native JSON configuration")
         };
-        for name in ["WARP_AGENT_ENDPOINT", "WARP_AGENT_CAPABILITY", "WARP_TERMINAL_SESSION_UUID"] {
+        for name in [
+            "WARP_AGENT_ENDPOINT",
+            "WARP_AGENT_CAPABILITY",
+            "WARP_TERMINAL_SESSION_UUID",
+        ] {
             assert_eq!(value["env"][name], format!("${{env:{name}}}"));
         }
         let path = home.path().join("vibe.toml");
@@ -1160,15 +1193,20 @@ esac
                 "echo 'server not found' >&2; exit 1",
                 "echo 'Server \"warp-lite-communication\" not found in user settings.'; exit 0",
             ),
-        ).unwrap();
+        )
+        .unwrap();
         configure(&installed, false, false).unwrap();
         configure(&installed, true, false).unwrap();
         assert!(configure(&installed, true, false).is_err());
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
-        let foreign = "Server \"warp-lite-communication\" not found in user settings.\n/user-command mcp";
+        let foreign =
+            "Server \"warp-lite-communication\" not found in user settings.\n/user-command mcp";
         std::fs::write(directory.path().join("entry"), foreign).unwrap();
         assert!(configure(&installed, true, false).is_err());
-        assert_eq!(std::fs::read_to_string(directory.path().join("entry")).unwrap(), foreign);
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("entry")).unwrap(),
+            foreign
+        );
     }
 }

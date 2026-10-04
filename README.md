@@ -14,7 +14,7 @@ and collaboration between your own CLI agents.
 [Get Warpai](#get-warpai) ·
 [Agent compatibility](specs/agent-communication/COVERAGE.md) ·
 [Get started](#start-working) ·
-[Report an issue](https://github.com/OthinusG/warp-lite/issues)
+[Report an issue](https://github.com/OthinusG/warpai/issues)
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
@@ -32,8 +32,9 @@ authentication.
 
 ![Warpai workspace with a source file and the native agent task panel](docs/images/warpai-workspace.png)
 
-*The native macOS workspace in the default Claude Warm Light theme, showing a
-source file beside a task detail panel. Screenshots use sample projects.*
+*The native macOS workspace in the default Claude Warm Light theme with vertical
+tabs enabled, showing a source file beside a task detail panel. Screenshots use
+sample projects.*
 
 ## Why Warpai
 
@@ -104,8 +105,8 @@ you inspect messages, tasks and connection status from your desktop.
 
 ![Warpai SSH collaboration panel showing a connected project, remote agent and task](docs/images/warpai-ssh-project.png)
 
-*Connected SSH project in the default Claude Warm Light theme, using a controlled
-sample agent.
+*Native macOS vertical tabs and a connected SSH project in the default Claude
+Warm Light theme, using a controlled sample agent.
 The status view keeps the remote location and current task visible.*
 
 1. Set up a trusted SSH host alias and working noninteractive authentication with your system OpenSSH client.
@@ -134,8 +135,8 @@ want to try:
 
 | Build | Includes | Downloads |
 | --- | --- | --- |
-| **Published release — `v0.5.7-lite`** | Terminal essentials. These packages retain the historical **WarpLite** name and do not include the current agent collaboration or SSH extension. | [macOS app ZIP and DMG; Windows x64 installer and portable ZIP](https://github.com/OthinusG/warp-lite/releases/tag/v0.5.7-lite) |
-| **Validated Warpai review build** | Current local agent collaboration and SSH project panels. Desktop checks, native actions and screenshot review passed on macOS and Windows. | [Desktop packages](https://github.com/OthinusG/warp-lite/actions/runs/37152975773) · [Matching remote companions](https://github.com/OthinusG/warp-lite/actions/runs/37152973196) |
+| **Published release — `v0.5.7-lite`** | Terminal essentials. These packages retain the historical **WarpLite** name and do not include the current agent collaboration or SSH extension. | [macOS app ZIP and DMG; Windows x64 installer and portable ZIP](https://github.com/OthinusG/warpai/releases/tag/v0.5.7-lite) |
+| **Validated Warpai review build** | Current local agent collaboration and SSH project panels. Desktop checks, native actions and screenshot review passed on macOS and Windows. | [Desktop packages](https://github.com/OthinusG/warpai/actions/runs/37152975773) · [Matching remote companions](https://github.com/OthinusG/warpai/actions/runs/37152973196) |
 
 For the published release, drag **WarpLite.app** from the macOS DMG into
 Applications. On Windows, run **WarpLiteSetup-x64.exe**, or extract the portable
@@ -145,7 +146,7 @@ For collaboration, use the review run's **Warpai-agent-communication-macos** or
 **Warpai-agent-communication-windows** artifact. Extract the downloaded artifact
 first, then open the included app ZIP, installer or portable ZIP. GitHub Actions
 artifact downloads may require a GitHub sign-in and expire; use a successful
-[current validation run](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml)
+[current validation run](https://github.com/OthinusG/warpai/actions/workflows/validate-agent-communication.yml)
 if the linked artifacts are no longer available. Match the remote companion's
 source manifest to the desktop build you choose.
 
@@ -167,6 +168,12 @@ Unused inherited AI search implementations, bundled upstream AI skills and
 unreferenced cloud release helpers have been removed. Shared code needed by the
 terminal, editor, local CLI integration and stored-data compatibility remains;
 see the [source cleanup record](specs/DEEP-CLEANUP.md).
+
+Settings, themes, MCP configuration and local application data use
+`~/.config/.warpai` on macOS and `%USERPROFILE%\.config\.warpai` on Windows.
+On first launch, Warpai imports missing legacy settings without overwriting new
+files; the old directories remain available for recovery. Third-party agent
+configuration stays in each agent's own location.
 
 ## Develop and contribute
 

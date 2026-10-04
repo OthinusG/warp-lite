@@ -259,7 +259,7 @@ impl ServerHandler for Bridge {
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             instructions: Some(INSTRUCTIONS.into()),
             server_info: Implementation {
-                name: "warp-agent".into(),
+                name: "warpai-agent".into(),
                 version: env!("CARGO_PKG_VERSION").into(),
                 ..Default::default()
             },

@@ -1,8 +1,9 @@
 use itertools::Itertools as _;
 use warpui::{Entity, ModelContext, SingletonEntity};
-use warpui_extras::user_preferences::registry_backed::KEY_NOT_FOUND_ERR;
 use windows_registry::CURRENT_USER;
-use windows_result::Error as WindowsError;
+use windows_result::{Error as WindowsError, HRESULT};
+
+const KEY_NOT_FOUND_ERR: HRESULT = HRESULT::from_win32(2);
 
 const DOCKER_DESKTOP_WSL_DISTRO_PREFIX: &str = "docker-desktop";
 const RANCHER_DESKTOP_WSL_DISTRO_PREFIX: &str = "rancher-desktop";

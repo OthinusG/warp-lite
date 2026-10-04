@@ -5,6 +5,10 @@ use pathfinder_color::ColorU;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+#[cfg(feature = "warp_platform")]
+use super::billing_and_usage_page::BillingAndUsagePageView;
+#[cfg(feature = "warp_platform")]
+use super::referrals_page::ReferralsPageView;
 use super::{
     about_page::AboutPageView,
     ai_page::{AISettingsPageAction, AISettingsPageView},
@@ -22,10 +26,6 @@ use super::{
     warpify_page::WarpifyPageView,
     SettingsSection,
 };
-#[cfg(feature = "warp_platform")]
-use super::billing_and_usage_page::BillingAndUsagePageView;
-#[cfg(feature = "warp_platform")]
-use super::referrals_page::ReferralsPageView;
 use crate::{
     appearance::Appearance,
     settings::CloudPreferencesSettings,

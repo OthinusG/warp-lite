@@ -1,8 +1,8 @@
-# Warp Lite Performance and Source Slimming
+# Warpai Performance and Source Slimming
 
 ## Summary
 
-Warp Lite should remain the same dependable block-based terminal while becoming measurably smaller, faster to start, cheaper to keep idle, and easier to build. The work must remove AI, account, cloud, and Warp-backend product weight without weakening the terminal renderer, input handling, shell integration, panes, tabs, command palette, or local editing experience.
+Warpai should remain the same dependable block-based terminal while becoming measurably smaller, faster to start, cheaper to keep idle, and easier to build. The work must remove AI, account, cloud, and Warp-backend product weight without weakening the terminal renderer, input handling, shell integration, panes, tabs, command palette, or local editing experience.
 
 ## Problem
 
@@ -24,7 +24,7 @@ The shipped application already avoids login, telemetry, and normal idle network
 
 ## Behavior
 
-1. A normal Warp Lite release opens directly into a usable local terminal without requiring or offering a Warp account login.
+1. A normal Warpai release opens directly into a usable local terminal without requiring or offering a Warp account login.
 
 2. Blocks, panes, tabs, splits, command editing, shell integration, command history, command search, themes, local file navigation, and supported local editor behavior continue to work as they did before the slimming work.
 
@@ -48,7 +48,7 @@ The shipped application already avoids login, telemetry, and normal idle network
 
 9. Runtime performance claims require measurements from the native macOS application, not only `cargo check`, a browser surface, source line counts, or an unbundled unit test.
 
-10. A runtime benchmark never interrupts an existing Warp Lite session. If the
+10. A runtime benchmark never interrupts an existing Warpai session. If the
     selected bundle executable is already running, the harness refuses to launch
     another instance. It never uses broad process termination such as `killall`
     or `pkill`, and cleanup may signal only the exact process started by that

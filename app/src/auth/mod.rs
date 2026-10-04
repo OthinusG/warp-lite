@@ -17,7 +17,6 @@ pub mod user_uid;
 #[cfg(target_family = "wasm")]
 pub mod web_handoff;
 
-use crate::{report_if_error};
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::blocklist::BlocklistAIHistoryModel;
 use crate::ai::execution_profiles::profiles::AIExecutionProfilesModel;
@@ -25,6 +24,7 @@ use crate::ai_assistant::requests::REQUEST_LIMIT_INFO_CACHE_KEY;
 use crate::code::editor_management::{CodeEditorStatus, CodeEditorSummary};
 use crate::env_vars::manager::EnvVarCollectionManager;
 use crate::notebooks::manager::NotebookManager;
+use crate::report_if_error;
 use crate::terminal::general_settings::GeneralSettings;
 use crate::workflows::manager::WorkflowManager;
 use ::settings::{Setting, SettingsManager, ToggleableSetting};
@@ -70,7 +70,6 @@ pub fn init(app: &mut AppContext) {
 /// If the app has running processes or dirty objects, we'll show a confirmation modal before logging out.
 /// If the user aborts, the user will not be logged out.
 pub fn maybe_log_out(app: &mut AppContext) {
-
     let sessions = SessionNavigationData::all_sessions(app).collect_vec();
     let num_long_running_commands = RunningSessionSummary::new(&sessions)
         .long_running_cmds
@@ -169,8 +168,7 @@ pub fn maybe_log_out(app: &mut AppContext) {
             ));
         }
 
-        button_data.push(ModalButton::for_app("Cancel", move |ctx| {
-        }));
+        button_data.push(ModalButton::for_app("Cancel", move |ctx| {}));
 
         let alert_data = AlertDialogWithCallbacks::for_app(
             "Log out?",
@@ -201,7 +199,6 @@ pub fn maybe_log_out(app: &mut AppContext) {
 
 // Log out the user, clears workspace state, stops running processes, and deletes database.
 pub fn log_out(app: &mut AppContext) {
-
     CodebaseIndexManager::handle(app).update(app, |index_manager, ctx| {
         index_manager.reset_codebase_indexing(ctx);
     });

@@ -268,7 +268,6 @@ impl PrivacyPageView {
         let safe_mode_settings = SafeModeSettings::handle(ctx);
         let new_value = { !*safe_mode_settings.as_ref(ctx).safe_mode_enabled.value() };
 
-
         ctx.update_model(&safe_mode_settings, move |safe_mode_settings, ctx| {
             report_if_error!(safe_mode_settings
                 .safe_mode_enabled

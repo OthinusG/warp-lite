@@ -1,4 +1,4 @@
-use crate::{appearance::AppearanceManager};
+use crate::appearance::AppearanceManager;
 use pathfinder_color::ColorU;
 use settings::Setting as _;
 use warp_editor::editor::NavigationKey;

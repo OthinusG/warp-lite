@@ -1,16 +1,16 @@
 [package]
-authors = ["Warp Team <dev@warp.dev>"]
-default-run = "warp-oss"
-description = "The cloud-backed terminal for individuals and teams"
+authors = ["OthinusG", "Warp Team <dev@warp.dev>"]
+default-run = "warpai"
+description = "A local-first terminal with independent CLI agent collaboration"
 edition = "2021"
 autobins = false
-name = "warp"
+name = "warpai"
 version = "0.1.0"
 publish.workspace = true
 license.workspace = true
 
 [lib]
-name = "warp"
+name = "warpai"
 path = "src/lib.rs"
 
 # We define separate targets for each channel (stable, preview, dev) so that we can
@@ -18,12 +18,12 @@ path = "src/lib.rs"
 # flag overrides). Otherwise these binaries are exactly identical to our main binary.
 
 [[bin]]
-name = "warp-oss"
+name = "warpai"
 path = "src/bin/oss.rs"
 test = false
 
 [[bin]]
-name = "warp"
+name = "warpai-local"
 path = "src/bin/local.rs"
 test = false
 
@@ -559,7 +559,7 @@ inline_slash_commands = ["agent_view"]
 # Enable this feature to track heap usage and automatically produce a heap
 # profile report when app memory usage exceeds a 10GB threshold.
 #
-# Enabled on WarpDev by default.
+# Enabled on WarpaiDev by default.
 heap_usage_tracking = ["jemalloc_pprof", "crash_reporting"]
 image_as_context = []
 in_band_generators_ssh = []
@@ -811,20 +811,20 @@ cloud_mode_setup_v2 = ["cloud_mode"]
 cloud_mode_input_v2 = ["cloud_mode"]
 osc_hyperlinks = []
 
-[package.metadata.bundle.bin.warp-oss]
+[package.metadata.bundle.bin.warpai]
 category = "public.app-category.developer-tools"
 copyright = "© 2025, Denver Technologies, Inc"
-identifier = "dev.warp.WarpOss"
-name = "WarpOss"
+identifier = "dev.warpai.Warpai"
+name = "Warpai"
 resources = ["assets/onboarding"]
 icon = ["channels/oss/icon/no-padding/512x512.png", "channels/oss/icon/no-padding/icon.ico"]
-short_description = "The open-source, cloud-backed terminal for individuals and teams."
+short_description = "A local-first terminal with independent CLI agent collaboration."
 
 [package.metadata.bundle.bin.stable]
 category = "public.app-category.developer-tools"
 copyright = "© 2025, Denver Technologies, Inc"
-identifier = "dev.warp.Warp-Stable"
-name = "Warp"
+identifier = "dev.warpai.Warpai"
+name = "Warpai"
 osx_frameworks = [
     "frameworks/default/Sentry-Dynamic-WithARM64e.xcframework/macos-arm64_arm64e_x86_64/Sentry.framework",
 ]
@@ -834,8 +834,8 @@ short_description = "The cloud-backed terminal for individuals and teams, stable
 [package.metadata.bundle.bin.preview]
 category = "public.app-category.developer-tools"
 copyright = "© 2025, Denver Technologies, Inc"
-identifier = "dev.warp.Warp-Preview"
-name = "WarpPreview"
+identifier = "dev.warpai.WarpaiPreview"
+name = "WarpaiPreview"
 osx_frameworks = [
     "frameworks/default/Sentry-Dynamic-WithARM64e.xcframework/macos-arm64_arm64e_x86_64/Sentry.framework",
 ]
@@ -845,19 +845,19 @@ short_description = "The cloud-backed terminal for individuals and teams, featur
 [package.metadata.bundle.bin.dev]
 category = "public.app-category.developer-tools"
 copyright = "© 2025, Denver Technologies, Inc"
-identifier = "dev.warp.Warp-Dev"
-name = "WarpDev"
+identifier = "dev.warpai.WarpaiDev"
+name = "WarpaiDev"
 osx_frameworks = [
     "frameworks/dev/Sentry-Dynamic-WithARM64e.xcframework/macos-arm64_arm64e_x86_64/Sentry.framework",
 ]
 resources = ["assets/onboarding"]
 short_description = "The cloud-backed terminal for individuals and teams, developer build."
 
-[package.metadata.bundle.bin.warp]
+[package.metadata.bundle.bin.warpai-local]
 category = "public.app-category.developer-tools"
 copyright = "© 2025, Denver Technologies, Inc"
-identifier = "dev.warp.Warp-Local"
-name = "WarpLocal"
+identifier = "dev.warpai.WarpaiLocal"
+name = "WarpaiLocal"
 resources = ["assets/onboarding"]
 short_description = "The cloud-backed terminal for individuals and teams, developer build."
 

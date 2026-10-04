@@ -377,8 +377,7 @@ impl SuggestedRuleView {
             }
             EditorEvent::Edited(_) => {
                 // todo this seems noisy?
-                if let Some(SuggestedRuleAndId { rule, .. }) = &self.rule_and_id {
-                }
+                if let Some(SuggestedRuleAndId { rule, .. }) = &self.rule_and_id {}
             }
             EditorEvent::Navigate(NavigationKey::Tab)
             | EditorEvent::Navigate(NavigationKey::ShiftTab) => {

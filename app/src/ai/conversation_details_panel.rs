@@ -710,13 +710,11 @@ impl ConversationDetailsPanel {
                     PanelMode::Conversation {
                         ai_conversation_id: Some(conversation_id),
                         ..
-                    } => {
-                    }
+                    } => {}
                     PanelMode::Task {
                         task_id: Some(task_id),
                         ..
-                    } => {
-                    }
+                    } => {}
                     _ => {}
                 }
 
@@ -725,11 +723,9 @@ impl ConversationDetailsPanel {
                 }
             }
             AgentDetailsButtonEvent::CancelTask { task_id } => {
-
                 cancel_task_with_toast(*task_id, ctx);
             }
             AgentDetailsButtonEvent::ForkConversation { conversation_id } => {
-
                 ctx.dispatch_typed_action(&WorkspaceAction::ForkAIConversation {
                     conversation_id: *conversation_id,
                     fork_from_exchange: None,
@@ -748,13 +744,11 @@ impl ConversationDetailsPanel {
                     PanelMode::Conversation {
                         ai_conversation_id: Some(conversation_id),
                         ..
-                    } => {
-                    }
+                    } => {}
                     PanelMode::Task {
                         task_id: Some(task_id),
                         ..
-                    } => {
-                    }
+                    } => {}
                     _ => {}
                 }
 

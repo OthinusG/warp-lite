@@ -336,7 +336,7 @@ fn sentry_log_filter(md: &log::Metadata) -> sentry_log::LogFilter {
 
         // Filter out logs from the crash-reporting implementation, in case it logs
         // anything in the process of forwarding logs to Sentry.
-        t if t.starts_with("warp::crash_reporting::") => sentry_log::LogFilter::Ignore,
+        t if t.starts_with("warpai::crash_reporting::") => sentry_log::LogFilter::Ignore,
 
         _ => sentry_log::default_filter(md),
     }

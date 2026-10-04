@@ -202,7 +202,6 @@ impl Transcript {
         if let Some(code) = self.code_for_index(code_block_index, ctx) {
             ctx.clipboard().write(ClipboardContent::plain_text(code));
         }
-
     }
 
     fn paste_in_terminal_input(
@@ -221,7 +220,6 @@ impl Transcript {
         if let Some(code) = self.code_for_index(code_block_index, ctx) {
             ctx.emit(TranscriptEvent::OpenWorkflowModalWithCommand(code));
         }
-
     }
 
     fn handle_keydown(&mut self, keystroke: &Keystroke, ctx: &mut ViewContext<Self>) {

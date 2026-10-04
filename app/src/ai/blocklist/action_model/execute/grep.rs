@@ -289,8 +289,7 @@ impl GrepExecutor {
                                 ctx,
                             );
                         }
-                        GrepResult::Success { .. } => {
-                        }
+                        GrepResult::Success { .. } => {}
                         _ => {}
                     }
                     AIAgentActionResultType::Grep(grep_result)

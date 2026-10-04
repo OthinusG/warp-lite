@@ -820,7 +820,6 @@ impl warpui::TypedActionView for BuyCreditsBanner {
                 ctx.notify();
             }
             Action::Close => {
-
                 self.should_display_banner = false;
                 AIRequestUsageModel::handle(ctx).update(ctx, |model, ctx| {
                     model.dismiss_buy_credits_banner(ctx);

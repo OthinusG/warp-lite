@@ -591,8 +591,7 @@ impl TypedActionView for TeamsPageView {
             }
         };
 
-        if let Ok(event) = TelemetryEvent::try_from(action) {
-        }
+        if let Ok(event) = TelemetryEvent::try_from(action) {}
     }
 }
 
@@ -2311,10 +2310,7 @@ impl TeamsWidget {
             #[cfg(not(feature = "warp_platform"))]
             let member_cost_message =
                 self.team_member_cost_message(team_metadata, has_admin_permissions);
-            let pricing_alert = self.render_team_member_cost_info(
-                member_cost_message,
-                appearance,
-            );
+            let pricing_alert = self.render_team_member_cost_info(member_cost_message, appearance);
             invitation_section.add_child(
                 Container::new(pricing_alert)
                     .with_padding_bottom(24.)

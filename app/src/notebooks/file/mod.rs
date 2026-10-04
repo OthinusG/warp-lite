@@ -506,8 +506,7 @@ impl FileNotebookView {
     }
 
     /// Send a [`NotebookTelemetryAction`] telemetry event.
-    fn send_telemetry_action(&self, action: NotebookTelemetryAction, ctx: &mut ViewContext<Self>) {
-    }
+    fn send_telemetry_action(&self, action: NotebookTelemetryAction, ctx: &mut ViewContext<Self>) {}
 
     /// Reload the file that was most recently opened (or attempted to open).
     fn reload_file(&mut self, ctx: &mut ViewContext<Self>) {

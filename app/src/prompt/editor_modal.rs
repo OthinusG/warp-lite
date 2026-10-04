@@ -1,4 +1,4 @@
-use crate::{report_if_error};
+use crate::report_if_error;
 use itertools::Itertools;
 use warp_core::ui::theme::Fill;
 
@@ -332,8 +332,7 @@ impl EditorModal {
                     let session_settings = SessionSettings::as_ref(ctx);
                     let current_same_line_prompt_enabled =
                         session_settings.saved_prompt.same_line_prompt_enabled();
-                    if self.same_line_prompt_enabled != current_same_line_prompt_enabled {
-                    }
+                    if self.same_line_prompt_enabled != current_same_line_prompt_enabled {}
 
                     // Updating the `Prompt` handles turning off PS1.
                     Prompt::handle(ctx).update(ctx, |prompt, ctx| {

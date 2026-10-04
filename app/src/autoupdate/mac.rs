@@ -734,10 +734,10 @@ fn app_name_prefix(channel: Channel) -> &'static str {
     match channel {
         Channel::Stable => "Warp",
         Channel::Preview => "WarpPreview",
-        Channel::Local => "warp",
+        Channel::Local => "warpai-local",
         Channel::Integration => "integration",
         Channel::Dev => "WarpDev",
-        Channel::Oss => "warp-oss",
+        Channel::Oss => "warpai",
     }
 }
 
@@ -745,10 +745,10 @@ fn executable_name(channel: Channel) -> &'static str {
     match channel {
         Channel::Stable => "stable",
         Channel::Preview => "preview",
-        Channel::Local => "warp",
+        Channel::Local => "warpai-local",
         Channel::Integration => "integration",
         Channel::Dev => "dev",
-        Channel::Oss => "warp-oss",
+        Channel::Oss => "warpai",
     }
 }
 

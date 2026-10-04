@@ -14,7 +14,7 @@
 [下载与安装](#get-warpai) ·
 [Agent 使用与兼容性](docs/AGENTS.zh-CN.md) ·
 [快速开始](#start-working) ·
-[反馈问题](https://github.com/OthinusG/warp-lite/issues)
+[反馈问题](https://github.com/OthinusG/warpai/issues)
 
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
@@ -30,7 +30,7 @@ Warpai 将命令、项目文件和 Agent 对话集中到原生工作空间中。
 
 ![Warpai 原生工作空间：左侧打开源码，右侧显示 Agent 任务详情](docs/images/warpai-workspace.png)
 
-*采用默认 Claude Warm Light 主题的 macOS 原生界面，展示源码编辑器与任务详情面板。截图使用样例项目。
+*采用默认 Claude Warm Light 主题、启用垂直标签页的 macOS 原生界面，展示源码编辑器与任务详情面板。截图使用样例项目。
 [查看截图来源](docs/images/README.zh-CN.md)。*
 
 ## 为什么选择 Warpai
@@ -102,7 +102,7 @@ Warpai 只清理自己拥有的配置，保留用户的其他设置。
 
 ![Warpai SSH 协作面板：已连接项目、远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
-*采用默认 Claude Warm Light 主题的原生 SSH 面板，使用受控样例 Agent。
+*采用默认 Claude Warm Light 主题、启用垂直标签页的 macOS 原生 SSH 面板，使用受控样例 Agent。
 远程位置与当前任务同时可见。*
 
 1. 用系统 OpenSSH 配置可信的主机别名，并确认非交互认证可正常工作。
@@ -131,8 +131,8 @@ Warpai 只清理自己拥有的配置，保留用户的其他设置。
 
 | 构建 | 包含功能 | 下载入口 |
 | --- | --- | --- |
-| **已发布版本 — `v0.5.7-lite`** | 终端基础功能。安装包保留历史名称 **WarpLite**，不包含当前 Agent 协作与 SSH 扩展。 | [macOS 应用 ZIP、DMG；Windows x64 安装器、便携 ZIP](https://github.com/OthinusG/warp-lite/releases/tag/v0.5.7-lite) |
-| **已通过验收的 Warpai 试用构建** | 当前本地 Agent 协作与 SSH 项目面板。macOS 和 Windows 的桌面检查、原生操作及截图检查均通过。 | [桌面安装包](https://github.com/OthinusG/warp-lite/actions/runs/37152975773) · [匹配的远程 companion](https://github.com/OthinusG/warp-lite/actions/runs/37152973196) |
+| **已发布版本 — `v0.5.7-lite`** | 终端基础功能。安装包保留历史名称 **WarpLite**，不包含当前 Agent 协作与 SSH 扩展。 | [macOS 应用 ZIP、DMG；Windows x64 安装器、便携 ZIP](https://github.com/OthinusG/warpai/releases/tag/v0.5.7-lite) |
+| **已通过验收的 Warpai 试用构建** | 当前本地 Agent 协作与 SSH 项目面板。macOS 和 Windows 的桌面检查、原生操作及截图检查均通过。 | [桌面安装包](https://github.com/OthinusG/warpai/actions/runs/37152975773) · [匹配的远程 companion](https://github.com/OthinusG/warpai/actions/runs/37152973196) |
 
 安装已发布版本时，在 macOS 中将 DMG 内的 **WarpLite.app** 拖入 Applications。
 在 Windows 中运行 **WarpLiteSetup-x64.exe**，或解压便携 ZIP 后运行 **WarpLite.exe**。
@@ -141,7 +141,7 @@ Warpai 只清理自己拥有的配置，保留用户的其他设置。
 或 **Warpai-agent-communication-windows** 产物。
 先解压下载的外层文件，再打开其中的应用 ZIP、安装器或便携 ZIP。
 GitHub Actions 产物下载可能要求登录 GitHub，且有保留期限；
-链接中的产物过期后，请选择一次成功的 [当前验证构建](https://github.com/OthinusG/warp-lite/actions/workflows/validate-agent-communication.yml)。
+链接中的产物过期后，请选择一次成功的 [当前验证构建](https://github.com/OthinusG/warpai/actions/workflows/validate-agent-communication.yml)。
 远程 companion 的源码清单应与所选桌面构建匹配。
 
 工程验收包括真实原生进程和受控 OpenSSH 下的消息、任务及审阅测试，
@@ -161,6 +161,11 @@ Agent 服务商有各自的账号、定价与数据政策。
 具体范围见 [源码清理记录（英文）](specs/DEEP-CLEANUP.md)。
 
 <a id="develop-and-contribute"></a>
+
+设置、主题、MCP 配置和本地应用数据统一存放在 macOS 的
+`~/.config/.warpai` 与 Windows 的 `%USERPROFILE%\.config\.warpai`。
+首次启动会导入旧目录中缺少的设置，不覆盖新文件；旧目录保留供恢复。
+第三方 Agent 的配置仍存放在各自原有位置。
 
 ## 开发与贡献
 

@@ -4463,7 +4463,6 @@ impl TerminalView {
             terminal_view.restore_conversations_on_view_creation(restoration, ctx);
         }
 
-
         terminal_view
     }
 
@@ -4819,8 +4818,7 @@ impl TerminalView {
                 prompt_suggestion_id,
                 code_exchange_id,
                 block_id,
-            } => {
-            }
+            } => {}
             LegacyPassiveSuggestionsEvent::PassiveCodeDiffFailed { reason } => {
                 self.try_clear_prompt_suggestions_banner_code_state(*reason, ctx);
             }
@@ -6326,8 +6324,7 @@ impl TerminalView {
                     },
                 );
 
-                if let Some(metadata) = workflow_telem_metadata {
-                }
+                if let Some(metadata) = workflow_telem_metadata {}
                 ctx.notify();
             }
             ShellCommandExecutorEvent::WriteToPty { input, mode } => {
@@ -7712,7 +7709,11 @@ impl TerminalView {
         }
 
         let bytes = data.into();
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
         crate::agent_communication::user_input(self.view_id, &bytes);
         let bytes_vec = bytes.to_vec();
         self.clear_selected_blocks(ctx);
@@ -7949,7 +7950,11 @@ impl TerminalView {
     /// This function is invoked every time there is some form of view event
     /// such as a state change or terminal wakeup to update the view context.
     fn handle_terminal_wakeup(&mut self, _: (), ctx: &mut ViewContext<Self>) {
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
         crate::agent_communication::output(self.view_id);
         // If find bar is active, we update the matches for the last/active block or the alt screen.
         if self.find_model.as_ref(ctx).is_find_bar_open() {
@@ -8018,7 +8023,6 @@ impl TerminalView {
             };
 
             ctx.notify();
-
         }
     }
 
@@ -8081,7 +8085,6 @@ impl TerminalView {
         } else {
             self.start_bootstrap_timer(BOOTSTRAP_FAILED_DURATION, ctx);
         }
-
     }
 
     /// Util method to update the ssh block, with a lock
@@ -8337,7 +8340,6 @@ impl TerminalView {
 
         ctx.focus(&ssh_install_tmux_block_handle);
 
-
         self.warpify_state.set_block_id(hidden_ssh_block_id);
         self.warpify_state
             .set_ssh_block_state(SshBlockState::InstallTmux {
@@ -8382,7 +8384,6 @@ impl TerminalView {
             },
             ctx,
         );
-
 
         self.warpify_state
             .set_ssh_block_state(SshBlockState::Error {
@@ -8653,7 +8654,6 @@ impl TerminalView {
         );
         ctx.emit_a11y_content(a11y_content);
 
-
         ctx.notify();
     }
 
@@ -8663,7 +8663,6 @@ impl TerminalView {
                 input.replace_buffer_content(most_recent_command_correction.command.as_str(), ctx);
                 ctx.notify()
             });
-
         }
     }
 
@@ -8792,7 +8791,6 @@ impl TerminalView {
         );
         ctx.emit_a11y_content(a11y_content);
 
-
         ctx.notify();
     }
 
@@ -8801,7 +8799,6 @@ impl TerminalView {
             input.replace_buffer_content(correction.command.as_str(), ctx);
             ctx.notify()
         });
-
     }
 
     /// Returns the view type for prompt suggestion telemetry based on whether agent view is active.
@@ -9017,7 +9014,6 @@ impl TerminalView {
             },
         };
 
-
         self.model
             .lock()
             .block_list_mut()
@@ -9042,7 +9038,6 @@ impl TerminalView {
             .block_list_mut()
             .append_inline_banner(InlineBannerItem::new(banner_id, InlineBannerType::VimMode));
 
-
         ctx.notify();
     }
 
@@ -9058,8 +9053,7 @@ impl TerminalView {
 
     fn enable_vim_keybindings(&mut self, ctx: &mut ViewContext<Self>) {
         AppEditorSettings::handle(ctx).update(ctx, |editor_settings, ctx| {
-            if editor_settings.vim_mode.set_value(true, ctx).is_ok() {
-            }
+            if editor_settings.vim_mode.set_value(true, ctx).is_ok() {}
         });
     }
 
@@ -10112,9 +10106,9 @@ impl TerminalView {
                         .session_id()
                         .and_then(|session_id| self.sessions.as_ref(ctx).get(session_id))
                         .and_then(|session| {
-                            session.launch_data().and_then(|data| {
-                                data.maybe_convert_absolute_path(active_directory)
-                            })
+                            session
+                                .launch_data()
+                                .and_then(|data| data.maybe_convert_absolute_path(active_directory))
                         })
                         .map(|path| path.to_string_lossy().into_owned());
                     let directory_for_detection =
@@ -10696,8 +10690,7 @@ impl TerminalView {
 
                         // On dogfood only, we're interested in the block commands, durations,
                         // and exit codes to trial Warpai Analytics.
-                        if ChannelState::channel().is_dogfood() {
-                        }
+                        if ChannelState::channel().is_dogfood() {}
                     }
                 }
                 let active_session_id = self.active_block_session_id();
@@ -12094,7 +12087,6 @@ impl TerminalView {
             },
             ctx,
         );
-
     }
 
     fn should_display_vim_banner(
@@ -12296,7 +12288,6 @@ impl TerminalView {
                         ctx,
                     )
                 });
-
             }
         }
     }
@@ -13515,7 +13506,6 @@ impl TerminalView {
             self.most_recent_command_correction = Some(correction);
 
             ctx.notify();
-
         }
     }
 
@@ -13761,7 +13751,6 @@ impl TerminalView {
             input.set_prompt_suggestions_banner_state(Some(banner_state), ctx);
             input.notify_and_notify_children(ctx);
         });
-
 
         ctx.notify();
     }
@@ -15915,7 +15904,6 @@ impl TerminalView {
             items,
             ctx,
         );
-
     }
 
     fn open_workflow_modal(&mut self, ctx: &mut ViewContext<Self>) {
@@ -15957,8 +15945,7 @@ impl TerminalView {
                 });
         }
         self.focus_block_filter_editor(ctx);
-        if matches!(opened_from_click, OpenedFromClick::Yes) {
-        }
+        if matches!(opened_from_click, OpenedFromClick::Yes) {}
     }
 
     fn close_block_filter_editor(&mut self, ctx: &mut ViewContext<Self>) {
@@ -15984,7 +15971,6 @@ impl TerminalView {
                 block.command_to_string(),
             ))
         }
-
     }
 
     fn open_workflow_modal_from_ai_generated_workflow(
@@ -15993,7 +15979,6 @@ impl TerminalView {
         ctx: &mut ViewContext<Self>,
     ) {
         ctx.emit(Event::OpenWorkflowModalWithTemporary(Box::new(workflow)));
-
     }
 
     pub fn open_workflow_modal_with_existing(
@@ -17232,7 +17217,6 @@ impl TerminalView {
     pub fn toggle_snackbar_in_active_pane(&mut self, ctx: &mut ViewContext<Self>) {
         self.show_snackbar = !self.show_snackbar;
 
-
         ctx.notify()
     }
 
@@ -17766,7 +17750,6 @@ impl TerminalView {
         ctx: &mut ViewContext<Self>,
     ) {
         ctx.emit(Event::OpenWorkflowModalWithCommand(command));
-
     }
 
     fn copy_prompt(
@@ -18212,7 +18195,6 @@ impl TerminalView {
             ctx,
         );
 
-
         self.tips_completed.update(ctx, |tips, ctx| {
             mark_feature_used_and_write_to_user_defaults(
                 Tip::Hint(TipHint::BlockSelect),
@@ -18269,7 +18251,6 @@ impl TerminalView {
 
             self.scroll_to_if_not_visible(new_block_index, ctx);
             ctx.notify();
-
 
             self.tips_completed.update(ctx, |tips, ctx| {
                 mark_feature_used_and_write_to_user_defaults(
@@ -19489,7 +19470,6 @@ impl TerminalView {
             }
         };
 
-
         ctx.notify();
     }
 
@@ -19614,13 +19594,11 @@ impl TerminalView {
             InputEvent::ClearSelectedBlock => self.clear_selected_blocks(ctx),
             InputEvent::SelectRecentBlocks { count } => {
                 let is_first_selection = self.selected_blocks.is_empty();
-                if is_first_selection && self.ai_input_model.as_ref(ctx).is_ai_input_enabled() {
-                }
+                if is_first_selection && self.ai_input_model.as_ref(ctx).is_ai_input_enabled() {}
                 self.select_most_recent_blocks(*count, ctx)
             }
             InputEvent::Copy => self.copy(ctx),
-            InputEvent::UnhandledModifierKeyOnEditor(keystroke) => {
-            }
+            InputEvent::UnhandledModifierKeyOnEditor(keystroke) => {}
             InputEvent::ClearSelectionsWhenShellMode => self.clear_selections_when_shell_mode(ctx),
             InputEvent::AutosuggestionAccepted => {
                 // TODO(suraj): maybe pass down the autosuggestion type and send
@@ -19629,8 +19607,7 @@ impl TerminalView {
                     self.most_recent_command_correction.as_ref()
                 {
                     let buffer_text = self.input.as_ref(ctx).buffer_text(ctx);
-                    if buffer_text == most_recent_command_correction.command {
-                    }
+                    if buffer_text == most_recent_command_correction.command {}
                 }
                 // When an AI query autosuggestion is accepted, there might be attached context
                 // blocks we need to render the border for.
@@ -20159,8 +20136,7 @@ impl TerminalView {
             || previous_filter
                 .is_some_and(|previous_filter| !previous_filter.is_active_and_nonempty()))
             && block_filter_query.is_active_and_nonempty()
-        {
-        }
+        {}
         drop(model);
 
         self.update_block_filter_for_block(
@@ -20748,7 +20724,6 @@ impl TerminalView {
     fn jump_to_bookmark(&mut self, index: BlockIndex, ctx: &mut ViewContext<Self>) {
         self.reset_selection_to_single_block(index, ctx);
         self.jump_to_previous_command(index, ctx);
-
 
         ctx.notify();
     }
@@ -22704,8 +22679,7 @@ impl TerminalView {
                 }
             }
             AskAI(ask_source) => {
-                if FeatureFlag::AgentMode.is_enabled() {
-                }
+                if FeatureFlag::AgentMode.is_enabled() {}
 
                 self.ask_ai(ask_source, ctx);
             }
@@ -23005,7 +22979,6 @@ impl TerminalView {
         self.ai_controller.update(ctx, |controller, ctx| {
             controller.clear_finished_action_results(conversation_id, ctx);
         });
-
     }
 
     fn handle_input_context_menu_action(
@@ -23076,7 +23049,6 @@ impl TerminalView {
                 });
             }
         }
-
     }
 
     fn close_notification_error_banner(&mut self, ctx: &mut ViewContext<Self>) {
@@ -23181,7 +23153,6 @@ impl TerminalView {
                 ctx.notify();
             }
         }
-
     }
 
     fn ssh_banner_action(&self, action: SSHBannerAction, ctx: &mut ViewContext<Self>) {
@@ -23272,7 +23243,6 @@ impl TerminalView {
                 is_active: !block_filter_query.is_active,
                 ..block_filter_query
             };
-
 
             self.update_block_filter_for_block(
                 selected_or_last_block_index,
@@ -23869,7 +23839,6 @@ impl TerminalView {
                         self.add_ssh_warpify_prompt(command, host.to_owned(), ctx)
                     }
                 }
-
             }
         }
     }
@@ -23920,7 +23889,6 @@ impl TerminalView {
             footer.set_warpify_mode(mode, ctx);
         });
         self.maybe_show_use_agent_footer_in_blocklist(ctx);
-
     }
 
     fn show_initialization_block(&mut self) {
@@ -24504,8 +24472,7 @@ impl TypedActionView for TerminalView {
                     }
                 }
 
-                if is_first_selection && self.ai_input_model.as_ref(ctx).is_ai_input_enabled() {
-                }
+                if is_first_selection && self.ai_input_model.as_ref(ctx).is_ai_input_enabled() {}
             }
             SelectNextBlock => {
                 match input_mode {
@@ -24626,7 +24593,6 @@ impl TypedActionView for TerminalView {
                 self.open_rich_content_link(link, ctx);
             }
             ShowInFileExplorer(path) => {
-
                 ctx.open_file_path_in_explorer(path);
             }
             OpenFileInWarp(path) => {
@@ -24660,8 +24626,7 @@ impl TypedActionView for TerminalView {
             }
             OpenBlockListContextMenu => self.open_block_list_context_menu_via_keybinding(ctx),
             AskAIAssistant { block_index } => {
-                if FeatureFlag::AgentMode.is_enabled() {
-                }
+                if FeatureFlag::AgentMode.is_enabled() {}
 
                 self.ask_ai(&AskAISource::Block(*block_index), ctx)
             }

@@ -24,10 +24,10 @@ FEATURES="gui"
 
 # If warp_channel_config is on PATH, build the Local channel binary; otherwise build the OSS channel.
 if command -v warp-channel-config &>/dev/null; then
-    WARP_BIN_NAME="warp"
+    WARP_BIN_NAME="warpai-local"
     WARP_CHANNEL="local"
 else
-    WARP_BIN_NAME="warp-oss"
+    WARP_BIN_NAME="warpai"
     WARP_CHANNEL="oss"
 fi
 

@@ -165,8 +165,7 @@ impl ShellCommandExecutor {
                         _ => false,
                     };
 
-                    if should_autoexecute {
-                    }
+                    if should_autoexecute {}
 
                     should_autoexecute
                 }

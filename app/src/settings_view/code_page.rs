@@ -583,8 +583,7 @@ impl TypedActionView for CodeSettingsPageView {
 
                 CodeSettings::handle(ctx).update(ctx, |settings, ctx| {
                     match settings.codebase_context_enabled.toggle_and_save_value(ctx) {
-                        Ok(new_value) => {
-                        }
+                        Ok(new_value) => {}
                         Err(e) => {
                             log::warn!("Failed to set value for Codebase Context: {e:?}");
                         }
@@ -596,8 +595,7 @@ impl TypedActionView for CodeSettingsPageView {
             CodeSettingsPageAction::ToggleAutoIndexing => {
                 CodeSettings::handle(ctx).update(ctx, |settings, ctx| {
                     match settings.auto_indexing_enabled.toggle_and_save_value(ctx) {
-                        Ok(new_value) => {
-                        }
+                        Ok(new_value) => {}
                         Err(e) => {
                             log::warn!("Failed to set value for auto indexing: {e:?}");
                         }

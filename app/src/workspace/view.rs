@@ -34,10 +34,10 @@ mod wasm_view;
 
 use std::cell::RefCell;
 
-use crate::GlobalResourceHandles;
 use crate::workspace::cross_window_tab_drag::{
     AttachTarget, CrossWindowTabDrag, DragResult, DropResult, GhostState,
 };
+use crate::GlobalResourceHandles;
 pub(crate) use onboarding::OnboardingTutorial;
 
 use crate::ai::active_agent_views_model::ActiveAgentViewsModel;
@@ -79,8 +79,8 @@ use crate::ai::{
 use crate::ai_assistant::execution_context::WarpAiExecutionContext;
 use crate::app_state::{
     LeafContents, LeafSnapshot, LeftPanelDisplayedTab, LeftPanelSnapshot, NotebookPaneSnapshot,
-    PaneNodeSnapshot, PaneUuid, RightPanelSnapshot, SettingsPaneSnapshot, TabGroupSnapshot, TabSnapshot,
-    TerminalPaneSnapshot, WindowSnapshot, WorkflowPaneSnapshot,
+    PaneNodeSnapshot, PaneUuid, RightPanelSnapshot, SettingsPaneSnapshot, TabGroupSnapshot,
+    TabSnapshot, TerminalPaneSnapshot, WindowSnapshot, WorkflowPaneSnapshot,
 };
 use crate::code_review::diff_state::DiffStateModel;
 #[cfg(feature = "local_fs")]
@@ -419,8 +419,8 @@ use warpui::clipboard::ClipboardContent;
 #[cfg(target_family = "wasm")]
 use warpui::elements::Percentage;
 use warpui::elements::{
-    CacheOption, DispatchEventResult, DragAxis, Draggable, DraggableState, DropTarget, EventHandler,
-    Image, MouseInBehavior, Rect, SizeConstraintCondition, SizeConstraintSwitch,
+    CacheOption, DispatchEventResult, DragAxis, Draggable, DraggableState, DropTarget,
+    EventHandler, Image, MouseInBehavior, Rect, SizeConstraintCondition, SizeConstraintSwitch,
 };
 use warpui::ui_components::button::{Button, ButtonVariant};
 use warpui::windowing::{state::ApplicationStage, StateEvent, WindowManager};
@@ -488,13 +488,15 @@ use crate::palette::PaletteMode;
 use crate::search::command_palette::view::{Event as CommandPaletteEvent, View as CommandPalette};
 use crate::server::telemetry::{NotificationsTurnedOnSource, PaletteSource, TabRenameEvent};
 use crate::tab::{
-    color_picker_menu_items, next_tab_color, tab_position_id, uses_vertical_tabs, ColorPickerTarget,
-    NewSessionMenuItem, PaneNameMenuTarget, SelectedTabColor, TabBarState, TabComponent, TabData,
-    TabTelemetryAction, COMPACT_TAB_WIDTH_THRESHOLD, MOVE_TO_GROUP_LABEL, TAB_BAR_BORDER_HEIGHT,
-    TAB_INDICATOR_HEIGHT, TAB_PIN_INDICATOR_ICON_SIZE, TAB_PIN_VANISH_THRESHOLD,
+    color_picker_menu_items, next_tab_color, tab_position_id, uses_vertical_tabs,
+    ColorPickerTarget, NewSessionMenuItem, PaneNameMenuTarget, SelectedTabColor, TabBarState,
+    TabComponent, TabData, TabTelemetryAction, COMPACT_TAB_WIDTH_THRESHOLD, MOVE_TO_GROUP_LABEL,
+    TAB_BAR_BORDER_HEIGHT, TAB_INDICATOR_HEIGHT, TAB_PIN_INDICATOR_ICON_SIZE,
+    TAB_PIN_VANISH_THRESHOLD,
 };
 use crate::terminal::view::ssh_file_upload::FileUploadId;
 use crate::ui_components::icons;
+use crate::workspace::tab_group::{TabGroup, TabGroupId};
 use crate::TelemetryEvent;
 use autoupdate::AutoupdateStage;
 #[cfg(target_os = "macos")]
@@ -512,9 +514,7 @@ use std::path::PathBuf;
 use std::process;
 use std::sync::{mpsc, Mutex};
 use std::{cmp::Ordering, sync::Arc};
-use warp_core::ui::theme::{
-    color::internal_colors, phenomenon::PhenomenonStyle, AnsiColors, Fill,
-};
+use warp_core::ui::theme::{color::internal_colors, phenomenon::PhenomenonStyle, AnsiColors, Fill};
 use warp_core::ui::{color::coloru_with_opacity, Icon};
 use warp_editor::editor::NavigationKey;
 use warpui::keymap::Context;
@@ -539,7 +539,6 @@ use warpui::{
     geometry::vector::{vec2f, Vector2F},
     AppContext, Entity, TypedActionView, UpdateView, View, ViewContext, ViewHandle,
 };
-use crate::workspace::tab_group::{TabGroup, TabGroupId};
 use warpui::{
     EntityId, FocusContext, ModelHandle, SingletonEntity, UpdateModel, ViewAsRef, WeakViewHandle,
     WindowId,
@@ -6610,11 +6609,7 @@ impl Workspace {
         ctx.notify();
     }
 
-    fn new_session_menu_max_height(
-        &self,
-        position: Vector2F,
-        ctx: &ViewContext<Self>,
-    ) -> f32 {
+    fn new_session_menu_max_height(&self, position: Vector2F, ctx: &ViewContext<Self>) -> f32 {
         let Some(window) = ctx.windows().platform_window(ctx.window_id()) else {
             return NEW_SESSION_MENU_FALLBACK_MAX_HEIGHT;
         };
@@ -6626,11 +6621,7 @@ impl Workspace {
         available_height.max(NEW_SESSION_MENU_MIN_HEIGHT)
     }
 
-    fn new_session_menu_height_anchor_y(
-        &self,
-        position: Vector2F,
-        ctx: &ViewContext<Self>,
-    ) -> f32 {
+    fn new_session_menu_height_anchor_y(&self, position: Vector2F, ctx: &ViewContext<Self>) -> f32 {
         let use_vertical_tabs =
             FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
         if use_vertical_tabs && self.vertical_tabs_panel_open {
@@ -6638,9 +6629,7 @@ impl Workspace {
                 self.window_id,
                 vertical_tabs::VERTICAL_TABS_ADD_TAB_POSITION_ID,
             )
-            .map(|position| {
-                position.lower_left().y() + NEW_SESSION_MENU_VERTICAL_BUTTON_OFFSET_Y
-            })
+            .map(|position| position.lower_left().y() + NEW_SESSION_MENU_VERTICAL_BUTTON_OFFSET_Y)
             .unwrap_or_else(|| position.y().max(TOTAL_TAB_BAR_HEIGHT))
         } else {
             position.y()
@@ -21997,20 +21986,41 @@ impl TypedActionView for Workspace {
                         "Evidence content is unavailable in its original local checkout. Refresh the reference or inspect its metadata; remote content is not downloaded automatically.".into()), ctx);
                 });
             }
-            OpenCollaborationWorkspace { workspace_id, space_id, root } => {
-                #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+            OpenCollaborationWorkspace {
+                workspace_id,
+                space_id,
+                root,
+            } => {
+                #[cfg(all(
+                    feature = "local_tty",
+                    not(feature = "remote_tty"),
+                    not(target_family = "wasm")
+                ))]
                 {
-                    let binding = warp_agent_bus::WorkspaceBinding { id: workspace_id.clone(), space: space_id.clone(), root: root.clone() };
-                    let valid = crate::agent_communication::AgentCommunication::as_ref(ctx).preferences.enabled
-                        && crate::agent_communication::BROKER.get().is_some_and(|broker| broker.validate_workspace(&binding).is_ok())
-                        && warp_agent_bus::project_root(std::path::Path::new(root)).is_ok_and(|canonical| canonical == *root);
+                    let binding = warp_agent_bus::WorkspaceBinding {
+                        id: workspace_id.clone(),
+                        space: space_id.clone(),
+                        root: root.clone(),
+                    };
+                    let valid = crate::agent_communication::AgentCommunication::as_ref(ctx)
+                        .preferences
+                        .enabled
+                        && crate::agent_communication::BROKER
+                            .get()
+                            .is_some_and(|broker| broker.validate_workspace(&binding).is_ok())
+                        && warp_agent_bus::project_root(std::path::Path::new(root))
+                            .is_ok_and(|canonical| canonical == *root);
                     if valid {
                         self.add_tab_with_pane_layout(
                             PanesLayout::SingleTerminal(Box::new(NewTerminalOptions {
                                 initial_directory: Some(PathBuf::from(root)),
-                                communication_workspace: Some(binding), hide_homepage: true,
+                                communication_workspace: Some(binding),
+                                hide_homepage: true,
                                 ..Default::default()
-                            })), Arc::new(HashMap::new()), Some("Collaboration".into()), ctx,
+                            })),
+                            Arc::new(HashMap::new()),
+                            Some("Collaboration".into()),
+                            ctx,
                         );
                     } else {
                         self.toast_stack.update(ctx, |stack, ctx| {
@@ -22019,7 +22029,11 @@ impl TypedActionView for Workspace {
                         });
                     }
                 }
-                #[cfg(not(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm"))))]
+                #[cfg(not(all(
+                    feature = "local_tty",
+                    not(feature = "remote_tty"),
+                    not(target_family = "wasm")
+                )))]
                 let _ = (workspace_id, space_id, root);
             }
             AddDefaultTab => {

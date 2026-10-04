@@ -11,9 +11,7 @@ use sysinfo::ProcessesToUpdate;
 use warp_core::channel::ChannelState;
 use warpui::{App, AppContext, Entity, ModelContext, SingletonEntity};
 
-use crate::{ server::telemetry,
-    system::memory_footprint, terminal::TerminalView, TelemetryEvent,
-};
+use crate::{server::telemetry, system::memory_footprint, terminal::TerminalView, TelemetryEvent};
 
 /// The threshold at which we emit a memory usage warning.
 const MEMORY_USAGE_WARNING_THRESHOLD: Option<Byte> = byte_unit::Byte::GIGABYTE.multiply(10);

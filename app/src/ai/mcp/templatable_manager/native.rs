@@ -914,8 +914,7 @@ impl TemplatableMCPServerManager {
                     }
                 };
 
-                if should_send_telemetry {
-                }
+                if should_send_telemetry {}
             },
         );
 
@@ -1423,8 +1422,7 @@ impl TemplatableMCPServerManager {
                 ctx,
             );
             match result {
-                Ok(result) => {
-                }
+                Ok(result) => {}
                 Err(e) => log::error!("{e}"),
             }
         }

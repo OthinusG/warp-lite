@@ -1,6 +1,5 @@
 use crate::{
-    auth::auth_state::AuthState, server::telemetry::TelemetryEvent,
-    terminal::TerminalModel,
+    auth::auth_state::AuthState, server::telemetry::TelemetryEvent, terminal::TerminalModel,
 };
 use async_broadcast::Receiver;
 use futures_lite::StreamExt;
@@ -74,8 +73,7 @@ pub fn record_pty_throughput(
                 if Instant::now().duration_since(*last_emitted_event_time)
                     >= PTY_THROUGHPUT_METRIC_INTERVAL
                 {
-                    if *max_throughput > 0 {
-                    }
+                    if *max_throughput > 0 {}
                     *max_throughput = 0;
                     *last_emitted_event_time = Instant::now();
                 }

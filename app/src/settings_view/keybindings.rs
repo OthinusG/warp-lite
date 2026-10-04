@@ -632,7 +632,6 @@ impl KeybindingsView {
             );
             row.binding.trigger = default_trigger;
 
-
             self.modifying_row = None;
             row.editor_open = false;
             ctx.enable_key_bindings_dispatching();

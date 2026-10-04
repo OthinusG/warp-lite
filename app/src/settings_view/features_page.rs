@@ -1,9 +1,9 @@
-use crate::{report_if_error, themes, GlobalResourceHandles};
 use crate::default_terminal::DefaultTerminal;
 use crate::gpu_state::{GPUState, GPUStateEvent};
 use crate::terminal::input::OPEN_COMPLETIONS_KEYBINDING_NAME;
 #[cfg(feature = "local_tty")]
 use crate::terminal::session_settings::WorkingDirectoryConfig;
+use crate::{report_if_error, themes, GlobalResourceHandles};
 
 use lazy_static::lazy_static;
 use warp_core::context_flag::ContextFlag;
@@ -17,6 +17,7 @@ use {
 };
 
 use super::keybindings::KeyBindingModifyingState;
+use super::render_beta_chip;
 #[cfg(feature = "local_tty")]
 use super::settings_page::render_sub_sub_header;
 use super::settings_page::{
@@ -28,7 +29,6 @@ use super::settings_page::{
     render_body_item, render_dropdown_item, AdditionalInfo, SettingsPageMeta,
     SettingsPageViewHandle, ToggleState, CONTENT_FONT_SIZE, HEADER_PADDING,
 };
-use super::render_beta_chip;
 use super::{features, SettingsAction};
 use super::{flags, DisplayCount};
 use super::{SettingsSection, ToggleSettingActionPair};
@@ -49,16 +49,15 @@ use crate::settings::{
     AliasExpansionEnabled, AliasExpansionSettings, AppEditorSettings, AtContextMenuInTerminalMode,
     AutocompleteSymbols, AutosuggestionKeybindingHint, CaseInsensitiveCompletions,
     ChangelogSettings, CloudPreferencesSettings, CodeEditorLineNumberMode,
-    CodeEditorLineNumberModeSetting, CodeSettings, CommandCorrections,
-    CompletionsOpenWhileTyping, CopyOnSelect, CtrlTabBehavior, DefaultSessionMode,
-    EnableSlashCommandsInTerminal, EnableSshWrapper, ErrorUnderliningEnabled, ExtraMetaKeys,
-    GPUSettings, GlobalHotkeyMode, InputSettings, InputSettingsChangedEvent,
-    LinuxSelectionClipboard, MiddleClickPasteEnabled, MouseScrollMultiplier,
-    OutlineCodebaseSymbolsForAtContextMenu, PreferLowPowerGPU, PreferredGraphicsBackend,
-    QuakeModeSettings, ScrollSettings, SelectionSettings, ShowAutosuggestionIgnoreButton,
-    ShowTerminalInputMessageBar, SshSettings, SyntaxHighlighting, TabBehavior, VimModeEnabled,
-    VimStatusBar, VimUnnamedSystemClipboard, DEFAULT_QUAKE_MODE_SIZE_PERCENTAGES,
-    QUAKE_WINDOW_AUTOHIDE_SUPPORTED,
+    CodeEditorLineNumberModeSetting, CodeSettings, CommandCorrections, CompletionsOpenWhileTyping,
+    CopyOnSelect, CtrlTabBehavior, DefaultSessionMode, EnableSlashCommandsInTerminal,
+    EnableSshWrapper, ErrorUnderliningEnabled, ExtraMetaKeys, GPUSettings, GlobalHotkeyMode,
+    InputSettings, InputSettingsChangedEvent, LinuxSelectionClipboard, MiddleClickPasteEnabled,
+    MouseScrollMultiplier, OutlineCodebaseSymbolsForAtContextMenu, PreferLowPowerGPU,
+    PreferredGraphicsBackend, QuakeModeSettings, ScrollSettings, SelectionSettings,
+    ShowAutosuggestionIgnoreButton, ShowTerminalInputMessageBar, SshSettings, SyntaxHighlighting,
+    TabBehavior, VimModeEnabled, VimStatusBar, VimUnnamedSystemClipboard,
+    DEFAULT_QUAKE_MODE_SIZE_PERCENTAGES, QUAKE_WINDOW_AUTOHIDE_SUPPORTED,
 };
 use crate::terminal::alt_screen_reporting::{
     AltScreenReporting, FocusReportingEnabled, MouseReportingEnabled, ScrollReportingEnabled,
@@ -1987,7 +1986,6 @@ impl TypedActionView for FeaturesPageView {
                 });
             }
         }
-
     }
 }
 
@@ -2533,7 +2531,11 @@ impl FeaturesPageView {
     fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
         let mut general_widgets: Vec<Box<dyn SettingsWidget<View = Self>>> =
             vec![Box::new(DefaultSessionModeWidget::default())];
-        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        #[cfg(all(
+            feature = "local_tty",
+            not(feature = "remote_tty"),
+            not(target_family = "wasm")
+        ))]
         general_widgets.push(Box::new(super::agent_communication::CommunicationWidget(
             ctx.add_typed_action_view(super::agent_communication::CommunicationSettingsView::new),
         )));

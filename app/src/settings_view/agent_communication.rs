@@ -4,13 +4,18 @@ use crate::{
     appearance::Appearance,
     settings_view::{
         features_page::FeaturesPageView,
-        settings_page::{render_body_item, LocalOnlyIconState, SettingsWidget, ToggleState},
+        settings_page::{
+            render_body_item, render_sub_header, LocalOnlyIconState, SettingsWidget, ToggleState,
+        },
     },
+    ui_components::blended_colors,
 };
 use std::{cell::RefCell, collections::HashMap};
 use warpui::elements::{ChildView, Container, Flex, MouseStateHandle, ParentElement};
 use warpui::ui_components::{
-    button::ButtonVariant, components::UiComponent, switch::SwitchStateHandle,
+    button::ButtonVariant,
+    components::{UiComponent, UiComponentStyles},
+    switch::SwitchStateHandle,
 };
 use warpui::{
     AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
@@ -80,6 +85,7 @@ impl View for CommunicationSettingsView {
             Some("Configure local MCP access for selected CLI agents. Communication stays within each project.".into()),
         ));
         if model.preferences.enabled || !model.preferences.selected.is_empty() {
+            body.add_child(render_sub_header(appearance, "Agents", None));
             let mut rows = model.available.clone();
             // Keep removed executables visible so owned configuration can still be cleaned up.
             for (command, installed) in &model.preferences.selected {
@@ -140,15 +146,18 @@ impl View for CommunicationSettingsView {
                 ));
             }
         }
-        body.add_child(builder.paragraph(model.status.clone()).build().finish());
+        body.add_child(secondary_text(appearance, model.status.clone(), None));
         if model.preferences.legacy_cleanup_pending() {
-            body.add_child(builder.paragraph(
+            // Cleanup needs user action, so it uses the theme warning color instead of plain text.
+            body.add_child(secondary_text(
+                appearance,
                 "Legacy device access is disabled. Unlock secure storage and restart Warpai to retry credential cleanup.".to_owned(),
-            ).build().finish());
+                Some(appearance.theme().ui_warning_color()),
+            ));
         }
         let refresh = builder
             .button(ButtonVariant::Secondary, self.refresh.clone())
-            .with_text_label("Refresh agents / retry cleanup".to_owned());
+            .with_text_label("Rescan agents".to_owned());
         let refresh = if model.busy {
             refresh.disabled()
         } else {
@@ -178,4 +187,26 @@ impl SettingsWidget for CommunicationWidget {
     fn render(&self, _: &FeaturesPageView, _: &Appearance, _: &AppContext) -> Box<dyn Element> {
         ChildView::new(&self.0).finish()
     }
+}
+
+/// 12px secondary text matching `render_body_item` descriptions; `color` overrides for warnings.
+fn secondary_text(
+    appearance: &Appearance,
+    text: String,
+    color: Option<pathfinder_color::ColorU>,
+) -> Box<dyn Element> {
+    let theme = appearance.theme();
+    appearance
+        .ui_builder()
+        .span(text)
+        .with_style(UiComponentStyles {
+            font_size: Some(12.),
+            font_color: Some(
+                color.unwrap_or_else(|| blended_colors::text_sub(theme, theme.background())),
+            ),
+            ..Default::default()
+        })
+        .with_soft_wrap()
+        .build()
+        .finish()
 }

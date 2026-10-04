@@ -89,6 +89,14 @@ has no consumer.
 | Uninvoked upstream GitHub actions | 7 | 25,666 |
 | Uninvoked channel/cloud release helpers | 4 | 6,970 |
 | Replaced installer artwork | 1 | 234,218 |
+| Tracked generated Yarn install state | 1 | 1,236 |
+
+The tracked Yarn `install-state.gz` is generated tool state with no package
+manifest or build/runtime consumer. Remove it in the delivery cleanup; it is not
+an executable/build input. The small upstream JavaScript completion demo remains
+under the unrelated-terminal-code preservation rule, alongside the two unwired
+Rust test files. Actual command signature data comes from the pinned external
+`warp-command-signatures` dependency, not a replaced local implementation.
 
 ### Dependency cleanup
 
@@ -127,5 +135,26 @@ packaging dry run used a temporary Cargo command fixture (no Rust compilation)
 to verify stale skill removal, retained license assembly, version metadata and
 settings-schema command construction.
 
-Pending source-matched GitHub desktop and remote acceptance, release-package
-inspection and native macOS vertical-tab documentation screenshots.
+Executable/build source: `02d08d484dd7ece33f528383230801d78c1355f5`.
+
+- [Remote acceptance run 37194454441](https://github.com/OthinusG/warp-lite/actions/runs/37194454441)
+  passed on Linux/macOS/Windows, including strict Clippy, protocol/persistence,
+  owned native PTYs and controlled Linux OpenSSH two-agent messaging/tasks.
+  Downloaded companion manifests, capabilities, checksums and notices match.
+- [Desktop acceptance run 37194453713](https://github.com/OthinusG/warp-lite/actions/runs/37194453713)
+  passed macOS/Windows default and `warp_platform` checks, focused application
+  regressions, native setup/actions and all 161 captures per OS. Release
+  packaging and package inspection are pending.
+- Both capture archives passed CRC and GitHub SHA-256 checks, with successful
+  diagnostics naming the exact source above. Reviewed narrow/wide light/dark
+  collaboration panels and six MCP settings scenes per OS. The two README PNGs
+  are byte-identical to the reviewed native macOS originals, showing vertical
+  tabs and Claude Warm Light; [provenance](../docs/images/README.md) records the
+  capture set. No image recoloring or generated UI is used.
+- Third-party agent management and terminal guardrail sources have no changes
+  against the baseline. All locked package/version/source/checksum sets remain
+  identical; only the three reviewed dependency edges change.
+
+Final delivery changes after the executable/build source above are documentation,
+original PNGs and deletion of unconsumed generated Yarn state. They do not change
+Rust source, manifests, workflows or executable/resource build inputs.

@@ -64,13 +64,69 @@
   Keep App menu names and commands unchanged for matching actual UI.
   Chinese README uses explicit stable anchors; technical/license originals are
   linked with their language identified rather than silently presented as Chinese.
-- README screenshots are unmodified native Claude Warm Light captures from
-  source 3b31566; sample-data provenance is recorded in docs/images/README.md. Distinguish
+- README screenshots are unmodified native macOS vertical-tab Claude Warm Light
+  captures from source 02d08d4; sample-data provenance is recorded in docs/images/README.md. Distinguish
   published v0.5.7-lite terminal packages from current collaboration review builds.
 - User reports an independently designed Warpai icon, but it was not found in
   this checkout or post-fork image history. Packaging currently retains upstream
   Mono artwork on macOS and the OSS icon on Windows; do not invent a replacement
   logo or describe branding assets as fully synchronized.
+
+## Deep cleanup and documentation capture — 2026-10-04
+
+- User authorized deeper removal of unused historical AI/cloud source and files
+  when supported behavior is unaffected. Explicitly preserve third-party agent
+  management, launching, native setup, MCP configuration, notifications and
+  coordination. README screenshots must use native macOS vertical tabs and the
+  default Claude Warm Light theme. Apply these screenshot preferences only in the
+  isolated capture profile; do not alter the user's normal settings.
+- The source audit found 51 old AI search/embedding implementation files behind
+  permanently false `cfg(any())` subtrees. Their three roots already supply
+  independent compatibility types used by surviving modules. Remove the old
+  trees/declarations while retaining those shared types. Do not delete entire
+  AI/cloud directories: live terminal/editor/CLI consumers and persistence
+  compatibility still cross those boundaries.
+- Upstream bundled skill payloads are gated by `BundledSkills`, absent from the
+  supported desktop default/platform and packaging configurations. Current
+  project/user skill loading and native agent MCP setup are separate. Resource
+  packagers must clear stale bundled skills on reused output directories; retain
+  generated version metadata, settings schema and notices for retained code.
+- Dependency consumers must be traced from each Cargo target through the full
+  module/include graph across directories. `warp-agent-bus/tests/setup.rs`
+  imports `app/src/agent_communication/setup.rs` with `#[path]`, requiring the
+  test crate's TOML/YAML dependencies even though its own directory has no parser
+  calls. Preserve them; directory-scoped identifier searches miss this edge.
+- Cleanup removes 239 proven-unused tracked files (40,335,468 bytes) and three
+  unused direct dependency edges without changing locked package versions.
+  Source 02d08d484dd7ece33f528383230801d78c1355f5 passed remote run
+  37194454441 on Linux/macOS/Windows, including controlled OpenSSH tests.
+  Desktop run 37194453713 passed both application variants, regressions and
+  161 native captures per OS; release packaging remains pending. Both README
+  images now use the reviewed original macOS warm vertical-tab captures.
+  Generated Yarn install state is removed with documentation delivery; it has
+  no package manifest or executable/build consumer.
+
+## Warpai identity and settings migration — 2026-10-04
+
+- User explicitly requested Cargo application package/library/default target
+  `warpai`, macOS Bundle ID `dev.warpai.Warpai`, all owned product/build/install
+  entrypoints unified as Warpai, and final GitHub repository rename to
+  `OthinusG/warpai`. User confirmed internal subcrate/type names and WARP_*
+  compatibility protocols/environment variables should remain unchanged.
+- Managed desktop settings/data use the user's home `.config/.warpai` on all
+  platforms, including Windows `%USERPROFILE%\.config\.warpai`. This is not
+  a literal `/home` path. State/cache and isolated debug profiles remain beneath
+  this root. Third-party agent native settings directories remain provider-owned.
+- Import old home/platform files without overwriting new settings or deleting
+  recovery sources. Native macOS/Windows preferences are imported into JSON;
+  future public/private preference writes use separate files, avoiding two
+  cached stores overwriting each other's updates. Migration runs before startup
+  opens preferences/state. Preserve existing settings.toml behavior.
+- Additional UI and formatting changes appeared during this task. The user
+  confirmed that parallel editing is finished and asked this task to continue.
+  Preserve those changes and verify the final combined source; do not revert them.
+- After name unification, repeat source/document cleanup and repair links before
+  full GitHub desktop/remote acceptance and default-branch/repository integration.
 
 ## Product Boundary
 
@@ -715,3 +771,15 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   documentation scenarios; use source-matched raw PNGs and update both language
   captions/provenance. Do not recolor screenshots or change the application's
   default theme to compensate for the capture driver's earlier Dark selection.
+
+- Collaboration UI polish on 2026-10-04: panel title is now the strongest text role (14px semibold primary); SSH entry uses a Secondary button and shares a row with Refresh; panel spacing uses GAP_TIGHT/ROW/SECTION in panel.rs. MCP settings group agents under an "Agents" sub-header and show legacy-cleanup warnings in ui_warning_color, superseding the earlier ordinary-contrast rule. Native captures/README images must be regenerated on GitHub.
+
+- Identity cleanup checkpoint: retained the user-completed panel/format changes;
+  removed 35 unconsumed obsolete documents and four replaced/unused source files
+  (444,578 bytes). Kept macOS UserDefaults for the required Apple press-and-hold
+  OS integration. Canonical file stores separate public/private preferences;
+  migration imports missing legacy entries once and preserves recovery sources.
+  Package/executable identity and owned bridge are Warpai/warpai/warpai-agent;
+  the final repository/default branch will be OthinusG/warpai and main.
+  Static manifest/lock/workflow/shell/documentation checks passed; full GitHub
+  acceptance of this combined source remains pending.

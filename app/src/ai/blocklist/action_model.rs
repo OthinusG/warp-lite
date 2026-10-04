@@ -1045,8 +1045,7 @@ impl BlocklistAIActionModel {
         if matches!(
             pending_action.action,
             AIAgentActionType::RequestComputerUse(_)
-        ) {
-        }
+        ) {}
 
         let result = Arc::new(AIAgentActionResult {
             id: pending_action.id,

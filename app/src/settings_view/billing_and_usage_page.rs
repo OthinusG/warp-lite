@@ -963,7 +963,6 @@ impl TypedActionView for BillingAndUsagePageView {
                 self.show_addon_credit_modal(ctx);
             }
             BillingAndUsagePageAction::UpdateAutoReloadEnabled { team_uid, enabled } => {
-
                 let selected_auto_reload_value = if *enabled {
                     self.addon_credits_options
                         .get(self.selected_addon_denomination)

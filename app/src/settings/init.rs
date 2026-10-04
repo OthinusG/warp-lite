@@ -253,51 +253,39 @@ fn handle_warp_config_change(
         }
     });
 }
-/// Returns the platform-native preferences backend.
-///
-/// Used directly for private settings, and also as the fallback for public
-/// settings when the settings file feature flag is disabled.
-fn init_platform_native_preferences() -> user_preferences::Model {
+/// Desktop preference writes use files inside the managed Warpai root.
+fn init_file_preferences(path: std::path::PathBuf) -> user_preferences::Model {
     cfg_if::cfg_if! {
         if #[cfg(test)] {
+            let _ = path;
             Box::<user_preferences::in_memory::InMemoryPreferences>::default()
-        } else if #[cfg(any(target_os = "linux", feature = "integration_tests"))] {
-            match user_preferences::file_backed::FileBackedUserPreferences::new(super::user_preferences_file_path()) {
-                Ok(prefs) => Box::new(prefs) as user_preferences::Model,
-                Err(err) => {
-                    crate::report_error!(anyhow::anyhow!(err));
-                    Box::<user_preferences::in_memory::InMemoryPreferences>::default()
-                }
-            }
-        } else if #[cfg(target_os = "windows")] {
-            let app_id = warp_core::channel::ChannelState::app_id();
-            Box::new(user_preferences::registry_backed::RegistryBackedPreferences::new(app_id.application_name()))
-        } else if #[cfg(target_os = "macos")] {
-            Box::new(user_preferences::user_defaults::UserDefaultsPreferencesStorage::new(
-                warp_core::channel::ChannelState::data_domain_if_not_default()
-            ))
         } else if #[cfg(target_family = "wasm")] {
+            let _ = path;
             Box::<user_preferences::local_storage::LocalStoragePreferences>::default()
         } else {
-            unreachable!("Unspecified user preferences implementation for current platform!");
+            Box::new(user_preferences::file_backed::FileBackedUserPreferences::new(path)
+                .expect("Cannot load Warpai preferences; the original settings were retained"))
         }
     }
 }
 
-/// Creates the platform-native preferences backend for private settings.
-///
-/// Private settings are always stored in the platform-native store (e.g.
-/// UserDefaults on macOS) and never appear in the user-visible TOML file.
+fn init_json_preferences() -> user_preferences::Model {
+    init_file_preferences(super::user_preferences_file_path())
+}
+
+/// Private and public stores use separate files to avoid conflicting cached writes.
 pub fn init_private_user_preferences() -> settings::PrivatePreferences {
-    settings::PrivatePreferences::new(init_platform_native_preferences())
+    settings::PrivatePreferences::new(init_file_preferences(
+        warp_core::paths::config_local_dir().join("private_preferences.json"),
+    ))
 }
 
 /// Initializes the public UserPreferences provider.
 ///
 /// When the `SettingsFile` feature flag is enabled, public settings are stored
 /// in `settings.toml` so they are user-visible and editable. When the flag is
-/// disabled, this falls back to the platform-native store (same as private
-/// settings), so all settings live in the same place.
+/// disabled, public settings use the separate JSON preferences file.
+/// Private settings always use their own JSON file.
 /// Returns `(preferences_backend, optional_parse_error)`. The parse error
 /// is `Some` only when the TOML settings file existed but could not be
 /// parsed; it should be propagated to the UI so the user sees a banner.
@@ -319,7 +307,7 @@ pub fn init_public_user_preferences() -> (user_preferences::Model, Option<user_p
                 }
                 (Box::new(prefs) as user_preferences::Model, parse_error)
             } else {
-                (init_platform_native_preferences(), None)
+                (init_json_preferences(), None)
             }
         }
     }

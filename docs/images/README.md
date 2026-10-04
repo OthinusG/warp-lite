@@ -7,11 +7,12 @@ or generated product images. Sample projects, agents and tasks were exercised by
 the native review driver; they are not customer projects or authenticated vendor
 model sessions.
 
+- Tabs: native macOS vertical tab panel enabled.
 - Theme: default **Claude Warm Light**, rendered by the native app.
-- Source: `3b315664131933837c735896239ae750f3c674c1`.
-- [GitHub desktop run 37188935250](https://github.com/OthinusG/warp-lite/actions/runs/37188935250).
+- Source: `02d08d484dd7ece33f528383230801d78c1355f5`.
+- [GitHub desktop run 37194453713](https://github.com/OthinusG/warp-lite/actions/runs/37194453713).
 - Artifact: `Warpai-collaboration-native-captures-macOS`.
-- Capture set: `capture-96865/collaboration-static/2026-10-04T08-55-17`.
+- Capture set: `capture-30892/collaboration-static/2026-10-04T11-02-45`.
 
 | Documentation image | Original capture | Shows |
 | --- | --- | --- |

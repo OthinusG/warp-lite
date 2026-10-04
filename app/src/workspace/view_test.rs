@@ -1,5 +1,3 @@
-#[cfg(feature = "local_fs")]
-use warp_files::FileModel;
 use super::*;
 use crate::ai::blocklist::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 use crate::ai::document::ai_document_model::AIDocumentModel;
@@ -35,6 +33,8 @@ use session_sharing_protocol::sharer::SessionSourceType;
 use std::collections::HashMap;
 #[cfg(feature = "local_fs")]
 use tempfile::TempDir;
+#[cfg(feature = "local_fs")]
+use warp_files::FileModel;
 use watcher::HomeDirectoryWatcher;
 
 use crate::server::cloud_objects::{listener::Listener, update_manager::UpdateManager};

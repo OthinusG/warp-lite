@@ -894,7 +894,6 @@ impl NotebookView {
             let delta = content.len().abs_diff(self.last_content_length);
             self.last_content_length = content.len();
             self.send_edit_telemetry = false;
-
         }
 
         // Schedule another check. If we stop editing in the meantime, either the mode check above
@@ -1090,8 +1089,7 @@ impl NotebookView {
     }
 
     /// Send a [`NotebookTelemetryAction`] telemetry event.
-    fn send_telemetry_action(&self, action: NotebookTelemetryAction, ctx: &mut ViewContext<Self>) {
-    }
+    fn send_telemetry_action(&self, action: NotebookTelemetryAction, ctx: &mut ViewContext<Self>) {}
 
     /// Puts the nodebook into edit mode and focuses the editor. The caller is responsible for
     /// checking that the notebook is editable.
@@ -1615,7 +1613,6 @@ impl NotebookView {
             // owner-based.
             editor.set_space(notebook.space(ctx), ctx);
         });
-
 
         // Once we've received metadata from the server, check if we can eagerly edit the notebook.
         let has_metadata = UpdateManager::as_ref(ctx).initial_load_complete();

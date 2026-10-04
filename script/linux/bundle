@@ -142,7 +142,7 @@ mkdir -p "$OUT_DIR"
 # WARP_BIN is the name of the binary produced by cargo;
 # BINARY_NAME is the desired name of the binary in the final package.
 if [[ $RELEASE_CHANNEL = "local" ]]; then
-  WARP_BIN="warp"
+  WARP_BIN="warpai-local"
   BINARY_NAME="warp-local"
   APP_NAME="WarpLocal"
   FEATURES="$FEATURES,agent_mode_debug"
@@ -165,8 +165,8 @@ elif [[ $RELEASE_CHANNEL = "stable" ]]; then
   BINARY_NAME="warp"
   APP_NAME="Warp"
 elif [[ $RELEASE_CHANNEL = "oss" ]]; then
-  WARP_BIN="warp-oss"
-  BINARY_NAME="warp-oss"
+  WARP_BIN="warpai"
+  BINARY_NAME="warpai"
   APP_NAME="WarpOss"
   # The OSS channel does not ship Sentry, so drop the crash_reporting feature
   # (which would otherwise pull in the Sentry SDK as a dependency).
@@ -176,7 +176,7 @@ fi
 # Artifact-specific binary naming
 if [[ "$ARTIFACT" == "cli" ]]; then
   # For CLI artifacts, use oz instead of warp as the binary name.  The OSS
-  # channel is an exception: its CLI command name is `warp-oss`, matching
+  # channel is an exception: its CLI command name is `warpai`, matching
   # `Channel::cli_command_name` in the Rust source.
   if [[ $RELEASE_CHANNEL != "oss" ]]; then
     BINARY_NAME="${BINARY_NAME/warp/oz}"
@@ -203,14 +203,14 @@ export APPIMAGE_NAME="$APP_NAME-$BUILD_ARCH.AppImage"
 # then exit.  We use this script to invoke `cargo check` to ensure that we are
 # using the same feature flags and profile that we would be using in production.
 if [[ "$CHECK_ONLY" == "true" ]]; then
-  cargo check -p warp --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
+  cargo check -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
   exit 0
 fi
 
 # Build the binary.
 if [[ "$BUILD" == "true" ]]; then
   echo "Building and bundling Warp for channel $RELEASE_CHANNEL and bundle id $BUNDLE_ID"
-  cargo build -p warp --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
+  cargo build -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
   echo "Making debug copy of '$EXECUTABLE_PATH' at '$DEBUG_EXECUTABLE_PATH'"
   cp "$EXECUTABLE_PATH" "$DEBUG_EXECUTABLE_PATH"
 

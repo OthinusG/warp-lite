@@ -628,7 +628,6 @@ impl View {
             }
         };
 
-
         self.state.clipped_scroll_state = Default::default();
         self.reset(ctx);
 
@@ -813,7 +812,6 @@ impl View {
                         &pane_view_locator,
                     );
                 }
-
             }
             CommandPaletteItemAction::NavigateToTab {
                 pane_group_id,
@@ -1022,7 +1020,6 @@ impl View {
         action: &dyn warpui::Action,
         ctx: &mut ViewContext<Self>,
     ) {
-
         let (window_id, view_id) = match self.binding_source.as_ref(ctx) {
             BindingSource::View {
                 window_id, view_id, ..

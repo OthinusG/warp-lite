@@ -4840,7 +4840,9 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
         let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
         let broker = &server.broker;
         let capability = broker.prepare("issuer").unwrap();
-        broker.activate("issuer", "codex", "/project", false).unwrap();
+        broker
+            .activate("issuer", "codex", "/project", false)
+            .unwrap();
         let mut issuer = Request {
             protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
             terminal: "issuer".into(),
@@ -4849,7 +4851,9 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             defer_initial_ready: false,
             native_activity: None,
             directory: None,
-            operation: Operation::AgentRegister { name: "issuer".into() },
+            operation: Operation::AgentRegister {
+                name: "issuer".into(),
+            },
         };
         let result = transport::call(&broker.endpoint, &issuer).unwrap();
         issuer.run = result["run"].as_str().map(str::to_owned);
@@ -4862,8 +4866,18 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 view.model.lock().simulate_long_running_block("cat", "")
             });
             terminal.update(&mut app, |view, ctx| {
-                let listener = crate::terminal::cli_agent_sessions::listener::is_agent_supported(&agent).then(|| {
-                    ctx.add_model(|ctx| CLIAgentSessionListener::new(view.view_id, agent, &view.model_events_handle, ctx))
+                let listener = crate::terminal::cli_agent_sessions::listener::is_agent_supported(
+                    &agent,
+                )
+                .then(|| {
+                    ctx.add_model(|ctx| {
+                        CLIAgentSessionListener::new(
+                            view.view_id,
+                            agent,
+                            &view.model_events_handle,
+                            ctx,
+                        )
+                    })
                 });
                 CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                     sessions.set_session(
@@ -4961,11 +4975,16 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             terminal.update(&mut app, |view, ctx| {
                 CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                     let mut session = sessions.session(view.view_id).unwrap().clone();
-                    session.status = CLIAgentSessionStatus::Blocked { message: Some("Permission required".into()) };
+                    session.status = CLIAgentSessionStatus::Blocked {
+                        message: Some("Permission required".into()),
+                    };
                     sessions.set_session(view.view_id, session, ctx);
                 });
                 view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
-                assert!(writes.borrow().is_empty(), "Automatic wake must preserve permission requests for {agent:?}");
+                assert!(
+                    writes.borrow().is_empty(),
+                    "Automatic wake must preserve permission requests for {agent:?}"
+                );
                 CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                     let mut session = sessions.session(view.view_id).unwrap().clone();
                     session.status = CLIAgentSessionStatus::InProgress;

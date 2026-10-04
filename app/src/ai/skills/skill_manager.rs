@@ -511,7 +511,8 @@ async fn read_bundled_skills(skills_dir: &Path) -> HashMap<String, ParsedSkill> 
         };
 
         // Apply variable substitution to the skill content.
-        skill.content = crate::workflows::handlebars_parser::render_template(&skill.content, &context);
+        skill.content =
+            crate::workflows::handlebars_parser::render_template(&skill.content, &context);
         skills.insert(skill_id.to_owned(), skill);
     }
 

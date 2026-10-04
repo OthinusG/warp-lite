@@ -435,8 +435,7 @@ impl CommandSearchView {
                 self.state.list_state.scroll_to(*index);
                 ctx.notify();
             }
-            SearchBarEvent::QueryFilterChanged { new_filter } => {
-            }
+            SearchBarEvent::QueryFilterChanged { new_filter } => {}
             SearchBarEvent::SelectionUpdateInZeroState { .. } => {}
             SearchBarEvent::EnterInZeroState { .. } => {}
         }
@@ -509,7 +508,6 @@ impl CommandSearchView {
                 Some(renderers) => renderers.len() - result_index - 1,
                 None => result_index,
             };
-
         }
 
         let query = self.search_bar.as_ref(ctx).query(ctx);

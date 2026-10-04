@@ -1,3 +1,5 @@
+#[cfg(feature = "warp_platform")]
+use super::common::maybe_add_buy_credits_banner;
 use super::{
     common::{
         add_command_xray_overlay, add_input_suggestions_overlays, add_voltron_overlay,
@@ -5,8 +7,6 @@ use super::{
     },
     Input, InputAction, InputDropTargetData,
 };
-#[cfg(feature = "warp_platform")]
-use super::common::maybe_add_buy_credits_banner;
 use crate::{
     ai::blocklist::{
         agent_view::{

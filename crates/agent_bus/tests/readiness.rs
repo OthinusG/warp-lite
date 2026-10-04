@@ -73,7 +73,7 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             .broker
             .activate(&terminal, program, "/project", true)
             .unwrap();
-        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warp-agent"));
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
         command
             .arg("mcp")
             .env(ENDPOINT, &server.broker.endpoint)
@@ -357,7 +357,7 @@ fn native_clients_complete_two_turns() {
     let project = warp_agent_bus::project_root(&repository).unwrap();
     let bridge = std::env::var_os("WARP_ACCEPTANCE_BRIDGE")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| env!("CARGO_BIN_EXE_warp-agent").into());
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_warpai-agent").into());
     assert!(Path::new(&executable).is_absolute() && bridge.is_absolute());
     assert!(bridge.is_file());
     let version = Command::new(&executable).arg("--version").output().unwrap();

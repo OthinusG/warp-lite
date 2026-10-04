@@ -1351,7 +1351,6 @@ impl UpdateEnvironmentForm {
             needs_custom_image,
             reason,
         };
-
     }
 
     #[cfg(not(target_family = "wasm"))]
@@ -3037,7 +3036,8 @@ impl UpdateEnvironmentForm {
             "Suggest image"
         };
 
-        let tooltip_text = "Warpai will suggest a Docker image based on your selected repositories.";
+        let tooltip_text =
+            "Warpai will suggest a Docker image based on your selected repositories.";
 
         let button = Hoverable::new(
             self.suggest_image_button_mouse_state.clone(),
@@ -3364,7 +3364,6 @@ impl TypedActionView for UpdateEnvironmentForm {
                 self.suggest_image(ctx);
             }
             UpdateEnvironmentFormAction::LaunchAgentForSelectedRepos => {
-
                 let repos = self.selected_repos_as_remote_repo_args();
                 if repos.is_empty() {
                     return;

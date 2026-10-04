@@ -470,8 +470,7 @@ impl TerminalView {
             scrollback_type,
             source_type,
         });
-        if let Some(source) = source {
-        }
+        if let Some(source) = source {}
     }
 
     /// Sets the PresenceManager and decorates the view accordingly when a shared session has been started.
@@ -548,7 +547,6 @@ impl TerminalView {
         ctx: &mut ViewContext<Self>,
     ) {
         ctx.emit(Event::StopSharingCurrentSession { reason });
-
     }
 
     // TODO: why do we need to pass through input replica ID as a separate argument?
@@ -650,7 +648,6 @@ impl TerminalView {
         {
             self.maybe_auto_open_cloud_mode_details_panel(ctx);
         }
-
     }
 
     pub fn rejoin_session_share(&mut self, ctx: &mut ViewContext<Self>) {
@@ -1076,7 +1073,6 @@ impl TerminalView {
         } else {
             return;
         }
-
     }
 
     // If open, ensure that participant avatar context menu is not triggered
@@ -1204,7 +1200,6 @@ impl TerminalView {
                 crate::uri::web_intent_parser::open_url_on_desktop(&url);
             }
         }
-
     }
 
     // Called when viewer receives acknowledgment from server
@@ -1315,7 +1310,6 @@ impl TerminalView {
             let toast = DismissibleToast::default(COPY_LINK_TEXT.to_string());
             toast_stack.add_ephemeral_toast(toast, window_id, ctx);
         });
-
     }
 
     fn insert_shared_session_started_banner(

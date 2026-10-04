@@ -47,8 +47,7 @@ pub struct EnableAutoReloadModal {
 }
 
 /// Called when user clicks the 'x' OR cancel button
-fn send_auto_reload_dismissed_telemetry<V: View>(ctx: &mut ViewContext<V>) {
-}
+fn send_auto_reload_dismissed_telemetry<V: View>(ctx: &mut ViewContext<V>) {}
 
 impl EnableAutoReloadModalBody {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {

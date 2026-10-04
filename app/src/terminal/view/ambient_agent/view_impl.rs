@@ -703,7 +703,6 @@ impl TerminalView {
         } else {
             log::warn!("Pane stack not available, cannot enter cloud mode");
         }
-
     }
 
     /// Renders the ambient agent progress view based on agent progress.

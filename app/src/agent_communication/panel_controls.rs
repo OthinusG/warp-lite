@@ -1,5 +1,7 @@
 //! Native human intent bound to the original scope/version, using existing editors.
-use super::{button_row, detail, heading, note, Action, CollaborationPanel};
+use super::{
+    button_row, detail, heading, note, Action, CollaborationPanel, GAP_SECTION, GAP_TIGHT,
+};
 use crate::{
     appearance::Appearance,
     editor::{EditorView, Event, SingleLineEditorOptions, TextOptions},
@@ -709,7 +711,7 @@ impl CollaborationPanel {
     pub(super) fn render_controls(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let builder = appearance.ui_builder();
-        let mut body = Flex::column().with_spacing(12.);
+        let mut body = Flex::column().with_spacing(GAP_SECTION);
         if let Some(form) = &self.form {
             body.add_child(heading(appearance, form.kind.label()));
             if let Some(task) = &form.task {
@@ -765,7 +767,7 @@ impl CollaborationPanel {
                 };
                 body.add_child(
                     Flex::column()
-                        .with_spacing(4.)
+                        .with_spacing(GAP_TIGHT)
                         .with_child(heading(appearance, *label))
                         .with_child(value)
                         .finish(),

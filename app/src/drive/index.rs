@@ -3786,7 +3786,6 @@ impl DriveIndex {
         WarpDriveSettings::handle(ctx).update(ctx, |settings, ctx| {
             report_if_error!(settings.sorting_choice.set_value(*sorting_choice, ctx));
         });
-
     }
 
     fn toggle_sorting_menu(&mut self, ctx: &mut ViewContext<Self>) {
@@ -5281,7 +5280,6 @@ impl TypedActionView for DriveIndex {
                 }
             }
             DriveIndexAction::CopyObjectToClipboard(cloud_object_type_and_id) => {
-
                 let shell_family =
                     active_terminal_in_window(ctx.window_id(), ctx, |terminal, ctx| {
                         terminal.shell_family(ctx)

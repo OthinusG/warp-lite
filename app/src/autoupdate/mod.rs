@@ -11,10 +11,7 @@ use crate::features::FeatureFlag;
 use crate::server::server_api::ServerApi;
 use crate::server::telemetry::TelemetryEvent;
 use crate::workspace::Workspace;
-use crate::{
-    channel::Channel, report_if_error, server::datetime_ext::DateTimeExt,
-    ChannelState,
-};
+use crate::{channel::Channel, report_if_error, server::datetime_ext::DateTimeExt, ChannelState};
 use ::channel_versions::{ParsedVersion, VersionInfo};
 use anyhow::{anyhow, Context as _, Result};
 use chrono::{DateTime, FixedOffset, NaiveDate};

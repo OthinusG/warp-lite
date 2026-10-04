@@ -218,7 +218,6 @@ impl SuggestionChipView {
         workflow: SuggestedAgentModeWorkflow,
         ctx: &mut ViewContext<Self>,
     ) -> Self {
-
         Self::listen_for_warp_drive_events(ctx);
         let sync_id = SyncId::ClientId(ClientId::default());
 
@@ -440,7 +439,6 @@ impl TypedActionView for SuggestionChipView {
                             sync_id: self.sync_id,
                         });
                     } else {
-
                         ctx.emit(
                             SuggestedChipViewEvent::ShowSuggestedAgentModeWorkflowModal {
                                 workflow_and_id: SuggestedAgentModeWorkflowAndId {

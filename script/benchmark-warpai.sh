@@ -5,13 +5,13 @@
 # as "missing" so callers can decide whether a release build is required.
 #
 # Usage:
-#   script/benchmark-warp-lite.sh
-#   script/benchmark-warp-lite.sh --output target/warp-lite-benchmarks/baseline.txt
+#   script/benchmark-warpai.sh
+#   script/benchmark-warpai.sh --output target/warpai-benchmarks/baseline.txt
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BINARY_PATH="$ROOT/target/release/warp-oss"
+BINARY_PATH="$ROOT/target/release/warpai"
 APP_PATH="$ROOT/Warpai.app"
 OUTPUT_PATH=""
 FORCE_OUTPUT=false

@@ -8,12 +8,12 @@ mod channel_config;
 use anyhow::Result;
 use warp_core::channel::{Channel, ChannelState};
 
-// Simple wrapper around warp::run() for stable channel builds.
+// Simple wrapper around warpai::run() for stable channel builds.
 fn main() -> Result<()> {
     ChannelState::set(ChannelState::new(
         Channel::Stable,
         channel_config::load_config!("stable"),
     ));
 
-    warp::run()
+    warpai::run()
 }

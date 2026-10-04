@@ -609,7 +609,6 @@ impl SharingDialog {
             Some(ShareableObject::AIConversation(_)) => return,
             None => return,
         };
-
     }
 
     fn reset_editable_state(&mut self, ctx: &mut ViewContext<Self>) {
@@ -914,8 +913,7 @@ impl SharingDialog {
                 }
                 None => None,
             };
-            if let Some(event) = event {
-            }
+            if let Some(event) = event {}
 
             ctx.clipboard().write(ClipboardContent::plain_text(url));
 

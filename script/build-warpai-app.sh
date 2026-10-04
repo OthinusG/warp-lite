@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Builds a minimal Warpai.app bundle on macOS for warp-lite.
+# Builds a minimal Warpai.app bundle on macOS for Warpai.
 #
 # Prerequisites:
-#   - target/release/warp-oss already built (cargo build --release --bin warp-oss)
+#   - target/release/warpai already built (cargo build --release --bin warpai)
 #
 # Usage:
-#   script/build-warp-lite-app.sh
-#   script/build-warp-lite-app.sh --debug  (isolated UI review build)
+#   script/build-warpai-app.sh
+#   script/build-warpai-app.sh --debug  (isolated UI review build)
 #
 # Output:
 #   ./Warpai.app   (drag into /Applications)
@@ -16,27 +16,27 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-BIN="target/release/warp-oss"
-AGENT_BIN="target/release/warp-agent"
+BIN="target/release/warpai"
+AGENT_BIN="target/release/warpai-agent"
 APP="Warpai.app"
 APP_VERSION="0.5.7"
-APP_SHORT_VERSION="0.5.7-lite"
-APP_IDENTIFIER="dev.warp-lite.WarpLite"
+APP_SHORT_VERSION="0.5.7"
+APP_IDENTIFIER="dev.warpai.Warpai"
 SRC_PNG="app/DockTilePlugin/Resources/mono.png"
 
 case "${1:-}" in
     "") ;;
     --debug)
-        BIN="target/debug/warp-oss"
-        AGENT_BIN="target/debug/warp-agent"
+        BIN="target/debug/warpai"
+        AGENT_BIN="target/debug/warpai-agent"
         APP="WarpaiReview.app"
-        APP_IDENTIFIER="dev.warp-lite.WarpLiteReview"
+        APP_IDENTIFIER="dev.warpai.WarpaiReview"
         ;;
     *) echo "Usage: $0 [--debug]" >&2; exit 1 ;;
 esac
 
 if [[ ! -f "$BIN" ]]; then
-    echo "Error: $BIN not found. Run: cargo build --release --bin warp-oss" >&2
+    echo "Error: $BIN not found. Run: cargo build --release --bin warpai" >&2
     exit 1
 fi
 
@@ -56,11 +56,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # 1) Copy the binary
 cp "$BIN" "$APP/Contents/MacOS/Warpai"
-cp "$AGENT_BIN" "$APP/Contents/MacOS/warp-agent"
-chmod +x "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
+cp "$AGENT_BIN" "$APP/Contents/MacOS/warpai-agent"
+chmod +x "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warpai-agent"
 if [[ "${1:-}" == --debug ]]; then
     # Keep debug assertions/profile isolation without shipping bulky debug symbols.
-    strip -S "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warp-agent"
+    strip -S "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warpai-agent"
 fi
 
 # 2) Generate AppIcon.icns from the 512×512 source via iconset
@@ -97,6 +97,11 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <string>$APP_SHORT_VERSION</string>
     <key>CFBundleExecutable</key>
     <string>Warpai</string>
+    <key>CFBundleURLTypes</key>
+    <array><dict>
+        <key>CFBundleURLName</key><string>Warpai</string>
+        <key>CFBundleURLSchemes</key><array><string>warpai</string></array>
+    </dict></array>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>

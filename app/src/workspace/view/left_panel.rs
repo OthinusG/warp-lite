@@ -216,7 +216,8 @@ impl LeftPanelView {
         };
         let warp_drive_view = ctx.add_typed_action_view(DrivePanel::new);
         let conversation_list_view = ctx.add_typed_action_view(ConversationListView::new);
-        let collaboration_view = ctx.add_typed_action_view(crate::agent_communication::panel::CollaborationPanel::new);
+        let collaboration_view =
+            ctx.add_typed_action_view(crate::agent_communication::panel::CollaborationPanel::new);
 
         ctx.subscribe_to_view(&warp_drive_view, |_me, _, event, ctx| {
             ctx.emit(LeftPanelEvent::WarpDrive(event.clone()));
@@ -664,7 +665,7 @@ impl LeftPanelView {
 
     pub fn focus_active_view_on_entry(&mut self, ctx: &mut ViewContext<Self>) {
         match self.active_view.get() {
-            ToolPanelView::Collaboration => {},
+            ToolPanelView::Collaboration => {}
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(ctx) {
                     file_tree_view.update(ctx, |view, ctx| {
@@ -833,7 +834,9 @@ impl LeftPanelView {
     fn update_button_active_states(&mut self) {
         for button in &mut self.toolbelt_buttons {
             button.render_with_active_state = match &button.action {
-                LeftPanelAction::Collaboration => self.active_view.get() == ToolPanelView::Collaboration,
+                LeftPanelAction::Collaboration => {
+                    self.active_view.get() == ToolPanelView::Collaboration
+                }
                 LeftPanelAction::ProjectExplorer => {
                     self.active_view.get() == ToolPanelView::ProjectExplorer
                 }
@@ -965,15 +968,24 @@ impl LeftPanelView {
 
         self.update_active_file_tree_subscription_state(ctx);
         self.collaboration_view.update(ctx, |panel, ctx| {
-            panel.set_visible(is_now_open && self.active_view.get() == ToolPanelView::Collaboration, ctx);
+            panel.set_visible(
+                is_now_open && self.active_view.get() == ToolPanelView::Collaboration,
+                ctx,
+            );
         });
     }
 
     fn update_collaboration_visibility(&self, ctx: &mut ViewContext<Self>) {
-        let open = self.active_pane_group.as_ref().and_then(|group| group.upgrade(ctx))
+        let open = self
+            .active_pane_group
+            .as_ref()
+            .and_then(|group| group.upgrade(ctx))
             .is_some_and(|group| group.as_ref(ctx).left_panel_open);
         self.collaboration_view.update(ctx, |panel, ctx| {
-            panel.set_visible(open && self.active_view.get() == ToolPanelView::Collaboration, ctx);
+            panel.set_visible(
+                open && self.active_view.get() == ToolPanelView::Collaboration,
+                ctx,
+            );
         });
     }
 
@@ -1080,18 +1092,26 @@ impl View for LeftPanelView {
                 Flex::row()
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_spacing(4.0)
-                    .with_children(self.toolbelt_buttons.iter().map(
-                        |button_config| {
-                            let mouse_state = match &button_config.action {
-                                LeftPanelAction::ProjectExplorer => &self.mouse_state_handles.project_explorer_button,
-                                LeftPanelAction::GlobalSearch { .. } => &self.mouse_state_handles.global_search_button,
-                                LeftPanelAction::WarpDrive => &self.mouse_state_handles.warp_drive_button,
-                                LeftPanelAction::ConversationListView => &self.mouse_state_handles.conversation_list_view_button,
-                                LeftPanelAction::Collaboration => &self.mouse_state_handles.collaboration_button,
-                            };
-                            Self::render_button(button_config, mouse_state.clone(), appearance)
-                        },
-                    ))
+                    .with_children(self.toolbelt_buttons.iter().map(|button_config| {
+                        let mouse_state = match &button_config.action {
+                            LeftPanelAction::ProjectExplorer => {
+                                &self.mouse_state_handles.project_explorer_button
+                            }
+                            LeftPanelAction::GlobalSearch { .. } => {
+                                &self.mouse_state_handles.global_search_button
+                            }
+                            LeftPanelAction::WarpDrive => {
+                                &self.mouse_state_handles.warp_drive_button
+                            }
+                            LeftPanelAction::ConversationListView => {
+                                &self.mouse_state_handles.conversation_list_view_button
+                            }
+                            LeftPanelAction::Collaboration => {
+                                &self.mouse_state_handles.collaboration_button
+                            }
+                        };
+                        Self::render_button(button_config, mouse_state.clone(), appearance)
+                    }))
                     .with_main_axis_size(MainAxisSize::Min)
                     .finish(),
             )
@@ -1100,7 +1120,9 @@ impl View for LeftPanelView {
         };
 
         let content_area: Box<dyn Element> = match self.active_view.get() {
-            ToolPanelView::Collaboration => Shrinkable::new(1.0, ChildView::new(&self.collaboration_view).finish()).finish(),
+            ToolPanelView::Collaboration => {
+                Shrinkable::new(1.0, ChildView::new(&self.collaboration_view).finish()).finish()
+            }
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(app) {
                     Shrinkable::new(

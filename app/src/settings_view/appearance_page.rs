@@ -618,8 +618,7 @@ impl TypedActionView for AppearanceSettingsPageView {
                         .focus_panes_on_hover
                         .toggle_and_save_value(ctx)
                     {
-                        Ok(new_val) => {
-                        }
+                        Ok(new_val) => {}
                         Err(e) => {
                             report_error!(e);
                         }
@@ -1749,8 +1748,7 @@ impl AppearanceSettingsPageView {
         should_set_defaults: bool,
         ctx: &mut ViewContext<Self>,
     ) {
-        if should_set_defaults {
-        }
+        if should_set_defaults {}
         WindowSettings::handle(ctx).update(ctx, |window_settings, ctx| {
             report_if_error!(window_settings
                 .background_opacity
@@ -1765,8 +1763,7 @@ impl AppearanceSettingsPageView {
         should_set_defaults: bool,
         ctx: &mut ViewContext<Self>,
     ) {
-        if should_set_defaults {
-        }
+        if should_set_defaults {}
 
         ctx.windows()
             .set_all_windows_background_blur_radius(blur_value as u8);
@@ -1783,7 +1780,6 @@ impl AppearanceSettingsPageView {
         self.line_height_editor.update(ctx, |editor, ctx| {
             editor.set_buffer_text(&format!("{DEFAULT_UI_LINE_HEIGHT_RATIO}"), ctx);
         });
-
 
         FontSettings::handle(ctx).update(ctx, |font_settings, ctx| {
             report_if_error!(font_settings
@@ -1802,7 +1798,6 @@ impl AppearanceSettingsPageView {
         let current_line_height = appearance.ui_builder().line_height_ratio();
 
         if (current_line_height - new_line_height).abs() > f32::EPSILON {
-
             if (MIN_LINE_SPACING..=MAX_LINE_SPACING).contains(&new_line_height) {
                 FontSettings::handle(ctx).update(ctx, |font_settings, ctx| {
                     report_if_error!(font_settings
@@ -2038,8 +2033,7 @@ impl AppearanceSettingsPageView {
     fn set_thin_strokes(&mut self, value: &ThinStrokes, ctx: &mut ViewContext<Self>) {
         FontSettings::handle(ctx).update(ctx, |font_settings, ctx| {
             match font_settings.use_thin_strokes.set_value(*value, ctx) {
-                Ok(_) => {
-                }
+                Ok(_) => {}
                 Err(e) => {
                     report_error!(e);
                 }
@@ -2100,8 +2094,7 @@ impl AppearanceSettingsPageView {
                 .should_dim_inactive_panes
                 .toggle_and_save_value(ctx)
             {
-                Ok(new_value) => {
-                }
+                Ok(new_value) => {}
                 Err(e) => {
                     report_error!(e);
                 }
@@ -2212,7 +2205,6 @@ impl AppearanceSettingsPageView {
         ctx.update_model(&tab_settings, move |tab_settings, ctx| {
             report_if_error!(tab_settings.show_indicators.set_value(new_value, ctx));
         });
-
     }
 
     fn toggle_show_code_review_button(&mut self, ctx: &mut ViewContext<Self>) {
@@ -2235,7 +2227,6 @@ impl AppearanceSettingsPageView {
                 .preserve_active_tab_color
                 .set_value(new_value, ctx));
         });
-
     }
 
     fn toggle_vertical_tabs(&mut self, ctx: &mut ViewContext<Self>) {
@@ -2434,7 +2425,6 @@ impl AppearanceSettingsPageView {
                     .ligature_rendering_enabled
                     .set_value(new_value, ctx));
             });
-
         }
     }
 

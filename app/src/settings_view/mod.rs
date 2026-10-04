@@ -1,4 +1,8 @@
-#[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+#[cfg(all(
+    feature = "local_tty",
+    not(feature = "remote_tty"),
+    not(target_family = "wasm")
+))]
 pub(crate) mod agent_communication;
 use self::telemetry::SettingsTelemetryEvent;
 use crate::pane_group::focus_state::PaneFocusHandle;
@@ -185,7 +189,6 @@ pub(super) fn render_beta_chip(appearance: &Appearance) -> Box<dyn Element> {
     .with_margin_left(8.)
     .finish()
 }
-
 
 #[derive(PartialEq, Eq)]
 pub enum SettingsViewEvent {
@@ -1950,8 +1953,7 @@ impl SettingsView {
             self.clear_search_query(ctx);
         }
         self.current_settings_page = section;
-        if previous_section != section && section == SettingsSection::CloudEnvironments {
-        }
+        if previous_section != section && section == SettingsSection::CloudEnvironments {}
 
         // When navigating to a subpage, update the backing page's active subpage mode
         // and auto-expand the umbrella containing it.
@@ -2582,8 +2584,7 @@ impl TypedActionView for SettingsView {
             SettingsAction::SelectAndRefresh(section) => {
                 self.set_and_refresh_current_page_internal(*section, false, true, ctx);
 
-                if *section == SettingsSection::MCPServers {
-                }
+                if *section == SettingsSection::MCPServers {}
             }
             SettingsAction::ToggleUmbrella(nav_index) => {
                 if let Some(SettingsNavItem::Umbrella(umbrella)) =

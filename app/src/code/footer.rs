@@ -1829,8 +1829,7 @@ impl TypedActionView for CodeFooterView {
                         _ => None,
                     };
 
-                    if let Some(st) = server_type {
-                    }
+                    if let Some(st) = server_type {}
 
                     if needed_install {
                         ctx.emit(CodeFooterViewEvent::InstallAndEnableLSP {
@@ -1889,7 +1888,6 @@ impl TypedActionView for CodeFooterView {
                 if let Some(server) = self.lsp_servers.first().and_then(|w| w.upgrade(ctx)) {
                     let workspace_root = server.as_ref(ctx).initial_workspace().to_path_buf();
                     let server_type = server.as_ref(ctx).server_type();
-
 
                     // Remove from manager (stops and removes)
                     LspManagerModel::handle(ctx).update(ctx, |manager, ctx| {

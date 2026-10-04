@@ -141,7 +141,6 @@ impl CodeReviewFindModel {
             return;
         }
 
-
         let next_index = if let Some(selected) = &self.selected_match {
             match direction {
                 FindDirection::Down => {

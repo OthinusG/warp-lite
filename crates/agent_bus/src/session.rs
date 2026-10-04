@@ -101,7 +101,7 @@ fn resolve_native_executable(
     } else {
         name
     };
-    if matches!(name, "warp-agent" | "warp-agent.exe") {
+    if matches!(name, "warpai-agent" | "warpai-agent.exe") {
         return None;
     }
     let current: Option<BTreeMap<String, NativeLaunch>> = catalog
@@ -140,7 +140,7 @@ pub fn install_launchers(
     for name in launches.keys() {
         ensure!(
             !name.is_empty()
-                && !matches!(name.as_str(), "." | ".." | "warp-agent" | "warp-agent.exe")
+                && !matches!(name.as_str(), "." | ".." | "warpai-agent" | "warpai-agent.exe")
                 && name
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')),
@@ -972,7 +972,7 @@ mod tests {
         let disabled = resolve_native_executable("codex", Some(&catalog), Some(&snapshot)).unwrap();
         assert_eq!(disabled.program, "custom");
         assert_eq!(disabled.executable, Path::new("/native/codex"));
-        assert!(resolve_native_executable("warp-agent", Some(&catalog), Some(&snapshot)).is_none());
+        assert!(resolve_native_executable("warpai-agent", Some(&catalog), Some(&snapshot)).is_none());
         #[cfg(windows)]
         assert_eq!(
             resolve_native_executable("QODERCN.EXE", Some(&catalog), Some(&snapshot))

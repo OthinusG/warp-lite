@@ -287,7 +287,10 @@ impl Sessions {
 
     /// Read one shell variable without copying unrelated environment values.
     pub fn env_var_for_session(&self, session_id: SessionId, name: &str) -> Option<&str> {
-        self.env_vars.get(&session_id)?.get(name).map(String::as_str)
+        self.env_vars
+            .get(&session_id)?
+            .get(name)
+            .map(String::as_str)
     }
 
     pub fn get_env_vars_for_session(
@@ -407,7 +410,6 @@ impl Sessions {
             .clone()
             .map(|info| info.was_triggered_by_rc_file_snippet)
             .unwrap_or(false);
-
 
         History::handle(ctx).update(ctx, |history, ctx| {
             let session_id = session.id();
@@ -1330,7 +1332,9 @@ impl Session {
             .arg("-NoProfile")
             .arg("-NoLogo")
             .arg("-Command")
-            .arg(powershell_read_all_text_command(OsStr::new(history_file_path)))
+            .arg(powershell_read_all_text_command(OsStr::new(
+                history_file_path,
+            )))
             .output()
             .await;
         match read_result {

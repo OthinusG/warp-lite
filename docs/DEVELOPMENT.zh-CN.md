@@ -27,14 +27,14 @@ macOS 构建需要完整 Xcode 和 Metal 工具链。
 以下命令说明已配置构建主机上的步骤：
 
 ```sh
-cargo check -p warp --bin warp-oss --locked
-cargo check -p warp --bin warp-oss --features warp_platform --locked
-cargo build --release -p warp --bin warp-oss --locked
-cargo build --release -p warp-agent-bus --bin warp-agent --locked
+cargo check -p warpai --bin warpai --locked
+cargo check -p warpai --bin warpai --features warp_platform --locked
+cargo build --release -p warpai --bin warpai --locked
+cargo build --release -p warp-agent-bus --bin warpai-agent --locked
 ```
 
-macOS 打包复用 [build-warp-lite-app.sh](../script/build-warp-lite-app.sh)。
-Windows 打包复用 [build-warp-lite-windows.ps1](../script/build-warp-lite-windows.ps1)，
+macOS 打包复用 [build-warpai-app.sh](../script/build-warpai-app.sh)。
+Windows 打包复用 [build-warpai-windows.ps1](../script/build-warpai-windows.ps1)，
 安装器资源说明见 [Windows 安装器文档（英文）](../script/windows/README.md)。
 修改可见品牌名称时，保留原有 bundle 与数据存储标识，避免破坏兼容性。
 
@@ -54,7 +54,7 @@ Rust 格式检查应聚焦相关文件：全仓库格式化可能遇到指向已
 [Windows 工作流](../.github/workflows/release-windows-x64.yml) 使用同一 tag，附加安装器与便携包，也支持显式手动触发。
 验证产物属于试用构建，与带 tag 的正式发布分开。
 
-默认分支是 `warp-lite/main`。保留版权、许可证与历史出处；不要删除无关的未合并工作或活动 PR 分支。
+默认分支是 `main`。保留版权、许可证与历史出处；不要删除无关的未合并工作或活动 PR 分支。
 
 历史终端集成审计保留在 [WARP_LITE_SYNC_2026-08.md（英文）](../WARP_LITE_SYNC_2026-08.md)
 和 Git 历史中，它们是工程记录，不是当前产品功能清单。

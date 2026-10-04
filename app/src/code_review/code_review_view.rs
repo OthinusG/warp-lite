@@ -1725,7 +1725,6 @@ impl CodeReviewView {
             return;
         }
 
-
         self.diff_state_model.update(ctx, |model, ctx| {
             model.set_diff_mode(mode, false, ctx);
         });
@@ -2388,7 +2387,6 @@ impl CodeReviewView {
             model.clear_results();
         });
 
-
         // Clear finder match decorations
         #[cfg(not(target_family = "wasm"))]
         if let CodeReviewViewState::Loaded(state) = self.state() {
@@ -2707,7 +2705,6 @@ impl CodeReviewView {
                 if ChannelState::enable_debug_features() {
                     log::error!("Failed to retrieve diff state for single file: {e}. Retrying...");
                 }
-
 
                 self.load_diffs_for_active_repo(false, ctx);
             }
@@ -3083,7 +3080,6 @@ impl CodeReviewView {
             model.update(ctx, |batch, ctx| {
                 batch.delete_comment(id, ctx);
             });
-
         }
     }
 
@@ -3462,7 +3458,6 @@ impl CodeReviewView {
     ) {
         match event {
             LocalCodeEditorEvent::FileSaved { .. } => {
-
                 ctx.emit(CodeReviewViewEvent::FileSaved {
                     path: full_file_path.to_path_buf(),
                 });
@@ -3870,8 +3865,7 @@ impl CodeReviewView {
             fallback_count,
         } = Self::relocate_comments(comments, state, repo_path, ctx);
 
-        if fallback_count > 0 {
-        }
+        if fallback_count > 0 {}
 
         if !newly_imported_ids.is_empty() {
             let (active_count, outdated_count) = relocated_comments
@@ -4607,7 +4601,6 @@ impl CodeReviewView {
                 destination,
             } => {
                 log::info!("Successfully submitted review comments to terminal");
-
 
                 self.clear_review_comments(ctx);
                 ToastStack::handle(ctx).update(ctx, |stack, ctx| {
@@ -6189,7 +6182,6 @@ impl CodeReviewView {
                     });
                 });
 
-
                 // Register the DiffSet attachment in the terminal view's AI context model.
                 let current = self.get_current_head(ctx);
                 terminal_view.update(ctx, |terminal_view, ctx| {
@@ -7042,7 +7034,6 @@ impl CodeReviewView {
             None,
         );
 
-
         ctx.emit(CodeReviewViewEvent::OpenFileWithTarget {
             path: full_path,
             target,
@@ -7356,7 +7347,6 @@ impl TypedActionView for CodeReviewView {
                 } else {
                     PaneStateChange::Maximized
                 };
-
 
                 ctx.emit(CodeReviewViewEvent::Pane(PaneEvent::ToggleMaximized));
             }

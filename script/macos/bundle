@@ -288,9 +288,9 @@ if [[ "$CARGO_PROFILE" == "dev" ]]; then
 fi
 
 if [[ $RELEASE_CHANNEL = "local" ]]; then
-    WARP_BIN="warp"
-    BUNDLE_ID="dev.warp.Warp-Local"
-    WARP_APP_NAME="WarpLocal"
+    WARP_BIN="warpai-local"
+    BUNDLE_ID="dev.warpai.WarpaiLocal"
+    WARP_APP_NAME="WarpaiLocal"
     WARP_SCHEME_NAME="warplocal"
     FEATURES="$FEATURES,agent_mode_debug"
     # For local builds, use different versions of our bundled frameworks (e.g.:
@@ -299,8 +299,8 @@ if [[ $RELEASE_CHANNEL = "local" ]]; then
     export FRAMEWORK_OVERRIDE="dev"
 elif [[ $RELEASE_CHANNEL = "dev" ]]; then
     WARP_BIN="dev"
-    BUNDLE_ID="dev.warp.Warp-Dev"
-    WARP_APP_NAME="WarpDev"
+    BUNDLE_ID="dev.warpai.WarpaiDev"
+    WARP_APP_NAME="WarpaiDev"
     WARP_SCHEME_NAME="warpdev"
     FEATURES="$FEATURES,agent_mode_debug"
     # Enable heap usage tracking & profiling using jemalloc through pprof.
@@ -312,22 +312,22 @@ elif [[ $RELEASE_CHANNEL = "dev" ]]; then
     export HANDLE_MARKDOWN=1
 elif [[ $RELEASE_CHANNEL = "preview" ]]; then
     WARP_BIN="preview"
-    BUNDLE_ID="dev.warp.Warp-Preview"
-    WARP_APP_NAME="WarpPreview"
+    BUNDLE_ID="dev.warpai.WarpaiPreview"
+    WARP_APP_NAME="WarpaiPreview"
     WARP_SCHEME_NAME="warppreview"
     FEATURES="$FEATURES,preview_channel"
     # Enable heap usage tracking & profiling using jemalloc through pprof.
     FEATURES="$FEATURES,jemalloc_pprof,heap_usage_tracking"
 elif [[ $RELEASE_CHANNEL = "stable" ]]; then
     WARP_BIN="stable"
-    BUNDLE_ID="dev.warp.Warp-Stable"
-    WARP_APP_NAME="Warp"
+    BUNDLE_ID="dev.warpai.Warpai"
+    WARP_APP_NAME="Warpai"
     WARP_SCHEME_NAME="warp"
 elif [[ $RELEASE_CHANNEL = "oss" ]]; then
-    WARP_BIN="warp-oss"
-    BUNDLE_ID="dev.warp.WarpOss"
-    WARP_APP_NAME="WarpOss"
-    WARP_SCHEME_NAME="warposs"
+    WARP_BIN="warpai"
+    BUNDLE_ID="dev.warpai.Warpai"
+    WARP_APP_NAME="Warpai"
+    WARP_SCHEME_NAME="warpai"
     # The OSS channel does not ship Sentry, so drop the cocoa_sentry feature
     # (which would otherwise pull in the Sentry framework dependency).
     FEATURES="release_bundle,extern_plist"
@@ -550,7 +550,7 @@ if [[ "$ARTIFACT" == "app" ]]; then
   if [[ $RELEASE_CHANNEL = "stable" ]]; then
     CLI_SCRIPT_PATH="$BUNDLED_RESOURCES_DIR/bin/oz"
   elif [[ $RELEASE_CHANNEL = "oss" ]]; then
-    CLI_SCRIPT_PATH="$BUNDLED_RESOURCES_DIR/bin/warp-oss"
+    CLI_SCRIPT_PATH="$BUNDLED_RESOURCES_DIR/bin/warpai"
   else
     CLI_SCRIPT_PATH="$BUNDLED_RESOURCES_DIR/bin/oz-$RELEASE_CHANNEL"
   fi

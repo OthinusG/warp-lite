@@ -11,10 +11,14 @@ No new surface, dependency, protocol or configuration behavior.
 
 ## Acceptance
 
-- Panel title, section headings and secondary guidance have distinct text roles.
-- Related connection/navigation/form actions wrap at narrow widths.
-- Form labels stay adjacent to their editor; warnings retain ordinary contrast.
-- MCP controls align with other settings, with separate command/status lines.
+- Panel title, section headings and secondary guidance have distinct text roles;
+  the 14px semibold primary title outranks section headings (revised 2026-10-04).
+- Related connection/navigation/form actions wrap at narrow widths. The SSH entry
+  point is a Secondary button; refresh shares its row; state and guidance share one line.
+- Form labels stay adjacent to their editor. Settings legacy-cleanup warnings use the
+  theme warning color because they require user action (supersedes ordinary contrast).
+- MCP controls align with other settings under an "Agents" sub-header, with status
+  text matching 12px row descriptions. Panel spacing uses shared GAP_* constants.
 - Existing native static/light/dark/zoom and live action captures pass on both OSes.
 - README images use unmodified native Claude Warm Light captures. Settings captures
   also include this default palette; standard Light and Dark remain covered.

@@ -1,9 +1,9 @@
-use warp_core::{ ui::icons::Icon};
 use crate::ai::blocklist::telemetry_banner::should_collect_ai_ugc_telemetry;
 use crate::appearance::Appearance;
 use crate::coding_entrypoints::glowing_editor::{GlowingEditor, GlowingEditorEvent};
 use crate::settings::PrivacySettings;
 use crate::TelemetryEvent;
+use warp_core::ui::icons::Icon;
 use warpui::elements::{ChildView, Expanded, Fill, MainAxisAlignment, MainAxisSize};
 use warpui::{
     elements::{
@@ -80,8 +80,7 @@ impl CreateProjectView {
                     ctx,
                     PrivacySettings::as_ref(ctx).is_telemetry_enabled,
                 );
-                if should_collect_ugc {
-                }
+                if should_collect_ugc {}
 
                 ctx.emit(CreateProjectEvent::SubmitPrompt(prompt.clone()));
             }

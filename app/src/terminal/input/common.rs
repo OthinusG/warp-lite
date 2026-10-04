@@ -1,5 +1,14 @@
 use std::sync::Arc;
 
+#[cfg(feature = "warp_platform")]
+use crate::{
+    ai::{
+        llms::{is_using_api_key_for_provider, LLMPreferences},
+        AIRequestUsageModel, BuyCreditsBannerDisplayState,
+    },
+    terminal::buy_credits_banner::BuyCreditsBanner,
+    workspaces::user_workspaces::UserWorkspaces,
+};
 use crate::{
     appearance::Appearance,
     settings::{AISettings, InputSettings},
@@ -10,19 +19,12 @@ use crate::{
     },
     ui_components::icons::Icon,
 };
-#[cfg(feature = "warp_platform")]
-use crate::{
-    ai::{
-        llms::{is_using_api_key_for_provider, LLMPreferences},
-        AIRequestUsageModel, BuyCreditsBannerDisplayState,
-    },
-    terminal::buy_credits_banner::BuyCreditsBanner,
-    workspaces::user_workspaces::UserWorkspaces,
-};
 use pathfinder_geometry::vector::vec2f;
 use vim::vim::{VimMode, VimState};
 use warp_completer::completer::Description;
 use warp_core::features::FeatureFlag;
+#[cfg(feature = "warp_platform")]
+use warpui::EntityId;
 use warpui::{
     elements::{
         AnchorPair, Border, ChildAnchor, ConstrainedBox, Container, CornerRadius,
@@ -35,8 +37,6 @@ use warpui::{
     ui_components::components::{UiComponent, UiComponentStyles},
     AppContext, SingletonEntity, ViewHandle,
 };
-#[cfg(feature = "warp_platform")]
-use warpui::EntityId;
 
 /// Whether the terminal input message bar should be shown.
 ///

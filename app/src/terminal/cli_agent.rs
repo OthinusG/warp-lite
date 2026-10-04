@@ -188,7 +188,9 @@ impl CLIAgent {
         let Some(words) = shlex::split(command) else {
             return false;
         };
-        let Some(program) = words.first() else { return false; };
+        let Some(program) = words.first() else {
+            return false;
+        };
         self.command_prefixes().contains(&program.as_str())
             && self.accepts_peer_prompt(command)
             && options.is_empty_interactive(&words[1..])

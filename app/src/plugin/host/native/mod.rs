@@ -93,12 +93,9 @@ pub fn run() -> Result<()> {
 
 /// Returns a vector of validated plugin directory paths in the plugins directory.
 ///
-/// This assumes that all plugins are located in ~/.warp/plugins.
+/// Plugins live inside the managed Warpai configuration root.
 fn plugin_paths() -> Vec<PathBuf> {
-    const PLUGIN_PATH_SUFFIX: &str = ".warp/plugins";
-
-    dirs::home_dir()
-        .map(|home_dir| home_dir.join(PLUGIN_PATH_SUFFIX))
+    Some(warp_core::paths::data_dir().join("plugins"))
         .and_then(|plugins_dir| fs::read_dir(plugins_dir).ok())
         .into_iter()
         .flatten()

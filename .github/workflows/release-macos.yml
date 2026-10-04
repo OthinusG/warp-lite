@@ -47,13 +47,13 @@ jobs:
       - name: Test and build tagged source
         run: |
           cargo test -p warp-agent-bus --locked
-          cargo check -p warp --bin warp-oss --locked
-          cargo check -p warp --bin warp-oss --features warp_platform --locked
-          cargo build --release --bin warp-oss --locked
-          cargo build --release -p warp-agent-bus --bin warp-agent --locked
+          cargo check -p warpai --bin warpai --locked
+          cargo check -p warpai --bin warpai --features warp_platform --locked
+          cargo build --release --bin warpai --locked
+          cargo build --release -p warp-agent-bus --bin warpai-agent --locked
       - name: Package macOS artifacts
         run: |
-          script/build-warp-lite-app.sh
+          script/build-warpai-app.sh
           codesign --verify --deep --strict Warpai.app
           ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
           hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg

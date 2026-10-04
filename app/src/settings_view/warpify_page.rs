@@ -244,7 +244,6 @@ impl WarpifyPageView {
                 WarpifySettings::handle(ctx).update(ctx, |warpify_settings, ctx| {
                     warpify_settings.add_subshell_command(new_command, ctx);
                 });
-
             }
             SubmittableTextInputEvent::Escape => ctx.emit(SettingsPageEvent::FocusModal),
         }
@@ -261,7 +260,6 @@ impl WarpifyPageView {
                 WarpifySettings::handle(ctx).update(ctx, |warpify_settings, ctx| {
                     warpify_settings.denylist_subshell_command(new_command, ctx);
                 });
-
             }
             SubmittableTextInputEvent::Escape => ctx.emit(SettingsPageEvent::FocusModal),
         }
@@ -278,7 +276,6 @@ impl WarpifyPageView {
                 WarpifySettings::handle(ctx).update(ctx, |warpify_settings, ctx| {
                     warpify_settings.denylist_ssh_host(new_command, ctx);
                 });
-
             }
             SubmittableTextInputEvent::Escape => ctx.emit(SettingsPageEvent::FocusModal),
         }

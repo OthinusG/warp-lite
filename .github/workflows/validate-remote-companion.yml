@@ -2,7 +2,7 @@ name: Validate Warpai remote companion
 on:
   workflow_dispatch:
   push:
-    branches: ['warp-lite/main']
+    branches: ['main']
 permissions:
   contents: read
 concurrency:

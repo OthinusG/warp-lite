@@ -12,7 +12,7 @@ mod unix {
     use instant::Instant;
     use nix::sys::signal::kill;
     use nix::sys::stat::Mode;
-    use nix::unistd::{Pid, mkfifo};
+    use nix::unistd::{mkfifo, Pid};
 
     use super::super::*;
 

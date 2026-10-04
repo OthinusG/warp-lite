@@ -566,8 +566,7 @@ impl TerminalView {
         let cli_agent_type: Option<CLIAgentType> = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
             .map(|s| s.agent.into());
-        if let Some(cli_agent) = cli_agent_type {
-        }
+        if let Some(cli_agent) = cli_agent_type {}
 
         self.redetermine_terminal_focus(ctx);
         ctx.notify();
@@ -615,15 +614,13 @@ impl TerminalView {
         let cli_agent: Option<CLIAgentType> = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
             .map(|s| s.agent.into());
-        if let Some(cli_agent) = cli_agent {
-        }
+        if let Some(cli_agent) = cli_agent {}
 
         // Clear any saved draft so submitted text isn't restored on the next open.
         let view_id = self.view_id;
         CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions_model, _| {
             sessions_model.clear_draft(view_id);
         });
-
 
         let strategy = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
@@ -755,7 +752,16 @@ impl TerminalView {
             return false;
         };
         if session.is_remote()
-            || !crate::agent_communication::accepts_peer_prompt(&session.agent, &self.model.lock().block_list().active_block().command_to_string(), ctx)
+            || !crate::agent_communication::accepts_peer_prompt(
+                &session.agent,
+                &self
+                    .model
+                    .lock()
+                    .block_list()
+                    .active_block()
+                    .command_to_string(),
+                ctx,
+            )
             || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
             || session
                 .draft_text
@@ -779,14 +785,28 @@ impl TerminalView {
             .is_sharer_or_viewer()
     }
 
-    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    #[cfg(all(
+        feature = "local_tty",
+        not(feature = "remote_tty"),
+        not(target_family = "wasm")
+    ))]
     pub(crate) fn peer_input_guard(&self, ctx: &AppContext) -> (bool, bool) {
         use crate::terminal::cli_agent_sessions::CLIAgentSessionStatus;
         let session = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id);
-        let draft = session.is_some_and(|session| session.draft_text.as_ref().is_some_and(|draft| !draft.is_empty()))
-            || (self.is_cli_agent_rich_input_open(ctx) && !self.input.as_ref(ctx).buffer_text(ctx).is_empty())
-            || !self.ai_context_model.as_ref(ctx).pending_images().is_empty();
-        let blocked = session.is_some_and(|session| matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
+        let draft = session.is_some_and(|session| {
+            session
+                .draft_text
+                .as_ref()
+                .is_some_and(|draft| !draft.is_empty())
+        }) || (self.is_cli_agent_rich_input_open(ctx)
+            && !self.input.as_ref(ctx).buffer_text(ctx).is_empty())
+            || !self
+                .ai_context_model
+                .as_ref(ctx)
+                .pending_images()
+                .is_empty();
+        let blocked = session
+            .is_some_and(|session| matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
         (draft, blocked)
     }
 

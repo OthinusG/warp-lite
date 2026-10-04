@@ -94,8 +94,7 @@ impl ImportedConfigModel {
                         config.hotkey_mode.setting,
                         Err(HotkeyError::MultipleHotkeys)
                     )
-                }) {
-                }
+                }) {}
             }
         }
     }

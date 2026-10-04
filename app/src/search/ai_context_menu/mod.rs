@@ -30,10 +30,24 @@ pub mod view {
     #[derive(Default)]
     pub struct AIContextMenu;
     impl AIContextMenu {
-        pub fn new(_ctx: &mut warpui::ViewContext<Self>) -> Self { Self }
-        pub fn new3<A, B, C>(_: A, _: B, _: C) -> Self { Self }
-        pub fn should_render<A>(&self, _: A) -> bool { false }
-        pub fn get_categories_for_mode<A, B, C, D, E>(_: A, _: B, _: C, _: D, _: E) -> Vec<AIContextMenuCategory> { Vec::new() }
+        pub fn new(_ctx: &mut warpui::ViewContext<Self>) -> Self {
+            Self
+        }
+        pub fn new3<A, B, C>(_: A, _: B, _: C) -> Self {
+            Self
+        }
+        pub fn should_render<A>(&self, _: A) -> bool {
+            false
+        }
+        pub fn get_categories_for_mode<A, B, C, D, E>(
+            _: A,
+            _: B,
+            _: C,
+            _: D,
+            _: E,
+        ) -> Vec<AIContextMenuCategory> {
+            Vec::new()
+        }
         pub fn set_is_in_ambient_agent<A, B>(&mut self, _: A, _: &mut B) {}
         pub fn set_is_shared_session_viewer<A, B>(&mut self, _: A, _: &mut B) {}
         pub fn set_is_cli_agent_input<A, B>(&mut self, _: A, _: &mut B) {}
@@ -44,9 +58,13 @@ pub mod view {
         pub fn select_current_item<A>(&mut self, _: A) {}
         pub fn handle_action<A, B>(&mut self, _: &A, _: B) {}
     }
-    impl Entity for AIContextMenu { type Event = AIContextMenuEvent; }
+    impl Entity for AIContextMenu {
+        type Event = AIContextMenuEvent;
+    }
     impl View for AIContextMenu {
-        fn ui_name() -> &'static str { "AIContextMenu_stub" }
+        fn ui_name() -> &'static str {
+            "AIContextMenu_stub"
+        }
         fn render(&self, _: &AppContext) -> Box<dyn Element> {
             Box::new(warpui::elements::Empty::new())
         }
@@ -55,16 +73,29 @@ pub mod view {
         type Action = AIContextMenuAction;
     }
     #[derive(Default, Clone, Copy, Debug)]
-    pub enum AIContextMenuCategory { #[default] Default }
+    pub enum AIContextMenuCategory {
+        #[default]
+        Default,
+    }
     #[derive(Clone, Debug)]
     pub enum AIContextMenuEvent {
-        Close { item_count: Option<usize>, query_length: usize },
-        ResultAccepted { action: super::mixer::AIContextMenuSearchableAction, item_count: Option<usize>, query_length: usize },
-        CategorySelected { category: AIContextMenuCategory },
+        Close {
+            item_count: Option<usize>,
+            query_length: usize,
+        },
+        ResultAccepted {
+            action: super::mixer::AIContextMenuSearchableAction,
+            item_count: Option<usize>,
+            query_length: usize,
+        },
+        CategorySelected {
+            category: AIContextMenuCategory,
+        },
     }
     #[derive(Clone, Debug, Default)]
     pub enum AIContextMenuAction {
-        #[default] Default,
+        #[default]
+        Default,
         Prev,
         Next,
     }
@@ -73,7 +104,9 @@ pub mod view {
 pub mod search {
     #[derive(Default, Clone, Debug)]
     pub struct AIContextMenuSearch;
-    pub fn is_valid_search_query<A, B, C>(_a: A, _b: B, _c: C) -> bool { false }
+    pub fn is_valid_search_query<A, B, C>(_a: A, _b: B, _c: C) -> bool {
+        false
+    }
 }
 #[allow(dead_code)]
 pub mod mixer {
@@ -81,12 +114,27 @@ pub mod mixer {
     pub struct AIContextMenuMixer;
     #[derive(Clone, Debug)]
     pub enum AIContextMenuSearchableAction {
-        InsertText { text: String },
-        InsertFilePath { file_path: String },
-        InsertDriveObject { object_type: String, object_uid: String },
-        InsertPlan { ai_document_uid: String },
-        InsertConversation { conversation_id: String },
-        InsertDiffSet { diff_mode: crate::code_review::diff_state::DiffMode },
-        InsertSkill { name: String },
+        InsertText {
+            text: String,
+        },
+        InsertFilePath {
+            file_path: String,
+        },
+        InsertDriveObject {
+            object_type: String,
+            object_uid: String,
+        },
+        InsertPlan {
+            ai_document_uid: String,
+        },
+        InsertConversation {
+            conversation_id: String,
+        },
+        InsertDiffSet {
+            diff_mode: crate::code_review::diff_state::DiffMode,
+        },
+        InsertSkill {
+            name: String,
+        },
     }
 }

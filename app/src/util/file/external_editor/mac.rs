@@ -366,7 +366,7 @@ pub fn open_file_path_with_line_and_col(
 
 fn is_warp_bundle(bundle_id: &str) -> bool {
     AppId::parse(bundle_id)
-        .map(|id| id.qualifier() == "dev" && id.organization() == "warp")
+        .map(|id| id.qualifier() == "dev" && matches!(id.organization(), "warp" | "warpai"))
         .unwrap_or(false)
 }
 

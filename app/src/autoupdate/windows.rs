@@ -120,7 +120,9 @@ pub(super) fn check_and_report_update_errors(ctx: &mut AppContext) {
     )
     .is_some();
     if has_file_in_use {
-        log::warn!("The process cannot access the file because it is being used by another process");
+        log::warn!(
+            "The process cannot access the file because it is being used by another process"
+        );
     }
 
     // Fired when the mutex polling loop timed out and a force-kill was attempted.
@@ -252,6 +254,6 @@ fn app_name_prefix(channel: Channel) -> &'static str {
         Channel::Local => "warp",
         Channel::Integration => "integration",
         Channel::Dev => "WarpDev",
-        Channel::Oss => "warp-oss",
+        Channel::Oss => "warpai",
     }
 }

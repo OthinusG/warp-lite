@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: ['warp-lite/main']
+    branches: ['main']
 permissions:
   contents: read
 concurrency:
@@ -48,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Warpai-agent-bridge-Windows-debug
-          path: target/debug/warp-agent.exe
+          path: target/debug/warpai-agent.exe
           if-no-files-found: error
           retention-days: 7
       - name: Upload Windows readiness acceptance executable
@@ -68,13 +68,15 @@ jobs:
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
         run: |
           cargo test -p remote_server --locked
-          cargo check -p warp --bin warp-oss --locked
-          cargo check -p warp --bin warp-oss --features warp_platform --locked
+          cargo check -p warpai --bin warpai --locked
+          cargo check -p warpai --bin warpai --features warp_platform --locked
       - name: Verify Windows legacy metadata and credential cleanup
         if: ${{ !inputs.protocol_only }}
         run: |
-          cargo test -p warp --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
-          cargo test -p warp --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
+          cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warpai --lib user_data_migration::tests --locked
+          cargo test -p warp_core --features local_fs --lib paths::tests --locked
+          cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
       - name: Build Windows native review executable
         if: ${{ inputs.capture_ui }}
         shell: pwsh
@@ -83,7 +85,7 @@ jobs:
           CARGO_BIN_NAME: oss
           WARP_APP_NAME: Warpai
         run: |
-          cargo build -p warp --bin warp-oss --features "release_bundle,gui,nld_improvements" --locked
+          cargo build -p warpai --bin warpai --features "release_bundle,gui,nld_improvements" --locked
           if ($LASTEXITCODE -ne 0) { throw "Native review compilation failed" }
           # The debug executable needs the same native runtime files as the portable package.
           foreach ($dll in @('conpty.dll', 'dxcompiler.dll', 'dxil.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
@@ -100,7 +102,7 @@ jobs:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion.exe
         run: |
-          $captureProcess = Start-Process -FilePath "$PWD/target/debug/warp-oss.exe" -WorkingDirectory "$PWD/target/debug" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          $captureProcess = Start-Process -FilePath "$PWD/target/debug/warpai.exe" -WorkingDirectory "$PWD/target/debug" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           # Keep only panic source locations, never the raw application log or payload.
           $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
           New-Item -ItemType Directory -Path $env:WARP_COLLABORATION_CAPTURE -Force | Out-Null
@@ -131,7 +133,7 @@ jobs:
       - name: Build and package Windows review artifacts
         if: ${{ !inputs.protocol_only }}
         shell: pwsh
-        run: script/build-warp-lite-windows.ps1 -ReleaseTag "0.5.7-review"
+        run: script/build-warpai-windows.ps1 -ReleaseTag "0.5.7-review"
       - name: Upload Windows review artifacts
         if: ${{ !inputs.protocol_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -171,7 +173,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Warpai-agent-bridge-macOS-debug
-          path: target/debug/warp-agent
+          path: target/debug/warpai-agent
           if-no-files-found: error
           retention-days: 7
       - name: Collect readiness acceptance executable
@@ -189,31 +191,33 @@ jobs:
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
         run: |
           cargo test -p remote_server --locked
-          cargo check -p warp --bin warp-oss --locked
+          cargo check -p warpai --bin warpai --locked
       - name: Check platform application
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
-        run: cargo check -p warp --bin warp-oss --features warp_platform --locked
+        run: cargo check -p warpai --bin warpai --features warp_platform --locked
       - name: Test dormant wake and settings configuration
         if: ${{ !inputs.protocol_only }}
         run: |
-          cargo test -p warp --lib lite_app_menu_builds_without_platform_bindings --locked
-          cargo test -p warp --lib collaboration_fixtures_cover_required_states_and_long_content --locked
-          cargo test -p warp --lib native_intent_requires_explicit_fields_and_typed_override --locked
-          cargo test -p warp --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
-          cargo test -p warp --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
-          cargo test -p warp --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
+          cargo test -p warpai --lib collaboration_fixtures_cover_required_states_and_long_content --locked
+          cargo test -p warpai --lib native_intent_requires_explicit_fields_and_typed_override --locked
+          cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
+          cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
+          cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
+          cargo test -p warpai --lib user_data_migration::tests --locked
+          cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpui_extras --lib --features secure_storage keychain_access_errors_do_not_prove_missing_credentials --locked
-          cargo test -p warp --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
-          cargo test -p warp --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
-          cargo test -p warp --lib native_cli_setup_checks_ownership_and_is_reversible --locked
-          cargo test -p warp --lib opaque_approval_and_question_notifications_never_announce_idle --locked
-          cargo test -p warp --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
-          cargo test -p warp --lib test_detect_qoder --locked
+          cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
+          cargo test -p warpai --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
+          cargo test -p warpai --lib native_cli_setup_checks_ownership_and_is_reversible --locked
+          cargo test -p warpai --lib opaque_approval_and_question_notifications_never_announce_idle --locked
+          cargo test -p warpai --lib peer_prompt_delivery_excludes_batch_and_protocol_launches --locked
+          cargo test -p warpai --lib test_detect_qoder --locked
       - name: Build isolated native UI review artifact
         if: ${{ !inputs.protocol_only || inputs.capture_ui }}
         run: |
-          cargo build -p warp --bin warp-oss --features release_bundle --locked
-          script/build-warp-lite-app.sh --debug
+          cargo build -p warpai --bin warpai --features release_bundle --locked
+          script/build-warpai-app.sh --debug
           codesign --verify --deep --strict WarpaiReview.app
           ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
       - name: Upload isolated native UI review artifact
@@ -257,9 +261,9 @@ jobs:
       - name: Build and package review artifacts
         if: ${{ !inputs.protocol_only }}
         run: |
-          cargo build --release --bin warp-oss --locked
-          cargo build --release -p warp-agent-bus --bin warp-agent --locked
-          script/build-warp-lite-app.sh
+          cargo build --release --bin warpai --locked
+          cargo build --release -p warp-agent-bus --bin warpai-agent --locked
+          script/build-warpai-app.sh
           /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Warpai.app/Contents/Info.plist | grep -qx Warpai
           test -x Warpai.app/Contents/MacOS/Warpai
           codesign --verify --deep --strict Warpai.app

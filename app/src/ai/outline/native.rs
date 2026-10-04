@@ -225,7 +225,6 @@ impl RepoOutlines {
                     if Self::should_build_outlines(ctx) {
                         match res {
                             Ok((canonicalized_path, outline, parse_duration)) => {
-
                                 safe_info!(
                                     safe: ("Successfully constructed symbols outline for repo."),
                                     full: (

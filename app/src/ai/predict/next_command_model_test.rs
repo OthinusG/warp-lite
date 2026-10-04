@@ -80,16 +80,15 @@ fn test_find_autosuggestion_from_history_no_working_dir() {
     ];
 
     // No working directory, so return the first successful command.
-    let autosuggestions =
-        find_potential_autosuggestions_from_history(
-            history_entries.iter(),
-            "cd D",
-            MatchStrategy::CaseSensitive,
-            None,
-        )
-            .into_iter()
-            .map(|history_entry| history_entry.command)
-            .collect_vec();
+    let autosuggestions = find_potential_autosuggestions_from_history(
+        history_entries.iter(),
+        "cd D",
+        MatchStrategy::CaseSensitive,
+        None,
+    )
+    .into_iter()
+    .map(|history_entry| history_entry.command)
+    .collect_vec();
 
     assert_eq!(
         autosuggestions,
@@ -129,16 +128,15 @@ fn test_find_autosuggestion_from_history_different_directory() {
 
     // There isn't a current working directory, so return the most recent command that
     // starts with the buffer text.
-    let autosuggestions =
-        find_potential_autosuggestions_from_history(
-            history_entries.iter(),
-            "cd D",
-            MatchStrategy::CaseSensitive,
-            None,
-        )
-            .into_iter()
-            .map(|history_entry| history_entry.command)
-            .collect_vec();
+    let autosuggestions = find_potential_autosuggestions_from_history(
+        history_entries.iter(),
+        "cd D",
+        MatchStrategy::CaseSensitive,
+        None,
+    )
+    .into_iter()
+    .map(|history_entry| history_entry.command)
+    .collect_vec();
 
     assert_eq!(
         autosuggestions,
@@ -201,16 +199,15 @@ fn test_find_autosuggestion_from_history_with_no_pwd_and_no_working_directory() 
 
     // When no working directory is passed, it shouldn't consider a command with
     // no pwd to be executed in the "same" directory and prioritize it.
-    let autosuggestions =
-        find_potential_autosuggestions_from_history(
-            history_entries.iter(),
-            "cd D",
-            MatchStrategy::CaseSensitive,
-            None,
-        )
-            .into_iter()
-            .map(|history_entry| history_entry.command)
-            .collect_vec();
+    let autosuggestions = find_potential_autosuggestions_from_history(
+        history_entries.iter(),
+        "cd D",
+        MatchStrategy::CaseSensitive,
+        None,
+    )
+    .into_iter()
+    .map(|history_entry| history_entry.command)
+    .collect_vec();
 
     assert_eq!(
         autosuggestions,

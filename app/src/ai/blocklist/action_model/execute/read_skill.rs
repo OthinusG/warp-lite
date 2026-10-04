@@ -47,11 +47,9 @@ impl ReadSkillExecutor {
                 );
                 ActionExecution::Sync(ReadSkillResult::Success { content }.into())
             }
-            None => {
-                ActionExecution::Sync(
-                    ReadSkillResult::Error(format!("Skill not found: {:?}", skill_ref)).into(),
-                )
-            }
+            None => ActionExecution::Sync(
+                ReadSkillResult::Error(format!("Skill not found: {:?}", skill_ref)).into(),
+            ),
         }
     }
 

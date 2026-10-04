@@ -3615,7 +3615,6 @@ impl Input {
             let is_udi_enabled =
                 InputSettings::as_ref(ctx).is_universal_developer_input_enabled(ctx);
             let current_input_mode = self.ai_input_model.as_ref(ctx).input_type();
-
         } else if self.suggestions_mode_model.as_ref(ctx).is_ai_context_menu() {
             self.close_ai_context_menu(ctx);
         }
@@ -4853,7 +4852,6 @@ impl Input {
         self.focus_input_box(ctx);
         // TODO(advait): Avoid using user-simulated codepaths here. Revisit function to use here.
         self.submit_ai_query(Some(suggestion_type), ctx);
-
 
         ctx.notify()
     }
@@ -6338,7 +6336,6 @@ impl Input {
                 let _ = workflow_id;
                 let _ = workflow_source;
 
-
                 self.show_workflows_info_box_on_workflow_selection(
                     *workflow.clone(),
                     workflow_source,
@@ -6945,7 +6942,6 @@ impl Input {
                 if !self.confirm_and_execute_suggestion(suggestion, ctx) {
                     return;
                 }
-
 
                 self.close_input_suggestions(/*should_focus_input=*/ true, ctx);
 
@@ -10848,7 +10844,6 @@ impl Input {
                             );
                         });
 
-
                         let preselect_option = if self.is_classic_completions_enabled(ctx) {
                             TabCompletionsPreselectOption::Unselected
                         } else {
@@ -12296,8 +12291,7 @@ impl Input {
         }
 
         if PromptAlertView::does_alert_block_ai_requests(ctx) {
-            if !has_requests_remaining {
-            }
+            if !has_requests_remaining {}
 
             AIRequestUsageModel::handle(ctx).update(ctx, |usage_model, ctx| {
                 // Rate limit requests to fetch the user's AI usage if triggered by enter
@@ -12363,7 +12357,6 @@ impl Input {
 
         if let Some(workflow_state) = self.workflows_state.selected_workflow_state.as_ref() {
             if let WorkflowType::Cloud(workflow) = &workflow_state.workflow_type {
-
                 UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
                     update_manager.record_object_action(
                         workflow.cloud_object_type_and_id(),
@@ -13114,7 +13107,6 @@ impl Input {
         let (workflow_id, workflow_command) = {
             match self.workflows_state.selected_workflow_state.as_ref() {
                 Some(selected_workflow_state) => {
-
                     let workflow_type = &selected_workflow_state.workflow_type;
                     let workflow_id = match workflow_type {
                         WorkflowType::Cloud(workflow) => Some(workflow.id),
@@ -13787,8 +13779,7 @@ impl TypedActionView for Input {
                             .ai_autodetection_enabled_internal
                             .toggle_and_save_value(model_ctx)
                     })
-                {
-                }
+                {}
             }
             InputAction::CycleNextCommandSuggestion => {
                 self.cycle_next_command_suggestion(ctx);
@@ -14158,12 +14149,13 @@ impl Autosuggester for Input {
         }
 
         let match_strategy = result.match_strategy;
-        let autosuggestion_result_substring = result
-            .autosuggestion_result
-            .as_ref()
-            .and_then(|suggestion| {
-                match_strategy.prefix_remainder(buffer_text.as_str(), suggestion)
-            });
+        let autosuggestion_result_substring =
+            result
+                .autosuggestion_result
+                .as_ref()
+                .and_then(|suggestion| {
+                    match_strategy.prefix_remainder(buffer_text.as_str(), suggestion)
+                });
 
         if let Some(autosuggestion) = autosuggestion_result_substring {
             self.set_autosuggestion(

@@ -12,7 +12,7 @@ APP_PATH=""
 OUTPUT_PATH=""
 FORCE_OUTPUT=false
 FORCE_RAW_SAMPLES=false
-RAW_SAMPLES_PATH="$ROOT/target/warp-lite-benchmarks/runtime-samples.tsv"
+RAW_SAMPLES_PATH="$ROOT/target/warpai-benchmarks/runtime-samples.tsv"
 SETTLE_SECONDS=30
 SAMPLE_SECONDS=10
 SAMPLE_INTERVAL_SECONDS=1
@@ -29,7 +29,7 @@ Options:
   --app PATH                 Warpai.app to launch
   --output PATH              Persist the key=value report
   --force-output             Replace an existing --output file
-  --raw-samples PATH         Persist idle samples (default: target/warp-lite-benchmarks/runtime-samples.tsv)
+  --raw-samples PATH         Persist idle samples (default: target/warpai-benchmarks/runtime-samples.tsv)
   --force-raw-samples        Replace an existing raw-samples file
   --settle-seconds N         Idle settling duration (default: 30)
   --sample-seconds N         Idle sampling duration (default: 10)

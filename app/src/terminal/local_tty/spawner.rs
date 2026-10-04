@@ -194,9 +194,9 @@ impl PtySpawner {
             if let Err(err) = result {
                 log_env_var_diagnostics(&options.env_vars);
                 if is_e2big(&err) {
-                    return Err(err.context(
-                        "This can happen when environment variables are too long.",
-                    ));
+                    return Err(
+                        err.context("This can happen when environment variables are too long.")
+                    );
                 }
                 report_error!(err.context(
                     "Failed to spawn pty via terminal server; falling back to spawning locally...",

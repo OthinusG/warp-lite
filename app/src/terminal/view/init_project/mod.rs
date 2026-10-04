@@ -973,7 +973,6 @@ impl InitStepBlock {
             },
             move |_me, result, ctx| match result {
                 Ok(()) => {
-
                     PersistedWorkspace::handle(ctx).update(ctx, |workspace, _| {
                         workspace.enable_lsp_server_for_path(&repo_root, server_type);
                     });
@@ -994,7 +993,6 @@ impl InitStepBlock {
                     });
                 }
                 Err(e) => {
-
                     ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         toast_stack.add_ephemeral_toast(
                             DismissibleToast::error(format!(
@@ -1078,8 +1076,7 @@ impl TypedActionView for InitStepBlock {
                 }
 
                 // Send telemetry for each enabled server
-                for server_type in enabled_servers.iter().chain(servers_to_install.iter()) {
-                }
+                for server_type in enabled_servers.iter().chain(servers_to_install.iter()) {}
 
                 // Spawn installation tasks for uninstalled servers
                 let model = self.model.clone();

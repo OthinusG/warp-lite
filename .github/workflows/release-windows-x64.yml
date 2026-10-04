@@ -118,7 +118,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
         run: |
-          pwsh script/build-warp-lite-windows.ps1 -ReleaseTag "$env:RELEASE_TAG"
+          pwsh script/build-warpai-windows.ps1 -ReleaseTag "$env:RELEASE_TAG"
 
       - name: Check Windows release artifacts
         if: steps.check-release.outputs.should_build == 'true'
