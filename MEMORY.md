@@ -5,9 +5,10 @@
 - Repository: [OthinusG/warpai](https://github.com/OthinusG/warpai), default branch
   `main`; origin is `git@github.com:OthinusG/warpai.git`. The local workspace path
   remains unchanged so active tooling and project skill paths keep working.
-- Latest follow-up delivery is d3619fe184fa723bd27782e795dbc6e0494b1893:
-  native README screenshots and workflow cleanup, with the accepted b41d07b
-  capture-readiness fix fast-forward integrated. All task/diagnostic branches
+- Latest runtime/icon source is 5d2588a86bbdc05cc994ad816561c4626be9aac4;
+  native and remote acceptance passed (see App icon checkpoint). Release
+  preparation ade8308 derives versions from tags and packages companions.
+  All task/diagnostic branches
   were deleted locally/remotely; GitHub retains only `main`. Preserve full
   history, licenses and release tags. Final verification receipts are docs only.
 - Accepted core source is eab0ff0: desktop run 37233525889 and remote run
@@ -26,8 +27,8 @@
   per platform, source-matched diagnostics, exit code 0 and no failed actions.
 - Automatic session-only Codex MCP, bilingual README, audited deep cleanup and
   main/repository delivery are complete. The screenshot follow-up has refreshed native
-  README images and removed unused workflow steps; icon revision and formal
-  packaging/release remain deferred. Main pushes run routine verification but
+  README images and removed unused workflow steps; icon revision is accepted,
+  and formal 1.0.1 packaging/release is in progress. Main pushes run routine verification but
   do not create desktop installers.
 - Native review of source 5883221 found faint toolbar SVGs despite successful
   capture assertions. Metal/WGPU monochrome Icon rendering uses the texture red
@@ -35,8 +36,8 @@
   not the reference gray-blue color. Ordinary image/SVG brand assets retain their
   colors. Record this consumer distinction in docs/ICON-WORKFLOW.md; refreshed
   README frames must come from the corrected source after native visual review.
-- README images now use unmodified source b41d07b macOS captures from run
-  37259523352, with visible vertical tabs and Claude Warm Light. Native review
+- README images now use unmodified source 5d2588a macOS captures from run
+  37268540992, with visible vertical tabs and Claude Warm Light. Native review
   confirms clear theme-tinted toolbar glyphs in both tab layouts and Light/Dark,
   the primary title/Secondary SSH entry, wrapping narrow actions and native MCP
   settings alignment at 100%/125%. Both PNGs retain their original bytes; the
@@ -50,8 +51,8 @@
   run history remains available. Cleaned-workflow protocol-only run 37262514339
   passed macOS and Windows for d3619fe: protocol/history tests and native bridge/
   readiness artifacts passed, desktop/native capture steps correctly skipped.
-  Final receipts change documentation only. Formal icon revision/release is
-  still deferred.
+  Final receipts change documentation only. At that checkpoint, formal icon revision/release was
+  deferred; the accepted icon and current release preparation supersede it.
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
 
@@ -72,8 +73,12 @@
 - The app material is baked artwork, not an animated Icon Composer implementation.
   Native UI/Agent SVGs retain their existing vector/mask conventions. See
   specs/APP-ICON.md and docs/ICON-WORKFLOW.md. Local asset/format/alpha, shell,
-  Objective-C syntax and focused Rust formatting checks passed. Cloud desktop
-  verification is required for the current branding source before release.
+  Objective-C syntax and focused Rust formatting checks passed. Cloud desktop/
+  native run 37268540992 and remote run 37268449581 passed for 5d2588a. Both
+  OSes produced 161 valid PNGs with exit code 0 and no failed actions. Archive
+  digests/CRC, all decodes and native visual review passed. README images now
+  use unmodified macOS frames from this source, retaining Claude Warm Light,
+  vertical tabs and the capture driver's 125% UI zoom.
 
 ## Release preparation — 2026-10-05
 
@@ -85,8 +90,10 @@
   artifacts before publishing. Package and PE versions derive from the tag,
   not the historical hardcoded 0.5.7/1.0.0 values. Protocol versions are separate.
 - Icon source 5d2588a passed remote run 37268449581 on all three platforms.
-  Desktop/native run 37268540992 is still in progress; publication remains gated
-  on acceptance. Release-specific checks are defined in specs/RELEASE.md.
+  Desktop/native run 37268540992 passed, as did preparation-source remote run
+  37270362606. Bilingual README is a complete product introduction, with stable
+  1.0.1 download links and source-matched warm vertical-tab images. Tagged package
+  checks still gate publication; see specs/RELEASE.md.
 
 ## Quality comparison and integration — 2026-10-04
 

@@ -7,10 +7,10 @@
 
 - 标签页：启用 macOS 原生垂直标签页面板。
 - 主题：默认的 **Claude Warm Light**，由原生应用直接渲染。
-- 源码版本：`b41d07ba2896e8f3c755c9227ac3483d873c4e2b`。
-- [GitHub 桌面验证记录 37259523352](https://github.com/OthinusG/warpai/actions/runs/37259523352)。
+- 源码版本：`5d2588a86bbdc05cc994ad816561c4626be9aac4`。
+- [GitHub 桌面验证记录 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992)。
 - 产物名称：`Warpai-collaboration-native-captures-macOS`。
-- 截图目录：`capture-1194/collaboration-static/2026-10-05T03-55-06`。
+- 截图目录：`capture-26906/collaboration-static/2026-10-05T06-18-49`。
 
 | 文档图片 | 原始截图 | 内容 |
 | --- | --- | --- |
@@ -36,5 +36,5 @@
 两张文档 PNG 与原始截图逐字节相同，尺寸均为 1440 × 684。
 用于截图的调试构建不是已发布安装包。
 
-这些截图早于用户提供的 App 图标更新。README 现已使用
-[统一的 Warpai 图标](../../app/assets/branding/warpai.png)；工作区截图不用于证明 Dock 或安装器的品牌显示。
+这些截图来自当前图标修改后的源码。工作空间截图不展示 Dock 或安装器图标；
+相关资源通过原生打包检查验证。截图驱动在这两个实时场景中保留 125% UI 缩放。

@@ -9,10 +9,10 @@ model sessions.
 
 - Tabs: native macOS vertical tab panel enabled.
 - Theme: default **Claude Warm Light**, rendered by the native app.
-- Source: `b41d07ba2896e8f3c755c9227ac3483d873c4e2b`.
-- [GitHub desktop run 37259523352](https://github.com/OthinusG/warpai/actions/runs/37259523352).
+- Source: `5d2588a86bbdc05cc994ad816561c4626be9aac4`.
+- [GitHub desktop run 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992).
 - Artifact: `Warpai-collaboration-native-captures-macOS`.
-- Capture set: `capture-1194/collaboration-static/2026-10-05T03-55-06`.
+- Capture set: `capture-26906/collaboration-static/2026-10-05T06-18-49`.
 
 | Documentation image | Original capture | Shows |
 | --- | --- | --- |
@@ -39,6 +39,6 @@ its source-matched diagnostic reports exit code 0 with no failed native actions.
 Both documentation PNGs are byte-identical to their original captures at
 1440 × 684 pixels. The screenshot-only review build is not a published installer.
 
-These captures predate the owner-supplied app icon update. The README now uses
-[the canonical Warpai artwork](../../app/assets/branding/warpai.png); no Dock or
-installer branding is claimed by these workspace-only frames.
+These captures include the current branding source. Workspace images do not
+show Dock or installer artwork; those are verified by native packaging checks.
+The capture driver retains 125% UI zoom for these live checkpoints.

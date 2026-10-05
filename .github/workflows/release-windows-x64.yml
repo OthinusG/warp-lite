@@ -138,10 +138,19 @@ jobs:
           $product = (Get-Item target/x86_64-pc-windows-msvc/rlto/warpai.exe).VersionInfo
           if ($product.ProductVersion -ne $expected -or $product.FileVersion -ne $expected) { throw 'PE version mismatch' }
           $parts = $expected.Split('.')
-          if ($product.FileMajorPart -ne [int]$parts[0] -or $product.FileMinorPart -ne [int]$parts[1] -or $product.FileBuildPart -ne [int]$parts[2]) { throw 'PE numeric version mismatch' }
+          foreach ($info in @($product, (Get-Item WarpaiSetup-x64.exe).VersionInfo)) {
+            if ($info.FileMajorPart -ne [int]$parts[0] -or $info.FileMinorPart -ne [int]$parts[1] -or $info.FileBuildPart -ne [int]$parts[2]) { throw 'PE or installer numeric version mismatch' }
+          }
           $icon = 'target/Warpai-portable-x64/icon.ico'
           if ((Get-FileHash $icon).Hash -ne (Get-FileHash app/assets/branding/warpai.ico).Hash) { throw 'Portable icon mismatch' }
           if (-not (Test-Path target/Warpai-portable-x64/warpai-agent.exe)) { throw 'Missing local MCP bridge' }
+          $archive = [System.IO.Compression.ZipFile]::OpenRead("$PWD/Warpai-windows-x64.zip")
+          try {
+            $names = $archive.Entries.FullName
+            foreach ($name in @('Warpai.exe', 'warpai-agent.exe', 'icon.ico', 'conpty.dll', 'dxcompiler.dll', 'x64/OpenConsole.exe')) {
+              if ($name -notin $names) { throw "Missing portable archive entry: $name" }
+            }
+          } finally { $archive.Dispose() }
 
       - name: Upload Windows artifacts to release
         if: steps.check-release.outputs.should_build == 'true'

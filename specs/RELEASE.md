@@ -36,3 +36,19 @@ Preserve terminal guardrails, licenses and historical tags.
   describe actual installation behavior without promising notarization.
 - A failed packaging job leaves a draft rather than a partially public release.
   Preserve existing assets/history and fix failures before publication.
+
+## Verification receipt
+
+- Icon/runtime source `5d2588a86bbdc05cc994ad816561c4626be9aac4` passed
+  [desktop/native run 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992):
+  both application configurations, focused regressions, 161 images per OS,
+  source-matched diagnostics and all native action assertions. Archive SHA-256,
+  ZIP CRC and every PNG decode passed locally; selected native frames were reviewed.
+- [Remote run 37268449581](https://github.com/OthinusG/warpai/actions/runs/37268449581)
+  passed Linux/macOS/Windows. Packaging preparation source `ade8308` also passed
+  [remote run 37270362606](https://github.com/OthinusG/warpai/actions/runs/37270362606).
+- Release workflow actionlint, YAML, Bash and embedded Python syntax checks passed.
+  Temporary macOS packaging smoke checked version 1.0.1, bundle identity, canonical
+  ICNS, signing and invalid-version rejection using copied system placeholders.
+  This smoke is a packaging check, not application/runtime acceptance.
+- Publication additionally requires the cloud tagged-package checks above.

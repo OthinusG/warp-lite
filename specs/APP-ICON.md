@@ -54,3 +54,16 @@ logo. Both now use the approved rimless icon; the sidebar preserves the existing
 wordmark/background. RGB BMP dimensions remain 58 × 58 and 202 × 386. Removed
 the inherited macOS DMG marketing background. These packaging-artwork edits do
 not change application, UI asset embedding or remote protocol inputs.
+
+## Native acceptance — 2026-10-05
+
+Source `5d2588a86bbdc05cc994ad816561c4626be9aac4` passed
+[desktop run 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992)
+and [remote run 37268449581](https://github.com/OthinusG/warpai/actions/runs/37268449581).
+Both desktop jobs passed default/warp_platform checks and focused regressions.
+Each produced 161 decoded PNGs, source-matched diagnostics, exit code 0 and no
+failed actions. Downloaded archives passed GitHub SHA-256 and ZIP CRC checks.
+Native review covered warm vertical-tab live workspace/SSH, warm settings at
+125%, narrow Light/Dark panels, toolbar masks and Windows native equivalents.
+No overlapping primary controls were found; long content retains native scroll.
+README images now use unmodified macOS frames from this run.

@@ -6,206 +6,187 @@
 
 <img src="app/assets/branding/warpai.png" alt="Warpai" width="160" height="160">
 
-### 你的终端，你的项目，你的 Agent。
+### 围绕你的代码与 Agent 展开的终端工作空间。
 
-面向 macOS 和 Windows 的本地优先终端，
-把日常开发与你自己的 CLI Agent 协作放进同一个工作空间。
+面向 macOS 和 Windows 的原生、本地优先终端。
+在一个工作空间中运行命令、浏览项目，并协调你独立安装的 CLI Agent。
 
-**命令分块 · GPU 渲染 · 项目浏览 · Agent 协作 · SSH 项目**
+**命令分块 · GPU 渲染 · 垂直标签页 · Agent 协作 · SSH 项目**
 
-[下载与安装](#get-warpai) ·
+[下载 1.0.1](#get-warpai) · [快速开始](#start-working) ·
 [Agent 使用与兼容性](docs/AGENTS.zh-CN.md) ·
-[快速开始](#start-working) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
+[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
-[![远程平台](https://img.shields.io/badge/SSH-Linux%20%7C%20macOS%20%7C%20Windows-526e53.svg)](#work-on-remote-projects)
 
 </div>
 
-Warpai 将命令、项目文件和 Agent 对话集中到原生工作空间中。
-运行构建、查看输出、浏览源码，再把一项明确的任务交给 Agent，整个过程都围绕你的项目展开。
+Warpai 将开发工作集中在项目附近：Shell 负责执行，编辑器提供代码上下文，协作面板跟进 Agent 任务。
+继续使用自己安装和维护的 Git、包管理器、构建工具与 CLI Agent。
+打开应用即可开始，无需 Warpai 账号或订阅。
 
-打开应用就能进入终端，继续使用熟悉的 Shell 和 CLI 工具。
-需要协作时再接入自己的 Agent，自行选择服务商并完成认证。
+![Warpai macOS 工作空间：垂直标签页、源码编辑器与 Agent 任务面板](docs/images/warpai-workspace.png)
 
-![Warpai 原生工作空间：左侧打开源码，右侧显示 Agent 任务详情](docs/images/warpai-workspace.png)
+*macOS 原生界面，采用垂直标签页和默认 Claude Warm Light 主题。
+项目与 Agent 为测试样例；[查看截图来源](docs/images/README.zh-CN.md)。*
 
-*采用默认 Claude Warm Light 主题、启用垂直标签页的 macOS 原生界面，展示源码编辑器与任务详情面板。截图使用样例项目。
-[查看截图来源](docs/images/README.zh-CN.md)。*
+## 为什么选择 Warpai？
 
-## 为什么选择 Warpai
-
-| 你关心的事 | Warpai 提供什么 |
+| 优势 | 日常使用中的价值 |
 | --- | --- |
-| **看清命令与结果** | 每条命令与输出保留在同一个命令块中。标签页、分屏和 GPU 渲染支持持续运行的构建与并行工作。 |
-| **自己选择工具** | 使用独立安装的 Codex、Claude Code、QoderCN 等 CLI Agent，自行选择并认证服务商。 |
-| **任务协作有记录** | 同一项目中的参与 Agent 可以互发消息、委派任务、提交验证材料并审阅结果。 |
-| **工作空间紧贴代码** | 在原生应用中浏览项目文件、打开源码和 Markdown、使用 Vim 模式，并切换终端。 |
-| **协作由你掌控** | 无需 Warpai 账号或托管协作服务。本地项目在本机协调，SSH 项目在选定的远程账号内协调。 |
-| **中断后仍然看得清** | 保留未发送的草稿，标明过期的远程状态，并在验收前审阅结果。远程断线时禁止写操作。 |
+| **命令历史清晰可读** | 每条命令与输出保留在同一个命令块中，方便回看构建结果、错误和历史输出。 |
+| **围绕项目的一体化空间** | 终端、文件、Markdown 与 Agent 任务触手可及；垂直标签页和分屏让并行工作各有位置。 |
+| **自己选择 Agent 与服务商** | 使用独立安装的 Codex、Claude Code、QoderCN 等工具，自行选择服务商、认证方式和权限设置。 |
+| **有记录的协作流程** | 在项目内互发消息、委派任务、提交验证材料并审阅结果。 |
+| **掌握数据与运行位置** | 本地协作在本机运行；SSH 协作在选定的远程账号和项目中运行，无需 Warpai 托管服务。 |
 
-## 为日常开发准备的终端
+## 终端与项目工具
 
-继续在 Shell 中使用 Git、脚本、包管理器、构建工具、测试工具和远程命令。
-命令块方便回看输出；标签页与分屏让开发服务器、测试进程和工作终端各有位置。
+- **GPU 渲染终端：**命令块、标签页与分屏，适用于交互 Shell、开发服务器及持续运行的构建。
+- **项目浏览器与编辑器：**浏览文件、查看源码、使用 Vim 模式并阅读 Markdown，保留终端上下文。
+- **命令面板与补全：**查找操作，减少日常 Shell 工作中的重复输入。
+- **外观设置：**选择浅色或深色主题、字体和标签页布局，默认采用 Claude Warm Light。
+- **Keep awake（保持唤醒）：**当前会话的开关在被跟踪的 Agent 工作时阻止空闲系统睡眠。屏幕仍可休眠；重启应用后开关重置。
 
-项目浏览器让文件触手可及。编辑器、Vim 模式、命令面板、补全与 Markdown 查看器，
-帮助你在命令和代码上下文之间切换。可以选择浅色或深色主题，并调整字体。
-
-长时间运行 Agent 时，可开启当前会话的 **Keep awake（保持唤醒）**。
-它只在被跟踪的 Agent 正在工作时阻止系统因空闲进入睡眠，屏幕仍可休眠；
-重启应用后，这个开关会重置。
-
-## 让自己的 Agent 一起工作
+## Agent 协作
 
 让一个 Agent 实现功能，另一个 Agent 审查结果。
-任务要求、执行状态、提交的验证材料和审阅决定都保留在同一个项目中，便于跟进每次交接。
+协作面板集中展示消息、任务状态、验证材料与审阅决定；提交结果后，还需审阅才能验收通过。
 
 ```mermaid
 flowchart LR
     A[明确任务] --> B[委派给 Agent]
     B --> C[执行并提交验证材料]
-    C --> D[审阅结果]
+    C --> D[审阅]
     D --> E[验收通过]
     D -->|要求修改| C
 ```
 
-- **消息与任务：** 发送明确请求、委派工作，并查看当前状态。
-- **提交与验收：** 提交结果后仍需审阅，提交本身不等于验收通过。
-- **项目边界：** 同一规范化项目中的参与 Agent 可以通信，无关项目保持隔离。
-- **保护当前交互：** 排队任务保留你的输入草稿，不会代答 Agent 的权限请求。消息投递不等于确认收到或工作完成。
+参与者共享同一个规范化项目范围，不相关的项目保持隔离。
+排队任务保留输入草稿，并遵循 Agent 原生就绪状态；Warpai 不代替你回答 Agent 的权限请求。
 
-协作依赖 CLI 的原生 MCP 支持，具体可用性取决于已安装的 CLI 及版本。
-“能在终端运行”和“能参与 Agent 协作”是两项能力。
-配置方式与验证范围见 [Agent 使用与兼容性指南](docs/AGENTS.zh-CN.md)。
+协作需要已安装 Agent 版本支持原生 MCP 客户端。
+支持的命令、配置管理方式与验证范围见 [中文 Agent 指南](docs/AGENTS.zh-CN.md)。
 
 <a id="start-working"></a>
-
 ### 快速开始
 
-1. 按[开发指南](docs/DEVELOPMENT.zh-CN.md)构建当前源码；已发布安装包的范围见下方下载表。
-2. 使用各 CLI 自己的工具安装并认证 Agent。
-3. 打开 **Settings > Features > Agent communication**，勾选允许参与的 Agent。
-4. 在同一项目中新开 Agent 会话；不支持热加载 MCP 配置的 CLI 需要重启已有会话。
-5. 打开 **Agent collaboration**，查看 Agent、交换消息并跟进任务。
+1. [安装 Warpai](#get-warpai)。
+2. 使用各 Agent 自己的工具完成安装和认证。
+3. 打开项目，进入 **Settings > Features > Agent communication**，开启协作并选择允许参与的 Agent。
+4. 在该项目中新开 Agent 会话；已有会话可能需要重启才能加载 MCP 配置。
+5. 打开 **Agent collaboration**，发送消息、委派任务并审阅结果。
 
-### Codex：直接输入原来的命令
+### Codex：继续输入原来的命令
 
-开启 Agent communication 并勾选 Codex 后，在 Warpai 本地终端照常启动：
+在已开启协作的 Warpai 本地终端中正常启动：
 
 ```sh
 codex
+codex --yolo
 codex resume --last
-# 原有权限参数保持不变，包括 codex --yolo。
 ```
 
-Warpai 在提交符合条件的交互命令时，自动加入仅本次启动生效的 MCP 参数和
-`--no-daemon`。每个终端使用独立的原生后台，避免多个会话共享另一终端的
-MCP 绑定。原有参数、项目目录、服务商和权限选择继续生效。
+Warpai 自动为符合条件的交互启动添加仅本次会话生效的 MCP 参数与 `--no-daemon`，
+使不同终端使用独立的原生后台。原有参数、项目目录、服务商与权限选择继续生效。
 
-已安装的 Codex 必须在帮助中提供 `--no-daemon` 和 `-c`。
-Warpai 每次适配启动都重新解析并探测当前安装，因此包管理器更新照常可用。
-不会替换 `codex`、修改 PATH 或 CODEX_HOME、复制可执行文件，
-也不会读取或写入 Codex 配置。不支持的版本照常启动，并显示 MCP 提示。
-帮助、登录、MCP 管理、批处理、显式远程连接及用户自定义别名保持原生行为。
-自动适配面向 macOS、Windows 的原生本地 Shell；WSL 命令保持原生行为。
-受管理的 SSH 项目通过远程 companion 启动。在 Warpai 之外输入的命令不受影响。
+已安装 Codex 必须支持 `-c` 和 `--no-daemon`。
+Warpai 每次启动都重新解析并探测当前安装，因此仍可通过原包管理器更新。
+不替换命令、不复制临时可执行文件、不修改 PATH 或 CODEX_HOME，也不读写 Codex 配置。
+不支持的版本按原样启动，并显示 MCP 提示。
 
-关闭协作或取消勾选某个 Agent，会立即撤销其当前访问权限。
-Warpai 只清理自己拥有的配置，保留用户的其他设置。
+帮助、登录、MCP 管理、批处理、显式远程连接、用户别名和 WSL 保持原生行为。
+受管理的 SSH 项目使用下方 companion 入口；在 Warpai 外执行的命令不受影响。
 
 <a id="work-on-remote-projects"></a>
+## 在远程项目中工作
 
-## 在 SSH 项目中继续协作
+通过协作面板管理 **Linux、macOS 或 Windows** 上的 SSH 项目。
+同一远程账号、同一项目中的 Agent 共享协作状态，桌面显示远程位置、消息、任务与连接状态。
 
-选定 SSH 项目后，仍然使用同一个协作面板。
-同一远程账号、同一项目中的 Agent 共享远程协调服务；
-你可以在桌面端查看消息、任务和连接状态。
+![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
-![Warpai SSH 协作面板：已连接项目、远程 Agent 与任务](docs/images/warpai-ssh-project.png)
+*macOS 原生界面、垂直标签页与 Claude Warm Light 主题，展示受控 SSH 样例项目。截图来自实际运行的应用。*
 
-*采用默认 Claude Warm Light 主题、启用垂直标签页的 macOS 原生 SSH 面板，使用受控样例 Agent。
-远程位置与当前任务同时可见。*
-
-1. 用系统 OpenSSH 配置可信的主机别名，并确认非交互认证可正常工作。
-2. 将匹配版本的 **Warpai companion** 放到远程账号中，并在远端安装、认证 CLI Agent。
-3. 打开 **Agent collaboration > Connect SSH project**，填写 SSH 别名、项目绝对路径和 companion 的安装路径。
-4. 在普通 SSH 终端中通过 companion 启动每个受管理 Agent，使用同一个规范化项目根目录。
+1. 在系统 OpenSSH 客户端中配置可信的主机别名与可用的非交互认证。
+2. 下载匹配的 [1.0.1 companion](#remote-companion)，在远程账号下解压；Unix 主机需赋予二进制执行权限。在该账号内安装并认证 CLI Agent。
+3. 打开 **Agent collaboration > Connect SSH project**，填写 SSH 别名、项目绝对路径和 companion 绝对路径。
+4. 在普通 SSH 终端中，用相同项目根目录启动受管理的 Agent：
 
 ```sh
 /opt/warpai/warpai-companion agent /srv/project codex /usr/local/bin/codex
 ```
 
-把示例路径替换为远程主机上的实际路径。
-关闭该 SSH 连接会停止它拥有的 Agent 运行。断线后使用 **Reconnect** 重新连接；
-未发送的表单会保留，重新连接前禁止写操作。桌面端凭据不会复制到远程账号。
+按远程安装位置替换示例路径。Windows 主机使用 `warpai-companion.exe` 与原生绝对路径。
+关闭 SSH 终端会停止其拥有的 Agent 运行。断线后保留草稿、标记远程状态过期，重连前禁止写操作。
+桌面凭据不会复制到远程账号；文件传输采用 SFTP。
 
-远程项目支持 **Linux、macOS 和 Windows**。
-每个选定项目都有独立权限边界，不会自动把不同主机、本地项目和远程项目合并成同一协作空间。
-相关实现与验证见 [SSH 技术说明（英文）](specs/agent-communication-v2/TECH.md)
-和 [验收记录（英文）](specs/agent-communication-v2/QUALITY.md)。
+每个 SSH 项目有独立的协作权限范围。具体行为见 [SSH 技术说明（英文）](specs/agent-communication-v2/TECH.md)。
 
 <a id="get-warpai"></a>
-
 ## 下载与安装
 
-**Warpai 目前处于 Alpha 阶段。** 请根据想体验的功能选择构建：
+**[Warpai 1.0.1](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)** 是改名后的首个版本，
+包含本地 Agent 协作、Codex 会话级 MCP、SSH 项目和新的应用图标。
 
-| 构建 | 包含功能 | 下载入口 |
+| 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **已发布版本 — `v0.5.7-lite`** | 终端基础功能。安装包保留历史名称 **WarpLite**，不包含当前 Agent 协作与 SSH 扩展。 | [macOS 应用 ZIP、DMG；Windows x64 安装器、便携 ZIP](https://github.com/OthinusG/warpai/releases/tag/v0.5.7-lite) |
-| **当前 Warpai 源码** | 本地 CLI Agent 协作、Codex 原生会话级 MCP，以及 SSH 项目面板。 | [构建指南](docs/DEVELOPMENT.zh-CN.md) · [验证记录（英文）](specs/DEEP-CLEANUP.md) |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) · [应用 ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.app.zip) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) · [便携 ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-windows-x64.zip) | 运行安装器，或解压 ZIP 后启动 **Warpai.exe**。 |
 
-安装已发布版本时，在 macOS 中将 DMG 内的 **WarpLite.app** 拖入 Applications。
-在 Windows 中运行 **WarpLiteSetup-x64.exe**，或解压便携 ZIP 后运行 **WarpLite.exe**。
+macOS 应用采用临时签名，尚未进行公证。如果首次启动被系统拦截，确认下载来源后，
+在 **System Settings > Privacy & Security > Open Anyway** 中批准打开。
+Windows 可能要求确认运行未签名安装器。发布页面提供校验和。
 
-当前源码对应的安装包尚未发布。当前源码和验证记录包含上文的 Codex
-原生适配；旧试用安装包早于这次改动。请按
-[开发指南](docs/DEVELOPMENT.zh-CN.md)，从同一源码版本构建桌面端和远程 companion。
-GitHub Actions 验证产物可能要求登录 GitHub，且有保留期限；
-代码检查通过并不代表已生成安装包。
+更新时下载新版本，替换应用或运行新版安装器，设置保留在应用数据目录中。
+独立安装的 CLI Agent 继续使用各自的包管理器更新。
 
-工程验证包括真实原生进程和受控 OpenSSH 下的消息、任务及审阅测试。
-原版 macOS Codex 0.160.0 另已通过两个同时运行的会话及四轮真实模型/MCP 调用。
-其他已认证服务商和实体远程主机的覆盖范围见
-[Agent 兼容性说明（英文）](specs/agent-communication/COVERAGE.md)。
+<a id="remote-companion"></a>
+### 远程 companion
 
-## 本地优先
+桌面应用与 companion 应来自同一个 release。压缩包清单包含准确源码版本、Rust 目标平台与 SHA-256 校验和。
 
-打开 Warpai 无需 Warpai 账号、登录或订阅。
-默认产品排除捆绑的云端 AI、云账号、计费流程和遥测产品入口；
-本地命令与项目协调无需 Warpai 云服务。
+| 远程主机 | 下载 |
+| --- | --- |
+| Linux x64（基于 Ubuntu 22.04 构建） | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-unknown-linux-gnu.zip) |
+| macOS Apple 芯片 | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-aarch64-apple-darwin.zip) |
+| Windows x64 | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-pc-windows-msvc.zip) |
 
-你运行的命令、SSH 会话和独立安装的 Agent 仍然可以访问网络。
-Agent 服务商有各自的账号、定价与数据政策。
-已删除无用的历史 AI 搜索实现、上游内置 AI 技能和没有调用方的云端发布脚本。
-终端、编辑器、本地 CLI 集成和历史数据兼容仍需要的共享代码继续保留，
-具体范围见 [源码清理记录（英文）](specs/DEEP-CLEANUP.md)。
+## 设置与本地控制
+
+设置、主题、受管理的 MCP 配置及本地应用数据统一使用以下位置：
+
+| 系统 | 目录 |
+| --- | --- |
+| macOS | `~/.config/.warpai` |
+| Windows | `%USERPROFILE%\.config\.warpai` |
+
+首次启动时仅导入缺失的历史设置，不覆盖新文件；旧目录保留，便于恢复。
+第三方 Agent 继续使用自己的认证与设置目录。
+
+Warpai 无需云端账号、登录门槛或订阅，默认产品排除捆绑云端 AI、计费与遥测入口。
+Shell 命令、SSH 和所选 Agent 服务商仍会按照各自行为使用网络。
 
 <a id="develop-and-contribute"></a>
-
-设置、主题、MCP 配置和本地应用数据统一存放在 macOS 的
-`~/.config/.warpai` 与 Windows 的 `%USERPROFILE%\.config\.warpai`。
-首次启动会导入旧目录中缺少的设置，不覆盖新文件；旧目录保留供恢复。
-第三方 Agent 的配置仍存放在各自原有位置。
-
 ## 开发与贡献
 
-Warpai 使用 Rust 编写，在本仓库直接维护。
-从 [中文开发指南](docs/DEVELOPMENT.zh-CN.md)、[项目规则（英文）](AGENTS.md)
-和 [当前 SSH 计划（英文）](specs/agent-communication-v2/PLAN.md) 开始了解项目。
-构建与验证工作流使用本仓库已提交的源码。
+Warpai 使用 Rust 开发。贡献前阅读 [开发指南](docs/DEVELOPMENT.zh-CN.md)、
+[Agent 规则（英文）](AGENTS.md) 与 [SSH 计划（英文）](specs/agent-communication-v2/PLAN.md)。
+构建和发布直接使用仓库中已提交的源码。
 
-反馈问题时，请提供构建或源码版本、操作系统、复现步骤和预期行为。
-不要在报告中包含 token、凭据或私人项目内容。
+验证覆盖 macOS、Windows 应用检查、原生 UI 操作与截图、三平台 companion 测试及受控 OpenSSH。
+原版 macOS Codex 0.160.0 另已完成两个并发会话与合计四轮模型、MCP 调用。
+详见 [验收记录（英文）](specs/agent-communication-v2/QUALITY.md)、
+[发布规范（英文）](specs/RELEASE.md) 与 [Agent 兼容性指南](docs/AGENTS.zh-CN.md)。
+
+反馈问题时请提供版本、操作系统、复现步骤与预期行为，省略凭据和私人项目内容。
 
 <details>
-<summary>贡献者须保留的终端核心代码</summary>
+<summary>贡献者必须保留的终端核心路径</summary>
 
-保留以下渲染、输入与模型路径。
-用整片占位实现替换它们以通过编译，不是有效修复；需要同时验证终端行为与构建。
+保留以下渲染、输入与模型路径。将其整体替换为占位实现，不是有效的编译修复；需要同时验证终端行为。
 
 - `app/src/terminal/view.rs`
 - `app/src/terminal/input.rs`
@@ -221,9 +202,7 @@ Warpai 使用 Rust 编写，在本仓库直接维护。
 ## 致谢与许可证
 
 Warpai 独立维护，源自 [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite)
-与 [Warp](https://github.com/warpdotdev/warp)。
-本项目与上游 Warp 团队没有隶属或背书关系，保留原有版权与归属声明。
+与 [Warp](https://github.com/warpdotdev/warp)，与上游 Warp 团队没有隶属或背书关系，保留原有版权与署名。
 
-源码使用 [AGPL-3.0-only 许可证](LICENSE-AGPL)。
-原有 `warpui` 和 `warpui_core` crate 保留 [MIT 许可证](LICENSE-MIT)。
-出处与商标信息见 [派生项目说明（英文）](FORK_NOTICE.md)，许可证以原始文件为准。
+源码采用 [AGPL-3.0-only](LICENSE-AGPL)；原始 `warpui`、`warpui_core` 子库保留
+[MIT 许可证](LICENSE-MIT)。出处与商标说明见 [fork notice（英文）](FORK_NOTICE.md)。
