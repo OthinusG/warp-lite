@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use itertools::Itertools as _;
 use warp_core::context_flag::ContextFlag;
-use warp_core::ui::appearance::Appearance;
 use warpui::assets::asset_cache::AssetSource;
 use warpui::elements::{
     Align, CacheOption, ChildView, ConstrainedBox, Container, CrossAxisAlignment, Flex, Image,
