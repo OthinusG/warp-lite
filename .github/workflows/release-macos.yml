@@ -114,7 +114,7 @@ jobs:
           cargo test -p warp-agent-bus --locked
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
-          cargo build --release --bin warpai --locked
+          cargo build --release --bin warpai --features release_bundle,extern_plist --locked
           cargo build --release -p warp-agent-bus --bin warpai-agent --locked
       - name: Package macOS artifacts
         env:

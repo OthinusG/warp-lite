@@ -38,6 +38,10 @@ Windows 打包复用 [build-warpai-windows.ps1](../script/build-warpai-windows.p
 安装器资源说明见 [Windows 安装器文档（英文）](../script/windows/README.md)。
 修改可见品牌名称时，保留原有 bundle 与数据存储标识，避免破坏兼容性。
 
+macOS 分发构建使用 `--features release_bundle,extern_plist`，与仓库现有
+macOS bundle 流程一致：保留发布配置的输入法组合文本支持，应用版本与标识由
+实际安装包的 Info.plist 提供。
+
 ## 验证
 
 - [桌面通信工作流](../.github/workflows/validate-agent-communication.yml)：macOS、Windows 应用检查、聚焦回归，以及可选原生 UI 截图与调试构建。`protocol_only` 跳过桌面检查，除非启用 `check_app` 或 `capture_ui`；`capture_ui` 构建隔离的调试应用。验证流程不生成桌面安装包。

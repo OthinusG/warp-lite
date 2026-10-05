@@ -97,6 +97,12 @@
 - Packaging-version source ade8308 passed full desktop run 37270362536 on both
   OSes. Tag preparation then changes product docs, source-matched screenshots
   and release-only package checks; it preserves accepted runtime/build inputs.
+- Release review caught macOS's old workflow compiling without release bundle
+  options. Use `release_bundle,extern_plist`, as the existing macOS OSS bundle
+  script does, to retain IME marked text and use the installed plist. Superseded
+  run 37273812566 before publishing; companion packages from its immutable 2bb4791
+  source passed manifest/checksum checks on all platforms and native macOS version
+  invocation. Do not rewrite the v1.0.1 source tag for a workflow-only correction.
 
 ## Quality comparison and integration — 2026-10-04
 

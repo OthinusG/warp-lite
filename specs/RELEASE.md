@@ -52,6 +52,11 @@ Preserve terminal guardrails, licenses and historical tags.
   ICNS, signing and invalid-version rejection using copied system placeholders.
   This smoke is a packaging check, not application/runtime acceptance.
 - Publication additionally requires the cloud tagged-package checks above.
+- macOS distribution uses `release_bundle,extern_plist`, matching the existing
+  `script/macos/bundle` OSS path. This preserves release IME marked-text behavior
+  and uses the actual installed Info.plist rather than the development embedded
+  plist. Native UI acceptance already uses `release_bundle`. The release workflow
+  executes from main while checking out the immutable tagged application source.
 - Packaging-version source `ade83082b101ac624b62d90ea2c25d1a46b4fc65` passed
   [desktop run 37270362536](https://github.com/OthinusG/warpai/actions/runs/37270362536)
   on macOS and Windows, including both application configurations and all retained

@@ -42,6 +42,10 @@ For macOS packaging, reuse
 [installer resources](../script/windows/README.md). Preserve existing bundle and
 storage identifiers when changing visible branding.
 
+The macOS distributed binary uses `--features release_bundle,extern_plist`,
+matching the inherited macOS bundle path: native release flags include IME
+marked text, and the installed bundle supplies the product version/identity.
+
 ## Validation
 
 - [Desktop communication workflow](../.github/workflows/validate-agent-communication.yml):
