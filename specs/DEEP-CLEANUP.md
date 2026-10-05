@@ -263,3 +263,13 @@ native setup, settings and legacy-data/credential migration.
 These gates did not produce desktop installers or capture new UI images. The
 remaining delivery work is icon revision (including refreshed screenshots) and
 packaging/release; no code or acceptance fix remains in this scope.
+
+### Default branch and repository delivery — 2026-10-05
+
+Renamed the GitHub repository to [OthinusG/warpai](https://github.com/OthinusG/warpai)
+and the default branch to `main`. Fast-forward integrated
+33e366fb85f804d89b9e356781c989199a259fb9, whose production/build inputs match the
+accepted eab0ff0. Deleted this task's merged branch and the isolated diagnostic
+branch locally and remotely; GitHub retains only `main`. Full history and release
+tags remain. Updated origin and its HEAD; final delivery receipts are documentation
+only. No icon revision, new desktop screenshots or installer/release was made.

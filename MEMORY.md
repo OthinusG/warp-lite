@@ -1,11 +1,31 @@
 # Project Memory
 
+## Current delivery — 2026-10-05
+
+- Repository: [OthinusG/warpai](https://github.com/OthinusG/warpai), default branch
+  `main`; origin is `git@github.com:OthinusG/warpai.git`. The local workspace path
+  remains unchanged so active tooling and project skill paths keep working.
+- Fast-forward integrated 33e366fb85f804d89b9e356781c989199a259fb9. The task and
+  temporary native-argument diagnostic branches were deleted locally/remotely;
+  GitHub retains only `main`. Preserve full history, licenses and release tags.
+- Accepted executable/build inputs are eab0ff0: desktop run 37233525889 and remote
+  run 37233527936 passed. Subsequent integration receipts change documentation
+  only. Native macOS original Codex model acceptance is source-matched for the
+  bridge/backend; Windows has native shell/argv and process-fixture coverage.
+- Current scope is complete: automatic session-only Codex MCP, bilingual README,
+  audited deep cleanup and main/repository delivery. Next task is icon revision
+  (including refreshed screenshots), then packaging/release. Main pushes run
+  routine verification but do not create desktop installers.
+- Earlier dated sections are historical evidence; current ownership, scope,
+  identity and build instructions supersede their old commands/assumptions.
+
 ## Quality comparison and integration — 2026-10-04
 
 - User authorized direct per-feature implementation comparison for PLAN S0–S5,
   compatible replacements, unified acceptance, proven-unused-code cleanup,
   default-branch integration and obsolete-branch removal. The actual default
-  branch is `warp-lite/main`; preserve terminal core and `warp_platform` consumers.
+  branch was `warp-lite/main` at that checkpoint; preserve terminal core and
+  `warp_platform` consumers.
 - Request-ID recovery must use the locked prost varint decoder plus checked
   integer conversion. The old handwritten decoder truncated overflowing tenth
   bytes into short lengths. Preserve partial field-1 extraction when later
