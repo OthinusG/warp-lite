@@ -360,6 +360,8 @@ impl CollaborationPanel {
     fn selected_ssh(&self, ctx: &ViewContext<Self>) -> Option<(SshProfile, SshConnection)> {
         let active = crate::workspace::ActiveSession::as_ref(ctx);
         let session = active.session(ctx.window_id())?;
+        // Nested or opaque SSH commands cannot adopt a desktop-side transport.
+        let arguments = session.ssh_arguments()?;
         let connection = match session.ssh_control_socket() {
             Some(socket) => SshConnection::Multiplexed {
                 socket: socket.to_owned(),
@@ -367,7 +369,7 @@ impl CollaborationPanel {
             },
             None if session.wsl_distro_name().is_some() => return None,
             None => SshConnection::Native {
-                arguments: session.ssh_arguments()?.to_vec(),
+                arguments: arguments.to_vec(),
                 session: format!("{:?}", session.id()),
             },
         };

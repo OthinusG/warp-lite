@@ -583,6 +583,10 @@ impl HostClient {
     }
 }
 
+#[cfg(all(test, windows))]
+#[path = "ssh_remote_windows_tests.rs"]
+mod windows_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;

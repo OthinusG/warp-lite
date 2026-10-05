@@ -148,6 +148,11 @@ jobs:
           PY
           python3 script/companion/package.py
           python3 script/companion/verify-installation.py
+      - name: Verify native Windows remote shell protocol
+        if: runner.os == 'Windows'
+        run: |
+          export WARP_TEST_COMPANION_PATH="$USERPROFILE\.config\.warpai\bin\warpai-companion.exe"
+          cargo test -p warp-agent-bus --lib native_windows_remote_shell_preserves_companion_protocol_bytes --locked -- --ignored
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-companion-installer-review-${{ runner.os }}-${{ runner.arch }}

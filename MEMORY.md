@@ -1090,3 +1090,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Remote directory typing must use confirmed remote OS before desktop fallback;
   macOS can connect to Windows PowerShell. WSL without its confirmed guest master
   cannot replay SSH arguments through a Windows host client. Rerun required.
+
+- Icon-integrated installer source 5767d96 passed all three native installer
+  suites and remote regressions in run 37312251498. Downloaded macOS DMG is
+  checked for source-matched manifest/hash, companion volume/Finder icon and
+  included master. Add a native Windows cmd/PowerShell byte-protocol checkpoint
+  using only the installed CI-owned component; do not assume shell quoting alone
+  proves binary stdio. Nested/opaque SSH cannot adopt any desktop-side master.
