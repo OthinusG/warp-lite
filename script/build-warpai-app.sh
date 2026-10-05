@@ -19,8 +19,13 @@ cd "$ROOT"
 BIN="target/release/warpai"
 AGENT_BIN="target/release/warpai-agent"
 APP="Warpai.app"
-APP_VERSION="0.5.7"
-APP_SHORT_VERSION="0.5.7"
+APP_VERSION="${GIT_RELEASE_TAG:-0.1.0}"
+APP_VERSION="${APP_VERSION#v}"
+[[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+    echo "Error: GIT_RELEASE_TAG must be a semantic release version." >&2
+    exit 1
+}
+APP_SHORT_VERSION="$APP_VERSION"
 APP_IDENTIFIER="dev.warpai.Warpai"
 SRC_ICON="app/assets/branding/warpai.icns"
 

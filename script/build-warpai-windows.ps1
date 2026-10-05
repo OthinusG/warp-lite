@@ -9,7 +9,7 @@
 #   - cargo-about installed and on PATH
 #
 # Usage:
-#   pwsh script/build-warpai-windows.ps1 [-ReleaseTag "v0.5.7-lite"]
+#   pwsh script/build-warpai-windows.ps1 [-ReleaseTag "v1.0.1"]
 #
 # Outputs:
 #   ./WarpaiSetup-x64.exe
@@ -21,6 +21,10 @@ Param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ProductVersion = $ReleaseTag -replace '^v', ''
+if ($ProductVersion -notmatch '^\d+\.\d+\.\d+$') {
+    throw 'ReleaseTag must be a semantic release version.'
+}
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Get-Item "$ScriptDir\..").FullName
@@ -71,7 +75,7 @@ $ISCC_ARGS = @(
     "/DMyAppExeName=Warpai.exe",
     "/DTargetProfileDir=$TargetOutputDir",
     "/DMyAppName=Warpai",
-    "/DMyAppVersion=$ReleaseTag",
+    "/DMyAppVersion=$ProductVersion",
     "/DArch=$Arch",
     "/DOutputName=WarpaiSetup-x64"
 )

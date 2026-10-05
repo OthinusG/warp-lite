@@ -463,7 +463,16 @@ fn copy_windows_assets(target_dir: &Path) {
 fn embed_resource_file(target_dir: &Path) {
     use std::io::Write;
 
-    let version = env::var("GIT_RELEASE_TAG").unwrap_or("v0".to_owned());
+    println!("cargo:rerun-if-env-changed=GIT_RELEASE_TAG");
+    let version = env::var("GIT_RELEASE_TAG").unwrap_or("0.1.0".to_owned());
+    let version = version.trim_start_matches('v');
+    let components: Vec<u16> = version
+        .split('.')
+        .map(|part| part.parse().expect("Invalid release version component"))
+        .collect();
+    let [major, minor, patch]: [u16; 3] = components
+        .try_into()
+        .expect("Expected three version components");
     let app_name = env::var("WARP_APP_NAME").unwrap_or("Warpai".to_owned());
     let icon_path = Path::new("assets/branding/warpai.ico");
     println!("cargo:rerun-if-changed={}", icon_path.display());
@@ -482,8 +491,8 @@ fn embed_resource_file(target_dir: &Path) {
 
 IDI_ICON ICON "icon.ico"
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     1,0,0,0
-PRODUCTVERSION  1,0,0,0
+FILEVERSION     {major},{minor},{patch},0
+PRODUCTVERSION  {major},{minor},{patch},0
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS__WINDOWS32

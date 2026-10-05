@@ -59,7 +59,7 @@ jobs:
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          [[ "$TARGET_TAG" == v* ]]
+          [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git check-ref-format "refs/tags/$TARGET_TAG"
 
           echo "Target release tag: $TARGET_TAG"
@@ -126,7 +126,22 @@ jobs:
         run: |
           set -euo pipefail
           ls -lh WarpaiSetup-x64.exe Warpai-windows-x64.zip
-          sha256sum WarpaiSetup-x64.exe Warpai-windows-x64.zip
+          sha256sum WarpaiSetup-x64.exe Warpai-windows-x64.zip > SHA256SUMS-windows.txt
+
+      - name: Verify Windows product version and icon
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
+        run: |
+          $expected = $env:RELEASE_TAG -replace '^v', ''
+          $product = (Get-Item target/x86_64-pc-windows-msvc/rlto/warpai.exe).VersionInfo
+          if ($product.ProductVersion -ne $expected -or $product.FileVersion -ne $expected) { throw 'PE version mismatch' }
+          $parts = $expected.Split('.')
+          if ($product.FileMajorPart -ne [int]$parts[0] -or $product.FileMinorPart -ne [int]$parts[1] -or $product.FileBuildPart -ne [int]$parts[2]) { throw 'PE numeric version mismatch' }
+          $icon = 'target/Warpai-portable-x64/icon.ico'
+          if ((Get-FileHash $icon).Hash -ne (Get-FileHash app/assets/branding/warpai.ico).Hash) { throw 'Portable icon mismatch' }
+          if (-not (Test-Path target/Warpai-portable-x64/warpai-agent.exe)) { throw 'Missing local MCP bridge' }
 
       - name: Upload Windows artifacts to release
         if: steps.check-release.outputs.should_build == 'true'
@@ -139,4 +154,6 @@ jobs:
           gh release upload "$RELEASE_TAG" \
             WarpaiSetup-x64.exe \
             Warpai-windows-x64.zip \
+            SHA256SUMS-windows.txt \
             --repo "$GITHUB_REPOSITORY"
+          gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"

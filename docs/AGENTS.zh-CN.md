@@ -1,7 +1,3 @@
-> 2026-10-05 更新：已撤回 Codex 同名命令替换、后台代理和用户配置写入。
-> 普通 `codex` 命令使用原版安装；替代方案仅在显式协作会话中传入原生 MCP 参数，
-> 本地启动入口与新版真实模型验收尚未完成。下文涉及旧 Codex 代理的验证记录属于历史证据。
-
 # Agent 使用与兼容性
 
 [English technical reference](../specs/agent-communication/COVERAGE.md) | **中文使用指南** · [返回产品介绍](../README.zh-CN.md)
@@ -13,7 +9,7 @@ Warpai 可以运行你独立安装的 CLI Agent。参与消息与任务协作还
 
 ## 开启协作
 
-1. 先安装并认证所需 CLI Agent；使用包含协作功能的 [Warpai 试用构建](../README.zh-CN.md#get-warpai)。
+1. 先安装并认证所需 CLI Agent；安装 [Warpai](../README.zh-CN.md#get-warpai)。
 2. 打开 **Settings > Features > Agent communication**。该功能默认关闭。
 3. 勾选可用的 Agent，Warpai 会在后台配置捆绑的原生 stdio MCP 桥接器。
 4. 在项目目录中新开终端和 Agent 会话；不支持配置热加载的 CLI 需要重启。
@@ -29,7 +25,7 @@ Warpai 可以运行你独立安装的 CLI Agent。参与消息与任务协作还
 | --- | --- | --- |
 | Claude Code | `claude` | 原生 MCP；已有已安装 CLI 帮助信息。 |
 | Gemini | `gemini` | 原生 MCP；已有官方文档。 |
-| Codex | `codex` | 原生 MCP；已有已安装 CLI 帮助信息。 |
+| Codex | `codex` | 已安装版本需支持 `-c` 与 `--no-daemon`；普通交互启动自动添加会话级 MCP。 |
 | Amp | `amp` | 仅本地 CLI；云端 orbs 不在范围内。 |
 | Droid | `droid` | 官方连接器支持。 |
 | OpenCode | `opencode` | 官方原生 MCP 配置。 |
@@ -50,6 +46,19 @@ Warpai 可以运行你独立安装的 CLI Agent。参与消息与任务协作还
 | 自定义 CLI | 用户配置的识别规则 | 逐个确认原生 MCP 能力；识别到命令本身不足以证明可以协作。 |
 
 各服务商的官方依据与适配器细节见 [完整技术记录（英文）](../specs/agent-communication/COVERAGE.md)。
+
+## Codex：保留原来的命令
+
+在 Warpai 本地终端开启协作并勾选 Codex 后，直接输入 `codex`、
+`codex --yolo` 或 `codex resume --last`。Warpai 提交命令时添加原生会话级
+MCP 参数与 `--no-daemon`，使不同终端的后台与项目绑定独立。
+原有参数、工作目录、服务商选择和权限选项继续生效。
+
+Warpai 每次启动都会重新解析并探测当前安装，因此仍可用原包管理器更新 Codex。
+不替换用户命令，不修改 PATH、CODEX_HOME 或 Codex 配置，不复制临时可执行文件。
+版本不具备所需能力时按原样启动，并显示 MCP 提示。
+帮助、登录、批处理、显式远程连接、用户别名和 WSL 保持原生行为。
+SSH 项目使用明确的 companion 启动入口。
 
 ## 配置和权限由谁管理
 
@@ -76,7 +85,8 @@ Warpai 仅管理自己拥有的 `warp-lite-communication` 配置，不接管其�
 这些探测没有服务商模型调用，不等于完整的跨 Agent 任务执行或自动唤醒验收；Qoder 与 QoderCN 的结果不能混用。
 
 后续工程验收覆盖本地任务状态机、原生进程、桌面操作和受控 OpenSSH 场景。
-付费服务商会话、每种版本的模型行为和实体远程主机仍需按真实环境验证。
+原版 macOS Codex 0.160.0 已完成两个并发会话、合计四轮真实模型与 MCP 调用；
+Windows 覆盖原生 Shell、参数传递和进程测试。其他服务商版本的覆盖范围按兼容性记录查看。
 具体源码与 CI 证据见 [当前验收记录（英文）](../specs/agent-communication-v2/QUALITY.md)。
 
 ## SSH 项目

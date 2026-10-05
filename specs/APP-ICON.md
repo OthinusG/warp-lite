@@ -30,7 +30,8 @@ Inspect shape, six links, terminal/face glyphs, black palette, transparent margi
 and readability on light/dark surfaces at large and small sizes. Decode every
 ICO/ICNS size and check dimensions/alpha. Audit packaging and legacy-icon
 references, validate shell/Objective-C/Rust syntax as available, and run relevant
-desktop checks on GitHub. Do not publish a tagged release in this task.
+desktop checks on GitHub. The owner subsequently authorized Warpai 1.0.1
+publication after acceptance; follow `specs/RELEASE.md` for the release gate.
 
 ## Static fidelity ledger
 

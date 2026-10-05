@@ -75,6 +75,19 @@
   Objective-C syntax and focused Rust formatting checks passed. Cloud desktop
   verification is required for the current branding source before release.
 
+## Release preparation — 2026-10-05
+
+- Owner requested the first renamed release after acceptance and corrected the
+  final product version to **1.0.1** (`v1.0.1` tag, `Warpai 1.0.1` title).
+  Both READMEs must introduce the entire product, not compare upstream changes.
+- Reuse the retained macOS/Windows release workflows. macOS prepares a draft
+  with source-matched release companions; Windows validates and attaches its
+  artifacts before publishing. Package and PE versions derive from the tag,
+  not the historical hardcoded 0.5.7/1.0.0 values. Protocol versions are separate.
+- Icon source 5d2588a passed remote run 37268449581 on all three platforms.
+  Desktop/native run 37268540992 is still in progress; publication remains gated
+  on acceptance. Release-specific checks are defined in specs/RELEASE.md.
+
 ## Quality comparison and integration — 2026-10-04
 
 - User authorized direct per-feature implementation comparison for PLAN S0–S5,

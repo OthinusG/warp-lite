@@ -16,7 +16,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  companion:
+    name: Release companion (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_RUSTFLAGS: ''
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+      - name: Prepare companion build tools
+        run: |
+          rustup toolchain install 1.92.0 --profile minimal
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y protobuf-compiler
+          elif [[ "$RUNNER_OS" == macOS ]]; then
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
+          else
+            choco install protoc -y
+          fi
+      - name: Verify and build tagged companion
+        run: |
+          cargo test -p remote_protocol --locked
+          cargo test -p warp-agent-bus --test companion --locked
+          cargo test -p warp-agent-bus --test managed_agent --locked
+          cargo build --release -p warp-agent-bus --bin warpai-companion --locked
+      - name: Package source-matched companion
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, shutil, subprocess, zipfile
+          from pathlib import Path
+          target = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
+          binary = Path('target/release/warpai-companion' + ('.exe' if os.name == 'nt' else ''))
+          output = Path('companion-release')
+          output.mkdir()
+          shutil.copy2(binary, output / binary.name)
+          digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+          version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
+          source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
+          (output / 'manifest.json').write_text(json.dumps({'source': source, 'release': os.environ['RELEASE_TAG'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'release', 'sha256': digest}, indent=2) + '\n')
+          for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
+              shutil.copy2(notice, output / notice)
+          with zipfile.ZipFile(f'Warpai-companion-{target}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(output.iterdir()):
+                  archive.write(path, path.name)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: companion-${{ runner.os }}-${{ runner.arch }}
+          path: Warpai-companion-*.zip
+          if-no-files-found: error
+
   build-and-release:
+    needs: companion
     runs-on: macos-15
     timeout-minutes: 180
     steps:
@@ -31,7 +94,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" == v* ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git check-ref-format "refs/tags/$RELEASE_TAG"
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release already exists; refusing to overwrite assets." >&2
@@ -45,6 +108,8 @@ jobs:
           xcrun --find metal
           HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test and build tagged source
+        env:
+          GIT_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           cargo test -p warp-agent-bus --locked
           cargo check -p warpai --bin warpai --locked
@@ -52,20 +117,31 @@ jobs:
           cargo build --release --bin warpai --locked
           cargo build --release -p warp-agent-bus --bin warpai-agent --locked
       - name: Package macOS artifacts
+        env:
+          GIT_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           script/build-warpai-app.sh
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Warpai.app/Contents/Info.plist)" == "${GIT_RELEASE_TAG#v}" ]]
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Warpai.app/Contents/Info.plist)" == dev.warpai.Warpai ]]
+          cmp app/assets/branding/warpai.icns Warpai.app/Contents/Resources/AppIcon.icns
           codesign --verify --deep --strict Warpai.app
           ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
           hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
           hdiutil verify Warpai.dmg
+      - name: Download tagged companions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: companion-*
+          merge-multiple: true
       - name: Publish tagged release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          gh release create "$RELEASE_TAG" Warpai.app.zip Warpai.dmg \
+          shasum -a 256 Warpai.app.zip Warpai.dmg Warpai-companion-*.zip > SHA256SUMS-macos-and-companions.txt
+          gh release create "$RELEASE_TAG" Warpai.app.zip Warpai.dmg Warpai-companion-*.zip SHA256SUMS-macos-and-companions.txt \
             --verify-tag --repo "$GITHUB_REPOSITORY" \
-            --title "Warpai $RELEASE_TAG" --generate-notes
+            --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
