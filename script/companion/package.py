@@ -43,7 +43,6 @@ else:
         launcher.write_text('#!/bin/sh\nset -eu\ninstaller_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nsh "$installer_dir/payload/install-unix.sh"\nprintf "Press Return to close this installer."\nread -r answer\n')
         launcher.chmod(0o755)
         shutil.copy2(branding / "warpai-companion.icns", image / ".VolumeIcon.icns")
-        subprocess.run(["xcrun", "SetFile", "-a", "C", str(image)], check=True)
         # Finder custom icons use a resource fork; hdiutil retains it in the image.
         subprocess.run(["osascript", "-l", "JavaScript", "-e", '''ObjC.import("AppKit");
 function run(args) {
@@ -52,7 +51,7 @@ function run(args) {
         throw new Error("Unable to assign installer icon");
     }
 }''', str((branding / "warpai-companion.icns").resolve()), str(launcher.resolve())], check=True)
-        subprocess.run(["hdiutil", "create", "-volname", "Warpai Companion", "-srcfolder", str(image), "-ov", "-format", "UDZO", "WarpaiCompanion-macos-arm64.dmg"], check=True)
+        subprocess.run(["sh", "script/macos/create-dmg.sh", str(image), "WarpaiCompanion-macos-arm64.dmg", "Warpai Companion"], check=True)
         for attempt in range(4):
             result = subprocess.run(["hdiutil", "verify", "WarpaiCompanion-macos-arm64.dmg"], capture_output=True, text=True)
             if result.returncode == 0:

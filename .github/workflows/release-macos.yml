@@ -71,6 +71,14 @@ jobs:
               shutil.copy2(notice, output / notice)
           PY
           python3 script/companion/package.py
+      - name: Verify tagged native companion installation
+        run: |
+          GITHUB_SHA="$(git rev-parse HEAD)" python3 script/companion/verify-installation.py
+      - name: Verify installed Windows release protocol
+        if: runner.os == 'Windows'
+        run: |
+          export WARP_TEST_COMPANION_PATH="$USERPROFILE\.config\.warpai\bin\warpai-companion.exe"
+          cargo test -p warp-agent-bus --lib native_windows_remote_shell_preserves_companion_protocol_bytes --locked -- --ignored
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: companion-${{ runner.os }}-${{ runner.arch }}
@@ -124,7 +132,11 @@ jobs:
           [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Warpai.app/Contents/Info.plist)" == dev.warpai.Warpai ]]
           cmp app/assets/branding/warpai.icns Warpai.app/Contents/Resources/AppIcon.icns
           codesign --verify --deep --strict Warpai.app
-          hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
+          mkdir desktop-image
+          ditto Warpai.app desktop-image/Warpai.app
+          ln -s /Applications desktop-image/Applications
+          cp app/assets/branding/warpai.icns desktop-image/.VolumeIcon.icns
+          sh script/macos/create-dmg.sh desktop-image Warpai.dmg Warpai
           hdiutil verify Warpai.dmg
       - name: Download tagged companions
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093

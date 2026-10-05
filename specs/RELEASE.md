@@ -5,6 +5,8 @@
 Publish `v1.1.0` only after cloud desktop regressions, native screenshot review
 and three-platform remote installation/transport checks pass. Build committed
 tagged source with the existing release workflows; do not compile Rust locally.
+The formal companion jobs reuse disposable-runner native install/reinstall checks
+and exercise Windows binary stdio against the installed optimized executable.
 
 Deliver `Warpai.dmg`, `WarpaiSetup-x64.exe`,
 `WarpaiCompanion-linux-x64.run`, `WarpaiCompanion-macos-arm64.dmg` and
@@ -23,6 +25,8 @@ Claude Warm Light, with exact source/run provenance. Native Windows independent
 SSH authentication uses system keys/agent; Warpai does not store passwords or
 modify vendor commands, shell profiles or SSH configuration. macOS ad-hoc
 signing and unsigned Windows installation remain documented.
+The desktop DMG contains the signed app, an Applications shortcut and the
+canonical Warpai Finder volume icon. Verify these in the mounted formal image.
 
 ## Historical 1.0.1 preparation (not published)
 

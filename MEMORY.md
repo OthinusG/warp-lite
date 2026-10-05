@@ -1131,3 +1131,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Run 37337077745 found its terminal-only getter inaccessible to the capture
   module. Widen only this existing getter to crate visibility; no state mutation
   or protocol API changes. Keep the failure recorded and rerun exact-source CI.
+- Native DMG staging check found that SetFile on the source folder does not
+  propagate its custom-icon flag to the image volume. Share create-dmg.sh between
+  desktop/companion: mount a temporary writable image, set/check its actual Finder
+  volume flag, detach and compress. A read-only remount proved flag/icon/shortcut
+  preservation. Formal installers also run install/reinstall and installed Windows
+  byte-protocol checks on disposable runners before draft asset upload.

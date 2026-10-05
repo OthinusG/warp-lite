@@ -99,6 +99,12 @@ desktop support. macOS packaging and the legacy channel bundle entry point copy
 the shared ICNS; the Dock plugin copies the master. Windows resource embedding,
 installer, portable app and Cargo metadata use the shared branding directory.
 Keep legacy serialized AppIcon variants readable while resolving all to Warpai.
+The desktop release DMG uses the same ICNS as its Finder volume icon and provides
+an Applications shortcut. Preserve bundle metadata with native ditto when staging
+the image; verify the mounted bundle signature and icon after packaging.
+Both macOS packagers reuse `script/macos/create-dmg.sh` to set the custom icon
+flag on the actual writable image volume before compression. A source-folder
+flag alone is insufficient; inspect the compressed image's mounted volume.
 Retired Dock PNG variants, per-channel ICOs and Icon Composer artwork are removed
 after consumer migration. Validate every ICO/ICNS size, alpha, native icon decoding,
 packaging paths, light/dark small-size previews and source-matched desktop checks.
