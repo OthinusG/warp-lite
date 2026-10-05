@@ -109,3 +109,14 @@ viewBox and transparent backgrounds; no embedded raster or external resource is
 allowed. All central mappings and the Hermes technical plan use SVG paths.
 See [the icon workflow](../../docs/ICON-WORKFLOW.md) for future asset production,
 reference migration, PNG removal and source-matched native acceptance.
+
+## Native mask correction — 2026-10-05
+
+Source `5883221` produced 161 successful macOS native frames in run 37253443071,
+but visual review rejected the toolbar contrast. The two monochrome SVGs used
+reference gray-blue `#414B5D`; Metal/WGPU sample the red channel as icon opacity,
+so both appeared faint in light and dark themes. Change only their opaque
+stroke/fill to the native `#FF0000` mask convention. Geometry, transparent space,
+theme tint, layout, actions and other Agent logos remain unchanged. Re-run native
+captures on both desktop targets before updating README images or accepting this
+repair. Do not edit screenshots to conceal the rendering problem.

@@ -15,6 +15,14 @@ bitmap data in an `<image>` element. Preserve intentional holes and brand colors
 Toolbar icons reuse native theme tint, active/disabled states and button behavior.
 Remove borders/backgrounds only when requested; preserve unrelated brand assets.
 
+For monochrome assets rendered by `warpui_core::elements::Icon`, use full red
+(`#FF0000`) for opaque geometry and transparent empty space, matching existing
+native icons. Both Metal and WGPU use the texture's red channel as the opacity
+mask, then supply the theme foreground color. Gray/blue/black reference colors
+reduce or erase the rendered icon; they are not the visible toolbar palette.
+Keep brand colors only for assets rendered as ordinary images/SVGs. Inspect the
+actual consumer before choosing its fill/stroke colors.
+
 ## Implementation and verification
 
 1. Record the reference, target entry and acceptance in the relevant UI spec.

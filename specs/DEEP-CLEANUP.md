@@ -48,6 +48,38 @@ that the vertical tab panel is visible before capturing the documentation scene.
 Completion requires supported-target checks and functional/native acceptance to
 pass after cleanup. A deletion count or successful compilation alone is insufficient.
 
+## Screenshot and workflow follow-up — 2026-10-05
+
+Refresh the two README images using the existing isolated native capture
+workflow. Source `5883221` exposed a toolbar opacity defect during visual review;
+use the corrected native mask source described in UI-CONSISTENCY.md instead.
+Verify archive digest/CRC, source diagnostics and the
+161-image gate on both desktop targets. Review the original macOS frames against
+UI-CONSISTENCY.md, including Claude Warm Light, vertical tabs, vector toolbar
+icons, title hierarchy, spacing, wrapping and settings at both zoom levels.
+Copy the selected native frames without image editing and update both provenance
+documents. The capture build is a debug review application, not a public release.
+
+Only after the screenshot checkpoint, simplify CI using the audited callers:
+
+| Entry | Decision | Consumer / reason |
+| --- | --- | --- |
+| Desktop validation | Retain checks, regressions and optional native captures | Current desktop acceptance and README screenshot source |
+| Remote validation | Retain three-target tests and companion artifacts | Current SSH acceptance and source-matched remote binaries |
+| macOS release | Retain | Explicit tagged app ZIP/DMG publication |
+| Windows release | Retain, including macOS workflow_run dependency | Same-tag installer and portable publication |
+| Validation installer/release packaging | Remove duplicate steps | Current README directs users to source; formal workflows own release packaging |
+| Validation Inno Setup installation | Remove | Raw native capture executable does not require the installer compiler |
+| Two-phase eight-hour repetition | Retire jobs, input and two orchestration scripts | Outside current SSH acceptance; repeats the protocol/history checks retained in both desktop jobs |
+| Temporary Codex argv diagnostic workflow | Disable orphaned cloud entry | Its source and task branch were already removed; preserve acceptance run history |
+
+Preserve all actual Rust tests, native capture diagnostics, standalone packaging
+scripts and license/provenance inputs. Update bilingual development instructions
+and memory. Validate all workflow YAML, dispatch mode conditions, remaining script
+paths and shell syntax; compare required test commands against the pre-cleanup
+workflow. Push to `main` and verify the ordinary cloud checks. Do not dispatch a
+formal release or repeat native captures for changes confined to CI/docs/images.
+
 ## Audit and evidence
 
 The audit enumerated 115 Cargo source targets and all 3,028 tracked Rust files,

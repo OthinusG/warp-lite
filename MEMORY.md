@@ -12,10 +12,17 @@
   run 37233527936 passed. Subsequent integration receipts change documentation
   only. Native macOS original Codex model acceptance is source-matched for the
   bridge/backend; Windows has native shell/argv and process-fixture coverage.
-- Current scope is complete: automatic session-only Codex MCP, bilingual README,
-  audited deep cleanup and main/repository delivery. Next task is icon revision
-  (including refreshed screenshots), then packaging/release. Main pushes run
-  routine verification but do not create desktop installers.
+- Automatic session-only Codex MCP, bilingual README, audited deep cleanup and
+  main/repository delivery are complete. Current follow-up is refreshed native
+  README screenshots, then unused workflow cleanup; icon revision and formal
+  packaging/release remain deferred. Main pushes run routine verification but
+  do not create desktop installers.
+- Native review of source 5883221 found faint toolbar SVGs despite successful
+  capture assertions. Metal/WGPU monochrome Icon rendering uses the texture red
+  channel as opacity. Use opaque #FF0000 geometry for these theme-tinted masks,
+  not the reference gray-blue color. Ordinary image/SVG brand assets retain their
+  colors. Record this consumer distinction in docs/ICON-WORKFLOW.md; refreshed
+  README frames must come from the corrected source after native visual review.
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
 
