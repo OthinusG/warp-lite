@@ -112,6 +112,12 @@
   source passed manifest/checksum checks on all platforms and native macOS version
   invocation. Do not rewrite the v1.0.1 source tag for a workflow-only correction.
 
+- macOS/companion release run 37277364402 passed. Actual downloaded bundle
+  version/identity/canonical icon/bridge/signing and DMG checksum/image checks
+  passed; all three companion manifests/checksums match immutable source 2bb4791.
+  Installer-only workflow correction 594f015 passed static checks and removed
+  the private desktop ZIP asset; Windows rerun 37290225101 is pending.
+
 ## Quality comparison and integration — 2026-10-04
 
 - User authorized direct per-feature implementation comparison for PLAN S0–S5,
