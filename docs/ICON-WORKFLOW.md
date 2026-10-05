@@ -102,3 +102,10 @@ Keep legacy serialized AppIcon variants readable while resolving all to Warpai.
 Retired Dock PNG variants, per-channel ICOs and Icon Composer artwork are removed
 after consumer migration. Validate every ICO/ICNS size, alpha, native icon decoding,
 packaging paths, light/dark small-size previews and source-matched desktop checks.
+
+The Windows wizard header is a 58px RGB BMP export of the icon, alpha-composited
+on its native white surface; the 202 × 386 RGB sidebar BMP derives from
+`app/assets/branding/installer-banner.png`. Its built-in imagegen edit preserves
+the prior background/wordmark and replaces only the icon. Keep both BMP paths in
+windows-installer.iss synchronized. No upstream marketing background is used
+by the inherited macOS DMG entry.

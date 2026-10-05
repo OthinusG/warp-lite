@@ -47,3 +47,9 @@ Image generation used the built-in imagegen edit flow. PNG master is preserved
 without pixel cleanup/recoloring outside that tool. Native resource export only
 resizes and encodes. Light/dark alpha-composited previews and native file decoding
 verify actual display rather than hidden RGB in transparent margins.
+
+Installer-specific review also found a legacy header bitmap and flat sidebar
+logo. Both now use the approved rimless icon; the sidebar preserves the existing
+wordmark/background. RGB BMP dimensions remain 58 × 58 and 202 × 386. Removed
+the inherited macOS DMG marketing background. These packaging-artwork edits do
+not change application, UI asset embedding or remote protocol inputs.

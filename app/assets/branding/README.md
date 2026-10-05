@@ -18,3 +18,9 @@ not a native animated Liquid Glass implementation.
 The native monochrome fallback uses real geometry in
 `app/assets/bundled/svg/warpai-mark.svg`, with the full-red opacity-mask convention.
 Welcome/About surfaces use the full-color master rather than tinting it.
+
+`installer-banner.png` is the imagegen composition master: the prior installer
+background and lowercase wordmark are retained while its flat logo is replaced
+with the approved icon. The Windows wizard exports remain 58 × 58 (header) and
+202 × 386 (sidebar), RGB BMP. The inherited macOS DMG entry no longer uses the
+retired upstream marketing background.
