@@ -31,6 +31,7 @@ pub struct SshProfile {
 pub enum ConnectionError {
     InvalidProfile,
     SshUnavailable,
+    SshAuthenticationUnavailable,
     ConnectionLost,
     IncompatibleVersion,
     StaleAttachment,
@@ -134,6 +135,19 @@ impl SshProfile {
         })
     }
 
+    fn arguments_command(&self, arguments: &[String]) -> Result<Command, ConnectionError> {
+        if arguments.is_empty()
+            || arguments.len() > 128
+            || arguments.iter().any(|arg| !text(arg, 4096))
+        {
+            return Err(ConnectionError::InvalidProfile);
+        }
+        let mut command = self.ssh_command()?;
+        command.args(["-o", "ClearAllForwardings=yes"]);
+        command.args(arguments);
+        Ok(command)
+    }
+
     fn session_command(
         &self,
         socket: &std::path::Path,
@@ -222,8 +236,24 @@ impl HostClient {
         socket: &std::path::Path,
         wsl: Option<&str>,
     ) -> Result<Self, ConnectionError> {
+        Self::probe_installed(profile, profile.session_command(socket, wsl)?).await?;
+        Self::open_command(profile, profile.session_command(socket, wsl)?).await
+    }
+
+    /// Native Windows uses the user's original system SSH transport arguments.
+    pub async fn connect_arguments(
+        profile: &SshProfile,
+        arguments: &[String],
+    ) -> Result<Self, ConnectionError> {
+        Self::probe_installed(profile, profile.arguments_command(arguments)?).await?;
+        Self::open_command(profile, profile.arguments_command(arguments)?).await
+    }
+
+    async fn probe_installed(
+        profile: &SshProfile,
+        mut probe: Command,
+    ) -> Result<(), ConnectionError> {
         use tokio::io::AsyncReadExt;
-        let mut probe = profile.session_command(socket, wsl)?;
         let mut child = probe
             .arg(profile.companion_command_args(" --version")?)
             .stdin(Stdio::null())
@@ -236,7 +266,7 @@ impl HostClient {
             .stdout
             .take()
             .ok_or(ConnectionError::CompanionUnavailable)?;
-        let result = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        tokio::time::timeout(std::time::Duration::from_secs(15), async {
             let mut bytes = Vec::new();
             (&mut output)
                 .take(257)
@@ -246,20 +276,27 @@ impl HostClient {
             if bytes.len() > 256 {
                 return Err(ConnectionError::IncompatibleVersion);
             }
-            if !child
+            let status = child
                 .wait()
                 .await
-                .map_err(|_| ConnectionError::CompanionUnavailable)?
-                .success()
-            {
-                return Err(ConnectionError::CompanionUnavailable);
+                .map_err(|_| ConnectionError::CompanionUnavailable)?;
+            if !status.success() {
+                return Err(if status.code() == Some(255) {
+                    ConnectionError::SshAuthenticationUnavailable
+                } else {
+                    ConnectionError::CompanionUnavailable
+                });
             }
             crate::installation::verify_version(&bytes)
         })
         .await
-        .map_err(|_| ConnectionError::CompanionUnavailable)?;
-        result?;
-        let mut command = profile.session_command(socket, wsl)?;
+        .map_err(|_| ConnectionError::CompanionUnavailable)?
+    }
+
+    async fn open_command(
+        profile: &SshProfile,
+        mut command: Command,
+    ) -> Result<Self, ConnectionError> {
         let child = command
             .arg(profile.companion_command()?)
             .stdin(Stdio::piped())

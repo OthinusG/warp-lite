@@ -68,6 +68,7 @@ pub struct WarpifyBannerState {
     pub mode: WarpificationMode,
     pub height: f32,
     pub accept_button_mouse_state: MouseStateHandle,
+    pub powershell_button_mouse_state: MouseStateHandle,
     pub dont_ask_button_mouse_state: MouseStateHandle,
     pub dismiss_button_mouse_state: MouseStateHandle,
 
@@ -85,6 +86,7 @@ impl WarpifyBannerState {
             height: 0.0,
             initialize_warpify_keybinding,
             accept_button_mouse_state: Default::default(),
+            powershell_button_mouse_state: Default::default(),
             dont_ask_button_mouse_state: Default::default(),
             dismiss_button_mouse_state: Default::default(),
             hover_state: Default::default(),
@@ -173,6 +175,19 @@ pub fn render_warpification_banner(
     .finish();
 
     let do_not_remember = state.remember_for_warpification(false);
+    let mut integration_buttons = Flex::row().with_child(Align::new(yes_button).finish());
+    if state.is_ssh() {
+        integration_buttons.add_child(
+            appearance.ui_builder()
+                .button(ButtonVariant::Text, state.powershell_button_mouse_state.clone())
+                .with_text_label("Integrate PowerShell".into())
+                .build()
+                .on_click(|ctx, _, _| {
+                    ctx.dispatch_typed_action(TerminalAction::IntegratePowerShellSsh);
+                })
+                .finish(),
+        );
+    }
     let close_button = appearance
         .ui_builder()
         .close_button(
@@ -190,7 +205,7 @@ pub fn render_warpification_banner(
     let mut col = Flex::column()
         .with_child(
             Flex::row()
-                .with_child(Align::new(yes_button).finish())
+                .with_child(integration_buttons.finish())
                 .with_child(
                     Shrinkable::new(1., Align::new(dont_ask_button).right().finish()).finish(),
                 )

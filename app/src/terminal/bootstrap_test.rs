@@ -62,3 +62,34 @@ fn test_trims_powershell_specifics() {
 fn decode_script(bytes: &[u8]) -> &str {
     std::str::from_utf8(bytes).expect("should not fail to decode")
 }
+
+#[test]
+fn powershell_subshell_initialization_emits_native_session_hook() {
+    let command = powershell_subshell_command(&crate::ASSETS);
+    assert!(!command.contains("Invoke-Expression"));
+    assert!(!command.contains("-Scope CurrentUser"));
+    assert!(!command.contains("-Scope LocalMachine"));
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command"])
+            .arg(format!("{command}; prompt"))
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "Native PowerShell bootstrap failed"
+        );
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let hex = stdout
+            .split("]9278;d;")
+            .nth(1)
+            .unwrap()
+            .split('\u{7}')
+            .next()
+            .unwrap();
+        let hook: serde_json::Value = serde_json::from_slice(&hex::decode(hex).unwrap()).unwrap();
+        assert_eq!(hook["hook"], "InitShell");
+        assert_eq!(hook["value"]["shell"], "pwsh");
+    }
+}

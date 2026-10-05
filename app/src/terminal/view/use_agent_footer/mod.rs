@@ -277,6 +277,10 @@ impl TerminalView {
                     }
                 }
             }
+            UseAgentToolbarEvent::PowerShellSsh => {
+                self.hide_use_agent_footer_in_blocklist(ctx);
+                self.handle_action(&TerminalAction::IntegratePowerShellSsh, ctx);
+            }
             UseAgentToolbarEvent::UseAgent => {
                 self.hide_use_agent_footer_in_blocklist(ctx);
                 self.handle_action(&TerminalAction::SetInputModeAgent, ctx);
@@ -1226,6 +1230,9 @@ impl UseAgentToolbar {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
+            WarpifyFooterViewEvent::PowerShell => {
+                ctx.emit(UseAgentToolbarEvent::PowerShellSsh);
+            }
             WarpifyFooterViewEvent::Warpify { mode } => {
                 ctx.emit(UseAgentToolbarEvent::Warpify { mode: mode.clone() });
             }
@@ -1318,6 +1325,7 @@ pub enum UseAgentToolbarEvent {
     HideRichInput,
     /// User chose to warpify the subshell/SSH session.
     Warpify { mode: WarpificationMode },
+    PowerShellSsh,
     /// User chose to use the agent.
     UseAgent,
 }

@@ -217,6 +217,62 @@ pub fn parse_interactive_ssh_command(command: &str) -> Option<InteractiveSshComm
     }
 }
 
+/// Preserve only the original interactive SSH transport, never a remote command or forwarding.
+pub(crate) fn companion_ssh_arguments(
+    command: &str,
+    shell: warp_util::path::ShellFamily,
+) -> Option<Vec<String>> {
+    let command = command.strip_prefix("command ").unwrap_or(command);
+    let mut parsed_commands =
+        warp_completer::parsers::simple::all_parsed_commands(command, shell.escape_char());
+    let parsed_command = parsed_commands.next()?;
+    if parsed_commands.next().is_some()
+        || !command[parsed_command.parts.last()?.span.end()..]
+            .trim()
+            .is_empty()
+    {
+        return None;
+    }
+    let tokens: Vec<String> = parsed_command
+        .parts
+        .into_iter()
+        .map(|part| part.item)
+        .collect();
+    if tokens.first().map(String::as_str) != Some("ssh")
+        || tokens.iter().any(|part| part.contains('$'))
+    {
+        return None;
+    }
+    let parsed = parse_interactive_ssh_command(command)?;
+    let host = parsed.host?;
+    let mut arguments = Vec::new();
+    let mut index = 1;
+    while index < tokens.len() {
+        let argument = &tokens[index];
+        match argument.as_str() {
+            "-p" | "-l" | "-i" | "-I" | "-F" | "-J" | "-o" | "-B" | "-b" | "-c" | "-m" => {
+                arguments.push(argument.clone());
+                index += 1;
+                arguments.push(tokens.get(index)?.clone());
+            }
+            "-t" | "-tt" | "-A" | "-a" | "-X" | "-x" | "-Y" | "-v" | "-vv" | "-vvv" | "-q" => (),
+            "-D" | "-L" | "-R" => {
+                index += 1;
+                tokens.get(index)?;
+            }
+            value if value == host => {
+                if index + 1 != tokens.len() {
+                    return None;
+                }
+                arguments.push(argument.clone());
+            }
+            _ => return None,
+        }
+        index += 1;
+    }
+    (arguments.last() == Some(&host)).then_some(arguments)
+}
+
 fn parse_ssh_command_tokens(command: &str) -> Option<Vec<String>> {
     let Ok(tokens) = shell_words::split(command) else {
         return None;
@@ -414,3 +470,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "companion_arguments_tests.rs"]
+mod companion_arguments_tests;

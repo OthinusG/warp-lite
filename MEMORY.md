@@ -83,6 +83,12 @@
   37301043343. Windows packaging caught an invalid Inno home constant (use the
   documented environment constant); macOS hit transient EAGAIN verifying the
   freshly created image. Correct both and rerun, keeping verification strict.
+- Native Windows fallback preserves original literal SSH transport/authentication
+  arguments in memory (redacted from Session debug output), uses system OpenSSH
+  key/agent authentication and reports unavailable auth without saving passwords.
+  Pending/unconfirmed or nested SSH cannot silently bind local/other-host roots.
+  PowerShell transient bootstrap now has an explicit static dot-source branch,
+  avoiding the previous unsupported-shell panic and any rc/profile-file writes.
 - Remaining: run cloud Rust/native installer gates; complete and verify ordinary
   PowerShell SSH/session integration (POSIX bootstrap alone is insufficient),
   platform-specific guidance, remote cwd/tab/exit isolation and real native UI QA;
@@ -1057,3 +1063,12 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   byte-identical agent_bus inputs. These are code/functional gates, not new UI
   captures or installers. Remaining user delivery scope is icon revision and
   packaging/release. Temporary Windows diagnostic branch/files were deleted.
+
+- Companion artwork correction: keep the Warpai project glyph/base and merge
+  the owner-supplied opposing arrows to distinguish the remote connection tool.
+  Finish code first; regenerate native installer icons before final packaging.
+- Installer source e2fe59e passed all three native installation/reinstallation
+  gates and remote regressions in GitHub run 37302612346. Native Windows client
+  ControlMaster is unsupported; use original system SSH key/agent authentication
+  without credential storage. Add session-only PowerShell integration to the
+  terminal SSH banner, never user profiles. Final desktop/UI acceptance pending.

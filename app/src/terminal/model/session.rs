@@ -98,6 +98,13 @@ fn escape_powershell_single_quotes(path: &OsStr) -> OsString {
 // SessionId is defined in warp_core and re-exported here for backward compatibility.
 pub use warp_core::SessionId;
 
+struct SshArguments(Vec<String>);
+impl std::fmt::Debug for SshArguments {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SSH transport arguments omitted")
+    }
+}
+
 /// Information about the sessions within a given terminal pane/top-level
 /// shell.
 ///
@@ -372,7 +379,28 @@ impl Sessions {
                 .insert(session_info.session_id, in_band_command_output_tx);
         }
 
-        let session = Session::new(session_info.clone(), command_executor);
+        let mut session = Session::new(session_info.clone(), command_executor);
+        let parent = session_info
+            .spawning_session_id
+            .and_then(|id| self.sessions.get(&id));
+        let source_shell = parent
+            .map(|parent| parent.shell_family())
+            .unwrap_or_else(|| session.shell_family());
+        // A nested SSH destination must not be replayed from the local machine.
+        if !parent.is_some_and(|parent| {
+            parent.is_legacy_ssh_session()
+                || matches!(parent.session_type(), SessionType::WarpifiedRemote { .. })
+                || parent.ssh_arguments().is_some()
+        }) {
+            session.ssh_arguments = crate::terminal::ssh::util::companion_ssh_arguments(
+                &spawning_command,
+                source_shell,
+            ).map(SshArguments);
+        } else if crate::terminal::ssh::util::parse_interactive_ssh_command(&spawning_command).is_none() {
+            session.ssh_arguments = parent
+                .and_then(|parent| parent.ssh_arguments())
+                .map(|arguments| SshArguments(arguments.to_vec()));
+        }
 
         log::info!("Shell is bootstrapped with session_id {:?}", session.id());
         log::debug!("Session details: {session:?}");
@@ -884,6 +912,7 @@ impl From<BootstrapSessionType> for SessionType {
 #[derive(Debug)]
 pub struct Session {
     info: SessionInfo,
+    ssh_arguments: Option<SshArguments>,
     external_commands: Arc<OnceCell<HashSet<SmolStr>>>,
     /// The command executor for this session. Behind a `RwLock` so it can be
     /// swapped after a remote server reconnect (via `set_command_executor`).
@@ -912,6 +941,7 @@ impl Session {
         let session_type = SessionType::from(session_info.session_type.clone());
         Self {
             info: session_info,
+            ssh_arguments: None,
             external_commands: Arc::new(OnceCell::new()),
             command_executor: RwLock::new(command_executor),
             load_external_commands_future: Default::default(),
@@ -982,6 +1012,11 @@ impl Session {
 
     pub fn host_info(&self) -> HostInfo {
         self.info.host_info.clone()
+    }
+
+    /// Original SSH transport metadata stays in memory and is never written to preferences.
+    pub fn ssh_arguments(&self) -> Option<&[String]> {
+        self.ssh_arguments.as_ref().map(|arguments| arguments.0.as_slice())
     }
 
     /// The authenticated OpenSSH master reported by this native remote session.

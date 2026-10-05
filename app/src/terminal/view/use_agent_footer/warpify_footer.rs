@@ -23,6 +23,7 @@ use crate::terminal::view::block_banner::WarpificationMode;
 pub(super) struct WarpifyFooterView {
     terminal_model: Arc<FairMutex<TerminalModel>>,
     warpify_button: ViewHandle<ActionButton>,
+    powershell_button: ViewHandle<ActionButton>,
     use_agent_button: ViewHandle<ActionButton>,
     dismiss_button: ViewHandle<ActionButton>,
     mode: Option<WarpificationMode>,
@@ -41,6 +42,13 @@ impl WarpifyFooterView {
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(WarpifyFooterViewAction::Warpify);
                 })
+        });
+
+        let powershell_button = ctx.add_typed_action_view(|_ctx| {
+            ActionButton::new("Integrate PowerShell", AgentFooterButtonTheme::new(None))
+                .with_size(button_size)
+                .with_tooltip("Select only after logging into a remote PowerShell prompt")
+                .on_click(|ctx| ctx.dispatch_typed_action(WarpifyFooterViewAction::PowerShell))
         });
 
         let use_agent_button = ctx.add_typed_action_view(|ctx| {
@@ -66,6 +74,7 @@ impl WarpifyFooterView {
         Self {
             terminal_model,
             warpify_button,
+            powershell_button,
             use_agent_button,
             dismiss_button,
             mode: None,
@@ -106,12 +115,14 @@ impl WarpifyFooterView {
 #[derive(Debug, Clone)]
 pub enum WarpifyFooterViewAction {
     Warpify,
+    PowerShell,
     UseAgent,
     Dismiss,
 }
 
 pub enum WarpifyFooterViewEvent {
     Warpify { mode: WarpificationMode },
+    PowerShell,
     UseAgent,
     Dismiss,
 }
@@ -128,11 +139,15 @@ impl View for WarpifyFooterView {
     fn render(&self, _app: &AppContext) -> Box<dyn Element> {
         let terminal_model = self.terminal_model.lock();
 
-        let button_row = Flex::row()
+        let mut button_row = Flex::row()
             .with_spacing(4.)
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_child(ChildView::new(&self.warpify_button).finish())
+            .with_child(ChildView::new(&self.warpify_button).finish());
+        if self.mode.as_ref().is_some_and(WarpificationMode::is_ssh) {
+            button_row.add_child(ChildView::new(&self.powershell_button).finish());
+        }
+        let button_row = button_row
             .with_child(ChildView::new(&self.use_agent_button).finish())
             .with_child(Expanded::new(1., Empty::new().finish()).finish())
             .with_child(ChildView::new(&self.dismiss_button).finish());
@@ -156,6 +171,12 @@ impl TypedActionView for WarpifyFooterView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
+            WarpifyFooterViewAction::PowerShell => {
+                if self.mode.as_ref().is_some_and(WarpificationMode::is_ssh) {
+                    self.clear_mode(ctx);
+                    ctx.emit(WarpifyFooterViewEvent::PowerShell);
+                }
+            }
             WarpifyFooterViewAction::Warpify => {
                 if let Some(mode) = self.mode.clone() {
                     self.clear_mode(ctx);

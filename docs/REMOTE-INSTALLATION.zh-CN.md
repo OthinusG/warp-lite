@@ -40,3 +40,14 @@ Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。�
 
 companion 保留现有的按需私有服务启动方式。安装器不新增系统常驻服务，不修改 shell 启动文件或 PATH，
 不复制凭据、不修改 SSH 配置，也不替换第三方 Agent 命令。远端 CLI Agent 仍通过自己的工具安装和认证。
+
+## Windows 原生 SSH
+
+登录到远端 PowerShell 提示符后，在 SSH 终端提示条选择
+**Integrate PowerShell**，再用 `cd` 进入项目。这只启用当前会话的集成，
+不会修改 PowerShell 配置文件。Windows 原生 OpenSSH 不支持连接复用；
+companion 控制连接沿用原连接的目标与选项，由系统 SSH 密钥或密钥代理
+认证。仅用密码登录时，第二条非交互连接可能无法认证；终端仍可使用，
+面板会说明原因并提供重连操作。Warpai 不保存密码。
+
+参考：[Microsoft Win32-OpenSSH 功能范围](https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope)。

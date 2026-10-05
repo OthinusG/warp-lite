@@ -229,6 +229,7 @@ pub fn init_subshell_command(
     ctx: &AppContext,
 ) -> String {
     match shell_type {
+        Some(ShellType::PowerShell) => powershell_subshell_command(&crate::ASSETS),
         Some(shell_type) => {
             let subshell_script =
                 init_subshell_script_for_shell(shell_type, &crate::ASSETS, vars, ctx);
@@ -236,6 +237,12 @@ pub fn init_subshell_command(
         }
         None => init_subshell_script_for_unknown_shell(&crate::ASSETS),
     }
+}
+
+fn powershell_subshell_command(assets: &dyn AssetProvider) -> String {
+    // Dot-source trusted app bootstrap in this session; no eval or profile writes.
+    let script = init_shell_script_for_shell(ShellType::PowerShell, assets);
+    format!(". {{ {script} }}")
 }
 
 /// Returns the init subshell script for the given `shell_type` (e.g. the script that emits the

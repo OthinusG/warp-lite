@@ -14,7 +14,9 @@ An existing SSH host nickname also works. There is no required SSH alias setting
 project-path form or companion-path field. System OpenSSH handles authentication,
 jump hosts and host-key review. Warpai follows confirmed shell session metadata;
 installation alone does not make an opaque SSH session report its working directory.
-Use Warpai's SSH shell integration when the panel requests it.
+Use Warpai's SSH shell integration when the panel requests it. At a remote
+PowerShell prompt, select **Integrate PowerShell** in the SSH terminal banner.
+This loads integration only in that session; no profile file is written.
 
 ## Install on the remote machine
 
@@ -50,3 +52,25 @@ The companion starts its existing private account service on demand. Installatio
 does not register another system service, change shell startup files or PATH,
 copy credentials, edit SSH configuration or replace vendor commands. Install and
 authenticate CLI agents with their own tools on the remote machine.
+
+## Linux
+
+Run the Linux installer under your SSH account. Open the SSH terminal and use
+`cd` to select the project after shell integration confirms the remote session.
+
+## macOS
+
+Open the companion DMG under your SSH account and run its install command.
+Connect in the terminal and select the project with `cd`.
+
+## Windows
+
+Run the per-account companion EXE. At the remote PowerShell prompt, select
+**Integrate PowerShell** in Warpai's SSH terminal banner, then use `cd`.
+Native Windows OpenSSH does not support ControlMaster; the companion control
+connection uses the same destination/options with system key or SSH-agent
+authentication. A password-only login cannot authenticate that independent
+noninteractive connection. The terminal remains usable; the panel explains
+authentication failure and offers reconnect. No password is stored.
+
+Reference: [Microsoft Win32-OpenSSH scope](https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope).

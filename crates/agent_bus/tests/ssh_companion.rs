@@ -388,6 +388,34 @@ async fn established_terminal_socket_probes_and_fences_the_companion() {
     let client = HostClient::connect_session(&profile, &socket, None)
         .await
         .unwrap();
+    let config_path = profile.config_file.as_ref().unwrap();
+    let native_arguments = vec![
+        "-p".into(),
+        "22222".into(),
+        "-i".into(),
+        config_path
+            .parent()
+            .unwrap()
+            .join("client")
+            .to_str()
+            .unwrap()
+            .into(),
+        "-o".into(),
+        format!(
+            "UserKnownHostsFile={}",
+            config_path.parent().unwrap().join("known_hosts").display()
+        ),
+        "127.0.0.1".into(),
+    ];
+    let native = HostClient::connect_arguments(&profile, &native_arguments)
+        .await
+        .unwrap();
+    assert_eq!(native.account_id, client.account_id);
+    assert_eq!(
+        native.fence().unwrap().project_id,
+        client.fence().unwrap().project_id
+    );
+    drop(native);
     let account = client.account_id.clone();
     assert!(!account.is_empty());
     let mut missing = profile.clone();

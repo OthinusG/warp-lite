@@ -24199,6 +24199,7 @@ impl TypedActionView for TerminalView {
             | UserInputSequence(_)
             | ControlSequence(_)
             | TriggerSubshellBootstrap
+            | IntegratePowerShellSsh
             | ShowSubshellBanner(_)
             | DismissWarpifyBanner(_)
             | OpenBlockListContextMenu
@@ -24667,6 +24668,11 @@ impl TypedActionView for TerminalView {
                 self.ask_ai(&AskAISource::Block(*block_index), ctx)
             }
             TriggerSubshellBootstrap => self.trigger_subshell_bootstrap(None, false, ctx),
+            IntegratePowerShellSsh => {
+                if self.has_pending_ssh_command() && self.is_long_running_and_user_controlled() {
+                    self.trigger_subshell_bootstrap(Some(ShellType::PowerShell), false, ctx);
+                }
+            }
             ShowSubshellBanner(command) => {
                 // Abort handle is no longer needed since we've waited the 1s already.
                 self.warpify_state.take_subshell_banner_abort_handle();
