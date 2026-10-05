@@ -236,8 +236,7 @@ impl View for WelcomeView {
         "WelcomeView"
     }
 
-    fn render(&self, app: &AppContext) -> Box<dyn Element> {
-        let appearance = Appearance::as_ref(app);
+    fn render(&self, _app: &AppContext) -> Box<dyn Element> {
         Align::new(
             Flex::column()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)

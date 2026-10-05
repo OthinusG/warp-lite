@@ -14,4 +14,4 @@ mkdir -p "$APP_BUNDLE_PATH/Contents/Resources"
 cp "$REPO_ROOT/app/assets/branding/warpai.icns" "$APP_BUNDLE_PATH/Contents/Resources/AppIcon.icns"
 plutil -replace CFBundleIconFile -string "AppIcon" "$APP_BUNDLE_PATH/Contents/Info.plist"
 # Legacy Icon Composer metadata must not override the shared reviewed resource.
-plutil -remove CFBundleIconName "$APP_BUNDLE_PATH/Contents/Info.plist" 2>/dev/null || true
+plutil -remove CFBundleIconName "$APP_BUNDLE_PATH/Contents/Info.plist" >/dev/null 2>&1 || true
