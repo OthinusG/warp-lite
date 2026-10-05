@@ -103,8 +103,9 @@ change PATH or CODEX_HOME, or read/write Codex configuration. Unsupported versio
 launch normally with a visible MCP warning.
 
 Help, login, MCP administration, batch commands, explicit remote connections,
-user aliases and WSL retain native behavior. Managed SSH projects use the explicit
-companion entry below. Commands outside Warpai are unaffected.
+user aliases and WSL retain native behavior. SSH agents use the
+[remote launch entry](docs/REMOTE-INSTALLATION.md#start-a-remote-agent).
+Commands outside Warpai are unaffected.
 
 ## Work on remote projects
 
@@ -130,6 +131,11 @@ locates the component in its default account directory and checks compatibility;
 you do not fill in SSH aliases or companion paths. Missing or incompatible
 components show installation guidance and a reconnect action. SSH shell integration
 must confirm the remote directory before the panel can bind it.
+
+At a remote PowerShell prompt, select **Integrate PowerShell** in the SSH terminal
+banner. Native Windows OpenSSH uses a separate companion control connection,
+authenticated by system SSH keys or an SSH agent; password-only terminal login
+does not supply credentials to that connection.
 
 Disconnects leave remote state stale and disable writes. Desktop credentials are
 not copied to the remote account. Each SSH project has its own authority; file

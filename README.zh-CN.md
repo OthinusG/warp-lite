@@ -98,7 +98,8 @@ Warpai 每次启动都重新解析并探测当前安装，因此仍可通过原�
 不支持的版本按原样启动，并显示 MCP 提示。
 
 帮助、登录、MCP 管理、批处理、显式远程连接、用户别名和 WSL 保持原生行为。
-受管理的 SSH 项目使用下方 companion 入口；在 Warpai 外执行的命令不受影响。
+SSH Agent 使用[远端启动入口](docs/REMOTE-INSTALLATION.zh-CN.md#启动远端-agent)；
+在 Warpai 外执行的命令不受影响。
 
 <a id="work-on-remote-projects"></a>
 ## 在远程项目中工作
@@ -121,6 +122,10 @@ cd /absolute/path/to/project
 面板跟随已确认的远端会话与项目目录。Warpai 自动从远端账号的固定目录寻找组件并检查兼容性，
 无需填写 SSH alias 或 companion 地址。组件缺失或不兼容时，界面提供安装指引与重连操作。
 SSH shell 集成确认远端目录后，面板才绑定对应项目。
+
+登录远端 PowerShell 后，在 SSH 终端提示条选择 **Integrate PowerShell**。
+Windows 原生 OpenSSH 会另建 companion 控制连接，通过系统 SSH 密钥或密钥代理认证；
+终端的密码登录不会把密码传给这条连接。
 
 断线后远端状态标记过期，禁止写操作。桌面凭据不复制到远端账号；各 SSH 项目保持独立权限范围，
 文件传输使用 SFTP。详见[远端安装说明](docs/REMOTE-INSTALLATION.zh-CN.md)与[1.1.0 连接契约（英文）](specs/agent-communication-v2/INSTALLATION.md)。

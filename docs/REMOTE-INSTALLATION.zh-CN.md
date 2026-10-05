@@ -41,6 +41,23 @@ Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。�
 companion 保留现有的按需私有服务启动方式。安装器不新增系统常驻服务，不修改 shell 启动文件或 PATH，
 不复制凭据、不修改 SSH 配置，也不替换第三方 Agent 命令。远端 CLI Agent 仍通过自己的工具安装和认证。
 
+## 启动远端 Agent
+
+选择远端项目后，协作面板会连接到该项目。要让 Agent 加入协作，在远端终端使用
+已安装组件的 `agent` 入口；普通远端 Agent 命令不会被自动改写。
+
+例如，在 Linux/macOS 中，原生 Codex 可执行文件位于 PATH 时：
+
+```sh
+"$HOME/.config/.warpai/bin/warpai-companion" agent "$PWD" codex "$(command -v codex)"
+```
+
+参数顺序为 `agent <项目绝对路径> <程序名> <原厂可执行文件绝对路径> [原有参数...]`。
+项目路径须与 `cd` 选中的目录一致，使用原厂安装的可执行文件。
+Windows PowerShell 使用 `& "$env:USERPROFILE\.config\.warpai\bin\warpai-companion.exe" agent`，
+随后传入相同顺序的参数和 Windows 原生绝对路径。Agent 保持交互式终端输入输出，
+通过现有远端 MCP 适配器参与协作；不新增别名、不修改 PATH，也不替换原厂安装。
+
 ## Windows 原生 SSH
 
 登录到远端 PowerShell 提示符后，在 SSH 终端提示条选择

@@ -26,6 +26,7 @@ const BANNER_V_PADDING: f32 = 4.;
 const BANNER_H_PADDING: f32 = 8.;
 pub const BLOCK_BANNER_HEIGHT: f32 = CONSTRAINED_BANNER_HEIGHT + BANNER_TOP_MARGIN;
 pub const BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT: f32 = 24.;
+pub const SSH_BANNER_HEIGHT: f32 = BLOCK_BANNER_HEIGHT + 2. * BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT;
 
 pub enum WithinBlockBanner {
     WarpifyBanner(WarpifyBannerState),
@@ -34,9 +35,7 @@ pub enum WithinBlockBanner {
 impl WithinBlockBanner {
     pub fn banner_height(&self) -> f32 {
         match self.warpify_mode() {
-            Some(WarpificationMode::Ssh { .. }) => {
-                BLOCK_BANNER_HEIGHT + BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT
-            }
+            Some(WarpificationMode::Ssh { .. }) => SSH_BANNER_HEIGHT,
             Some(WarpificationMode::Subshell { .. }) | None => BLOCK_BANNER_HEIGHT,
         }
     }
@@ -54,6 +53,7 @@ fn render_block_banner(
     build_child: impl FnOnce(&MouseState) -> Box<dyn Element>,
     hover_state: MouseStateHandle,
     theme: &WarpTheme,
+    height: f32,
 ) -> Box<dyn Element> {
     Stack::new()
         .with_child(
@@ -67,7 +67,7 @@ fn render_block_banner(
                             .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
                             .finish(),
                     )
-                    .with_max_height(CONSTRAINED_BANNER_HEIGHT)
+                    .with_max_height(height - BANNER_TOP_MARGIN)
                     .finish(),
                 )
                 .with_margin_top(BANNER_TOP_MARGIN)

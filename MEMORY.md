@@ -1110,3 +1110,17 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   banner without opening a network connection. Exact native frame count is now
   163 per OS. Review these alongside the existing 161 frames; do not count a
   successful screenshot request alone as visual acceptance. Final gate pending.
+
+- Final remote source 770741b passed run 37320176774 on Linux/macOS/Windows,
+  including native installers/reinstall, Windows binary stdio and controlled
+  OpenSSH. Full desktop/native capture run 37320844750 remains pending. Release
+  workflows now retain the 1.1.0 draft after Windows upload; explicitly publish
+  only after inspecting all downloaded formal assets. The 1.0.1 draft stays private.
+
+- Desktop run 37320844750 passed both configurations/regressions and produced
+  163 frames per OS, but visual review rejected the new PowerShell frames: the
+  static banner was attached to an idle empty block and never painted. Simulate
+  only the block preexec state (no SSH process), assert command/banner/draft,
+  restore the block after capture and reserve native height for the added action
+  row. Rerun the corrected native capture before release; CI success alone is
+  not visual acceptance. Final review installer manifests/icons match 770741b.

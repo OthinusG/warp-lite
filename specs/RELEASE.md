@@ -1,4 +1,30 @@
-# Warpai 1.0.1 release
+# Warpai 1.1.0 release
+
+## Current delivery contract
+
+Publish `v1.1.0` only after cloud desktop regressions, native screenshot review
+and three-platform remote installation/transport checks pass. Build committed
+tagged source with the existing release workflows; do not compile Rust locally.
+
+Deliver `Warpai.dmg`, `WarpaiSetup-x64.exe`,
+`WarpaiCompanion-linux-x64.run`, `WarpaiCompanion-macos-arm64.dmg` and
+`WarpaiCompanion-windows-x64-setup.exe`, with SHA-256 checksum files. No desktop
+or raw companion ZIP is a public release asset. Remote installers own only the
+account's Warpai component and metadata; follow the
+[installation contract](agent-communication-v2/INSTALLATION.md).
+
+The macOS workflow creates a draft. Windows attaches its version/icon-checked
+installer and leaves that draft private. Inspect downloaded formal packages,
+source manifests, checksums, native identities and artwork before explicitly
+publishing the complete release. Never overwrite the historical 1.0.1 tag.
+
+README images must be unmodified native macOS captures with vertical tabs and
+Claude Warm Light, with exact source/run provenance. Native Windows independent
+SSH authentication uses system keys/agent; Warpai does not store passwords or
+modify vendor commands, shell profiles or SSH configuration. macOS ad-hoc
+signing and unsigned Windows installation remain documented.
+
+## Historical 1.0.1 preparation (not published)
 
 > Superseded before publication by the owner's [1.1.0 iteration](agent-communication-v2/INSTALLATION.md). Keep the 1.0.1 draft private and preserve its source tag.
 

@@ -66,7 +66,14 @@ than assuming the POSIX shell wrapper handles it.
 
 ## Verification status
 
-Implementation and 1.1.0 acceptance pending. The owner changed the release scope
+Source `770741b` passed desktop application regressions in run 37320844750 and
+three-platform installer/transport checks in run 37320176774. Visual review
+rejected the two new PowerShell frames: an idle block did not render the banner.
+Capture a simulated running command without executing SSH and assert banner
+ownership/draft preservation. Reserve native banner height for its second action
+row, then rerun desktop/native acceptance before tagging or publishing.
+
+The owner changed the release scope
 while 1.0.1 Windows packaging was running; cancel that publication and preserve the
 private 1.0.1 draft/source tag. Prior 1.0.1 acceptance is historical evidence only.
 

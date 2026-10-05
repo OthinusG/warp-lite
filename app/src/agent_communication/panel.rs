@@ -4106,11 +4106,27 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     });
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
                     terminal.update(app, |terminal, ctx| {
+                        use crate::terminal::model::ansi::{Handler, PreexecValue};
+                        if terminal.model.lock().block_list().active_block().block_banner().is_none() {
+                            // A banner belongs to a running block; no SSH process is executed.
+                            terminal.model.lock().block_list_mut().preexec(PreexecValue {
+                                command: "ssh user@host".into(),
+                            });
+                        }
                         terminal.handle_action(
                             &crate::terminal::view::TerminalAction::ShowWarpifySshBanner("ssh user@host".into(), Some("host".into())),
                             ctx,
                         );
                     });
+                })
+                .add_named_assertion("SSH banner belongs to a visible command block", |app, window| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    warpui::async_assert!(terminal.read(app, |terminal, _| {
+                        let model = terminal.model.lock();
+                        let block = model.block_list().active_block();
+                        block.command_to_string() == "ssh user@host"
+                            && block.block_banner().is_some()
+                    }) && checkpoint_draft(app, window) == "unsent collaboration draft")
                 })
                 .with_take_screenshot(filename),
         );
@@ -4119,10 +4135,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         TestStep::new("open native communication settings").with_action(|app, window, _| {
             let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
             terminal.update(app, |terminal, ctx| {
+                use crate::terminal::model::ansi::Handler;
                 terminal.handle_action(
                     &crate::terminal::view::TerminalAction::DismissWarpifyBanner(crate::terminal::view::RememberForWarpification::DoNotRememberSSHHost),
                     ctx,
                 );
+                let mut model = terminal.model.lock();
+                model.block_list_mut().command_finished(Default::default());
+                model.block_list_mut().precmd(Default::default());
             });
             // Fixed visual data stays in the isolated debug profile and never configures a CLI.
             app.update(|ctx| {

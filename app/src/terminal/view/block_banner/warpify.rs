@@ -23,7 +23,10 @@ use crate::{
     ui_components::blended_colors,
 };
 
-use super::{render_block_banner, BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT};
+use super::{
+    render_block_banner, BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT, BLOCK_BANNER_HEIGHT,
+    SSH_BANNER_HEIGHT,
+};
 
 const CLOSE_BUTTON_DIAMETER: f32 = 20.0;
 const STANDARD_PADDING: f32 = 8.0;
@@ -204,8 +207,12 @@ pub fn render_warpification_banner(
 
     if state.is_ssh() {
         col.add_child(
-            appearance.ui_builder()
-                .button(ButtonVariant::Text, state.powershell_button_mouse_state.clone())
+            appearance
+                .ui_builder()
+                .button(
+                    ButtonVariant::Text,
+                    state.powershell_button_mouse_state.clone(),
+                )
                 .with_text_label("Integrate PowerShell".into())
                 .build()
                 .on_click(|ctx, _, _| {
@@ -238,6 +245,11 @@ pub fn render_warpification_banner(
         },
         state.hover_state.clone(),
         appearance.theme(),
+        if state.is_ssh() {
+            SSH_BANNER_HEIGHT
+        } else {
+            BLOCK_BANNER_HEIGHT
+        },
     )
 }
 

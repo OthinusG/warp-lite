@@ -53,6 +53,26 @@ does not register another system service, change shell startup files or PATH,
 copy credentials, edit SSH configuration or replace vendor commands. Install and
 authenticate CLI agents with their own tools on the remote machine.
 
+## Start a remote agent
+
+Selecting a remote project connects its collaboration panel. To join an agent,
+use the installed companion's explicit `agent` entry from that remote terminal;
+ordinary remote vendor commands are not automatically rewritten.
+
+For example, on Linux/macOS with a native Codex executable on PATH:
+
+```sh
+"$HOME/.config/.warpai/bin/warpai-companion" agent "$PWD" codex "$(command -v codex)"
+```
+
+The entry accepts `agent <absolute-project-root> <program> <absolute-vendor-executable>
+[vendor-arguments...]`. Use the same root selected by `cd` and the original installed
+vendor executable; optional arguments follow it. On Windows PowerShell, invoke
+`& "$env:USERPROFILE\.config\.warpai\bin\warpai-companion.exe" agent` with that
+same argument sequence and native absolute paths. The owned agent keeps interactive
+terminal IO and uses the existing remote MCP adapter. This does not add an alias,
+change PATH or replace the vendor installation.
+
 ## Linux
 
 Run the Linux installer under your SSH account. Open the SSH terminal and use

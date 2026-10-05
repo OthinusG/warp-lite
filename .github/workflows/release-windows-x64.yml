@@ -179,4 +179,3 @@ jobs:
             WarpaiSetup-x64.exe \
             SHA256SUMS-windows.txt \
             --repo "$GITHUB_REPOSITORY"
-          gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"
