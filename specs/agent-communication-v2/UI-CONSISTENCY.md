@@ -166,6 +166,12 @@ SSH integration entry variants expose an explicit **Integrate PowerShell** actio
 on its own row, avoiding narrow-width overlap. Never inject into authentication
 requests or modify user profiles. Source-matched native screenshot QA is pending.
 
+The in-block SSH banner reserves height for its second action row in both native
+layout and block height accounting. Capture it on a simulated running command,
+with echoed text before preexec, not an idle prompt. Assert the banner's command
+ownership and unchanged input draft; inspect the actual button pixels before
+acceptance. The capture never executes the sample SSH command.
+
 Remote installers use a companion-specific variant of the approved black Warpai
 rounded tile and silver notebook/terminal mark. The owner-provided opposing curved
 arrows are a connection emblem; preserve the main mark and transparent margin,

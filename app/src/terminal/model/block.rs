@@ -1154,7 +1154,7 @@ impl Block {
     }
 
     #[cfg(not(feature = "integration_tests"))]
-    pub(in crate::terminal) fn block_banner(&self) -> Option<&WithinBlockBanner> {
+    pub(crate) fn block_banner(&self) -> Option<&WithinBlockBanner> {
         self.block_banner.as_ref()
     }
 

@@ -1127,3 +1127,7 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
 - Native capture must echo command characters before preexec: HeaderGrid preexec
   freezes already echoed input rather than inserting its command payload. Start
   the static block and use the existing ANSI Handler, never execute sample SSH.
+- Native screenshot assertions need the renderer's read-only block banner state.
+  Run 37337077745 found its terminal-only getter inaccessible to the capture
+  module. Widen only this existing getter to crate visibility; no state mutation
+  or protocol API changes. Keep the failure recorded and rerun exact-source CI.

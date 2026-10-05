@@ -24,13 +24,14 @@ project_tasks JSON is a typed field, never protocol auto-detection.
 ## Minimum user workflow
 
 Use existing SSH terminal IO and launch adapters for an explicit managed Agent
-launch. Add only the remote target/root/manual helper selection needed by the
-current collaboration panel. Adapt panel refresh/operator calls to choose either
+launch. Derive remote account/home/OS/root from the confirmed terminal session,
+then discover and probe its installed companion. Adapt panel refresh/operator calls to choose either
 the existing local Broker or exact remote project client. Generation-fence results
 and preserve input/focus. Display a compact status section in that panel, without
 creating a separate session manager. Static native review precedes live binding.
 
-Manual helper deployment is sufficient. Agent PTYs belong to their SSH connection: disconnect revokes MCP and stops the
+Native per-account installers provide the helper at the stable default location.
+Agent PTYs belong to their SSH connection: disconnect revokes MCP and stops the
 owned group/job. Session list, detach/reattach and generation takeover are removed.
 Bounded IO buffering and native ownership checks remain required for Agent IO.
 
@@ -69,13 +70,13 @@ disconnected, error) to panel-fixtures.json, with target/root/companion and obse
 Agent/task rows. Review native captures before wiring live remote projections.
 No independent dashboard, resource metrics, file actions or session manager.
 
-Remote selection is panel-local and transient. Reuse the existing human-intent
-form for the system SSH alias, absolute remote root and companion path. A single
+Remote selection is panel-local and transient, derived from ordinary SSH and cd
+with verified session metadata; there is no connection settings form. A single
 serialized HostClient handles reads and explicit mutations; no local remote Store
 or saved credential/profile manager is introduced. Connection failure retains the
 last projection and original intent, disables writes and requires explicit
 reconnect. Selection/visibility generations reject late reads; reconnect keeps
-drafts, while switching targets requires closing the current form. Remote file
+drafts, while host/account/root/session changes fence the old client. Remote file
 and terminal focus actions cannot use local desktop paths or terminal IDs.
 
 ## Native CLI ownership correction — 2026-10-05

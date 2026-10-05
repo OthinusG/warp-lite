@@ -28,9 +28,10 @@ add concise remote connection/Agent/communication status in that same panel.
 
 ## Delivery boundary
 
-No new file manager, transfer queue, automatic companion installer, independent
+No new file manager, transfer queue, unattended installation, independent
 Agent dashboard or complete session-management product is required. Reuse existing
-native components and adapters; manual companion placement is sufficient.
+native components and adapters. Per-OS installers provision the account-owned
+companion at its stable default path, without shell or SSH configuration edits.
 Automatic wake is claimed only where existing native safety evidence applies.
 The remote companion supports Linux/macOS/Windows; local desktop remains
 macOS/Windows. Deterministic remote fixtures do not claim paid vendor compliance.
