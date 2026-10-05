@@ -319,6 +319,7 @@ use warpui::{AppContext, SingletonEntity, WindowId};
 #[folder = "assets"]
 #[include = "bundled/**"] // Should be kept in sync with BUNDLED_ASSETS_DIR.
 #[include = "async/**"] // Should be kept in sync with ASYNC_ASSETS_DIR.
+#[include = "branding/warpai.png"]
 #[cfg_attr(target_family = "wasm", exclude = "async/**")] // Excludes take precedence.
 pub struct Assets;
 

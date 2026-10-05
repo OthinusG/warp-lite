@@ -1,14 +1,8 @@
 use enum_iterator::Sequence;
 use serde::{Deserialize, Serialize};
-use warp_core::{
-    channel::{Channel, ChannelState},
-    settings::{macros::define_settings_group, SupportedPlatforms, SyncToCloud},
-};
+use warp_core::settings::{macros::define_settings_group, SupportedPlatforms, SyncToCloud};
 
-/// The app icon to use (mac-only).
-///
-/// IMPORTANT NOTE: If you add a new icon, you will need to update the logic in WarpDockTilePlugin.m
-/// to read the new icon and also add the icon to app/DockTilePlugin/Resources.
+/// Legacy variants remain readable for saved preferences; all use Warpai artwork.
 #[derive(
     Default,
     Debug,
@@ -26,7 +20,7 @@ use warp_core::{
     rename_all = "snake_case"
 )]
 pub enum AppIcon {
-    /// Current default: White glyph on blue/black gradient blackground, set in Dec 2024.
+    /// White bound-page/terminal glyph on the black liquid-material Warpai tile.
     #[default]
     #[schemars(description = "Default")]
     Default,
@@ -94,31 +88,8 @@ impl std::fmt::Display for AppIcon {
 }
 
 impl AppIconSettings {
-    pub fn get_base_icon_file_name(icon: AppIcon) -> &'static str {
-        match icon {
-            AppIcon::Aurora => "aurora",
-            AppIcon::Default => match ChannelState::channel() {
-                Channel::Dev => "dev",
-                Channel::Preview => "preview",
-                Channel::Local => "local",
-                _ => "warp_2",
-            },
-            AppIcon::Classic1 => "classic_1",
-            AppIcon::Classic2 => "classic_2",
-            AppIcon::Classic3 => "classic_3",
-            AppIcon::Comets => "comets",
-            AppIcon::GlassSky => "glass_sky",
-            AppIcon::Glitch => "glitch",
-            AppIcon::Cow => "cow",
-            AppIcon::Glow => "glow",
-            AppIcon::Holographic => "holographic",
-            AppIcon::Mono => "mono",
-            AppIcon::Neon => "neon",
-            AppIcon::Original => "original",
-            AppIcon::Starburst => "starburst",
-            AppIcon::Sticker => "sticker",
-            AppIcon::WarpOne => "blue",
-        }
+    pub fn get_base_icon_file_name(_icon: AppIcon) -> &'static str {
+        "warpai"
     }
 }
 

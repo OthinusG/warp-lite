@@ -55,6 +55,26 @@
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
 
+## App icon checkpoint — 2026-10-05
+
+- Owner supplied the independent bound-page/terminal logo, selected its softened
+  material version, then requested a black base and no outer reflective ring.
+  Built-in imagegen edits implement these exact corrections; preserve the six
+  links, white panels, two slots and terminal glyph. Canonical master is
+  app/assets/branding/warpai.png (1254px RGBA); ICNS/ICO exports preserve alpha.
+- Use one brand asset set for README, welcome/About surfaces, macOS bundle/Dock
+  plugin, Windows PE icon,
+  installer/portable app and Cargo metadata. Old AppIcon enum values remain
+  serialized-compatible but resolve to Warpai; the picker offers Warpai only.
+  Removed superseded Dock variants, channel ICOs and Icon Composer artwork.
+  Existing channel PNG paths retain the same artwork for inherited Linux
+  consumers; no Linux desktop feature was added.
+- The app material is baked artwork, not an animated Icon Composer implementation.
+  Native UI/Agent SVGs retain their existing vector/mask conventions. See
+  specs/APP-ICON.md and docs/ICON-WORKFLOW.md. Local asset/format/alpha, shell,
+  Objective-C syntax and focused Rust formatting checks passed. Cloud desktop
+  verification is required for the current branding source before release.
+
 ## Quality comparison and integration — 2026-10-04
 
 - User authorized direct per-feature implementation comparison for PLAN S0–S5,

@@ -5,10 +5,7 @@ use super::{
     },
     SettingsSection,
 };
-use crate::{
-    appearance::Appearance, channel::ChannelState, themes::theme::ColorScheme,
-    workspace::WorkspaceAction,
-};
+use crate::{appearance::Appearance, channel::ChannelState, workspace::WorkspaceAction};
 use warpui::{
     assets::asset_cache::AssetSource,
     elements::{
@@ -63,14 +60,7 @@ impl SettingsWidget for AboutPageWidget {
         appearance: &Appearance,
         _app: &AppContext,
     ) -> Box<dyn Element> {
-        let theme = appearance.theme();
         let ui_builder = appearance.ui_builder();
-
-        let image_path = if theme.inferred_color_scheme() == ColorScheme::LightOnDark {
-            "bundled/svg/warp-logo-light.svg"
-        } else {
-            "bundled/svg/warp-logo-dark.svg"
-        };
 
         let version = ChannelState::app_version().unwrap_or("v#.##.###");
 
@@ -106,7 +96,9 @@ impl SettingsWidget for AboutPageWidget {
                 .with_child(
                     ConstrainedBox::new(
                         Image::new(
-                            AssetSource::Bundled { path: image_path },
+                            AssetSource::Bundled {
+                                path: "branding/warpai.png",
+                            },
                             CacheOption::BySize,
                         )
                         .finish(),

@@ -101,7 +101,7 @@ Copy-Item "$RepoRoot\app\assets\windows\x64\msvcp140.dll" "$PortableDir\msvcp140
 Copy-Item "$RepoRoot\app\assets\windows\x64\vcruntime140.dll" "$PortableDir\vcruntime140.dll" -Force
 Copy-Item "$RepoRoot\app\assets\windows\x64\vcruntime140_1.dll" "$PortableDir\vcruntime140_1.dll" -Force
 Copy-Item "$RepoRoot\app\assets\bundled\bootstrap\pwsh.ps1" "$PortableDir\pwsh.ps1" -Force
-Copy-Item "$RepoRoot\app\channels\oss\icon\no-padding\icon.ico" "$PortableDir\icon.ico" -Force
+Copy-Item "$RepoRoot\app\assets\branding\warpai.ico" "$PortableDir\icon.ico" -Force
 
 $OpenConsoleDir = "$PortableDir\x64"
 New-Item -ItemType Directory -Path $OpenConsoleDir -Force | Out-Null

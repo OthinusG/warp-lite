@@ -96,33 +96,8 @@
 
 // See app_icon.rs for the rust version of this conversion.
 - (NSString*)convertAppIconNameToFileName:(NSString*)appIconName isDev:(BOOL)isDev isLocal:(BOOL)isLocal isPreview:(BOOL)isPreview {
-    // First remove quotes and convert to lowercase
-    NSString* cleanName = [[appIconName stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"\""]] lowercaseString];
-    
-    NSDictionary* mapping = @{
-        @"aurora": @"aurora",
-        @"classic1": @"classic_1",
-        @"classic2": @"classic_2",
-        @"classic3": @"classic_3",
-        @"comets": @"comets",
-        @"glasssky": @"glass_sky",
-        @"glitch": @"glitch",
-        @"glow": @"glow",
-        @"holographic": @"holographic",
-        @"mono": @"mono",
-        @"neon": @"neon",
-        @"original": @"original",
-        @"starburst": @"starburst",
-        @"sticker": @"sticker",
-        @"warpone": @"blue",
-        @"cow": @"cow"
-    };
-    
-    NSString* fileName = mapping[cleanName];
-
-    // If the mapping doesn't exist, return the default icon 
-    // conditional on whether this is a local, dev, or preview build.
-    return fileName ?: isLocal ? @"local" : isDev ? @"dev" : isPreview ? @"preview" : @"warp_2";
+    // Preserve old preference values without restoring upstream artwork.
+    return @"warpai";
 }
 
 // Helper function to load named image from the plugin's resource bundle

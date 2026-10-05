@@ -1109,15 +1109,12 @@ impl AppearanceSettingsPageView {
             dropdown.set_top_bar_max_width(INPUT_MODE_DROPDOWN_WIDTH);
             dropdown.set_menu_width(INPUT_MODE_DROPDOWN_WIDTH, ctx);
 
-            let values: Vec<AppIcon> = all::<AppIcon>().collect();
+            let values = vec![AppIcon::Default];
             let current_value = *AppIconSettings::as_ref(ctx).app_icon;
             let selected_index = values
                 .iter()
                 .position(|val| *val == current_value)
-                .unwrap_or_else(|| {
-                    log::error!("Could not find current AppIcon value in dropdown option list");
-                    0
-                });
+                .unwrap_or(0);
 
             dropdown.add_items(
                 values
@@ -1522,26 +1519,8 @@ impl AppearanceSettingsPageView {
         }
     }
 
-    fn app_icon_dropdown_item_label(val: AppIcon) -> &'static str {
-        match val {
-            AppIcon::Aurora => "Aurora",
-            AppIcon::Default => "Default",
-            AppIcon::Classic1 => "Classic 1",
-            AppIcon::Classic2 => "Classic 2",
-            AppIcon::Classic3 => "Classic 3",
-            AppIcon::Comets => "Comets",
-            AppIcon::GlassSky => "Glass Sky",
-            AppIcon::Glitch => "Glitch",
-            AppIcon::Cow => "Cow",
-            AppIcon::Glow => "Glow",
-            AppIcon::Holographic => "Holographic",
-            AppIcon::Mono => "Mono",
-            AppIcon::Neon => "Neon",
-            AppIcon::Original => "Original",
-            AppIcon::Starburst => "Starburst",
-            AppIcon::Sticker => "Sticker",
-            AppIcon::WarpOne => "Warpai 1",
-        }
+    fn app_icon_dropdown_item_label(_val: AppIcon) -> &'static str {
+        "Warpai"
     }
 
     fn thin_strokes_dropdown_item_label(val: ThinStrokes) -> &'static str {
@@ -2748,7 +2727,7 @@ impl SettingsWidget for CustomAppIconWidget {
 
         let dropdown = render_dropdown_item(
             appearance,
-            "Customize your app icon",
+            "App icon",
             show_bundle_warning.then_some("Changing the app icon requires the app to be bundled."),
             None,
             LocalOnlyIconState::Hidden,

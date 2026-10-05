@@ -1,9 +1,10 @@
 use pathfinder_geometry::vector::vec2f;
 use warp_core::ui::{self, appearance::Appearance, color::blend::Blend as _};
 use warpui::{
+    assets::asset_cache::AssetSource,
     elements::{
-        Align, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment, Flex, Icon,
-        MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement as _, Radius,
+        Align, CacheOption, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment,
+        Flex, Image, MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement as _, Radius,
     },
     keymap::EditableBinding,
     platform::Cursor,
@@ -214,7 +215,13 @@ impl GetStartedView {
             .with_children([
                 Container::new(
                     ConstrainedBox::new(
-                        Icon::new("bundled/svg/warp-logo-neutral.svg", theme.foreground()).finish(),
+                        Image::new(
+                            AssetSource::Bundled {
+                                path: "branding/warpai.png",
+                            },
+                            CacheOption::BySize,
+                        )
+                        .finish(),
                     )
                     .with_height(40.)
                     .with_width(40.)

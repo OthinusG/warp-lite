@@ -62,7 +62,7 @@ The following constants can be overwritten:
 ## Using icons
 
 Windows has its own icon file format that bundles together multiple icon sizes.
-App icons are located in `app/channels/<channel_name>/icon/no-padding`.
+The executable, installer and portable app share `app/assets/branding/warpai.ico`.
 The `.ico` files are generated using imagemagick:
 
 ```shell

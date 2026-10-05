@@ -53,3 +53,52 @@ terminal/list references without enclosing frames. Simple shapes use hand-author
 geometry; complex logos use Bezier contours from the existing reference alpha.
 All are bundled through the existing asset embedding and native SVG renderer.
 The corresponding six PNGs are removed after reference and rendering checks.
+
+## Application branding — 2026-10-05
+
+The owner selected the bound-page/terminal design, then requested a black base
+and removal of the outer reflective ring. The canonical full-color RGBA master
+is `app/assets/branding/warpai.png`. Application artwork is intentionally raster:
+macOS ICNS and Windows ICO need multiresolution bitmap resources. Do not convert
+this shaded image into a bitmap wrapped in SVG or use the red-channel toolbar
+mask convention for it.
+
+The built-in imagegen tool performed the material/color/rim edits. Preserve the
+master bytes and alpha; only downsample/encode when exporting native formats.
+Inspect alpha-composited QA previews on real light/dark backgrounds: RGB values
+hidden beneath zero/near-zero alpha can look misleading in a raw preview.
+
+Export with an existing development Python/Pillow installation:
+
+```python
+from pathlib import Path
+import subprocess
+import tempfile
+from PIL import Image
+
+master = Image.open("app/assets/branding/warpai.png").convert("RGBA")
+master.save("app/assets/branding/warpai.ico", format="ICO",
+            sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
+with tempfile.TemporaryDirectory() as temp:
+    iconset = Path(temp) / "Warpai.iconset"
+    iconset.mkdir()
+    for size in (16, 32, 128, 256, 512):
+        for scale in (1, 2):
+            suffix = "@2x" if scale == 2 else ""
+            master.resize((size * scale, size * scale), Image.Resampling.LANCZOS).save(
+                iconset / f"icon_{size}x{size}{suffix}.png")
+    subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o",
+                    "app/assets/branding/warpai.icns"], check=True)
+for path in Path("app/channels").glob("*/icon/no-padding/*.png"):
+    size = int(path.stem.split("x")[0])
+    master.resize((size, size), Image.Resampling.LANCZOS).save(path)
+```
+
+The retained channel PNGs serve inherited Linux paths; this does not add Linux
+desktop support. macOS packaging and the legacy channel bundle entry point copy
+the shared ICNS; the Dock plugin copies the master. Windows resource embedding,
+installer, portable app and Cargo metadata use the shared branding directory.
+Keep legacy serialized AppIcon variants readable while resolving all to Warpai.
+Retired Dock PNG variants, per-channel ICOs and Icon Composer artwork are removed
+after consumer migration. Validate every ICO/ICNS size, alpha, native icon decoding,
+packaging paths, light/dark small-size previews and source-matched desktop checks.

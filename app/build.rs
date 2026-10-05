@@ -51,6 +51,7 @@ fn main() -> Result<()> {
         println!("cargo:rerun-if-changed=DockTilePlugin/WarpDockTilePlugin.h");
         println!("cargo:rerun-if-changed=DockTilePlugin/Info.plist");
         println!("cargo:rerun-if-changed=DockTilePlugin/Makefile");
+        println!("cargo:rerun-if-changed=assets/branding/warpai.png");
 
         let min_macos_version = env::var("MACOSX_DEPLOYMENT_TARGET")
             .expect("MACOSX_DEPLOYMENT_TARGET must be set for macos builds");
@@ -464,13 +465,8 @@ fn embed_resource_file(target_dir: &Path) {
 
     let version = env::var("GIT_RELEASE_TAG").unwrap_or("v0".to_owned());
     let app_name = env::var("WARP_APP_NAME").unwrap_or("Warpai".to_owned());
-    let bin_name = env::var("CARGO_BIN_NAME").unwrap_or("local".to_owned());
-
-    let icon_path = Path::new("channels")
-        .join(bin_name)
-        .join("icon")
-        .join("no-padding")
-        .join("icon.ico");
+    let icon_path = Path::new("assets/branding/warpai.ico");
+    println!("cargo:rerun-if-changed={}", icon_path.display());
 
     fs::copy(icon_path, target_dir.join("icon.ico"))
         .unwrap_or_else(|err| panic!("Could not copy icon: {err:#}"));

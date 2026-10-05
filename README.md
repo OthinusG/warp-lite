@@ -4,6 +4,8 @@
 
 # Warpai
 
+<img src="app/assets/branding/warpai.png" alt="Warpai" width="160" height="160">
+
 ### Your terminal. Your projects. Your agents.
 
 A local-first terminal for macOS and Windows, built for everyday development
@@ -168,7 +170,7 @@ For the published release, drag **WarpLite.app** from the macOS DMG into
 Applications. On Windows, run **WarpLiteSetup-x64.exe**, or extract the portable
 ZIP and launch **WarpLite.exe**.
 
-Current installers will be produced after the icon update. The current source
+Current-source installers have not been published yet. The current source
 and verification record include the native Codex adaptation described above;
 older review packages predate it. Build desktop and remote companion from the
 same source revision using the [development guide](docs/DEVELOPMENT.md).

@@ -22,7 +22,7 @@ APP="Warpai.app"
 APP_VERSION="0.5.7"
 APP_SHORT_VERSION="0.5.7"
 APP_IDENTIFIER="dev.warpai.Warpai"
-SRC_PNG="app/DockTilePlugin/Resources/mono.png"
+SRC_ICON="app/assets/branding/warpai.icns"
 
 case "${1:-}" in
     "") ;;
@@ -45,8 +45,8 @@ if [[ ! -f "$AGENT_BIN" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$SRC_PNG" ]]; then
-    echo "Error: source icon $SRC_PNG not found." >&2
+if [[ ! -f "$SRC_ICON" ]]; then
+    echo "Error: source icon $SRC_ICON not found." >&2
     exit 1
 fi
 
@@ -63,21 +63,8 @@ if [[ "${1:-}" == --debug ]]; then
     strip -S "$APP/Contents/MacOS/Warpai" "$APP/Contents/MacOS/warpai-agent"
 fi
 
-# 2) Generate AppIcon.icns from the 512×512 source via iconset
-ICONSET="$(mktemp -d)/AppIcon.iconset"
-mkdir -p "$ICONSET"
-sips -z 16   16   "$SRC_PNG" --out "$ICONSET/icon_16x16.png"        >/dev/null
-sips -z 32   32   "$SRC_PNG" --out "$ICONSET/icon_16x16@2x.png"     >/dev/null
-sips -z 32   32   "$SRC_PNG" --out "$ICONSET/icon_32x32.png"        >/dev/null
-sips -z 64   64   "$SRC_PNG" --out "$ICONSET/icon_32x32@2x.png"     >/dev/null
-sips -z 128  128  "$SRC_PNG" --out "$ICONSET/icon_128x128.png"      >/dev/null
-sips -z 256  256  "$SRC_PNG" --out "$ICONSET/icon_128x128@2x.png"   >/dev/null
-sips -z 256  256  "$SRC_PNG" --out "$ICONSET/icon_256x256.png"      >/dev/null
-sips -z 512  512  "$SRC_PNG" --out "$ICONSET/icon_256x256@2x.png"   >/dev/null
-sips -z 512  512  "$SRC_PNG" --out "$ICONSET/icon_512x512.png"      >/dev/null
-cp "$SRC_PNG" "$ICONSET/icon_512x512@2x.png"
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
-rm -rf "$(dirname "$ICONSET")"
+# 2) Reuse the reviewed multiresolution icon without changing its artwork.
+cp "$SRC_ICON" "$APP/Contents/Resources/AppIcon.icns"
 
 # 3) Info.plist
 cat > "$APP/Contents/Info.plist" <<EOF

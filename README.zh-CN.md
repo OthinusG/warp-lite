@@ -4,6 +4,8 @@
 
 # Warpai
 
+<img src="app/assets/branding/warpai.png" alt="Warpai" width="160" height="160">
+
 ### 你的终端，你的项目，你的 Agent。
 
 面向 macOS 和 Windows 的本地优先终端，
@@ -159,7 +161,7 @@ Warpai 只清理自己拥有的配置，保留用户的其他设置。
 安装已发布版本时，在 macOS 中将 DMG 内的 **WarpLite.app** 拖入 Applications。
 在 Windows 中运行 **WarpLiteSetup-x64.exe**，或解压便携 ZIP 后运行 **WarpLite.exe**。
 
-当前安装包将在图标更新后构建。当前源码和验证记录包含上文的 Codex
+当前源码对应的安装包尚未发布。当前源码和验证记录包含上文的 Codex
 原生适配；旧试用安装包早于这次改动。请按
 [开发指南](docs/DEVELOPMENT.zh-CN.md)，从同一源码版本构建桌面端和远程 companion。
 GitHub Actions 验证产物可能要求登录 GitHub，且有保留期限；

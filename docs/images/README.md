@@ -39,6 +39,6 @@ its source-matched diagnostic reports exit code 0 with no failed native actions.
 Both documentation PNGs are byte-identical to their original captures at
 1440 × 684 pixels. The screenshot-only review build is not a published installer.
 
-No independently designed Warpai app icon was available in this checkout when
-these documentation assets were prepared. The README uses a text heading rather
-than inventing a replacement brand mark.
+These captures predate the owner-supplied app icon update. The README now uses
+[the canonical Warpai artwork](../../app/assets/branding/warpai.png); no Dock or
+installer branding is claimed by these workspace-only frames.

@@ -59,7 +59,7 @@ SolidCompression=yes
 WizardStyle=modern
 WizardSmallImageFile="installer-images\warp-logo.bmp"
 WizardImageFile="installer-images\warpai-banner.bmp"
-SetupIconFile="..\..\app\channels\{#ReleaseChannel}\icon\no-padding\icon.ico"
+SetupIconFile="..\..\app\assets\branding\warpai.ico"
 UninstallDisplayIcon="{app}\icon.ico"
 ; Force close previous Warp if it hasn't shut down yet.
 ; In the update flow we already warn the user if they have something running and make them confirm
@@ -99,7 +99,7 @@ Source: "{#TargetProfileDir}\warpai-agent.exe"; DestDir: "{app}"; Flags: ignorev
 Source: "{#TargetProfileDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AssetsDir}\{#Arch}\conpty.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AssetsDir}\{#Arch}\OpenConsole.exe"; DestDir: "{app}\{#Arch}"; Flags: ignoreversion
-Source: "..\..\app\channels\{#ReleaseChannel}\icon\no-padding\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\app\assets\branding\warpai.ico"; DestDir: "{app}"; DestName: "icon.ico"; Flags: ignoreversion
 Source: "{#AssetsDir}\{#Arch}\vcruntime140.dll"; DestDir: "{app}"
 Source: "{#AssetsDir}\{#Arch}\vcruntime140_1.dll"; DestDir: "{app}"
 Source: "{#AssetsDir}\{#Arch}\msvcp140.dll"; DestDir: "{app}"

@@ -5,8 +5,10 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use warp_core::context_flag::ContextFlag;
 use warp_core::ui::appearance::Appearance;
+use warpui::assets::asset_cache::AssetSource;
 use warpui::elements::{
-    Align, ChildView, ConstrainedBox, Container, CrossAxisAlignment, Flex, Icon, ParentElement,
+    Align, CacheOption, ChildView, ConstrainedBox, Container, CrossAxisAlignment, Flex, Image,
+    ParentElement,
 };
 use warpui::keymap::EditableBinding;
 use warpui::platform::FilePickerConfiguration;
@@ -242,9 +244,11 @@ impl View for WelcomeView {
                 .with_children([
                     Container::new(
                         ConstrainedBox::new(
-                            Icon::new(
-                                "bundled/svg/warp-logo-neutral.svg",
-                                appearance.theme().foreground(),
+                            Image::new(
+                                AssetSource::Bundled {
+                                    path: "branding/warpai.png",
+                                },
+                                CacheOption::BySize,
                             )
                             .finish(),
                         )
