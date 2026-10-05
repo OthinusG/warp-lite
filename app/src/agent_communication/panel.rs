@@ -4109,7 +4109,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         use crate::terminal::model::ansi::{Handler, PreexecValue};
                         if terminal.model.lock().block_list().active_block().block_banner().is_none() {
                             // A banner belongs to a running block; no SSH process is executed.
-                            terminal.model.lock().block_list_mut().preexec(PreexecValue {
+                            let mut model = terminal.model.lock();
+                            model.block_list_mut().active_block_mut().start();
+                            for character in "ssh user@host".chars() {
+                                model.block_list_mut().input(character);
+                            }
+                            model.block_list_mut().preexec(PreexecValue {
                                 command: "ssh user@host".into(),
                             });
                         }

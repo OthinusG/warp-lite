@@ -1124,3 +1124,6 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   restore the block after capture and reserve native height for the added action
   row. Rerun the corrected native capture before release; CI success alone is
   not visual acceptance. Final review installer manifests/icons match 770741b.
+- Native capture must echo command characters before preexec: HeaderGrid preexec
+  freezes already echoed input rather than inserting its command payload. Start
+  the static block and use the existing ANSI Handler, never execute sample SSH.
