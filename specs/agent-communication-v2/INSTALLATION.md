@@ -66,12 +66,15 @@ than assuming the POSIX shell wrapper handles it.
 
 ## Verification status
 
-Source `770741b` passed desktop application regressions in run 37320844750 and
-three-platform installer/transport checks in run 37320176774. Visual review
-rejected the two new PowerShell frames: an idle block did not render the banner.
-Capture a simulated running command without executing SSH and assert banner
-ownership/draft preservation. Reserve native banner height for its second action
-row, then rerun desktop/native acceptance before tagging or publishing.
+Full macOS/Windows application regressions passed at source `6ec6755` in
+[run 37340966290](https://github.com/OthinusG/warpai/actions/runs/37340966290).
+Final source `7ebbd3e` changes only the SSH guidance caption and documentation
+link. Three-platform installer/transport checks passed in
+[run 37348866696](https://github.com/OthinusG/warpai/actions/runs/37348866696).
+Final native screenshot review is recorded in the UI contract and screenshot
+provenance ledger. The previously rejected `770741b` PowerShell frames were
+corrected by simulating a running echoed command and reserving banner height;
+the capture never executes SSH.
 
 The owner changed the release scope
 while 1.0.1 Windows packaging was running; cancel that publication and preserve the

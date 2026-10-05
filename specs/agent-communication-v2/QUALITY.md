@@ -119,3 +119,13 @@ installation on physical desktops.
 
 Status: replacement, cleanup, final functional/native UI acceptance, artifact
 inspection and default-branch/branch cleanup complete.
+
+## 1.1.0 delivery acceptance
+
+Full desktop application regressions passed at `6ec6755` in run 37340966290.
+Final `7ebbd3e` passed both native desktop suites in run 37349315123 and
+three-platform remote install/transport checks in run 37348866696.
+The final application delta consists of SSH guidance caption/help-link changes.
+See UI-CONSISTENCY.md and docs/images/README.md for raw screenshot review and
+provenance. Formal tagged installers must pass package inspection before the
+private draft is published.

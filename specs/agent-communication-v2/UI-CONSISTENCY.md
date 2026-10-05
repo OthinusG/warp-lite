@@ -164,7 +164,7 @@ state and an OS-specific installation guide. Keep existing Secondary setup and
 Text reconnect actions in the wrapping header. At a verified login prompt, both
 SSH integration entry variants expose an explicit **Integrate PowerShell** action
 on its own row, avoiding narrow-width overlap. Never inject into authentication
-requests or modify user profiles. Source-matched native screenshot QA is pending.
+requests or modify user profiles. Final source-matched native screenshot QA passed; see the receipt below.
 
 The in-block SSH banner reserves height for its second action row in both native
 layout and block height accounting. Capture it on a simulated running command,
@@ -178,3 +178,21 @@ arrows are a connection emblem; preserve the main mark and transparent margin,
 without restoring an outer ring or sparkle. Master artwork is RGBA with native
 ICNS/ICO exports. Inspect small sizes on light/dark
 backgrounds, macOS Finder/DMG and Windows setup metadata/resources before release.
+
+## 1.1.0 final native acceptance
+
+Source `7ebbd3ee45b4652a2e4038f9fb9b16b971ec5fb8` passed
+[run 37349315123](https://github.com/OthinusG/warpai/actions/runs/37349315123).
+Both platforms passed default/platform checks, protocol checks and native actions,
+producing 163 PNGs each with matching source, exit code 0 and no failed steps.
+Downloaded archives passed GitHub SHA-256, ZIP CRC and PNG decoding checks.
+Full application regressions passed at `6ec6755` in
+[run 37340966290](https://github.com/OthinusG/warpai/actions/runs/37340966290);
+only the SSH caption and help link changed in application code afterward.
+
+Reviewed the visible PowerShell button in warm/dark on both desktops, settings
+alignment at 125%, narrow-panel wrapping and macOS vertical-tab live scenes.
+The banner no longer advertises removed cloud features. README images are
+unaltered final-source warm macOS captures; the bilingual provenance ledger
+records their original paths. Installer artwork remains subject to formal
+package inspection before publication.

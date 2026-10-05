@@ -9,10 +9,10 @@ model sessions.
 
 - Tabs: native macOS vertical tab panel enabled.
 - Theme: default **Claude Warm Light**, rendered by the native app.
-- Source: `5d2588a86bbdc05cc994ad816561c4626be9aac4`.
-- [GitHub desktop run 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992).
+- Source: `7ebbd3ee45b4652a2e4038f9fb9b16b971ec5fb8`.
+- [GitHub desktop run 37349315123](https://github.com/OthinusG/warpai/actions/runs/37349315123).
 - Artifact: `Warpai-collaboration-native-captures-macOS`.
-- Capture set: `capture-26906/collaboration-static/2026-10-05T06-18-49`.
+- Capture set: `capture-90608/collaboration-static/2026-10-05T18-00-33`.
 
 | Documentation image | Original capture | Shows |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ model sessions.
 Compared the raw captures with [the native UI contract](../../specs/agent-communication-v2/UI-CONSISTENCY.md).
 The earlier `5883221` frames were rejected for faint toolbar icons; the corrected
 source uses full-red opacity masks and native theme colors. The downloaded
-macOS archive passed GitHub SHA-256 and ZIP CRC checks, all 161 PNGs decoded, and
+macOS archive passed GitHub SHA-256 and ZIP CRC checks, all 163 PNGs decoded, and
 its source-matched diagnostic reports exit code 0 with no failed native actions.
 
 | Point | Expected / reviewed result |
@@ -42,3 +42,12 @@ Both documentation PNGs are byte-identical to their original captures at
 These captures include the current branding source. Workspace images do not
 show Dock or installer artwork; those are verified by native packaging checks.
 The capture driver retains 125% UI zoom for these live checkpoints.
+
+Final capture archive SHA-256:
+
+- macOS: `2dcf99107677b2d1d15ab93ee91373135ee11c550e5162f18c35d64f2c0c432a`.
+- Windows: `65f9781f9ae58c8253b7a45667ffd8a43d23eca572c7fc6fed89caf9de30bb20`.
+
+The Windows archive also passed CRC, decoding of all 163 frames and native
+action diagnostics. Warm/dark PowerShell banners and 125% settings were reviewed
+on both platforms before the release tag was created.

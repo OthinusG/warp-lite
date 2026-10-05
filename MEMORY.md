@@ -1143,3 +1143,11 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   claim and upstream SSH guide in the shared banner; remove that text/link, then
   capture final wording with native checks. Existing control/launch logic remains
   unchanged; macOS full regressions are still pending.
+
+- 1.1.0 full macOS/Windows regressions passed in run 37340966290 (6ec6755).
+  Final 7ebbd3e native run 37349315123 passed both platforms; only SSH caption
+  and help-link strings changed after full regressions. Both archives contain
+  163 decoded source-matched PNGs and successful action diagnostics. README
+  uses byte-identical Claude Warm Light macOS vertical-tab frames. Three-OS
+  installer/transport gate 37348866696 passed; formal tagged package inspection
+  and public release remain the delivery gates.
