@@ -2,6 +2,15 @@
 
 ## Current delivery — 2026-10-05
 
+- Owner superseded 1.0.1 release with **1.1.0** remote deployment iteration.
+  Cancel Windows publication run 37290225101 and preserve the private 1.0.1
+  draft/tag. Ship per-OS remote installers, not raw companion archives. Install
+  at the remote account default Warpai directory; discover from actual remote
+  home/OS and check protocol compatibility. No shell/PATH/SSH/credential edits
+  and no new persistent service. Users connect via ordinary ssh and select the
+  project with cd; remove the SSH alias/root/companion-path form. See
+  specs/agent-communication-v2/INSTALLATION.md for plan and acceptance.
+
 - Repository: [OthinusG/warpai](https://github.com/OthinusG/warpai), default branch
   `main`; origin is `git@github.com:OthinusG/warpai.git`. The local workspace path
   remains unchanged so active tooling and project skill paths keep working.
@@ -55,6 +64,24 @@
   deferred; the accepted icon and current release preparation supersede it.
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
+
+## 1.1.0 implementation checkpoint
+
+- Specification: specs/agent-communication-v2/INSTALLATION.md. First source pass
+  removes the manual SSH connection form, derives default remote component paths
+  from native session home/OS/cwd and probes version/protocol through the existing
+  OpenSSH master. Socket closure cannot fall back to a different host; WSL routes
+  through the guest SSH. Pending/unconfirmed SSH must never bind a local project.
+- Native installer sources live under script/companion: Linux self-extracting run,
+  macOS DMG with install command and Windows per-account Inno EXE. Unix installer
+  checks platform/checksum and stages executable/manifest before atomic replacement;
+  it never changes PATH, shell startup or SSH configuration. Disposable CI tests
+  exercise installation, repeat installation, manifest/hash/mode and corruption.
+- Remaining: run cloud Rust/native installer gates; complete and verify ordinary
+  PowerShell SSH/session integration (POSIX bootstrap alone is insufficient),
+  platform-specific guidance, remote cwd/tab/exit isolation and real native UI QA;
+  then finalize 1.1.0 docs/assets/installers/release. These changes are not accepted
+  or published yet; 1.0.1 remains a private historical draft.
 
 ## App icon checkpoint — 2026-10-05
 

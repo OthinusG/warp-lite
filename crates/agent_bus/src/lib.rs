@@ -1,4 +1,5 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
+pub mod installation;
 pub mod launch;
 pub mod mcp;
 pub mod readiness;

@@ -15,7 +15,6 @@ use warpui::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
-    ConnectSsh,
     Send,
     Assign,
     Pool,
@@ -40,7 +39,6 @@ pub(crate) enum Kind {
 impl Kind {
     pub(super) fn label(self) -> &'static str {
         match self {
-            Self::ConnectSsh => "Connect SSH project",
             Self::Send => "Send message",
             Self::Assign => "Assign task",
             Self::Pool => "Create pool task",
@@ -65,11 +63,6 @@ impl Kind {
     }
     fn labels(self) -> &'static [&'static str] {
         match self {
-            Self::ConnectSsh => &[
-                "System SSH alias",
-                "Absolute remote project root",
-                "Absolute companion path",
-            ],
             Self::Send => &["Recipient agent name", "Message", "Subject (optional)"],
             Self::Assign | Self::Pool => &[
                 "Recipient or eligible names (comma-separated for pool)",
@@ -132,7 +125,6 @@ pub(super) struct Form {
 }
 
 enum Command {
-    Connect(warp_agent_bus::ssh_remote::SshProfile),
     Agent(Operation),
     Controller(ControllerOperation),
     Search(String),
@@ -162,25 +154,6 @@ fn command(
             && !field.chars().any(char::is_control)),
         "Complete every field using plain text (up to 8192 bytes)"
     );
-    if kind == Kind::ConnectSsh {
-        let profile = warp_agent_bus::ssh_remote::SshProfile {
-            target: fields[0].trim().into(),
-            remote_root: fields[1].trim().into(),
-            companion_path: fields[2].trim().into(),
-            config_file: None,
-            remote_shell: if fields[1].trim().starts_with('/') {
-                warp_agent_bus::ssh_remote::RemoteShell::Posix
-            } else {
-                warp_agent_bus::ssh_remote::RemoteShell::PowerShell
-            },
-        };
-        profile.validate().map_err(|_| {
-            anyhow::anyhow!(
-                "Use a system SSH alias and absolute paths for the remote operating system"
-            )
-        })?;
-        return Ok(Command::Connect(profile));
-    }
     if kind == Kind::Send {
         return Ok(Command::Agent(Operation::AgentSend {
             to: fields[0].trim().into(),
@@ -383,8 +356,7 @@ fn command(
             task_id,
             request_id,
         }),
-        Kind::ConnectSsh
-        | Kind::Send
+        Kind::Send
         | Kind::RenewReservation
         | Kind::ReleaseReservation
         | Kind::ArchiveAged
@@ -402,11 +374,11 @@ fn command(
 
 impl CollaborationPanel {
     pub(super) fn open_control(&mut self, kind: Kind, ctx: &mut ViewContext<Self>) {
-        if (kind != Kind::ConnectSsh && !self.connected) || self.preview || self.form.is_some() {
+        if !self.connected || self.preview || self.form.is_some() {
             return;
         }
         let snapshot = self.snapshot.as_ref();
-        if kind != Kind::ConnectSsh && snapshot.is_none() {
+        if snapshot.is_none() {
             return;
         }
         if self.remote.is_some()
@@ -423,8 +395,7 @@ impl CollaborationPanel {
         }
         if !matches!(
             kind,
-            Kind::ConnectSsh
-                | Kind::Send
+            Kind::Send
                 | Kind::RenewReservation
                 | Kind::ReleaseReservation
                 | Kind::ArchiveAged
@@ -459,7 +430,7 @@ impl CollaborationPanel {
         let project = snapshot
             .map(|snapshot| snapshot.project.clone())
             .unwrap_or_default();
-        let task = if matches!(kind, Kind::Send | Kind::ConnectSsh) {
+        let task = if kind == Kind::Send {
             None
         } else {
             snapshot.and_then(|snapshot| snapshot.task.clone())
@@ -538,12 +509,8 @@ impl CollaborationPanel {
     }
 
     pub(super) fn confirm_control(&mut self, ctx: &mut ViewContext<Self>) {
-        let connecting = self
-            .form
-            .as_ref()
-            .is_some_and(|form| form.kind == Kind::ConnectSsh);
-        if (!connecting && !self.connected)
-            || (!connecting && self.current_context(ctx) != self.context)
+        if !self.connected
+            || self.current_context(ctx) != self.context
             || !crate::agent_communication::AgentCommunication::as_ref(ctx)
                 .preferences
                 .enabled
@@ -556,11 +523,10 @@ impl CollaborationPanel {
         if form.submitting {
             return;
         }
-        if !connecting
-            && self
-                .snapshot
-                .as_ref()
-                .is_none_or(|snapshot| snapshot.project != form.project)
+        if self
+            .snapshot
+            .as_ref()
+            .is_none_or(|snapshot| snapshot.project != form.project)
         {
             form.error =
                 "Scope changed. Close this form and confirm a new operation in the current scope."
@@ -596,14 +562,6 @@ impl CollaborationPanel {
                 return;
             }
         };
-        if let Command::Connect(profile) = operation {
-            self.remote = Some(profile);
-            self.form = None;
-            self.context = None;
-            self.reconnect_remote(ctx);
-            ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
-            return;
-        }
         if let Command::Reservation { id, ttl, reason } = &operation {
             let Some(reservation) = form
                 .reservations
@@ -789,9 +747,7 @@ impl CollaborationPanel {
                 let button = builder
                     .button(ButtonVariant::Text, form.buttons[index].clone())
                     .with_text_label(label.into());
-                let button = if form.submitting
-                    || (index == 0 && form.kind != Kind::ConnectSsh && !self.connected)
-                {
+                let button = if form.submitting || (index == 0 && !self.connected) {
                     button.disabled()
                 } else {
                     button
@@ -907,20 +863,6 @@ mod tests {
     use super::*;
     #[test]
     fn native_intent_requires_explicit_fields_and_typed_override() {
-        let ssh = vec![
-            "research-node".into(),
-            "/srv/project".into(),
-            "/opt/warpai/warpai-companion".into(),
-        ];
-        assert!(
-            matches!(command(Kind::ConnectSsh, "", None, &ssh, "selection".into()).unwrap(), Command::Connect(profile) if profile.target == "research-node")
-        );
-        let mut invalid = ssh.clone();
-        invalid[0] = "-oProxyCommand=unexpected".into();
-        assert!(command(Kind::ConnectSsh, "", None, &invalid, "selection".into()).is_err());
-        invalid = ssh;
-        invalid[1] = "relative/root".into();
-        assert!(command(Kind::ConnectSsh, "", None, &invalid, "selection".into()).is_err());
         let message = vec![
             "worker".into(),
             "Review the remote result".into(),

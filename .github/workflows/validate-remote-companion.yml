@@ -38,7 +38,9 @@ jobs:
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Install Windows protobuf compiler
         if: runner.os == 'Windows'
-        run: choco install protoc -y
+        run: |
+          choco install protoc innosetup -y
+          echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
       - name: Verify shared control wire without desktop dependencies
         run: cargo test -p remote_protocol --locked
       - name: Lint shared control wire
@@ -50,6 +52,7 @@ jobs:
           cargo test -p warp-agent-bus --test native_pty --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+          cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
       - name: Verify local communication and retained history migrations
         run: |
@@ -135,6 +138,22 @@ jobs:
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
           PY
+      - name: Package and verify native remote installers
+        env:
+          RELEASE_TAG: v1.1.0
+        run: |
+          python3 - <<'PY'
+          import shutil
+          shutil.copytree('companion-review', 'companion-release')
+          PY
+          python3 script/companion/package.py
+          python3 script/companion/verify-installation.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-companion-installer-review-${{ runner.os }}-${{ runner.arch }}
+          path: WarpaiCompanion-*
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-companion-review-${{ runner.os }}-${{ runner.arch }}

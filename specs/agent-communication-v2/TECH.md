@@ -1,5 +1,7 @@
 # SSH Agent Communication Extension Technical Scope
 
+> Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
+
 Date: 2026-10-04. Active scope follows the user correction and PLAN S0–S5.
 All six items are accepted; exact-source evidence is in PROGRESS.md.
 

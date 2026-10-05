@@ -13,11 +13,11 @@
 
 **命令分块 · GPU 渲染 · 垂直标签页 · Agent 协作 · SSH 项目**
 
-[下载 1.0.1](#get-warpai) · [快速开始](#start-working) ·
+[下载 1.1.0](#get-warpai) · [快速开始](#start-working) ·
 [Agent 使用与兼容性](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)
+[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 
@@ -110,31 +110,31 @@ Warpai 每次启动都重新解析并探测当前安装，因此仍可通过原�
 
 *macOS 原生界面、垂直标签页与 Claude Warm Light 主题，展示受控 SSH 样例项目。截图来自实际运行的应用。*
 
-1. 在系统 OpenSSH 客户端中配置可信的主机别名与可用的非交互认证。
-2. 下载匹配的 [1.0.1 companion](#remote-companion)，在远程账号下解压；Unix 主机需赋予二进制执行权限。在该账号内安装并认证 CLI Agent。
-3. 打开 **Agent collaboration > Connect SSH project**，填写 SSH 别名、项目绝对路径和 companion 绝对路径。
-4. 在普通 SSH 终端中，用相同项目根目录启动受管理的 Agent：
+1. 在远端 SSH 账号下运行对应的[安装包](#remote-companion)，并通过各 CLI Agent 自己的工具安装和认证。
+2. 在 Warpai 终端中正常连接，再进入项目：
 
 ```sh
-/opt/warpai/warpai-companion agent /srv/project codex /usr/local/bin/codex
+ssh user@host
+cd /absolute/path/to/project
 ```
 
-按远程安装位置替换示例路径。Windows 主机使用 `warpai-companion.exe` 与原生绝对路径。
-关闭 SSH 终端会停止其拥有的 Agent 运行。断线后保留草稿、标记远程状态过期，重连前禁止写操作。
-桌面凭据不会复制到远程账号；文件传输采用 SFTP。
+面板跟随已确认的远端会话与项目目录。Warpai 自动从远端账号的固定目录寻找组件并检查兼容性，
+无需填写 SSH alias 或 companion 地址。组件缺失或不兼容时，界面提供安装指引与重连操作。
+SSH shell 集成确认远端目录后，面板才绑定对应项目。
 
-每个 SSH 项目有独立的协作权限范围。具体行为见 [SSH 技术说明（英文）](specs/agent-communication-v2/TECH.md)。
+断线后远端状态标记过期，禁止写操作。桌面凭据不复制到远端账号；各 SSH 项目保持独立权限范围，
+文件传输使用 SFTP。详见[远端安装说明](docs/REMOTE-INSTALLATION.zh-CN.md)与[1.1.0 连接契约（英文）](specs/agent-communication-v2/INSTALLATION.md)。
 
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.0.1](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)** 是改名后的首个版本，
+**[Warpai 1.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)** 是改名后的首个版本，
 包含本地 Agent 协作、Codex 会话级 MCP、SSH 项目和新的应用图标。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
 
 macOS 应用采用临时签名，尚未进行公证。如果首次启动被系统拦截，确认下载来源后，
 在 **System Settings > Privacy & Security > Open Anyway** 中批准打开。
@@ -150,9 +150,9 @@ Windows 可能要求确认运行未签名安装器。发布页面提供校验和
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-unknown-linux-gnu.zip) |
-| macOS Apple 芯片 | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-aarch64-apple-darwin.zip) |
-| Windows x64 | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-pc-windows-msvc.zip) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-linux-x64.run) |
+| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-windows-x64-setup.exe) |
 
 ## 设置与本地控制
 

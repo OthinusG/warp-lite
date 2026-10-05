@@ -984,6 +984,14 @@ impl Session {
         self.info.host_info.clone()
     }
 
+    /// The authenticated OpenSSH master reported by this native remote session.
+    pub fn ssh_control_socket(&self) -> Option<&std::path::Path> {
+        match &self.info.is_legacy_ssh_session {
+            IsLegacySSHSession::Yes { socket_path } => Some(socket_path),
+            IsLegacySSHSession::No => None,
+        }
+    }
+
     pub fn is_legacy_ssh_session(&self) -> bool {
         matches!(
             self.info.is_legacy_ssh_session,

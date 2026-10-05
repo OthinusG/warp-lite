@@ -1,5 +1,7 @@
 # SSH Agent Communication API
 
+> Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
+
 The active scope is PLAN S0–S5. The former manager contract is archived in
 https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/API.md and is not an implementation checklist.
 

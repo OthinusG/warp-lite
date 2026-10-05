@@ -43,7 +43,8 @@ jobs:
           elif [[ "$RUNNER_OS" == macOS ]]; then
             HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
           else
-            choco install protoc -y
+            choco install protoc innosetup -y
+            echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
           fi
       - name: Verify and build tagged companion
         run: |
@@ -54,7 +55,7 @@ jobs:
       - name: Package source-matched companion
         run: |
           python3 - <<'PY'
-          import hashlib, json, os, shutil, subprocess, zipfile
+          import hashlib, json, os, shutil, subprocess
           from pathlib import Path
           target = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
           binary = Path('target/release/warpai-companion' + ('.exe' if os.name == 'nt' else ''))
@@ -68,14 +69,12 @@ jobs:
           (output / 'manifest.json').write_text(json.dumps({'source': source, 'release': os.environ['RELEASE_TAG'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'release', 'sha256': digest}, indent=2) + '\n')
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
-          with zipfile.ZipFile(f'Warpai-companion-{target}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-              for path in sorted(output.iterdir()):
-                  archive.write(path, path.name)
           PY
+          python3 script/companion/package.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: companion-${{ runner.os }}-${{ runner.arch }}
-          path: Warpai-companion-*.zip
+          path: WarpaiCompanion-*
           if-no-files-found: error
 
   build-and-release:
@@ -137,8 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          shasum -a 256 Warpai.dmg Warpai-companion-*.zip > SHA256SUMS-macos-and-companions.txt
-          gh release create "$RELEASE_TAG" Warpai.dmg Warpai-companion-*.zip SHA256SUMS-macos-and-companions.txt \
+          shasum -a 256 Warpai.dmg WarpaiCompanion-* > SHA256SUMS-macos-and-companions.txt
+          gh release create "$RELEASE_TAG" Warpai.dmg WarpaiCompanion-* SHA256SUMS-macos-and-companions.txt \
             --verify-tag --repo "$GITHUB_REPOSITORY" \
             --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt

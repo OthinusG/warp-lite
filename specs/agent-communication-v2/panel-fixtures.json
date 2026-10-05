@@ -171,7 +171,7 @@
         "title": "SSH project",
         "rows": [
           "research-node · /srv/research/project",
-          "Companion: /opt/warpai/warpai-companion"
+          "Companion: installed in the remote account default directory"
         ]
       },
       {
@@ -196,9 +196,9 @@
       {
         "title": "SSH target",
         "rows": [
-          "System SSH alias: research-node",
+          "SSH terminal: research-node",
           "Remote project: /srv/research/project",
-          "Companion path: /opt/warpai/warpai-companion"
+          "Companion: detecting the installed component"
         ]
       }
     ]
@@ -223,7 +223,7 @@
   },
   {
     "state": "ssh-agent-error",
-    "guidance": "SSH connection failed. Check the system SSH alias and manually installed companion path, then retry.",
+    "guidance": "SSH connection failed. Check the terminal connection or install/update the remote component using SSH setup, then reconnect.",
     "sections": [
       {
         "title": "SSH project",

@@ -101,7 +101,7 @@ async fn main() {
     {
         println!(
             "warpai-companion {} protocol {}",
-            env!("CARGO_PKG_VERSION"),
+            warp_agent_bus::installation::RELEASE_VERSION,
             remote_protocol::managed::PROTOCOL_MAJOR
         );
         return;

@@ -113,12 +113,18 @@ impl SshProfile {
 
     /// SSH joins remote argv into a shell program; quote for that separate boundary.
     fn companion_command(&self) -> Result<String, ConnectionError> {
+        self.companion_command_args("")
+    }
+
+    fn companion_command_args(&self, arguments: &str) -> Result<String, ConnectionError> {
         let path = &self.companion_path;
-        let quoted = format!("'{}'", path.replace('\'', "'\\''"));
         Ok(match self.remote_shell {
-            RemoteShell::Posix => format!("exec {quoted}"),
+            RemoteShell::Posix => {
+                let quoted = format!("'{}'", path.replace('\'', "'\\''"));
+                format!("exec {quoted}{arguments}")
+            }
             RemoteShell::PowerShell => {
-                let script = format!("& '{}'", path.replace('\'', "''"));
+                let script = format!("& '{}'{arguments}", path.replace('\'', "''"));
                 let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
                 format!(
                     "powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand {}",
@@ -127,7 +133,49 @@ impl SshProfile {
             }
         })
     }
+
+    fn session_command(
+        &self,
+        socket: &std::path::Path,
+        wsl: Option<&str>,
+    ) -> Result<Command, ConnectionError> {
+        if !(socket.is_absolute()
+            || (wsl.is_some() && socket.to_str().is_some_and(|path| path.starts_with('/'))))
+            || socket.to_str().is_none_or(|path| !text(path, 4096))
+        {
+            return Err(ConnectionError::InvalidProfile);
+        }
+        let native = self.ssh_command()?;
+        let mut command = if let Some(distribution) = wsl {
+            if !text(distribution, 256) {
+                return Err(ConnectionError::InvalidProfile);
+            }
+            let mut command = Command::new("wsl");
+            crate::session::without_terminal_binding(&mut command);
+            command.env_remove("VIBE_MCP_SERVERS");
+            command.args(["--distribution", distribution, "--exec", "ssh"]);
+            command.args(native.as_std().get_args());
+            command.kill_on_drop(true);
+            command
+        } else {
+            native
+        };
+        // Reuse only the established session. A closed master must never reconnect elsewhere.
+        command
+            .arg("-S")
+            .arg(socket)
+            .args(["-o", "ControlMaster=no", "-o", "ProxyCommand=false"]);
+        command.arg("--").arg("warpai-session");
+        Ok(command)
+    }
 }
+
+impl std::fmt::Display for ConnectionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{self:?}")
+    }
+}
+impl std::error::Error for ConnectionError {}
 
 fn windows_absolute(path: &str) -> bool {
     let bytes = path.as_bytes();
@@ -163,6 +211,61 @@ impl HostClient {
             .stderr(Stdio::null())
             .kill_on_drop(true);
         let child = command
+            .spawn()
+            .map_err(|_| ConnectionError::SshUnavailable)?;
+        Self::open(child, &profile.remote_root).await
+    }
+
+    /// Attach to the selected terminal's already authenticated SSH session.
+    pub async fn connect_session(
+        profile: &SshProfile,
+        socket: &std::path::Path,
+        wsl: Option<&str>,
+    ) -> Result<Self, ConnectionError> {
+        use tokio::io::AsyncReadExt;
+        let mut probe = profile.session_command(socket, wsl)?;
+        let mut child = probe
+            .arg(profile.companion_command_args(" --version")?)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|_| ConnectionError::SshUnavailable)?;
+        let mut output = child
+            .stdout
+            .take()
+            .ok_or(ConnectionError::CompanionUnavailable)?;
+        let result = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+            let mut bytes = Vec::new();
+            (&mut output)
+                .take(257)
+                .read_to_end(&mut bytes)
+                .await
+                .map_err(|_| ConnectionError::CompanionUnavailable)?;
+            if bytes.len() > 256 {
+                return Err(ConnectionError::IncompatibleVersion);
+            }
+            if !child
+                .wait()
+                .await
+                .map_err(|_| ConnectionError::CompanionUnavailable)?
+                .success()
+            {
+                return Err(ConnectionError::CompanionUnavailable);
+            }
+            crate::installation::verify_version(&bytes)
+        })
+        .await
+        .map_err(|_| ConnectionError::CompanionUnavailable)?;
+        result?;
+        let mut command = profile.session_command(socket, wsl)?;
+        let child = command
+            .arg(profile.companion_command()?)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
             .spawn()
             .map_err(|_| ConnectionError::SshUnavailable)?;
         Self::open(child, &profile.remote_root).await

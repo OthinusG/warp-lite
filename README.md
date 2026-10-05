@@ -13,11 +13,11 @@ projects and coordinate independently installed CLI agents in one workspace.
 
 **Command blocks · GPU rendering · Vertical tabs · Agent collaboration · SSH projects**
 
-[Download 1.0.1](#get-warpai) · [Get started](#start-working) ·
+[Download 1.1.0](#get-warpai) · [Get started](#start-working) ·
 [Agent compatibility](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)
+[![Release](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 
@@ -117,34 +117,35 @@ shows the remote location, messages, tasks and connection state.
 *Native macOS, vertical tabs and Claude Warm Light, with a controlled sample SSH
 project. Screenshots show genuine application UI.*
 
-1. Configure a trusted host alias and working noninteractive authentication in your system OpenSSH client.
-2. Download the matching [1.0.1 companion](#remote-companion), extract it on the remote account and make the Unix binary executable. Install and authenticate CLI agents on that account.
-3. Open **Agent collaboration > Connect SSH project**. Enter the SSH alias, absolute project root and absolute companion path.
-4. In an ordinary SSH terminal, launch a managed agent with that companion and the same project root:
+1. Install the matching [remote installer](#remote-companion) on the SSH account. Install and authenticate CLI agents on that machine with their own tools.
+2. In a Warpai terminal, connect with system OpenSSH and enter your project:
 
 ```sh
-/opt/warpai/warpai-companion agent /srv/project codex /usr/local/bin/codex
+ssh user@host
+cd /absolute/path/to/project
 ```
 
-Replace those paths with your installed paths. Windows hosts use
-`warpai-companion.exe` and their native absolute paths. Closing the SSH terminal
-stops its owned agent run. After a disconnect, drafts remain available, remote
-state is marked stale and writes stay disabled until you reconnect. Desktop
-credentials are not copied to the remote account. File transfer uses SFTP.
+The panel follows the confirmed remote session and project directory. Warpai
+locates the component in its default account directory and checks compatibility;
+you do not fill in SSH aliases or companion paths. Missing or incompatible
+components show installation guidance and a reconnect action. SSH shell integration
+must confirm the remote directory before the panel can bind it.
 
-Each SSH project has its own authority. Setup and behavior are described in the
-[SSH technical guide](specs/agent-communication-v2/TECH.md).
+Disconnects leave remote state stale and disable writes. Desktop credentials are
+not copied to the remote account. Each SSH project has its own authority; file
+transfer uses SFTP. See [remote installation](docs/REMOTE-INSTALLATION.md) and the
+[1.1.0 connection contract](specs/agent-communication-v2/INSTALLATION.md).
 
 ## Get Warpai
 
-**[Warpai 1.0.1](https://github.com/OthinusG/warpai/releases/tag/v1.0.1)** is the
+**[Warpai 1.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)** is the
 first release under the Warpai name, including local agent collaboration,
 session-scoped Codex MCP, SSH projects and the new application icon.
 
 | Platform | Downloads | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/Warpai.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -162,9 +163,9 @@ record the exact source revision, Rust target and SHA-256 checksum.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-unknown-linux-gnu.zip) |
-| macOS Apple silicon | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-aarch64-apple-darwin.zip) |
-| Windows x64 | [Companion ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-companion-x86_64-pc-windows-msvc.zip) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-windows-x64-setup.exe) |
 
 ## Settings and local control
 

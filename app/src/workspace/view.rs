@@ -15767,6 +15767,7 @@ impl Workspace {
             let working_directory_clone = path_if_local.clone();
             let path_if_local_clone = path_if_local.clone();
             ActiveSession::handle(ctx).update(ctx, |active_session, ctx| {
+                active_session.set_current_directory(window_id, pwd.clone(), has_pending_ssh, ctx);
                 active_session.set_session_state(
                     window_id,
                     session,

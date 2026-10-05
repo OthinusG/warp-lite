@@ -246,12 +246,15 @@ pub(crate) struct CollaborationPanel {
     remote_failed: bool,
     last_received: Option<Instant>,
     remote_buttons: [MouseStateHandle; 3],
+    remote_socket: Option<std::path::PathBuf>,
+    remote_wsl: Option<String>,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
     NextFixture,
     ReconnectSsh,
+    RemoteSetup,
     UseLocal,
     PreviousFixture,
     Scroll(f32),
@@ -330,11 +333,46 @@ impl CollaborationPanel {
             remote_failed: false,
             last_received: None,
             remote_buttons: Default::default(),
+            remote_socket: None,
+            remote_wsl: None,
         }
     }
 
+    fn selected_ssh(
+        &self,
+        ctx: &ViewContext<Self>,
+    ) -> Option<(SshProfile, std::path::PathBuf, Option<String>)> {
+        let active = crate::workspace::ActiveSession::as_ref(ctx);
+        let session = active.session(ctx.window_id())?;
+        let socket = session.ssh_control_socket()?.to_owned();
+        let root = active.current_directory(ctx.window_id())?;
+        let (path, shell) = warp_agent_bus::installation::companion_path(
+            session.home_dir()?,
+            session.host_info().os_category.as_deref()?,
+        )
+        .ok()?;
+        let profile = SshProfile {
+            target: session.hostname().into(),
+            config_file: None,
+            remote_root: root.into(),
+            companion_path: path,
+            remote_shell: shell,
+        };
+        profile.validate().ok()?;
+        Some((
+            profile,
+            socket,
+            session.wsl_distro_name().map(str::to_owned),
+        ))
+    }
+
     fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
-        if let Some(profile) = &self.remote {
+        #[cfg(debug_assertions)]
+        if let Some(profile) = self
+            .remote
+            .as_ref()
+            .filter(|profile| profile.target == "native-companion-checkpoint")
+        {
             return Some((
                 format!(
                     "ssh:{}:{}:{}",
@@ -343,7 +381,23 @@ impl CollaborationPanel {
                 None,
             ));
         }
+        if let Some((profile, socket, wsl)) = self.selected_ssh(ctx) {
+            return Some((
+                format!(
+                    "ssh:{}:{}:{}:{socket:?}:{wsl:?}",
+                    profile.target, profile.remote_root, profile.companion_path
+                ),
+                None,
+            ));
+        }
         let active = crate::workspace::ActiveSession::as_ref(ctx);
+        if active.remote_pending(ctx.window_id())
+            || active
+                .session(ctx.window_id())
+                .is_some_and(|session| session.is_legacy_ssh_session())
+        {
+            return None;
+        }
         let root = active.path_if_local(ctx.window_id())?.to_str()?.to_owned();
         let terminal = active
             .terminal_view_id(ctx.window_id())
@@ -376,11 +430,26 @@ impl CollaborationPanel {
         if !self.visible {
             return;
         }
+        #[cfg(debug_assertions)]
+        let checkpoint = self
+            .remote
+            .as_ref()
+            .is_some_and(|profile| profile.target == "native-companion-checkpoint");
+        #[cfg(not(debug_assertions))]
+        let checkpoint = false;
+        if !checkpoint {
+            let selected = self.selected_ssh(ctx);
+            self.remote = selected.as_ref().map(|(profile, _, _)| profile.clone());
+            self.remote_socket = selected.as_ref().map(|(_, socket, _)| socket.clone());
+            self.remote_wsl = selected.and_then(|(_, _, wsl)| wsl);
+        }
         let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
             self.generation += 1;
             self.context = context.clone();
+            self.remote_client = Default::default();
+            self.remote_failed = false;
             self.snapshot = None;
             self.last_received = None;
             self.connected = false;
@@ -395,7 +464,7 @@ impl CollaborationPanel {
         }
         let Some((directory, terminal)) = context.clone() else {
             let status = if enabled {
-                "Select a local terminal project to view collaboration."
+                "Select a terminal project. For remote collaboration, use ssh user@host, then cd into the project. SSH setup explains installation and shell integration."
             } else {
                 "Communication is off. Enable it in Settings > Features > Agent communication."
             };
@@ -418,6 +487,8 @@ impl CollaborationPanel {
             return;
         }
         let remote = self.remote.clone();
+        let socket = self.remote_socket.clone();
+        let wsl = self.remote_wsl.clone();
         let client = self.remote_client.clone();
         self.in_flight = true;
         let mut query = self.query.clone();
@@ -427,7 +498,10 @@ impl CollaborationPanel {
             let value = if let Some(profile) = remote {
                 let mut client = client.lock().await;
                 if client.is_none() {
-                    *client = Some(HostClient::connect(&profile).await.map_err(|_| anyhow::anyhow!("ssh_connection_lost"))?);
+                    *client = Some(match socket {
+                        Some(socket) => HostClient::connect_session(&profile, &socket, wsl.as_deref()).await,
+                        None => HostClient::connect(&profile).await,
+                    }.map_err(anyhow::Error::new)?);
                 }
                 query.project.clear();
                 query.terminal = None;
@@ -492,7 +566,11 @@ impl CollaborationPanel {
                     if panel.remote.is_some() {
                         panel.remote_failed = error.downcast_ref::<warp_agent_bus::DomainError>().is_none();
                         panel.status = if panel.remote_failed {
-                            format!("SSH project unavailable ({code}). Last received state is stale. Check the system SSH alias and companion, then reconnect.")
+                            match error.downcast_ref::<warp_agent_bus::ssh_remote::ConnectionError>() {
+                                Some(warp_agent_bus::ssh_remote::ConnectionError::CompanionUnavailable) => "Warpai Companion is missing or cannot run. Use SSH setup to install the package for this remote system, then reconnect.".into(),
+                                Some(warp_agent_bus::ssh_remote::ConnectionError::IncompatibleVersion) => "Warpai Companion is incompatible. Use SSH setup to update it, then reconnect.".into(),
+                                _ => format!("SSH project unavailable ({code}). Last received state is stale. Check the terminal connection, then reconnect."),
+                            }
                         } else {
                             format!("Could not update the remote view ({code}). Last state is stale; change the view or refresh.")
                         };
@@ -979,6 +1057,12 @@ impl TypedActionView for CollaborationPanel {
                     }
                     return;
                 }
+                Action::RemoteSetup => {
+                    ctx.open_url(
+                        "https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md",
+                    );
+                    return;
+                }
                 Action::ReconnectSsh => {
                     if self.remote.is_some() {
                         self.reconnect_remote(ctx);
@@ -1292,9 +1376,10 @@ impl View for CollaborationPanel {
         } else {
             &live
         };
-        let hide_navigation = self.form.as_ref().is_some_and(|form| {
-            matches!(form.kind, controls::Kind::ConnectSsh | controls::Kind::Send)
-        });
+        let hide_navigation = self
+            .form
+            .as_ref()
+            .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
         header.add_child(panel_title(appearance, "Agent collaboration"));
         let state = if self.preview {
@@ -1323,17 +1408,8 @@ impl View for CollaborationPanel {
             .with_run_spacing(GAP_TIGHT);
         if !self.preview {
             for (index, label, action) in [
-                (
-                    0,
-                    if self.remote.is_some() {
-                        "Change SSH"
-                    } else {
-                        "Connect SSH project"
-                    },
-                    Action::OpenControl(controls::Kind::ConnectSsh),
-                ),
+                (0, "SSH setup", Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
-                (2, "Local", Action::UseLocal),
             ] {
                 if index > 0 && self.remote.is_none() {
                     continue;
@@ -3698,21 +3774,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     );
     driver = driver
         .with_step(
-            TestStep::new("review native SSH selection form")
-                .with_action(|app, window, _| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| {
-                        panel.open_control(controls::Kind::ConnectSsh, ctx);
-                        panel.fill_control_checkpoint(
-                            &[
-                                "research-node",
-                                "/srv/project",
-                                "/opt/warpai/warpai-companion",
-                            ],
-                            ctx,
-                        );
-                    });
-                })
+            TestStep::new("review terminal-driven SSH guidance")
                 .with_take_screenshot("live-ssh-selection.png"),
         )
         .with_step(

@@ -32,6 +32,8 @@ struct WindowActiveSession {
     path_if_local: Option<PathBuf>,
     /// The [`EntityId`]` for the [`TerminalView`] for the active session, if there is one.
     terminal_view_id: Option<EntityId>,
+    current_directory: Option<String>,
+    remote_pending: bool,
 }
 
 impl ActiveSession {
@@ -46,6 +48,35 @@ impl ActiveSession {
 
     pub fn terminal_view_id(&self, window_id: WindowId) -> Option<EntityId> {
         self.window_sessions.get(&window_id)?.terminal_view_id
+    }
+
+    /// Native cwd from the selected terminal; remote paths are never opened locally.
+    pub fn current_directory(&self, window_id: WindowId) -> Option<&str> {
+        self.window_sessions
+            .get(&window_id)?
+            .current_directory
+            .as_deref()
+    }
+
+    pub fn remote_pending(&self, window_id: WindowId) -> bool {
+        self.window_sessions
+            .get(&window_id)
+            .is_some_and(|state| state.remote_pending)
+    }
+
+    pub(super) fn set_current_directory(
+        &mut self,
+        window_id: WindowId,
+        directory: Option<String>,
+        remote_pending: bool,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        let state = self.window_sessions.entry(window_id).or_default();
+        if state.current_directory != directory || state.remote_pending != remote_pending {
+            state.current_directory = directory;
+            state.remote_pending = remote_pending;
+            ctx.notify();
+        }
     }
 
     /// The current working directory of the active session, if it's local.

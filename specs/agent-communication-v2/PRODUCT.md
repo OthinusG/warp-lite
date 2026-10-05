@@ -1,5 +1,7 @@
 # SSH Agent Communication Extension
 
+> Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
+
 Date: 2026-10-04. Status: scoped engineering acceptance complete; review builds available.
 
 Extend existing same-project Agent communication to CLI Agents running through

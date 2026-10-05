@@ -335,3 +335,76 @@ async fn ssh_fixture_operation(
     )
     .unwrap()
 }
+
+#[cfg(unix)]
+#[tokio::test]
+#[ignore = "requires the controlled OpenSSH fixture"]
+async fn established_terminal_socket_probes_and_fences_the_companion() {
+    use std::process::Stdio;
+    use warp_agent_bus::ssh_remote::ConnectionError;
+    let config = std::env::var_os("WARP_TEST_SSH_CONFIG").expect("Controlled SSH config");
+    let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
+    let companion = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
+    let directory = tempfile::tempdir().unwrap();
+    let socket = directory.path().join("ssh-control");
+    let mut master = tokio::process::Command::new("ssh")
+        .arg("-F")
+        .arg(&config)
+        .arg("-M")
+        .arg("-S")
+        .arg(&socket)
+        .args([
+            "-N",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=yes",
+            "warpai-test",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        while !socket.exists() {
+            assert!(
+                master.try_wait().unwrap().is_none(),
+                "Controlled SSH master exited"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let profile = SshProfile {
+        target: "observed-remote-host".into(),
+        config_file: Some(config.into()),
+        remote_root: root,
+        companion_path: companion,
+        remote_shell: RemoteShell::Posix,
+    };
+    let client = HostClient::connect_session(&profile, &socket, None)
+        .await
+        .unwrap();
+    let account = client.account_id.clone();
+    assert!(!account.is_empty());
+    let mut missing = profile.clone();
+    missing.companion_path.push_str("-missing");
+    assert_eq!(
+        HostClient::connect_session(&missing, &socket, None)
+            .await
+            .err(),
+        Some(ConnectionError::CompanionUnavailable)
+    );
+    drop(client);
+    master.kill().await.unwrap();
+    master.wait().await.unwrap();
+    assert!(
+        HostClient::connect_session(&profile, &socket, None)
+            .await
+            .is_err(),
+        "Closed terminal must not reconnect to another host"
+    );
+}

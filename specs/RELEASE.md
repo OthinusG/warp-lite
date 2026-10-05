@@ -1,5 +1,7 @@
 # Warpai 1.0.1 release
 
+> Superseded before publication by the owner's [1.1.0 iteration](agent-communication-v2/INSTALLATION.md). Keep the 1.0.1 draft private and preserve its source tag.
+
 ## Scope and acceptance
 
 Publish the first renamed Warpai release as `Warpai 1.0.1`, tag `v1.0.1`.
