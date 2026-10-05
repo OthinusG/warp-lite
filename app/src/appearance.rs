@@ -204,23 +204,11 @@ impl AppearanceManager {
             let bundle_path: id = msg_send![bundle, bundlePath];
             let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
 
-            // If the user has selected the default icon, reset to the icon that is statically
-            // bundled in the app bundle. The bundled icon gets automatically "filtered" according
-            // to the user's "Icon & Widget style" setting in the MacOS appearance settings (added
-            // in MacOS Tahoe). We implement custom icons by overriding this at runtime. Those
-            // icons do not adapt to the preferred style.
-            //
-            // Local channel is not bundled, so don't attempt this for that case. This method only
-            // works if the dock tile plugin hasn't overriden the default icon already, so skip
-            // this method if the app started up with a non-default icon, as setting to "nil" would
-            // revert to the icon we started up with. We therefore need to use an in-memory
-            // override to display the default icon. This has the drawback of _not_ inheriting the
-            // preferred icon style, but that icon style _will_ apply on next app restart.
-            if icon == AppIcon::Default
-                && ChannelState::channel() != Channel::Local
-                && self.app_icon_at_startup == AppIcon::Default
-            {
-                log::debug!("User has default icon selected, resetting to bundle default");
+            // All legacy icon preferences now resolve to the same Warpai artwork. Reset
+            // bundled apps even for those values so an old Finder/Dock override cannot
+            // restore upstream branding. Unbundled local builds use the PNG fallback.
+            if ChannelState::channel() != Channel::Local {
+                log::debug!("Resetting app icon to the Warpai bundle default");
                 // Reset to nil to use the bundle's default icon
                 let _: () = msg_send![app, setApplicationIconImage:nil];
                 let _: () = msg_send![workspace, setIcon:nil forFile:bundle_path options:0];
