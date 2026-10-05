@@ -120,3 +120,19 @@ stroke/fill to the native `#FF0000` mask convention. Geometry, transparent space
 theme tint, layout, actions and other Agent logos remain unchanged. Re-run native
 captures on both desktop targets before updating README images or accepting this
 repair. Do not edit screenshots to conceal the rendering problem.
+
+## Shared-tab capture readiness — 2026-10-05
+
+Source `8bc3c6e` passed full desktop regressions in run 37255520526 and remote
+validation in run 37255520544. Its macOS capture job produced all 161 successful
+frames with clear toolbar masks. The Windows capture job in run 37255524294
+stopped at 132 frames: the exact reviewed-root assertion used the default
+ten-second step budget, and its preceding shared-tab frame still showed
+"Starting PowerShell Core...". This incomplete job is not native acceptance.
+
+Give only this debug capture assertion a bounded 45-second readiness budget,
+retaining the exact canonical-root comparison. Capture the shared tab after
+that assertion succeeds, still before admission. Do not repeat the tab creation
+action or alter product path handling, admission rules or terminal callbacks.
+Keep the global watchdog and exact 161-image gate. Verify both native desktop
+capture suites before declaring the screenshot follow-up complete.

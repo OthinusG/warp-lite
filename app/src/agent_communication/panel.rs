@@ -2772,13 +2772,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }),
         )
         .with_step(
-            TestStep::new("capture new shared tab before admission")
-                .with_take_screenshot("live-workspace-shared-tab.png"),
-        )
-        .with_step(
-            TestStep::new("new shared tab keeps reviewed native root").add_named_assertion(
-                "exact native project",
-                move |app, window| {
+            TestStep::new("new shared tab keeps reviewed native root")
+                // A cold Windows shell can outlast the default ten-second assertion budget.
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("exact native project", move |app, window| {
                     warpui::async_assert!(app.read(|ctx| crate::workspace::ActiveSession::as_ref(
                         ctx
                     )
@@ -2786,8 +2783,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     .and_then(|path| warp_agent_bus::project_root(path).ok())
                     .as_deref()
                         == Some(shared_root.as_str())))
-                },
-            ),
+                })
+                .with_take_screenshot("live-workspace-shared-tab.png"),
         )
         .with_step(
             TestStep::new("new shared tab reconnects task panel").add_named_assertion(
