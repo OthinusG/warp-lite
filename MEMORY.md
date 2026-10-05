@@ -5,13 +5,15 @@
 - Repository: [OthinusG/warpai](https://github.com/OthinusG/warpai), default branch
   `main`; origin is `git@github.com:OthinusG/warpai.git`. The local workspace path
   remains unchanged so active tooling and project skill paths keep working.
-- Fast-forward integrated 33e366fb85f804d89b9e356781c989199a259fb9. The task and
-  temporary native-argument diagnostic branches were deleted locally/remotely;
-  GitHub retains only `main`. Preserve full history, licenses and release tags.
+- Latest follow-up delivery is d3619fe184fa723bd27782e795dbc6e0494b1893:
+  native README screenshots and workflow cleanup, with the accepted b41d07b
+  capture-readiness fix fast-forward integrated. All task/diagnostic branches
+  were deleted locally/remotely; GitHub retains only `main`. Preserve full
+  history, licenses and release tags. Final verification receipts are docs only.
 - Accepted core source is eab0ff0: desktop run 37233525889 and remote run
   37233527936 passed. Integration receipts changed documentation only; the
-  screenshot follow-up 8bc3c6e changes two toolbar masks and documentation,
-  preserving Rust/protocol/manifests. Native macOS original Codex model acceptance
+  screenshot follow-up fixes two toolbar opacity masks and debug capture
+  readiness. Production Rust behavior, protocols and manifests remain unchanged. Native macOS original Codex model acceptance
   remains source-matched for the bridge/backend; Windows has native shell/argv
   and process-fixture coverage. Current UI receipts are recorded below.
 - Source 8bc3c6e also passed full desktop run 37255520526 and remote run
@@ -23,8 +25,8 @@
   changing product callbacks. Run 37259523352 passed both desktop native checkpoints: 161 decoded frames
   per platform, source-matched diagnostics, exit code 0 and no failed actions.
 - Automatic session-only Codex MCP, bilingual README, audited deep cleanup and
-  main/repository delivery are complete. The screenshot follow-up refreshes native
-  README images and removes unused workflow steps; icon revision and formal
+  main/repository delivery are complete. The screenshot follow-up has refreshed native
+  README images and removed unused workflow steps; icon revision and formal
   packaging/release remain deferred. Main pushes run routine verification but
   do not create desktop installers.
 - Native review of source 5883221 found faint toolbar SVGs despite successful
@@ -45,7 +47,11 @@
   retained the 35 existing Rust check/test commands and capture diagnostics. Keep
   desktop validation, remote validation, macOS release and Windows release.
   The source-less temporary Codex argv workflow is disabled in GitHub; accepted
-  run history remains available. Formal icon revision/release is still deferred.
+  run history remains available. Cleaned-workflow protocol-only run 37262514339
+  passed macOS and Windows for d3619fe: protocol/history tests and native bridge/
+  readiness artifacts passed, desktop/native capture steps correctly skipped.
+  Final receipts change documentation only. Formal icon revision/release is
+  still deferred.
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
 

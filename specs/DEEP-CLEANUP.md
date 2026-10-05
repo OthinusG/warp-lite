@@ -328,3 +328,20 @@ preserving accepted run history. Static checks passed for four YAML workflows,
 eight referenced scripts, 36 Bash blocks, four inline Python blocks, eight input
 combinations and 92 local documentation links/fragments. Formal icon revision
 and tagged installer publication remain outside this follow-up.
+
+
+The cleaned workflow passed
+[run 37262514339](https://github.com/OthinusG/warpai/actions/runs/37262514339)
+for `d3619fe184fa723bd27782e795dbc6e0494b1893` on `main`, with
+`protocol_only=true`, `check_app=false`, `capture_ui=false`. macOS and Windows
+protocol/history tests and native bridge/readiness artifact uploads succeeded;
+desktop checks and native capture/build steps correctly skipped. No packaging
+or repetition job remains in validation.
+
+Fast-forward integrated the accepted readiness fix and screenshot/cleanup commit
+into `main`, pushed it and deleted the included task branch locally/remotely.
+GitHub retains only `main` and four active source workflows; the historical
+diagnostic entry remains disabled. Final receipts change documentation only,
+leaving application, asset, manifest and workflow inputs byte-identical to the
+accepted delivery. Independent app icon revision and formal packaging/publication
+remain the subsequent tasks.
