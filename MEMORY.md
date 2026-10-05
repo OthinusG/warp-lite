@@ -1097,3 +1097,10 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   included master. Add a native Windows cmd/PowerShell byte-protocol checkpoint
   using only the installed CI-owned component; do not assume shell quoting alone
   proves binary stdio. Nested/opaque SSH cannot adopt any desktop-side master.
+
+- Source bee1cf3 passed remote run 37316825893 on Linux/macOS/Windows, including
+  native Windows cmd/PowerShell version probe, binary protocol handshake, remote
+  project binding and task query using the installed CI component. The system
+  shell retains protocol bytes; no alternate transport or credential layer is
+  needed. Add focused frontend cases for compact SSH options and PowerShell
+  doubled apostrophes, then run final native screenshots and desktop acceptance.

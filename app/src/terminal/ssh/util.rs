@@ -242,7 +242,18 @@ pub(crate) fn companion_ssh_arguments(
     let tokens: Vec<String> = parsed_command
         .parts
         .into_iter()
-        .map(|part| part.item)
+        .map(|part| {
+            let raw = &command[part.span.start()..part.span.end()];
+            if shell == warp_util::path::ShellFamily::PowerShell
+                && raw.starts_with('\'')
+                && raw.ends_with('\'')
+                && raw.len() >= 2
+            {
+                raw[1..raw.len() - 1].replace("''", "'")
+            } else {
+                part.item
+            }
+        })
         .collect();
     if tokens.first().map(String::as_str) != Some("ssh")
         || tokens.iter().any(|part| part.contains('$'))
@@ -265,6 +276,23 @@ pub(crate) fn companion_ssh_arguments(
             "-D" | "-L" | "-R" => {
                 index += 1;
                 tokens.get(index)?;
+            }
+            "-4" | "-6" | "-C" | "--" => arguments.push(argument.clone()),
+            value
+                if [
+                    "-p", "-l", "-i", "-I", "-F", "-J", "-o", "-B", "-b", "-c", "-m",
+                ]
+                .iter()
+                .any(|flag| value.starts_with(flag) && value.len() > flag.len()) =>
+            {
+                arguments.push(argument.clone());
+            }
+            value
+                if ["-D", "-L", "-R"]
+                    .iter()
+                    .any(|flag| value.starts_with(flag) && value.len() > flag.len()) =>
+            {
+                ()
             }
             value if value == host => {
                 if index + 1 != tokens.len() {

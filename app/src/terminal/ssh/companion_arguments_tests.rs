@@ -27,6 +27,14 @@ fn companion_transport_preserves_destination_and_native_authentication_paths() {
     );
     assert_eq!(
         companion_ssh_arguments(
+            r"ssh -i 'C:\O''Brien\id' user@host",
+            ShellType::PowerShell.into()
+        )
+        .unwrap(),
+        ["-i", r"C:\O'Brien\id", "user@host"]
+    );
+    assert_eq!(
+        companion_ssh_arguments(
             "command ssh -tt -L 8080:localhost:80 user@host",
             ShellType::Bash.into()
         )
@@ -48,4 +56,12 @@ fn companion_transport_preserves_destination_and_native_authentication_paths() {
             "Non-literal or noninteractive SSH must stay native"
         );
     }
+    assert_eq!(
+        companion_ssh_arguments(
+            "ssh -6 -p2222 -L8080:localhost:80 -- user@host",
+            ShellType::Bash.into()
+        )
+        .unwrap(),
+        ["-6", "-p2222", "--", "user@host"]
+    );
 }
