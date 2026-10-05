@@ -365,6 +365,7 @@ impl CollaborationPanel {
                 socket: socket.to_owned(),
                 wsl: session.wsl_distro_name().map(str::to_owned),
             },
+            None if session.wsl_distro_name().is_some() => return None,
             None => SshConnection::Native {
                 arguments: session.ssh_arguments()?.to_vec(),
                 session: format!("{:?}", session.id()),

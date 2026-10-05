@@ -71,6 +71,7 @@ jobs:
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
+          cargo test -p warpai --lib terminal_ssh_session_ --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
@@ -192,6 +193,7 @@ jobs:
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
+          cargo test -p warpai --lib terminal_ssh_session_ --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked

@@ -67,16 +67,17 @@ upstream modules. Do not reformat unrelated source to repair a small change.
 ## Releases and provenance
 
 The [macOS release workflow](../.github/workflows/release-macos.yml) builds an
-existing repository tag, packages the app and three-platform release companions,
+existing repository tag, packages the app and three-platform remote installers,
 and creates a draft. The
 [Windows workflow](../.github/workflows/release-windows-x64.yml) uses the same tag
 and attaches verified installer artifacts before publishing the draft;
-it also supports explicit dispatch. Set `GIT_RELEASE_TAG=v1.0.1` for macOS
-packaging or pass `-ReleaseTag v1.0.1` to the Windows builder. Product package
+it also supports explicit dispatch. Set `GIT_RELEASE_TAG=v1.1.0` for macOS
+packaging or pass `-ReleaseTag v1.1.0` to the Windows builder. Product package
 versions derive from that tag. See [the release contract](../specs/RELEASE.md).
 Validation artifacts are debug review builds and captures, separate from tagged
 published releases. EXE installer/DMG packaging belongs to these release
-workflows.
+workflows. Remote installer payloads use the same tag and default per-account
+path; see [remote installation](REMOTE-INSTALLATION.md).
 
 The default branch is `main`. Preserve copyright, license notices and
 historical provenance. Do not delete unrelated unmerged work or active PR heads.

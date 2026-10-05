@@ -9,6 +9,36 @@ use warpui::{
 use super::command_executor::testing::TestCommandExecutor;
 use super::{BootstrapSessionType, Session, SessionId, SessionInfo, Sessions, SessionsEvent};
 
+#[test]
+fn terminal_ssh_session_preserves_transport_without_adopting_nested_hosts() {
+    let local = Session::test();
+    let mut remote = Session::test_remote();
+    remote.inherit_ssh_arguments("ssh -p 2222 user@host", Some(&local));
+    assert_eq!(remote.ssh_arguments().unwrap(), ["-p", "2222", "user@host"]);
+    let mut subshell = Session::test_remote();
+    subshell.inherit_ssh_arguments("bash", Some(&remote));
+    assert_eq!(subshell.ssh_arguments(), remote.ssh_arguments());
+    let mut nested = Session::test_remote();
+    nested.inherit_ssh_arguments("ssh other-host", Some(&remote));
+    assert!(nested.ssh_arguments().is_none());
+    assert!(!format!("{remote:?}").contains("user@host"));
+}
+
+#[test]
+fn terminal_ssh_session_uses_remote_os_for_native_directory_paths() {
+    let mut remote = Session::test_remote();
+    remote.info.host_info.os_category = Some("Windows".into());
+    assert!(matches!(
+        remote.convert_directory_to_typed_path_buf(r"C:\Users\dev\project".into()),
+        typed_path::TypedPathBuf::Windows(_)
+    ));
+    remote.info.host_info.os_category = Some("Linux".into());
+    assert!(matches!(
+        remote.convert_directory_to_typed_path_buf("/home/dev/project".into()),
+        typed_path::TypedPathBuf::Unix(_)
+    ));
+}
+
 struct TestView {
     events: Vec<SessionsEvent>,
 }

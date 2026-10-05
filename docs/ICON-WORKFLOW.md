@@ -109,3 +109,19 @@ on its native white surface; the 202 × 386 RGB sidebar BMP derives from
 the prior background/wordmark and replaces only the icon. Keep both BMP paths in
 windows-installer.iss synchronized. No upstream marketing background is used
 by the inherited macOS DMG entry.
+
+## Companion installer variant — 1.1.0
+
+The owner requested a connection-tool variant using the existing Warpai product
+icon and supplied opposing curved arrows. The built-in imagegen edit creates
+`app/assets/branding/warpai-companion.png`; ICNS/ICO exports use the unchanged
+1254px RGBA master. Do not replace the desktop mark or use a toolbar opacity mask
+for full-color installer artwork. Check transparent edges and small sizes on
+light/dark backgrounds before wiring consumers.
+
+Windows setup/uninstall use the companion ICO. macOS image volume and install
+command use the companion ICNS (Finder custom resource fork retained by hdiutil).
+Linux's self-contained CLI installer includes the master; there is no new Linux
+desktop launcher. All variants install the same runtime at the stable account
+location. CI verifies the native installer resources, installation and component
+integrity before release. Keep artwork and consumer paths in the same source.

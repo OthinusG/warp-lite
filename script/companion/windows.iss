@@ -18,10 +18,12 @@ OutputDir=.
 OutputBaseFilename=WarpaiCompanion-windows-x64-setup
 UninstallFilesDir={app}\companion-uninstall
 UninstallDisplayName={#ProductName}
-SetupIconFile=../../app/assets/branding/warpai.ico
+SetupIconFile=../../app/assets/branding/warpai-companion.ico
+UninstallDisplayIcon={app}\companion.ico
 Compression=lzma2
 SolidCompression=yes
 [Files]
+Source: "../../app/assets/branding/warpai-companion.ico"; DestDir: "{app}"; DestName: "companion.ico"; Flags: ignoreversion
 Source: "../../companion-release/warpai-companion.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "../../companion-release/manifest.json"; DestDir: "{app}"; DestName: "companion-manifest.json"; Flags: ignoreversion
 Source: "../../companion-release/LICENSE-AGPL"; DestDir: "{app}\companion-notices"; Flags: ignoreversion

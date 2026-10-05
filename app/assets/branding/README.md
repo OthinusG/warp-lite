@@ -24,3 +24,17 @@ background and lowercase wordmark are retained while its flat logo is replaced
 with the approved icon. The Windows wizard exports remain 58 × 58 (header) and
 202 × 386 (sidebar), RGB BMP. The inherited macOS DMG entry no longer uses the
 retired upstream marketing background.
+
+## Companion connection-tool identity
+
+`warpai-companion.png` is the installer variant: the approved black Warpai tile
+and silver notebook/terminal mark with the owner's opposing curved-arrow
+reference fused into its lower-right connection emblem. The built-in imagegen
+edit preserved the product identity, six binding links, transparent margin and
+rimless material. The ICO/ICNS exports downsample this unchanged master.
+
+The prompt requested one square RGBA installer icon, retaining the approved
+Warpai geometry/material and adding silver/white opposing arrows without text,
+new colors, an outer ring or sparkles. Native exports and small-size light/dark
+previews were inspected. macOS DMG/Finder and Windows installation verification
+remain release gates. Desktop Warpai branding stays separate.

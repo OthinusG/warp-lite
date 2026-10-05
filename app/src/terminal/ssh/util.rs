@@ -223,10 +223,16 @@ pub(crate) fn companion_ssh_arguments(
     shell: warp_util::path::ShellFamily,
 ) -> Option<Vec<String>> {
     let command = command.strip_prefix("command ").unwrap_or(command);
+    if command.len() > 16 * 1024 {
+        return None;
+    }
     let mut parsed_commands =
         warp_completer::parsers::simple::all_parsed_commands(command, shell.escape_char());
     let parsed_command = parsed_commands.next()?;
     if parsed_commands.next().is_some()
+        || !command[..parsed_command.parts.first()?.span.start()]
+            .trim()
+            .is_empty()
         || !command[parsed_command.parts.last()?.span.end()..]
             .trim()
             .is_empty()

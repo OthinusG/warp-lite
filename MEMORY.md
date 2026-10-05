@@ -1072,3 +1072,21 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   ControlMaster is unsupported; use original system SSH key/agent authentication
   without credential storage. Add session-only PowerShell integration to the
   terminal SSH banner, never user profiles. Final desktop/UI acceptance pending.
+
+- Companion identity now has its own `warpai-companion.png` master and ICNS/ICO
+  exports. Imagegen merges the supplied opposing arrows with the approved black
+  Warpai tile. Preserve the desktop icon. macOS volume/install command use native
+  Finder icons via AppKit/osascript; Windows setup/uninstall use companion ICO,
+  Linux CLI installer bundles the master without a desktop launcher. Small-size
+  light/dark previews and a real temporary Finder resource-fork check passed.
+- Native SSH source 6786490 passed remote run 37307186273 on all three systems
+  plus controlled Linux OpenSSH original-arguments/master/project fencing.
+  Desktop application tests and final icon-integrated native capture are pending.
+
+- Desktop run 37307185988 passed both OS default/platform application checks,
+  but lib-test compilation rejected two test-only Session constructors missing
+  the new redacted SSH argument field. Fixed both constructors, then added
+  inheritance/nested-host/redaction and cross-platform remote-path regressions.
+  Remote directory typing must use confirmed remote OS before desktop fallback;
+  macOS can connect to Windows PowerShell. WSL without its confirmed guest master
+  cannot replay SSH arguments through a Windows host client. Rerun required.

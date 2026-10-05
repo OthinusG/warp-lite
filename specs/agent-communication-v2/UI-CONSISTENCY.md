@@ -156,3 +156,19 @@ The two README images are byte-identical macOS frames with vertical tabs and
 Claude Warm Light; see [the bilingual provenance ledger](../../docs/images/README.md).
 This receipt supersedes the incomplete Windows capture above. No screenshots
 were recolored or reconstructed and no public installer was produced.
+
+## 1.1.0 SSH installation and companion identity
+
+Replace the manual SSH alias/root/component form with terminal-derived connection
+state and an OS-specific installation guide. Keep existing Secondary setup and
+Text reconnect actions in the wrapping header. At a verified login prompt, both
+SSH integration entry variants expose an explicit **Integrate PowerShell** action
+on its own row, avoiding narrow-width overlap. Never inject into authentication
+requests or modify user profiles. Source-matched native screenshot QA is pending.
+
+Remote installers use a companion-specific variant of the approved black Warpai
+rounded tile and silver notebook/terminal mark. The owner-provided opposing curved
+arrows are a connection emblem; preserve the main mark and transparent margin,
+without restoring an outer ring or sparkle. Master artwork is RGBA with native
+ICNS/ICO exports. Inspect small sizes on light/dark
+backgrounds, macOS Finder/DMG and Windows setup metadata/resources before release.

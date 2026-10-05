@@ -139,20 +139,20 @@ impl View for WarpifyFooterView {
     fn render(&self, _app: &AppContext) -> Box<dyn Element> {
         let terminal_model = self.terminal_model.lock();
 
-        let mut button_row = Flex::row()
+        let button_row = Flex::row()
             .with_spacing(4.)
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_child(ChildView::new(&self.warpify_button).finish());
-        if self.mode.as_ref().is_some_and(WarpificationMode::is_ssh) {
-            button_row.add_child(ChildView::new(&self.powershell_button).finish());
-        }
-        let button_row = button_row
+            .with_child(ChildView::new(&self.warpify_button).finish())
             .with_child(ChildView::new(&self.use_agent_button).finish())
             .with_child(Expanded::new(1., Empty::new().finish()).finish())
             .with_child(ChildView::new(&self.dismiss_button).finish());
 
-        let mut container = Container::new(button_row.finish())
+        let mut content = Flex::column().with_child(button_row.finish());
+        if self.mode.as_ref().is_some_and(WarpificationMode::is_ssh) {
+            content.add_child(ChildView::new(&self.powershell_button).finish());
+        }
+        let mut container = Container::new(content.finish())
             .with_horizontal_padding(*PADDING_LEFT)
             .with_vertical_padding(4.);
 

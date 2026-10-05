@@ -21,6 +21,10 @@ else:
         command = ["sh", "WarpaiCompanion-linux-x64.run"]
 
 installed = Path.home() / ".config/.warpai/bin" / binary_name
+if sys.platform == "darwin":
+    assert Path("companion-image/.VolumeIcon.icns").read_bytes() == Path("app/assets/branding/warpai-companion.icns").read_bytes()
+    launcher = Path("companion-image/Install Warpai Companion.command")
+    assert subprocess.check_output(["xattr", "-p", "com.apple.ResourceFork", str(launcher)]), "Finder installer icon is missing"
 before = {path: path.read_bytes() if path.is_file() else None for path in [Path.home() / ".bashrc", Path.home() / ".zshrc", Path.home() / ".profile", Path.home() / ".ssh/config"]}
 for _ in range(2):
     subprocess.run(command, check=True)
@@ -32,6 +36,8 @@ for _ in range(2):
     assert version == "warpai-companion 1.1.0 protocol 1", version
     if os.name != "nt":
         assert installed.stat().st_mode & 0o777 == 0o700
+    else:
+        assert installed.with_name("companion.ico").read_bytes() == Path("app/assets/branding/warpai-companion.ico").read_bytes()
 for path, content in before.items():
     assert (path.read_bytes() if path.is_file() else None) == content, "Installation changed unrelated shell or SSH configuration"
 

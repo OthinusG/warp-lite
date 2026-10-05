@@ -383,24 +383,7 @@ impl Sessions {
         let parent = session_info
             .spawning_session_id
             .and_then(|id| self.sessions.get(&id));
-        let source_shell = parent
-            .map(|parent| parent.shell_family())
-            .unwrap_or_else(|| session.shell_family());
-        // A nested SSH destination must not be replayed from the local machine.
-        if !parent.is_some_and(|parent| {
-            parent.is_legacy_ssh_session()
-                || matches!(parent.session_type(), SessionType::WarpifiedRemote { .. })
-                || parent.ssh_arguments().is_some()
-        }) {
-            session.ssh_arguments = crate::terminal::ssh::util::companion_ssh_arguments(
-                &spawning_command,
-                source_shell,
-            ).map(SshArguments);
-        } else if crate::terminal::ssh::util::parse_interactive_ssh_command(&spawning_command).is_none() {
-            session.ssh_arguments = parent
-                .and_then(|parent| parent.ssh_arguments())
-                .map(|arguments| SshArguments(arguments.to_vec()));
-        }
+        session.inherit_ssh_arguments(&spawning_command, parent.map(AsRef::as_ref));
 
         log::info!("Shell is bootstrapped with session_id {:?}", session.id());
         log::debug!("Session details: {session:?}");
@@ -1014,6 +997,27 @@ impl Session {
         self.info.host_info.clone()
     }
 
+    fn inherit_ssh_arguments(&mut self, spawning_command: &str, parent: Option<&Session>) {
+        let source_shell = parent
+            .map(|parent| parent.shell_family())
+            .unwrap_or_else(|| self.shell_family());
+        // A nested SSH destination must not be replayed from the local machine.
+        if !parent.is_some_and(|parent| {
+            parent.is_legacy_ssh_session()
+                || matches!(parent.session_type(), SessionType::WarpifiedRemote { .. })
+                || parent.ssh_arguments().is_some()
+        }) {
+            self.ssh_arguments = crate::terminal::ssh::util::companion_ssh_arguments(
+                spawning_command,
+                source_shell,
+            ).map(SshArguments);
+        } else if crate::terminal::ssh::util::parse_interactive_ssh_command(spawning_command).is_none() {
+            self.ssh_arguments = parent
+                .and_then(|parent| parent.ssh_arguments())
+                .map(|arguments| SshArguments(arguments.to_vec()));
+        }
+    }
+
     /// Original SSH transport metadata stays in memory and is never written to preferences.
     pub fn ssh_arguments(&self) -> Option<&[String]> {
         self.ssh_arguments.as_ref().map(|arguments| arguments.0.as_slice())
@@ -1554,8 +1558,13 @@ impl Session {
         // - wsl on windows ---> unix
         // - warpified zsh --> unix
 
-        // If the host architecture is unix, we can infer unix file paths. This would break
-        // if we supported warpifying a powershell-on-windows SSH session.
+        match self.info.host_info.os_category.as_deref() {
+            Some("Windows") => return TypedPathBuf::from_windows(pwd),
+            Some("Linux" | "MacOS" | "Darwin") => return TypedPathBuf::from_unix(pwd),
+            _ => (),
+        }
+
+        // Older local sessions can lack OS metadata; retain their platform fallback.
         if cfg!(unix) {
             return TypedPathBuf::from_unix(pwd);
         }
@@ -1751,6 +1760,7 @@ pub mod testing {
             let session_type = SessionType::from(info.session_type.clone());
             Self {
                 info,
+                ssh_arguments: None,
                 external_commands: Default::default(),
                 command_executor: RwLock::new(Arc::new(TestCommandExecutor::default())),
                 load_external_commands_future: Default::default(),
@@ -1766,6 +1776,7 @@ pub mod testing {
             let session_type = SessionType::from(info.session_type.clone());
             Self {
                 info,
+                ssh_arguments: None,
                 external_commands: Default::default(),
                 command_executor: RwLock::new(Arc::new(TestCommandExecutor::default())),
                 load_external_commands_future: Default::default(),

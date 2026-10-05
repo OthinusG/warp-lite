@@ -175,19 +175,6 @@ pub fn render_warpification_banner(
     .finish();
 
     let do_not_remember = state.remember_for_warpification(false);
-    let mut integration_buttons = Flex::row().with_child(Align::new(yes_button).finish());
-    if state.is_ssh() {
-        integration_buttons.add_child(
-            appearance.ui_builder()
-                .button(ButtonVariant::Text, state.powershell_button_mouse_state.clone())
-                .with_text_label("Integrate PowerShell".into())
-                .build()
-                .on_click(|ctx, _, _| {
-                    ctx.dispatch_typed_action(TerminalAction::IntegratePowerShellSsh);
-                })
-                .finish(),
-        );
-    }
     let close_button = appearance
         .ui_builder()
         .close_button(
@@ -205,7 +192,7 @@ pub fn render_warpification_banner(
     let mut col = Flex::column()
         .with_child(
             Flex::row()
-                .with_child(integration_buttons.finish())
+                .with_child(Align::new(yes_button).finish())
                 .with_child(
                     Shrinkable::new(1., Align::new(dont_ask_button).right().finish()).finish(),
                 )
@@ -214,6 +201,19 @@ pub fn render_warpification_banner(
                 .finish(),
         )
         .with_cross_axis_alignment(CrossAxisAlignment::Start);
+
+    if state.is_ssh() {
+        col.add_child(
+            appearance.ui_builder()
+                .button(ButtonVariant::Text, state.powershell_button_mouse_state.clone())
+                .with_text_label("Integrate PowerShell".into())
+                .build()
+                .on_click(|ctx, _, _| {
+                    ctx.dispatch_typed_action(TerminalAction::IntegratePowerShellSsh);
+                })
+                .finish(),
+        );
+    }
 
     render_block_banner(
         |hover_state| {

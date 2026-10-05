@@ -40,6 +40,8 @@ fn companion_transport_preserves_destination_and_native_authentication_paths() {
         "ssh host > output",
         "ssh -i $KEY_PATH host",
         "ssh host; another",
+        "CUSTOM_SSH_ENV=value ssh host",
+        "ssh -o RemoteCommand=another host remote-command",
     ] {
         assert!(
             companion_ssh_arguments(command, ShellType::Bash.into()).is_none(),
