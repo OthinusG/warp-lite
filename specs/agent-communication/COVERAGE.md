@@ -130,10 +130,13 @@ separate participants; each completed two model turns calling `warp_agent_list`
 and final `warp_agent_ready`. Marking one client busy did not change the other's
 readiness. No vendor executable, user configuration, PATH or CODEX_HOME was
 replaced. The temporary fixture's trust setting was supplied only to that test
-invocation. Archive CRC and GitHub SHA-256 digests matched. The current f6fa053 application checkpoint has byte-identical agent_bus inputs.
+invocation. Archive CRC and GitHub SHA-256 digests matched. The corrected eab0ff0 application checkpoint has byte-identical agent_bus inputs.
 The rerun includes the owned native-directory bridge mode.
 
 This establishes native macOS session MCP behavior. Windows native argument
 passing is covered by the PowerShell application regression; it does not claim
-authenticated Windows model turns or every vendor/version. Application build
-and regression results are recorded in [deep cleanup](../DEEP-CLEANUP.md).
+authenticated Windows model turns or every vendor/version. Both macOS/Windows default/platform application checks and focused regressions
+passed for eab0ff0 in [37233525889](https://github.com/OthinusG/warpai/actions/runs/37233525889).
+The Windows regression verifies 60 native argv/TOML roundtrips through cmd/ps1,
+powershell/pwsh and all three passing modes, including metacharacter and Unicode
+paths. See [deep cleanup](../DEEP-CLEANUP.md) for the full receipt.

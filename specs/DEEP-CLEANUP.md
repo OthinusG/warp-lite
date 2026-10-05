@@ -248,4 +248,18 @@ the corrected source below. The isolated Windows diagnostic
 [37233373477](https://github.com/OthinusG/warpai/actions/runs/37233373477) verified
 60 launcher/shell/mode/path combinations with unchanged parsed TOML values.
 The permanent application regression now covers those same boundary cases.
-Final desktop checks remain pending until the corrected-source results below.
+Corrected-source remote gate
+[37233527936](https://github.com/OthinusG/warpai/actions/runs/37233527936) passed
+for eab0ff0 on Linux/macOS/Windows, including controlled Linux OpenSSH acceptance.
+The native-model acceptance inputs remain byte-identical to 625904f.
+Final desktop gate
+[37233525889](https://github.com/OthinusG/warpai/actions/runs/37233525889) passed
+for eab0ff0 on macOS and Windows. Both default and `warp_platform` application
+checks passed. Application regressions passed for original Codex argument and
+expansion preservation, all 60 Windows launcher/shell/mode/path roundtrips,
+both pending-launch Ctrl+C cancellation paths, dormant wake/draft protections,
+native setup, settings and legacy-data/credential migration.
+
+These gates did not produce desktop installers or capture new UI images. The
+remaining delivery work is icon revision (including refreshed screenshots) and
+packaging/release; no code or acceptance fix remains in this scope.

@@ -896,3 +896,12 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   preferences. Real CI fixtures cover cmd/ps1, powershell/pwsh, all three modes,
   plain/spaced/apostrophe/metacharacter/percent/Unicode paths. The isolated quick
   diagnostic passed 60 cases; it does not replace the application regression.
+
+- Final executable-source acceptance (2026-10-05): eab0ff0 passed desktop run
+  37233525889 on macOS/Windows (default + warp_platform checks and focused app
+  regressions, including 60 native Windows argument cases and both Ctrl+C paths)
+  and remote run 37233527936 on Linux/macOS/Windows with controlled OpenSSH
+  messaging/task/review. Original macOS Codex 0.160.0 model acceptance retains
+  byte-identical agent_bus inputs. These are code/functional gates, not new UI
+  captures or installers. Remaining user delivery scope is icon revision and
+  packaging/release. Temporary Windows diagnostic branch/files were deleted.

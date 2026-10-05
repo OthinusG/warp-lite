@@ -31,11 +31,17 @@ manager soak is required by this delivery.
 
 ## Native Codex ownership and deep cleanup — 2026-10-05
 
-Source f6fa053 passed remote run
-[37230080613](https://github.com/OthinusG/warpai/actions/runs/37230080613) on
+Source eab0ff0 passed remote run
+[37233527936](https://github.com/OthinusG/warpai/actions/runs/37233527936) on
 Linux/macOS/Windows, preserving local coordination and controlled SSH behavior.
 The original macOS Codex 0.160.0 separately passed two simultaneous participants
 and four completed model/MCP turns with source-matched agent_bus inputs. See
 [compatibility coverage](../agent-communication/COVERAGE.md) and
 [cleanup evidence](../DEEP-CLEANUP.md). Icon revision and release packaging are
 explicitly deferred; historical package acceptance does not certify this source.
+
+Final desktop gate [37233525889](https://github.com/OthinusG/warpai/actions/runs/37233525889)
+passed eab0ff0 on macOS and Windows: default/platform compilation and relevant
+application regressions, including 60 actual Windows native-argument cases and
+both pending-launch interrupt paths. The real macOS Codex model acceptance uses
+byte-identical agent_bus inputs. No installer is produced by this gate.
