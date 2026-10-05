@@ -69,3 +69,19 @@ than assuming the POSIX shell wrapper handles it.
 Implementation and 1.1.0 acceptance pending. The owner changed the release scope
 while 1.0.1 Windows packaging was running; cancel that publication and preserve the
 private 1.0.1 draft/source tag. Prior 1.0.1 acceptance is historical evidence only.
+
+## Native Windows OpenSSH route
+
+Microsoft's native client does not support ControlMaster. Preserve the original
+interactive SSH destination and supported transport/authentication arguments for
+an independent clean control connection when no master exists. System OpenSSH
+owns authentication (including its configured key agent); Warpai never saves a
+password or rewrites SSH configuration. An unavailable noninteractive credential
+must produce an actionable authentication state rather than credential copying
+or an alias form. Attach only after the native remote shell confirms home/OS/cwd;
+fence the control connection when the originating terminal exits or changes.
+
+Primary reference: https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope.
+Reuse the existing transient shell integration for remote PowerShell; extend its
+missing init branch without eval/Invoke-Expression or rc-file writes. Do not invoke
+tmux installation or automatic shell-profile modification for this feature.

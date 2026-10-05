@@ -77,6 +77,12 @@
   checks platform/checksum and stages executable/manifest before atomic replacement;
   it never changes PATH, shell startup or SSH configuration. Disposable CI tests
   exercise installation, repeat installation, manifest/hash/mode and corruption.
+- Source 55acb81 passed all three remote Rust test suites and real controlled
+  OpenSSH, including version/default-path and established-master/closed-master
+  checks. Linux native installation/reinstallation/integrity also passed in run
+  37301043343. Windows packaging caught an invalid Inno home constant (use the
+  documented environment constant); macOS hit transient EAGAIN verifying the
+  freshly created image. Correct both and rerun, keeping verification strict.
 - Remaining: run cloud Rust/native installer gates; complete and verify ordinary
   PowerShell SSH/session integration (POSIX bootstrap alone is insufficient),
   platform-specific guidance, remote cwd/tab/exit isolation and real native UI QA;

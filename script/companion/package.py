@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tarfile
+import time
 
 payload = Path("companion-release")
 version = os.environ["RELEASE_TAG"].removeprefix("v")
@@ -40,6 +41,14 @@ else:
         launcher.write_text('#!/bin/sh\nset -eu\ninstaller_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nsh "$installer_dir/payload/install-unix.sh"\nprintf "Press Return to close this installer."\nread -r answer\n')
         launcher.chmod(0o755)
         subprocess.run(["hdiutil", "create", "-volname", "Warpai Companion", "-srcfolder", str(image), "-ov", "-format", "UDZO", "WarpaiCompanion-macos-arm64.dmg"], check=True)
-        subprocess.run(["hdiutil", "verify", "WarpaiCompanion-macos-arm64.dmg"], check=True)
+        for attempt in range(4):
+            result = subprocess.run(["hdiutil", "verify", "WarpaiCompanion-macos-arm64.dmg"], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(result.stdout)
+                break
+            if attempt == 3 or "Resource temporarily unavailable" not in result.stderr:
+                raise SystemExit(result.stderr)
+            # macOS can briefly hold the newly created image open after create exits.
+            time.sleep(2)
     else:
         raise SystemExit("Unsupported remote installer platform")
