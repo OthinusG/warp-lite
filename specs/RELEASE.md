@@ -52,3 +52,8 @@ Preserve terminal guardrails, licenses and historical tags.
   ICNS, signing and invalid-version rejection using copied system placeholders.
   This smoke is a packaging check, not application/runtime acceptance.
 - Publication additionally requires the cloud tagged-package checks above.
+- Packaging-version source `ade83082b101ac624b62d90ea2c25d1a46b4fc65` passed
+  [desktop run 37270362536](https://github.com/OthinusG/warpai/actions/runs/37270362536)
+  on macOS and Windows, including both application configurations and all retained
+  focused regressions. Subsequent pre-tag changes affect docs/screenshots and
+  release-only archive checks, not application or companion runtime inputs.

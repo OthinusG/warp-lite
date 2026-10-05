@@ -94,6 +94,9 @@
   37270362606. Bilingual README is a complete product introduction, with stable
   1.0.1 download links and source-matched warm vertical-tab images. Tagged package
   checks still gate publication; see specs/RELEASE.md.
+- Packaging-version source ade8308 passed full desktop run 37270362536 on both
+  OSes. Tag preparation then changes product docs, source-matched screenshots
+  and release-only package checks; it preserves accepted runtime/build inputs.
 
 ## Quality comparison and integration — 2026-10-04
 
