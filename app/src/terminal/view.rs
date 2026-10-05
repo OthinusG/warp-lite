@@ -562,7 +562,7 @@ use super::{GridType, HistoryEvent};
 use crate::antivirus::AntivirusInfo;
 use crate::terminal::links::should_directly_open_link;
 use crate::terminal::model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher};
-use action::RememberForWarpification;
+pub(crate) use action::RememberForWarpification;
 use block_banner::{render_warpification_banner, WarpificationMode, WarpifyBannerState};
 use bookmarks::render_floating_block_snapshot;
 use command_corrections::rules::generic::history::History as CommandCorrectionsHistoryRule;

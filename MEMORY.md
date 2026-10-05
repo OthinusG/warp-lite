@@ -1104,3 +1104,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   shell retains protocol bytes; no alternate transport or credential layer is
   needed. Add focused frontend cases for compact SSH options and PowerShell
   doubled apostrophes, then run final native screenshots and desktop acceptance.
+
+- Final native capture adds explicit SSH PowerShell integration entry frames in
+  Claude Warm Light and Dark, preserving terminal drafts and using a static
+  banner without opening a network connection. Exact native frame count is now
+  163 per OS. Review these alongside the existing 161 frames; do not count a
+  successful screenshot request alone as visual acceptance. Final gate pending.

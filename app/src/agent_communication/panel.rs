@@ -4088,8 +4088,42 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 },
             ),
     );
+    for (theme_kind, theme_name) in [
+        (ThemeKind::ClaudeWarmLight, "claude-warm"),
+        (ThemeKind::Dark, "dark"),
+    ] {
+        let filename = format!("ssh-powershell-integration-{theme_name}.png");
+        filenames.push(filename.clone());
+        driver = driver.with_step(
+            TestStep::new(&format!("review SSH PowerShell integration entry {theme_name}"))
+                .with_action(move |app, window, _| {
+                    app.update(|ctx| {
+                        let theme = Settings::theme_for_theme_kind(&theme_kind, ctx);
+                        Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                            appearance.set_theme(theme, ctx);
+                        });
+                        ctx.set_zoom_factor(1.);
+                    });
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| {
+                        terminal.handle_action(
+                            &crate::terminal::view::TerminalAction::ShowWarpifySshBanner("ssh user@host".into(), Some("host".into())),
+                            ctx,
+                        );
+                    });
+                })
+                .with_take_screenshot(filename),
+        );
+    }
     driver = driver.with_step(
         TestStep::new("open native communication settings").with_action(|app, window, _| {
+            let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+            terminal.update(app, |terminal, ctx| {
+                terminal.handle_action(
+                    &crate::terminal::view::TerminalAction::DismissWarpifyBanner(crate::terminal::view::RememberForWarpification::DoNotRememberSSHHost),
+                    ctx,
+                );
+            });
             // Fixed visual data stays in the isolated debug profile and never configures a CLI.
             app.update(|ctx| {
                 super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
