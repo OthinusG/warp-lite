@@ -1137,3 +1137,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   volume flag, detach and compress. A read-only remount proved flag/icon/shortcut
   preservation. Formal installers also run install/reinstall and installed Windows
   byte-protocol checks on disposable runners before draft asset upload.
+- Windows source 6ec6755 passed full run 37340966290: 163 PNGs, matching native
+  diagnostics, GitHub archive SHA-256/CRC and decoded frames. New PowerShell
+  action is visible in warm/dark with no overlap. Review found a misleading Oz
+  claim and upstream SSH guide in the shared banner; remove that text/link, then
+  capture final wording with native checks. Existing control/launch logic remains
+  unchanged; macOS full regressions are still pending.
