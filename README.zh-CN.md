@@ -133,8 +133,8 @@ Warpai 每次启动都重新解析并探测当前安装，因此仍可通过原�
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) · [应用 ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.app.zip) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) · [便携 ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-windows-x64.zip) | 运行安装器，或解压 ZIP 后启动 **Warpai.exe**。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
 
 macOS 应用采用临时签名，尚未进行公证。如果首次启动被系统拦截，确认下载来源后，
 在 **System Settings > Privacy & Security > Open Anyway** 中批准打开。

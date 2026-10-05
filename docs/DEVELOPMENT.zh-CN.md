@@ -55,11 +55,11 @@ Rust 格式检查应聚焦相关文件：全仓库格式化可能遇到指向已
 ## 发布与历史
 
 [macOS 发布工作流](../.github/workflows/release-macos.yml) 构建已有仓库 tag，打包应用与三平台 companion，再创建发布草稿。
-[Windows 工作流](../.github/workflows/release-windows-x64.yml) 使用同一 tag，验证并附加安装器与便携包后公开发布，也支持显式手动触发。
+[Windows 工作流](../.github/workflows/release-windows-x64.yml) 使用同一 tag，验证并附加 EXE 安装器后公开发布，也支持显式手动触发。
 macOS 打包设置 `GIT_RELEASE_TAG=v1.0.1`，Windows 构建传入 `-ReleaseTag v1.0.1`；
 应用包版本由同一个 tag 得出。流程与检查见 [发布规范（英文）](../specs/RELEASE.md)。
 验证产物是调试构建和原生截图，与带 tag 的正式发布分开。
-安装器、应用 ZIP 与 DMG 由上述正式发布流程生成。
+EXE 安装器与 DMG 由上述正式发布流程生成。
 
 默认分支是 `main`。保留版权、许可证与历史出处；不要删除无关的未合并工作或活动 PR 分支。
 

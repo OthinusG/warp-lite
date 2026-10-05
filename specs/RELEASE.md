@@ -19,17 +19,17 @@ Preserve terminal guardrails, licenses and historical tags.
    x64. Each archive includes its target, commit, binary version and checksums.
    Companion protocol versions remain independent of the product release version.
 4. Create a draft after macOS packages and companions pass. Windows attaches its
-   validated installer/portable packages and publishes the complete draft.
+   validated EXE installer and publishes the complete draft.
 5. Verify public release assets, checksums, identities and documentation links;
    record acceptance and delivery in MEMORY.md.
 
 ## Packaging checks and risks
 
-- macOS ZIP/DMG must contain Warpai.app, `dev.warpai.Warpai`, version 1.0.1,
+- macOS DMG must contain Warpai.app, `dev.warpai.Warpai`, version 1.0.1,
   the reviewed ICNS and the local MCP bridge. Verify ad-hoc signing and DMG.
-- Windows installer and portable ZIP must contain Warpai.exe, required native
-  resources and the local MCP bridge. PE numeric/string versions and installer
-  version must be 1.0.1; the portable icon must match the reviewed ICO.
+- Windows installer must contain Warpai.exe, required native
+  resources and the local MCP bridge. Application PE numeric/string versions and installer product
+  version must be 1.0.1; the packaged icon must match the reviewed ICO.
 - Remote packages must identify actual Rust target and tagged source, pass their
   native version invocation, and have verified SHA-256 manifests.
 - Ad-hoc macOS signing and unsigned Windows installers can require OS approval;
@@ -38,6 +38,30 @@ Preserve terminal guardrails, licenses and historical tags.
   Preserve existing assets/history and fix failures before publication.
 
 ## Verification receipt
+
+### Windows gate correction and installer-only delivery
+
+The owner requested desktop installer images only: macOS DMG and Windows EXE,
+plus all three companion archives. Remove desktop app/portable ZIP release assets
+and update both READMEs, notes and checksum lists; retain the immutable source tag.
+
+Run 37282889244 built the Windows packages but failed an incorrect installer
+numeric file-version assertion. Inno's `VersionInfoVersion` defaults to 0.0.0.0;
+its product text version defaults to `AppVersion`. See the official
+[file version](https://jrsoftware.org/ishelp/topic_setup_versioninfoversion.htm)
+and [product version](https://jrsoftware.org/ishelp/topic_setup_versioninfoproducttextversion.htm)
+contracts. The application PE string-version assertions already passed.
+
+Fix plan (diagnose-ci-failures / fix-errors):
+
+1. Keep application PE numeric/string versions strict; verify the installer
+   product version against the release version. Log actual version fields.
+2. Preserve source-matched installer/checksum artifacts before the gate, allowing
+   diagnosis without losing successfully compiled packages.
+3. Publish only the EXE from Windows; remove the existing private desktop ZIP,
+   correct checksums and notes, and keep DMG/companions already validated.
+4. Validate workflow syntax, rerun native Windows checks, then inspect the public
+   asset list/checksums and publish a complete release. No CLI installation edits.
 
 - Icon/runtime source `5d2588a86bbdc05cc994ad816561c4626be9aac4` passed
   [desktop/native run 37268540992](https://github.com/OthinusG/warpai/actions/runs/37268540992):

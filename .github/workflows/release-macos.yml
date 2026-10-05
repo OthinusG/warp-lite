@@ -125,8 +125,6 @@ jobs:
           [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Warpai.app/Contents/Info.plist)" == dev.warpai.Warpai ]]
           cmp app/assets/branding/warpai.icns Warpai.app/Contents/Resources/AppIcon.icns
           codesign --verify --deep --strict Warpai.app
-          ditto -c -k --sequesterRsrc --keepParent Warpai.app Warpai.app.zip
-          unzip -tqq Warpai.app.zip
           hdiutil create -volname Warpai -srcfolder Warpai.app -ov -format UDZO Warpai.dmg
           hdiutil verify Warpai.dmg
       - name: Download tagged companions
@@ -139,8 +137,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          shasum -a 256 Warpai.app.zip Warpai.dmg Warpai-companion-*.zip > SHA256SUMS-macos-and-companions.txt
-          gh release create "$RELEASE_TAG" Warpai.app.zip Warpai.dmg Warpai-companion-*.zip SHA256SUMS-macos-and-companions.txt \
+          shasum -a 256 Warpai.dmg Warpai-companion-*.zip > SHA256SUMS-macos-and-companions.txt
+          gh release create "$RELEASE_TAG" Warpai.dmg Warpai-companion-*.zip SHA256SUMS-macos-and-companions.txt \
             --verify-tag --repo "$GITHUB_REPOSITORY" \
             --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt

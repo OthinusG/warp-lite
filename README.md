@@ -143,8 +143,8 @@ session-scoped Codex MCP, SSH projects and the new application icon.
 
 | Platform | Downloads | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) · [App ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.app.zip) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) · [Portable ZIP](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai-windows-x64.zip) | Run the installer, or extract the ZIP and launch **Warpai.exe**. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.0.1/Warpai.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.0.1/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking

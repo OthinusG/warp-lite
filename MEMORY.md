@@ -82,6 +82,14 @@
 
 ## Release preparation — 2026-10-05
 
+- Final delivery format: publish macOS DMG and Windows EXE installer only, plus
+  Linux x64/macOS ARM64/Windows x64 companion ZIPs and checksum files. Desktop
+  ZIPs are excluded. Preserve immutable v1.0.1 source 2bb4791.
+- Windows packaging run 37282889244 compiled successfully but exposed an invalid
+  installer numeric file-version assertion: Inno defaults that field to 0.0.0.0.
+  Verify installer product text version from AppVersion; retain strict application
+  PE string/numeric checks. Preserve installers as CI artifacts before the gate.
+
 - Owner requested the first renamed release after acceptance and corrected the
   final product version to **1.0.1** (`v1.0.1` tag, `Warpai 1.0.1` title).
   Both READMEs must introduce the entire product, not compare upstream changes.

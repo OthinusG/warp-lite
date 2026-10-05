@@ -70,12 +70,12 @@ The [macOS release workflow](../.github/workflows/release-macos.yml) builds an
 existing repository tag, packages the app and three-platform release companions,
 and creates a draft. The
 [Windows workflow](../.github/workflows/release-windows-x64.yml) uses the same tag
-and attaches verified installer/portable artifacts before publishing the draft;
+and attaches verified installer artifacts before publishing the draft;
 it also supports explicit dispatch. Set `GIT_RELEASE_TAG=v1.0.1` for macOS
 packaging or pass `-ReleaseTag v1.0.1` to the Windows builder. Product package
 versions derive from that tag. See [the release contract](../specs/RELEASE.md).
 Validation artifacts are debug review builds and captures, separate from tagged
-published releases. Installer/app ZIP/DMG packaging belongs to these release
+published releases. EXE installer/DMG packaging belongs to these release
 workflows.
 
 The default branch is `main`. Preserve copyright, license notices and
