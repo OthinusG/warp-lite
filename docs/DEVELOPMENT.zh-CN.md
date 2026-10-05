@@ -40,7 +40,7 @@ Windows 打包复用 [build-warpai-windows.ps1](../script/build-warpai-windows.p
 
 ## 验证
 
-- [桌面通信工作流](../.github/workflows/validate-agent-communication.yml)：macOS、Windows 应用检查、聚焦回归，以及可选原生 UI 截图与试用安装包。
+- [桌面通信工作流](../.github/workflows/validate-agent-communication.yml)：macOS、Windows 应用检查、聚焦回归，以及可选原生 UI 截图与调试构建。`protocol_only` 跳过桌面检查，除非启用 `check_app` 或 `capture_ui`；`capture_ui` 构建隔离的调试应用。验证流程不生成桌面安装包。
 - [远程 companion 工作流](../.github/workflows/validate-remote-companion.yml)：三平台协议和进程测试、受控 Linux OpenSSH 验收，以及带源码和摘要清单的 companion 产物。
 - [当前验收记录（英文）](../specs/agent-communication-v2/QUALITY.md)：替换决策、清理范围和准确源码版本的验证证据。
 
@@ -52,7 +52,8 @@ Rust 格式检查应聚焦相关文件：全仓库格式化可能遇到指向已
 
 [macOS 发布工作流](../.github/workflows/release-macos.yml) 构建已有仓库 tag，打包应用并创建对应发布。
 [Windows 工作流](../.github/workflows/release-windows-x64.yml) 使用同一 tag，附加安装器与便携包，也支持显式手动触发。
-验证产物属于试用构建，与带 tag 的正式发布分开。
+验证产物是调试构建和原生截图，与带 tag 的正式发布分开。
+安装器、应用 ZIP 与 DMG 由上述正式发布流程生成。
 
 默认分支是 `main`。保留版权、许可证与历史出处；不要删除无关的未合并工作或活动 PR 分支。
 

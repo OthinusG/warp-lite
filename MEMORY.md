@@ -8,13 +8,23 @@
 - Fast-forward integrated 33e366fb85f804d89b9e356781c989199a259fb9. The task and
   temporary native-argument diagnostic branches were deleted locally/remotely;
   GitHub retains only `main`. Preserve full history, licenses and release tags.
-- Accepted executable/build inputs are eab0ff0: desktop run 37233525889 and remote
-  run 37233527936 passed. Subsequent integration receipts change documentation
-  only. Native macOS original Codex model acceptance is source-matched for the
-  bridge/backend; Windows has native shell/argv and process-fixture coverage.
+- Accepted core source is eab0ff0: desktop run 37233525889 and remote run
+  37233527936 passed. Integration receipts changed documentation only; the
+  screenshot follow-up 8bc3c6e changes two toolbar masks and documentation,
+  preserving Rust/protocol/manifests. Native macOS original Codex model acceptance
+  remains source-matched for the bridge/backend; Windows has native shell/argv
+  and process-fixture coverage. Current UI receipts are recorded below.
+- Source 8bc3c6e also passed full desktop run 37255520526 and remote run
+  37255520544. Capture run 37255524294 passed all 161 macOS frames but stopped
+  Windows at the exact shared-tab root check (132 frames); its preceding frame
+  still showed PowerShell Core starting. Do not count that Windows job as native
+  acceptance. The capture-only follow-up b41d07b gives that assertion 45 seconds
+  and captures after it succeeds, without weakening canonical-root equality or
+  changing product callbacks. Run 37259523352 passed both desktop native checkpoints: 161 decoded frames
+  per platform, source-matched diagnostics, exit code 0 and no failed actions.
 - Automatic session-only Codex MCP, bilingual README, audited deep cleanup and
-  main/repository delivery are complete. Current follow-up is refreshed native
-  README screenshots, then unused workflow cleanup; icon revision and formal
+  main/repository delivery are complete. The screenshot follow-up refreshes native
+  README images and removes unused workflow steps; icon revision and formal
   packaging/release remain deferred. Main pushes run routine verification but
   do not create desktop installers.
 - Native review of source 5883221 found faint toolbar SVGs despite successful
@@ -23,6 +33,19 @@
   not the reference gray-blue color. Ordinary image/SVG brand assets retain their
   colors. Record this consumer distinction in docs/ICON-WORKFLOW.md; refreshed
   README frames must come from the corrected source after native visual review.
+- README images now use unmodified source b41d07b macOS captures from run
+  37259523352, with visible vertical tabs and Claude Warm Light. Native review
+  confirms clear theme-tinted toolbar glyphs in both tab layouts and Light/Dark,
+  the primary title/Secondary SSH entry, wrapping narrow actions and native MCP
+  settings alignment at 100%/125%. Both PNGs retain their original bytes; the
+  archive digest, CRC, all 161 images and source/action diagnostics were checked.
+- After replacing the README frames, removed duplicate validation installer/release
+  packaging and its unnecessary Inno Setup setup step. Retired the two-phase
+  eight-hour repetition input/jobs and both orphaned Python orchestration files;
+  retained the 35 existing Rust check/test commands and capture diagnostics. Keep
+  desktop validation, remote validation, macOS release and Windows release.
+  The source-less temporary Codex argv workflow is disabled in GitHub; accepted
+  run history remains available. Formal icon revision/release is still deferred.
 - Earlier dated sections are historical evidence; current ownership, scope,
   identity and build instructions supersede their old commands/assumptions.
 
@@ -92,7 +115,7 @@
   Chinese README uses explicit stable anchors; technical/license originals are
   linked with their language identified rather than silently presented as Chinese.
 - README screenshots are unmodified native macOS vertical-tab Claude Warm Light
-  captures from source 02d08d4; sample-data provenance is recorded in docs/images/README.md. Distinguish
+  captures from source 8bc3c6e; sample-data provenance is recorded in docs/images/README.md. Distinguish
   published v0.5.7-lite terminal packages from current collaboration review builds.
 - User reports an independently designed Warpai icon, but it was not found in
   this checkout or post-fork image history. Packaging currently retains upstream
@@ -338,7 +361,7 @@
 
 - Windows OpenSSH offline probes must close a disposable configuration file before spawning ssh; keeping its NamedTempFile handle open rejected the probe on the Windows runner. Using a retained TempPath after closing the handle passed macOS/Windows system option parsing in run 36951069744. Keep diagnostics limited to fixed option names/status, without dumping configuration output.
 
-- Eight-hour deterministic backend soak is opt-in through the validation workflow and split into two four-hour jobs per target OS. The Python stdlib runner excludes compilation time, requires matching source/OS/duration across phases, discards raw test output and writes atomic metadata-only reports. Short smoke runs never set eight_hour_pass. Backend repetition does not establish an eight-hour native UI/draft session or vendor-model acceptance.
+- Historical eight-hour deterministic backend repetition used two four-hour jobs per target OS. It was retired during the 2026-10-05 workflow cleanup because it is outside current acceptance and repeats the retained protocol/history suites. It never established an eight-hour native UI/draft session or vendor-model acceptance.
 
 - Local shared routing uses fresh app-selected terminal capabilities and SQLite v5 agent-to-workspace bindings. Reuse the existing immutable workspace root rather than duplicating paths. Tasks/events use a space domain; file conflicts and evidence use producing checkouts. Metadata joining alone leaves old private work untouched. Leaving/remapping durably revokes access and wake without claiming effects stopped; no shared UI or remote support is enabled from backend tests alone.
 

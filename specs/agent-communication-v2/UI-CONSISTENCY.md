@@ -82,7 +82,7 @@ actions, shared GAP_* spacing, Agents sub-header and warning-color cleanup text.
 Use the existing secondary note role for original reservation metadata and archive
 guidance. Match MCP status colors to native settings descriptions using surface_1;
 the explicit warning-color override remains unchanged. Callbacks, form values,
-focus and disabled/submitting rules do not change. Final native review is pending.
+focus and disabled/submitting rules do not change. Final native review is recorded in the 2026-10-05 receipt below.
 
 | Visual point | Native reference / repair | Verification |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ The icon assets are `app/assets/bundled/svg/warpai-settings.svg` and
 `app/assets/bundled/svg/warpai-tool-panel.svg`. The existing
 bundled-image renderer supplies theme tint; the anonymous avatar variant removes
 its circular accent background. Other Settings glyphs and application bundle
-icons are unchanged. Native verification follows the combined-source gate.
+icons are unchanged. Native verification passed the combined-source gate recorded below.
 
 ## Vector icon checkpoint — 2026-10-04
 
@@ -136,3 +136,23 @@ that assertion succeeds, still before admission. Do not repeat the tab creation
 action or alter product path handling, admission rules or terminal callbacks.
 Keep the global watchdog and exact 161-image gate. Verify both native desktop
 capture suites before declaring the screenshot follow-up complete.
+
+
+## Final native screenshot receipt — 2026-10-05
+
+Source `b41d07ba2896e8f3c755c9227ac3483d873c4e2b` passed
+[run 37259523352](https://github.com/OthinusG/warpai/actions/runs/37259523352)
+on macOS and Windows. Both default and `warp_platform` checks, backend tests
+and native action assertions passed. Each platform produced exactly 161 decoded
+PNG frames; diagnostics match the source, report exit code 0 and no failed steps.
+Archive GitHub SHA-256 digests and ZIP CRCs were verified.
+
+Reviewed original frames for clear theme-tinted SVG toolbar icons, title hierarchy,
+Secondary SSH actions, 320px/125% wrapping and native settings alignment in warm,
+light and dark themes. The Windows shared-tab frame now follows the exact
+canonical-root assertion after shell readiness. Long editor/panel content uses
+the native viewport and scrolling; primary controls do not overlap.
+The two README images are byte-identical macOS frames with vertical tabs and
+Claude Warm Light; see [the bilingual provenance ledger](../../docs/images/README.md).
+This receipt supersedes the incomplete Windows capture above. No screenshots
+were recolored or reconstructed and no public installer was produced.

@@ -77,8 +77,10 @@ Preserve all actual Rust tests, native capture diagnostics, standalone packaging
 scripts and license/provenance inputs. Update bilingual development instructions
 and memory. Validate all workflow YAML, dispatch mode conditions, remaining script
 paths and shell syntax; compare required test commands against the pre-cleanup
-workflow. Push to `main` and verify the ordinary cloud checks. Do not dispatch a
-formal release or repeat native captures for changes confined to CI/docs/images.
+workflow. Push to `main` and verify a protocol-only dispatch of the cleaned
+workflow. Reuse the completed source-matched desktop/remote acceptance for
+unchanged application inputs; ordinary push checks remain enabled. Do not
+dispatch a formal release or repeat native captures for CI/docs/image-only edits.
 
 ## Audit and evidence
 
@@ -305,3 +307,24 @@ accepted eab0ff0. Deleted this task's merged branch and the isolated diagnostic
 branch locally and remotely; GitHub retains only `main`. Full history and release
 tags remain. Updated origin and its HEAD; final delivery receipts are documentation
 only. No icon revision, new desktop screenshots or installer/release was made.
+
+
+### Screenshot and workflow cleanup receipt — 2026-10-05
+
+Final native source `b41d07b` passed macOS and Windows
+[run 37259523352](https://github.com/OthinusG/warpai/actions/runs/37259523352):
+161 decoded frames per platform, archive digest/CRC verification and successful
+source-matched action diagnostics. README images copy the original macOS
+Claude Warm Light/vertical-tab frames without editing. Source `8bc3c6e` already
+passed full desktop regressions and three-target remote validation; `b41d07b`
+changes only the debug capture assertion readiness budget and screenshot order.
+
+Removed duplicate validation packaging, its unnecessary Inno Setup preparation,
+two retired repetition jobs/input and their two orphaned Python scripts. All
+35 existing Rust check/test commands and their nine containing steps/conditions
+remain unchanged. Retained four useful source workflows and the macOS-to-Windows
+release dependency. Disabled the source-less Codex diagnostic cloud entry while
+preserving accepted run history. Static checks passed for four YAML workflows,
+eight referenced scripts, 36 Bash blocks, four inline Python blocks, eight input
+combinations and 92 local documentation links/fragments. Formal icon revision
+and tagged installer publication remain outside this follow-up.

@@ -46,7 +46,9 @@ storage identifiers when changing visible branding.
 
 - [Desktop communication workflow](../.github/workflows/validate-agent-communication.yml):
   macOS/Windows application checks, focused regressions and optional native UI
-  capture/review packages.
+  captures and debug review builds. `protocol_only` skips desktop checks unless
+  `check_app` or `capture_ui` is enabled; `capture_ui` builds isolated debug apps,
+  not installers. Validation does not package desktop releases.
 - [Remote companion workflow](../.github/workflows/validate-remote-companion.yml):
   three-platform protocol/process tests, controlled Linux OpenSSH acceptance and
   companion artifacts with source/digest manifests.
@@ -64,7 +66,9 @@ The [macOS release workflow](../.github/workflows/release-macos.yml) builds an
 existing repository tag, packages the app and creates its release. The
 [Windows workflow](../.github/workflows/release-windows-x64.yml) uses the same tag
 and attaches installer/portable artifacts; it also supports explicit dispatch.
-Validation artifacts are review builds, separate from tagged published releases.
+Validation artifacts are debug review builds and captures, separate from tagged
+published releases. Installer/app ZIP/DMG packaging belongs to these release
+workflows.
 
 The default branch is `main`. Preserve copyright, license notices and
 historical provenance. Do not delete unrelated unmerged work or active PR heads.
