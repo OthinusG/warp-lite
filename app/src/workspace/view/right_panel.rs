@@ -543,17 +543,7 @@ impl RightPanelView {
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn connect_ssh_checkpoint(&mut self, ctx: &mut ViewContext<Self>) {
-        self.code_review_session_env = Some(CodeReviewSessionEnv {
-            is_remote: true,
-            is_wsl: false,
-        });
-        ctx.spawn(
-            warp_agent_bus::ssh_files::RemoteFiles::connect_fixture(),
-            |view, result, ctx| {
-                view.attach_ssh_review(result.expect("Owned SSH Review attachment"), ctx);
-                ctx.notify();
-            },
-        );
+        self.refresh_ssh_review(ctx);
     }
 
     pub fn selected_repo_path(&self) -> Option<&PathBuf> {

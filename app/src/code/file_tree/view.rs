@@ -333,24 +333,7 @@ struct PendingFocusTarget {
 impl FileTreeView {
     #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn connect_ssh_checkpoint(&mut self, ctx: &mut ViewContext<Self>) {
-        ctx.spawn(
-            async {
-                let files = warp_agent_bus::ssh_files::RemoteFiles::connect_fixture().await?;
-                let snapshot = files.list(&files.canonical_root, 0).await?;
-                Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, snapshot))
-            },
-            |view, result, ctx| {
-                let (files, snapshot) = result.expect("Owned SSH file snapshot");
-                view.ssh_files = Some(files);
-                view.enablement = CodingPanelEnablementState::RemoteSession {
-                    has_remote_server: true,
-                };
-                view.set_remote_root_directories(&[], ctx);
-                view.displayed_directories.clear();
-                view.apply_ssh_snapshot(snapshot, true, ctx);
-                ctx.notify();
-            },
-        );
+        self.refresh_ssh(ctx);
     }
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]

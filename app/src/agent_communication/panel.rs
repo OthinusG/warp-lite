@@ -4047,6 +4047,49 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("connect existing Explorer to owned SSH project").with_action(
                 |app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, _| {
+                        use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue};
+                        let config = std::env::var("WARP_TEST_SSH_CONFIG").unwrap();
+                        let command = format!("ssh -F \"{config}\" warpai-test");
+                        let mut model = terminal.model.lock();
+                        model.block_list_mut().active_block_mut().start();
+                        for character in command.chars() {
+                            model.block_list_mut().input(character);
+                        }
+                        model.preexec(PreexecValue { command });
+                        model.init_shell(InitShellValue {
+                            session_id: 987654321_u64.into(),
+                            shell: "bash".into(),
+                            is_subshell: true,
+                            user: "fixture".into(),
+                            hostname: "warpai-test".into(),
+                            ..Default::default()
+                        });
+                        model.bootstrapped(BootstrappedValue {
+                            shell: "bash".into(),
+                            home_dir: Some(std::env::var("WARP_TEST_REMOTE_HOME").unwrap()),
+                            os_category: Some(if cfg!(target_os = "windows") { "Windows" } else { "Darwin" }.into()),
+                            ..Default::default()
+                        });
+                        model.precmd(PrecmdValue {
+                            session_id: Some(987654321),
+                            pwd: Some(std::env::var("WARP_TEST_REMOTE_ROOT").unwrap()),
+                            ..Default::default()
+                        });
+                    });
+                },
+            ).add_named_assertion("terminal confirms owned SSH cwd", |app, window| {
+                warpui::async_assert!(app.update(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window)
+                    .is_some_and(|(profile, _)| profile.target == "warpai-test" && profile.remote_root == std::env::var("WARP_TEST_REMOTE_ROOT").unwrap())))
+            }),
+        )
+        .with_step(
+            TestStep::new("open Explorer after confirmed SSH cd").with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| {
+                        terminal.input().update(ctx, |input, ctx| input.replace_buffer_content("unsent collaboration draft", ctx));
+                    });
                     let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                     panel.update(app, |panel, ctx| {
                         panel.handle_action_with_force_open(
@@ -4088,9 +4131,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("remote code opens in existing app editor")
                 .add_named_assertion("editor retains original SSH save source", |app, window| {
-                    warpui::async_assert!(app.update(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
-                        .file_source(window)
-                        .is_some_and(|source| source.path.ends_with("example.rs"))) && app
+                    warpui::async_assert!(app.update(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window)
+                        .is_some_and(|(profile, _)| profile.remote_root == std::env::var("WARP_TEST_REMOTE_ROOT").unwrap())) && app
                         .views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(
                             window
                         )

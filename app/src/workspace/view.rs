@@ -14361,16 +14361,6 @@ impl Workspace {
             .terminal_view_working_directories(ctx)
             .filter_map(|(id, cwd)| cwd.map(|c| (id, c)))
             .collect();
-        #[cfg(feature = "local_fs")]
-        let terminal_cwds = if self.active_tab_pane_group().id() == pane_group_id
-            && ActiveSession::as_ref(ctx)
-                .file_source(ctx.window_id())
-                .is_some()
-        {
-            Vec::new()
-        } else {
-            terminal_cwds
-        };
         let code_local_paths: Vec<(EntityId, String)> = pane_group
             .as_ref(ctx)
             .code_view_local_paths(ctx)
@@ -15835,26 +15825,6 @@ impl Workspace {
     /// Update the active session model state.
     fn update_active_session(&mut self, ctx: &mut ViewContext<Self>) {
         let pane_group_handle = self.active_tab_pane_group();
-        #[cfg(feature = "local_fs")]
-        {
-            let group = pane_group_handle.as_ref(ctx);
-            let focused = group.focused_pane_id(ctx);
-            let path = group
-                .code_view_from_pane_id(focused, ctx)
-                .and_then(|view| view.as_ref(ctx).local_path(ctx))
-                .or_else(|| {
-                    group.file_notebook_panes(ctx).find_map(|(id, view)| {
-                        (id == focused)
-                            .then(|| view.as_ref(ctx).local_path())
-                            .flatten()
-                    })
-                });
-            let source = path.and_then(|path| warp_files::FileModel::as_ref(ctx).ssh_source(&path));
-            let window = ctx.window_id();
-            ActiveSession::handle(ctx).update(ctx, |active, ctx| {
-                active.set_file_source(window, source, ctx)
-            });
-        }
         let file_tree_and_global_search_are_enabled = {
             #[cfg(feature = "local_fs")]
             {
@@ -15874,12 +15844,6 @@ impl Workspace {
         self.refresh_working_directories_for_pane_group(&pane_group_handle, ctx);
 
         if let Some(terminal_handle) = pane_group_handle.as_ref(ctx).active_session_view(ctx) {
-            #[cfg(feature = "local_fs")]
-            let file_source_active = ActiveSession::as_ref(ctx)
-                .file_source(ctx.window_id())
-                .is_some();
-            #[cfg(not(feature = "local_fs"))]
-            let file_source_active = false;
             #[cfg_attr(not(feature = "local_fs"), allow(unused_variables))]
             let (
                 session,
@@ -15893,11 +15857,7 @@ impl Workspace {
                 let active_session_id = terminal.active_block_session_id();
                 let session =
                     active_session_id.and_then(|id| terminal.sessions_model().as_ref(ctx).get(id));
-                let path_if_local = if file_source_active {
-                    None
-                } else {
-                    terminal.active_session_path_if_local(ctx)
-                };
+                let path_if_local = terminal.active_session_path_if_local(ctx);
                 let is_local = terminal.active_session_is_local(ctx);
                 let is_wsl_session = session.as_ref().map(|s| s.is_wsl()).unwrap_or(false);
                 let pwd = terminal.pwd();
@@ -15933,19 +15893,18 @@ impl Workspace {
                 }
             });
 
-            let is_remote = file_source_active || matches!(is_local, Some(false));
+            let is_remote = matches!(is_local, Some(false));
             let is_unsupported_session = is_wsl_session;
 
             // Check whether this remote session has an active remote server
             // connection (or is in the process of connecting). This is only
             // true for Auto SSH Warpification (mode 1) sessions where
             // `connect_session` was called at `InitShell` time.
-            let has_remote_server = file_source_active
-                || (is_remote
-                    && FeatureFlag::SshRemoteServer.is_enabled()
-                    && session_id.is_some_and(|sid| {
-                        RemoteServerManager::as_ref(ctx).is_session_potentially_active(sid)
-                    }));
+            let has_remote_server = is_remote
+                && FeatureFlag::SshRemoteServer.is_enabled()
+                && session_id.is_some_and(|sid| {
+                    RemoteServerManager::as_ref(ctx).is_session_potentially_active(sid)
+                });
 
             // When the session has a remote server, tell it about the current
             // directory so it can start indexing and push repo metadata back.
@@ -15992,16 +15951,10 @@ impl Workspace {
                 }
             }
         } else {
-            let window = ctx.window_id();
-            ActiveSession::handle(ctx).update(ctx, |active, ctx| {
-                // File-only tabs must not inherit a terminal from another tab.
-                active.set_session_state(window, None, None, None, ctx);
-                active.set_current_directory(window, None, false, ctx);
-            });
             #[cfg(feature = "local_fs")]
-            let is_remote = ActiveSession::as_ref(ctx)
-                .file_source(ctx.window_id())
-                .is_some();
+            let is_remote =
+                crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
+                    .is_some();
             #[cfg(not(feature = "local_fs"))]
             let is_remote = false;
             let enablement = CodingPanelEnablementState::from_session_env(

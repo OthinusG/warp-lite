@@ -113,10 +113,10 @@ client still used by another file or Agent. Share resolution and lifecycle, not
 the collaboration panel's refresh state. Stop background work when tools/files
 no longer need it.
 
-Focused remote editor and Markdown panes select their original SSH attachment,
-including when a background terminal remains in the same tab. Their cache paths
-and that background terminal's desktop cwd must never become local working
-directories or Explorer roots. Focusing a terminal follows its confirmed cwd.
+Explorer and Review continue to follow the most recently focused terminal's
+confirmed working directory, including after SSH and `cd`. Opening an editor or
+Markdown pane does not select another project. Exclude SSH cache paths from the
+shared workspace working-directory aggregation so they never become local roots.
 The native capture must perform a user-origin edit, wait for dirty state, save,
 and verify the original remote file rather than use streaming system edits.
 

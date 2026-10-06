@@ -98,6 +98,11 @@ def main():
                 subprocess.run(test, env=jump_env, check=True, timeout=120)
                 print("Owned ProxyJump SSH/SFTP file acceptance passed")
                 if args.capture:
+                    remote_home = fixture / "remote-home"
+                    installed = remote_home / ".config" / ".warpai" / "bin" / companion.name
+                    installed.parent.mkdir(parents=True)
+                    shutil.copy2(companion, installed)
+                    env["WARP_TEST_REMOTE_HOME"] = str(remote_home)
                     executable = args.capture.resolve()
                     subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
                 print("Owned native SSH/SFTP file acceptance passed")

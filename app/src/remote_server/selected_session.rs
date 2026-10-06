@@ -24,11 +24,6 @@ pub(crate) fn selected_ssh(
     window: WindowId,
 ) -> Option<(SshProfile, SshConnection)> {
     let active = crate::workspace::ActiveSession::as_ref(app);
-    if let Some(source) = active.file_source(window) {
-        let mut profile = source.files.profile.clone();
-        profile.remote_root = source.files.canonical_root.clone();
-        return Some((profile, source.files.connection.clone()));
-    }
     if active.remote_pending(window) {
         return None;
     }
