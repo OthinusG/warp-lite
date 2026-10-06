@@ -16,7 +16,7 @@ jobs:
         run: |
           rustup toolchain install 1.92.0 --profile minimal
           brew install protobuf
-          cargo test -p warp-agent-bus --test ssh_companion --locked --no-run
+          cargo test -p warp-agent-bus --test ssh_companion --test managed_agent --locked --no-run
       - name: Reuse the compiled native diagnosis artifact
         env:
           GH_TOKEN: ${{ github.token }}
