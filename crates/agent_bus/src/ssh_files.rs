@@ -231,6 +231,16 @@ fn windows_path(path: &str) -> String {
     }
 }
 
+fn windows_sftp_path(path: &str) -> String {
+    let path = windows_path(path);
+    // Unix SFTP clients otherwise interpret a drive-qualified remote path as relative.
+    if path.as_bytes().get(1) == Some(&b':') {
+        format!("/{path}")
+    } else {
+        path
+    }
+}
+
 fn relative_path(root: &str, path: &str, windows: bool) -> Result<String, ConnectionError> {
     let normalize = |s: &str| {
         if windows {
@@ -299,10 +309,7 @@ async fn transfer_batch(mut command: Command, batch: &str) -> Result<(), Connect
         .map_err(|_| ConnectionError::SshUnavailable)?;
     tokio::time::timeout(std::time::Duration::from_secs(30), async {
         let mut input = child.stdin.take().ok_or(ConnectionError::ConnectionLost)?;
-        input
-            .write_all(batch.as_bytes())
-            .await
-            .map_err(|_| ConnectionError::ConnectionLost)?;
+        let written = input.write_all(batch.as_bytes()).await;
         drop(input);
         let stderr = child.stderr.take();
         let (status, diagnostic) = tokio::join!(child.wait(), async {
@@ -314,15 +321,22 @@ async fn transfer_batch(mut command: Command, batch: &str) -> Result<(), Connect
             bytes
         });
         let status = status.map_err(|_| ConnectionError::ConnectionLost)?;
-        if status.success() {
+        if status.success() && written.is_ok() {
             Ok(())
         } else {
             if diagnose {
+                eprintln!(
+                    "Owned SFTP exit: {:?}, batch written: {}",
+                    status.code(),
+                    written.is_ok()
+                );
                 let diagnostic = String::from_utf8_lossy(&diagnostic).to_lowercase();
                 for (marker, label) in [
                     ("subsystem", "subsystem"),
                     ("permission denied", "permission"),
                     ("no such file", "path"),
+                    ("not found", "path"),
+                    ("usage:", "arguments"),
                     ("connection", "connection"),
                     ("invalid command", "batch syntax"),
                     ("invalid argument", "argument"),
@@ -611,7 +625,7 @@ impl RemoteFiles {
                 self.profile.remote_shell,
                 super::ssh_remote::RemoteShell::PowerShell
             ) {
-                windows_path(staged)
+                windows_sftp_path(staged)
             } else {
                 staged.into()
             };
@@ -909,6 +923,15 @@ mod tests {
         assert_eq!(
             windows_path(r"\\?\UNC\server\share\file.md"),
             "//server/share/file.md"
+        );
+        assert_eq!(
+            windows_sftp_path(r"\\?\C:\目录\file.md"),
+            "/C:/目录/file.md"
+        );
+        assert_eq!(windows_sftp_path("/C:/project/file"), "/C:/project/file");
+        assert_eq!(
+            windows_sftp_path(r"\\server\share\file"),
+            "//server/share/file"
         );
         assert_eq!(
             relative_path(r"\\?\C:\project", "C:/project/file", true).unwrap(),
