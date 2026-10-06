@@ -74,9 +74,12 @@ from the Git Code Review panel addressed here.
     SFTP, permissions or cwd metadata are unavailable; show the actual missing
     prerequisite in the existing tool surface.
 
-## Current code and actual gaps
+## Baseline reuse map
 
-| Existing component | Reuse | Gap to close |
+This table records the pre-extension gaps that motivated the implementation.
+Runtime acceptance is recorded separately in `COMPANION-CHECKS.md`.
+
+| Existing component | Reuse | Original gap |
 | --- | --- | --- |
 | `app/src/workspace/active_session.rs:53` and `app/src/agent_communication/panel.rs:360` | Confirmed remote cwd, SSH transport arguments, account home/OS, Companion discovery | SSH selection is private to the collaboration panel; file tools need the same selection without its visibility/settings lifetime |
 | `crates/repo_metadata/src/remote_model.rs:106` and `app/src/code/file_tree/view.rs:915` | Remote repository identifiers, snapshots, incremental updates and the existing tree renderer | Populate these models from the current Companion connection; support a selected non-Git directory |
@@ -110,9 +113,10 @@ client still used by another file or Agent. Share resolution and lifecycle, not
 the collaboration panel's refresh state. Stop background work when tools/files
 no longer need it.
 
-Editor-only and Markdown-only tabs select the original SSH attachment from the
-focused file. Their cache paths must never become local working directories or
-Explorer roots. Terminal tabs continue to follow confirmed terminal cwd events.
+Focused remote editor and Markdown panes select their original SSH attachment,
+including when a background terminal remains in the same tab. Their cache paths
+and that background terminal's desktop cwd must never become local working
+directories or Explorer roots. Focusing a terminal follows its confirmed cwd.
 The native capture must perform a user-origin edit, wait for dirty state, save,
 and verify the original remote file rather than use streaming system edits.
 

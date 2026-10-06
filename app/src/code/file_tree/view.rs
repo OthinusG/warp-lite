@@ -356,6 +356,11 @@ impl FileTreeView {
     #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn ssh_checkpoint_ready(&self) -> bool {
         self.ssh_files.is_some()
+            && self.displayed_directories.iter().all(|root| {
+                self.root_directories
+                    .get(root)
+                    .is_some_and(|directory| directory.is_remote())
+            })
             && self
                 .root_directories
                 .values()
@@ -1293,6 +1298,17 @@ impl FileTreeView {
         // Convert PathBuf inputs to StandardizedPath at this entry point.
         let std_paths: Vec<StandardizedPath> = paths
             .iter()
+            .filter(|_| {
+                #[cfg(feature = "local_fs")]
+                {
+                    crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
+                        .is_none()
+                }
+                #[cfg(not(feature = "local_fs"))]
+                {
+                    true
+                }
+            })
             .filter_map(|p| StandardizedPath::try_from_local(p).ok())
             .collect();
 
