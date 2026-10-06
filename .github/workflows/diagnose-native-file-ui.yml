@@ -27,6 +27,7 @@ jobs:
       - name: Diagnose the original native failure
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/native-diagnosis
+          WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion
         run: |
           capture_exit=0
           python3 script/verify-ssh-file-tools.py --capture "$RUNNER_TEMP/native-review/WarpaiReview.app/Contents/MacOS/Warpai" > "$RUNNER_TEMP/native-diagnosis.log" 2>&1 || capture_exit=$?
