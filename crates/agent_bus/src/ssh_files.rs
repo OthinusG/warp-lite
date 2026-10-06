@@ -719,20 +719,19 @@ impl RemoteFiles {
             std::fs::create_dir_all(destination.parent().unwrap())
                 .map_err(|_| ConnectionError::CapacityExceeded)?;
             let temporary = tempfile::NamedTempFile::new_in(destination.parent().unwrap())
-                .map_err(|_| ConnectionError::CapacityExceeded)?;
-            self.transfer(&staged.transfer_path, temporary.path(), false)
+                .map_err(|_| ConnectionError::CapacityExceeded)?
+                .into_temp_path();
+            // Windows SFTP opens local files with sharing rules incompatible with an open writer.
+            self.transfer(&staged.transfer_path, &temporary, false)
                 .await?;
-            let metadata = temporary
-                .as_file()
-                .metadata()
-                .map_err(|_| ConnectionError::InvalidInput)?;
+            let metadata =
+                std::fs::metadata(&temporary).map_err(|_| ConnectionError::InvalidInput)?;
             if metadata.len() != staged.size
                 || metadata.len() > super::companion::files::MAX_FILE_BYTES
             {
                 return Err(ConnectionError::CapacityExceeded);
             }
-            let bytes =
-                std::fs::read(temporary.path()).map_err(|_| ConnectionError::InvalidInput)?;
+            let bytes = std::fs::read(&temporary).map_err(|_| ConnectionError::InvalidInput)?;
             if format!("{:x}", Sha256::digest(&bytes)) != staged.sha256 {
                 self.disconnect();
                 return Err(ConnectionError::StaleAttachment);
@@ -744,7 +743,7 @@ impl RemoteFiles {
             let mut count = 0;
             for entry in entries {
                 let entry = entry.map_err(|_| ConnectionError::CapacityExceeded)?;
-                if entry.path() == destination || entry.path() == temporary.path() {
+                if entry.path() == destination || entry.path() == temporary.as_ref() {
                     continue;
                 }
                 total = total.saturating_add(
@@ -806,7 +805,8 @@ impl RemoteFiles {
             temporary
                 .write_all(content)
                 .map_err(|_| ConnectionError::CapacityExceeded)?;
-            self.transfer(&staged.transfer_path, temporary.path(), true)
+            let temporary = temporary.into_temp_path();
+            self.transfer(&staged.transfer_path, &temporary, true)
                 .await?;
             let hash = format!("{:x}", Sha256::digest(content));
             let reply = self
