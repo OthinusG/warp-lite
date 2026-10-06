@@ -4088,9 +4088,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("remote code opens in existing app editor")
                 .add_named_assertion("editor retains original SSH save source", |app, window| {
-                    warpui::async_assert!(crate::workspace::ActiveSession::as_ref(app)
+                    warpui::async_assert!(app.update(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
                         .file_source(window)
-                        .is_some_and(|source| source.path.ends_with("example.rs")) && app
+                        .is_some_and(|source| source.path.ends_with("example.rs"))) && app
                         .views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(
                             window
                         )
