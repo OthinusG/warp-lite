@@ -33,7 +33,8 @@ def main():
         if windows:
             for name in ["host", "client", "client.pub"]:
                 subprocess.run(["icacls", str(fixture / name), "/inheritance:r", "/grant:r", f"{getpass.getuser()}:F", "*S-1-5-18:F", "*S-1-5-32-544:F"], check=True, stdout=subprocess.DEVNULL)
-            subprocess.run(["icacls", str(fixture / "host"), "/setowner", "*S-1-5-18", "/remove", getpass.getuser()], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["icacls", str(fixture / "host"), "/setowner", "*S-1-5-18"], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["icacls", str(fixture / "host"), "/remove", getpass.getuser()], check=True, stdout=subprocess.DEVNULL)
         public = (fixture / "host.pub").read_text().split()
         (fixture / "known_hosts").write_text(f"[127.0.0.1]:22222 {public[0]} {public[1]}\n")
         native = fixture.as_posix()

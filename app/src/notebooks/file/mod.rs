@@ -620,6 +620,9 @@ impl FileNotebookView {
             .local_path()
             .and_then(|path| FileModel::as_ref(ctx).ssh_source(&path))
         {
+            self.content_generation = self.content_generation.wrapping_add(1);
+            let generation = self.content_generation;
+            let expected_path = self.local_path();
             ctx.spawn(
                 async move {
                     if !source.files.connected() {
@@ -640,7 +643,10 @@ impl FileNotebookView {
                         .await
                         .map_err(warp_util::file::FileLoadError::from)
                 },
-                |view, result, ctx| {
+                move |view, result, ctx| {
+                    if view.content_generation != generation || view.local_path() != expected_path {
+                        return;
+                    }
                     match result {
                         Ok(content) => view.set_content(&content, ctx),
                         Err(_) => view.editor.update(ctx, |editor, ctx| {
@@ -1014,7 +1020,13 @@ impl TypedActionView for FileNotebookView {
                     use crate::util::openable_file_type::resolve_file_target;
                     // Resolve target and emit event - workspace will handle all cases
                     let settings = EditorSettings::as_ref(ctx);
-                    let target = resolve_file_target(&path, settings, None);
+                    let target = if FileModel::as_ref(ctx).ssh_source(&path).is_some() {
+                        FileTarget::CodeEditor(
+                            crate::util::openable_file_type::EditorLayout::NewTab,
+                        )
+                    } else {
+                        resolve_file_target(&path, settings, None)
+                    };
                     ctx.emit(FileNotebookEvent::OpenFileWithTarget {
                         path,
                         target,

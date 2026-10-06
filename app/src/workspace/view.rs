@@ -6085,11 +6085,14 @@ impl Workspace {
                 _ => None,
             };
             (
-                crate::util::openable_file_type::resolve_file_target_to_open_in_warp(
-                    &path,
-                    EditorSettings::as_ref(ctx),
-                    layout,
-                ),
+                match target {
+                    FileTarget::CodeEditor(_) | FileTarget::MarkdownViewer(_) => target,
+                    _ => crate::util::openable_file_type::resolve_file_target_to_open_in_warp(
+                        &path,
+                        EditorSettings::as_ref(ctx),
+                        layout,
+                    ),
+                },
                 CodeSource::SshFile {
                     path: path.clone(),
                     remote_path: source.path.clone(),
