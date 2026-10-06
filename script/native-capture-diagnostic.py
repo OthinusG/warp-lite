@@ -20,10 +20,14 @@ def main() -> None:
     parser.add_argument("--exit-code", type=int, required=True)
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1] / "app/src/agent_communication/panel.rs"
+    log = "\n".join(log.read_text(errors="replace") for log in args.log)
+    locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", log.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
-        "failed_steps": failed_steps(source.read_text(), "\n".join(log.read_text(errors="replace") for log in args.log)),
+        "failed_steps": failed_steps(source.read_text(), log),
+        "panic_locations": locations,
+        "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(diagnostic, indent=2) + "\n")

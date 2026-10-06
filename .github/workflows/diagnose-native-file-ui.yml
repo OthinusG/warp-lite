@@ -1,0 +1,42 @@
+name: Diagnose owned native file UI
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  capture:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          lfs: false
+      - name: Prepare fixture tools
+        run: |
+          rustup toolchain install 1.92.0 --profile minimal
+          brew install protobuf
+          cargo test -p warp-agent-bus --test ssh_companion --locked --no-run
+      - name: Reuse the compiled native diagnosis artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 37478223166 -n Warpai-collaboration-UI-review-macos -D "$RUNNER_TEMP/native-review"
+          unzip -q "$RUNNER_TEMP/native-review/WarpaiReview.app.zip" -d "$RUNNER_TEMP/native-review"
+          chmod +x "$RUNNER_TEMP/native-review/WarpaiReview.app/Contents/MacOS/Warpai"
+      - name: Diagnose the original native failure
+        env:
+          WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/native-diagnosis
+        run: |
+          capture_exit=0
+          python3 script/verify-ssh-file-tools.py --capture "$RUNNER_TEMP/native-review/WarpaiReview.app/Contents/MacOS/Warpai" > "$RUNNER_TEMP/native-diagnosis.log" 2>&1 || capture_exit=$?
+          python3 script/native-capture-diagnostic.py --log "$RUNNER_TEMP/native-diagnosis.log" --output "$WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code "$capture_exit"
+          test "$capture_exit" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: Owned-native-file-diagnosis
+          path: |
+            ${{ runner.temp }}/native-diagnosis/**/*.png
+            ${{ runner.temp }}/native-diagnosis/diagnostic.json
+          retention-days: 3
