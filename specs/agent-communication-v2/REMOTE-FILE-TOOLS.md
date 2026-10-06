@@ -116,6 +116,11 @@ Explorer roots. Terminal tabs continue to follow confirmed terminal cwd events.
 The native capture must perform a user-origin edit, wait for dirty state, save,
 and verify the original remote file rather than use streaming system edits.
 
+Review feedback from file-only tabs resolves the original confirmed SSH terminal
+among open workspace tabs. Match the exact transport/session and require its
+current cwd to remain inside the reviewed root. A closed, pending or retargeted
+terminal fails visibly; never choose a local terminal or another SSH session.
+
 ### 2. Populate the existing tree model
 
 Add bounded managed Companion operations for directory snapshots, lazy child

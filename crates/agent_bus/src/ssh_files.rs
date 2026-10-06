@@ -11,7 +11,7 @@ use std::{
 };
 use tokio::{io::AsyncWriteExt, process::Command, sync::Mutex};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SshConnection {
     Multiplexed {
         socket: PathBuf,
@@ -1043,6 +1043,27 @@ mod tests {
         for bad in ["", "name\0", "name\r", "name\t"] {
             assert!(batch_path(bad).is_err());
         }
+    }
+
+    #[test]
+    fn file_feedback_identity_includes_native_session_and_route() {
+        let connection = SshConnection::Native {
+            arguments: vec!["-F".into(), "owned.conf".into(), "owned-host".into()],
+            session: "first-session".into(),
+        };
+        assert_eq!(connection, connection.clone());
+        let mut other_session = connection.clone();
+        let SshConnection::Native { session, .. } = &mut other_session else {
+            unreachable!()
+        };
+        *session = "second-session".into();
+        assert_ne!(connection, other_session);
+        let mut other_route = connection.clone();
+        let SshConnection::Native { arguments, .. } = &mut other_route else {
+            unreachable!()
+        };
+        arguments[2] = "another-host".into();
+        assert_ne!(connection, other_route);
     }
     #[test]
     fn sftp_preserves_route_without_ssh_flag_collisions_or_shell_expansion() {

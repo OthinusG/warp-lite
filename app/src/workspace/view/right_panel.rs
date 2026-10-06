@@ -1390,7 +1390,32 @@ impl RightPanelView {
                             )
                         })
                         .collect();
-                    pane_group.as_ref(ctx).active_session_view(ctx)
+                    code_review_view
+                        .as_ref(ctx)
+                        .diff_state_model()
+                        .as_ref(ctx)
+                        .ssh_files()
+                        .filter(|files| files.connected())
+                        .and_then(|files| {
+                            ctx.views_of_type::<crate::workspace::Workspace>(ctx.window_id())
+                                .unwrap_or_default()
+                                .iter()
+                                .flat_map(|workspace| workspace.as_ref(ctx).tab_views())
+                                .flat_map(|group| group.as_ref(ctx).terminal_views(ctx))
+                                .find(|terminal| terminal.read(ctx, |terminal, ctx| {
+                                    if terminal.has_pending_ssh_command()
+                                        || terminal.pwd().is_none_or(|cwd| files.relative(&cwd).is_err())
+                                    {
+                                        return false;
+                                    }
+                                    terminal.active_block_session_id()
+                                        .and_then(|id| terminal.sessions_model().as_ref(ctx).get(id))
+                                        .is_some_and(|session| {
+                                            crate::remote_server::selected_session::session_connection(&session)
+                                                .as_ref() == Some(&files.connection)
+                                        })
+                                }))
+                        })
                 }
             }
             #[cfg(not(feature = "local_fs"))]

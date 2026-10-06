@@ -2,6 +2,23 @@
 use warp_agent_bus::{ssh_files::SshConnection, ssh_remote::SshProfile};
 use warpui::{AppContext, SingletonEntity, WindowId};
 
+pub(crate) fn session_connection(
+    session: &crate::terminal::model::session::Session,
+) -> Option<SshConnection> {
+    let arguments = session.ssh_arguments()?;
+    Some(match session.ssh_control_socket() {
+        Some(socket) => SshConnection::Multiplexed {
+            socket: socket.to_owned(),
+            wsl: session.wsl_distro_name().map(str::to_owned),
+        },
+        None if session.wsl_distro_name().is_some() => return None,
+        None => SshConnection::Native {
+            arguments: arguments.to_vec(),
+            session: format!("{:?}", session.id()),
+        },
+    })
+}
+
 pub(crate) fn selected_ssh(
     app: &AppContext,
     window: WindowId,
@@ -16,18 +33,7 @@ pub(crate) fn selected_ssh(
         return None;
     }
     let session = active.session(window)?;
-    let arguments = session.ssh_arguments()?;
-    let connection = match session.ssh_control_socket() {
-        Some(socket) => SshConnection::Multiplexed {
-            socket: socket.to_owned(),
-            wsl: session.wsl_distro_name().map(str::to_owned),
-        },
-        None if session.wsl_distro_name().is_some() => return None,
-        None => SshConnection::Native {
-            arguments: arguments.to_vec(),
-            session: format!("{:?}", session.id()),
-        },
-    };
+    let connection = session_connection(&session)?;
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         session.home_dir()?,
         session.host_info().os_category.as_deref()?,
