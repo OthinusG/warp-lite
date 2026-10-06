@@ -103,6 +103,55 @@ impl Files {
             | ProjectFileAction::ProjectGitDiff
             | ProjectFileAction::ProjectGitPrepareBase => {
                 if action == ProjectFileAction::ProjectGitStatus {
+                    result.git_base = git_output(project, &["rev-parse", "--verify", "HEAD"])
+                        .unwrap_or_default()
+                        .trim()
+                        .into();
+                    if !request.destination.is_empty() {
+                        let reference = if request.destination == "@main" {
+                            ["main", "master", "origin/main", "origin/master"]
+                                .into_iter()
+                                .find(|name| {
+                                    git_output(
+                                        project,
+                                        &["rev-parse", "--verify", &format!("{name}^{{commit}}")],
+                                    )
+                                    .is_ok()
+                                })
+                                .ok_or(ManagedErrorCode::ManagedUnavailable)?
+                        } else {
+                            &request.destination
+                        };
+                        if reference.len() > 256 || reference.chars().any(char::is_control) {
+                            return Err(ManagedErrorCode::ManagedInvalidInput);
+                        }
+                        let resolved = git_output(
+                            project,
+                            &[
+                                "rev-parse",
+                                "--verify",
+                                "--end-of-options",
+                                &format!("{reference}^{{commit}}"),
+                            ],
+                        )?;
+                        result.git_base =
+                            git_output(project, &["merge-base", "HEAD", resolved.trim()])?
+                                .trim()
+                                .into();
+                        result.git_name_status = git_output(
+                            project,
+                            &[
+                                "diff",
+                                "--no-ext-diff",
+                                "--no-textconv",
+                                "--name-status",
+                                "-z",
+                                &result.git_base,
+                                "--",
+                                ".",
+                            ],
+                        )?;
+                    }
                     result.git_output = git_output(
                         project,
                         &[
@@ -877,7 +926,7 @@ impl Directory {
                 }
                 drop(child);
                 std::fs::remove_dir(path).map_err(path_error)?;
-            } else if metadata.is_dir() {
+            } else if metadata.file_attributes() & 0x10 != 0 {
                 std::fs::remove_dir(path).map_err(path_error)?;
             } else {
                 std::fs::remove_file(path).map_err(path_error)?;

@@ -56,7 +56,9 @@ impl FilePane {
                 if let Some(target_session) = target_session {
                     // If the target session is Some, but non-local, do not fall back - the path is
                     // remote, so we can't reliably use the fallback behavior.
-                    if target_session.is_local() {
+                    if target_session.is_local()
+                        || warp_files::FileModel::as_ref(ctx).is_ssh_file(&path)
+                    {
                         view.open_local(path, Some(target_session), ctx);
                     }
                 } else {
@@ -160,6 +162,8 @@ impl PaneContent for FilePane {
 
     fn snapshot(&self, app: &AppContext) -> LeafContents {
         let path = self.file_view(app).as_ref(app).local_path();
+        #[cfg(feature = "local_fs")]
+        let path = path.filter(|path| !warp_files::FileModel::as_ref(app).is_ssh_file(path));
         LeafContents::Notebook(NotebookPaneSnapshot::LocalFileNotebook { path })
     }
 

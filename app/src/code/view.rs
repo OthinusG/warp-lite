@@ -2270,13 +2270,20 @@ impl TypedActionView for CodeView {
             #[cfg(feature = "local_fs")]
             CodeViewAction::CopyFilePath => {
                 if let Some(path) = self.local_path(ctx) {
-                    ctx.clipboard()
-                        .write(ClipboardContent::plain_text(path.display().to_string()));
+                    ctx.clipboard().write(ClipboardContent::plain_text(
+                        warp_files::FileModel::as_ref(ctx)
+                            .display_path(&path)
+                            .display()
+                            .to_string(),
+                    ));
                 }
             }
             #[cfg(feature = "local_fs")]
             CodeViewAction::RevealInFinder => {
-                if let Some(path) = self.local_path(ctx) {
+                if let Some(path) = self
+                    .local_path(ctx)
+                    .filter(|path| !warp_files::FileModel::as_ref(ctx).is_ssh_file(path))
+                {
                     ctx.open_file_path_in_explorer(&path);
                 } else {
                     log::warn!(

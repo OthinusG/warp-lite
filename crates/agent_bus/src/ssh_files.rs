@@ -363,6 +363,53 @@ impl RemoteFiles {
     pub fn cache_path(&self, path: &str) -> Result<PathBuf, ConnectionError> {
         cache_path(self.cache.path(), &self.relative(path)?)
     }
+
+    /// Resolve document links using the remote platform, never the desktop filesystem.
+    pub fn document_link(&self, document: &str, link: &str) -> Result<String, ConnectionError> {
+        if link.contains('\0') || link.len() > 4096 || link.contains("://") {
+            return Err(ConnectionError::InvalidInput);
+        }
+        let windows = matches!(
+            self.profile.remote_shell,
+            super::ssh_remote::RemoteShell::PowerShell
+        );
+        let document = if windows {
+            document.replace('\\', "/")
+        } else {
+            document.into()
+        };
+        let link = if windows {
+            link.replace('\\', "/")
+        } else {
+            link.into()
+        };
+        let joined = if link.starts_with('/') || (windows && link.as_bytes().get(1) == Some(&b':'))
+        {
+            link
+        } else {
+            format!(
+                "{}/{}",
+                document
+                    .rsplit_once('/')
+                    .ok_or(ConnectionError::InvalidInput)?
+                    .0,
+                link
+            )
+        };
+        let mut parts = Vec::new();
+        for part in joined.split('/') {
+            match part {
+                "" | "." => {}
+                ".." => {
+                    parts.pop().ok_or(ConnectionError::InvalidInput)?;
+                }
+                _ => parts.push(part),
+            }
+        }
+        let path = format!("{}{}", if windows { "" } else { "/" }, parts.join("/"));
+        self.relative(&path)?;
+        Ok(path)
+    }
     pub async fn control(
         &self,
         request: ProjectFilesRequest,

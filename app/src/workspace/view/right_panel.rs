@@ -1162,6 +1162,14 @@ impl RightPanelView {
     }
 
     fn get_active_code_review_view(&self, ctx: &AppContext) -> Option<ViewHandle<CodeReviewView>> {
+        #[cfg(feature = "local_fs")]
+        if self
+            .code_review_session_env
+            .as_ref()
+            .is_some_and(|env| env.is_remote)
+        {
+            return self.ssh_review.clone();
+        }
         let state = self.code_review_state.as_ref()?;
         let selected_repo_path = state.selected_repo_path.as_ref()?;
         let active_pane_group = self.active_pane_group.as_ref()?;
@@ -1289,7 +1297,7 @@ impl RightPanelView {
     fn route_review_comments(
         &mut self,
         code_review_view: &ViewHandle<CodeReviewView>,
-        comments: AgentReviewCommentBatch,
+        mut comments: AgentReviewCommentBatch,
         repo_path: &Path,
         ctx: &mut ViewContext<Self>,
     ) {
@@ -1301,7 +1309,56 @@ impl RightPanelView {
         };
 
         let ai_enabled = AISettings::as_ref(ctx).is_any_ai_enabled(ctx);
-        let chosen = self.find_review_terminal(pane_group, repo_path, ai_enabled, ctx);
+        let chosen = if code_review_view
+            .as_ref(ctx)
+            .diff_state_model()
+            .as_ref(ctx)
+            .is_ssh()
+        {
+            #[cfg(feature = "local_fs")]
+            {
+                use crate::remote_server::selected_session::{selected_ssh, selection_key};
+                let current =
+                    selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
+                if current != self.ssh_selection {
+                    None
+                } else {
+                    for comment in &mut comments.comments {
+                        use crate::code_review::comments::AttachedReviewCommentTarget;
+                        match &mut comment.target {
+                            AttachedReviewCommentTarget::Line {
+                                absolute_file_path, ..
+                            }
+                            | AttachedReviewCommentTarget::File { absolute_file_path } => {
+                                *absolute_file_path = warp_files::FileModel::as_ref(ctx)
+                                    .display_path(absolute_file_path);
+                            }
+                            AttachedReviewCommentTarget::General => {}
+                        }
+                    }
+                    comments.diff_set = comments
+                        .diff_set
+                        .into_iter()
+                        .map(|(path, hunks)| {
+                            (
+                                warp_files::FileModel::as_ref(ctx)
+                                    .display_path(Path::new(&path))
+                                    .to_string_lossy()
+                                    .into_owned(),
+                                hunks,
+                            )
+                        })
+                        .collect();
+                    pane_group.as_ref(ctx).active_session_view(ctx)
+                }
+            }
+            #[cfg(not(feature = "local_fs"))]
+            {
+                None
+            }
+        } else {
+            self.find_review_terminal(pane_group, repo_path, ai_enabled, ctx)
+        };
 
         let Some(terminal_view) = chosen else {
             log::warn!("No available terminal found for submitting review comments");

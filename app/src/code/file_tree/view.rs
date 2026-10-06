@@ -2472,11 +2472,13 @@ impl FileTreeView {
         ctx: &mut ViewContext<Self>,
     ) {
         if let Some(files) = &self.ssh_files {
-            let target = resolve_file_target_to_open_in_warp(
-                Path::new(&path),
-                EditorSettings::as_ref(ctx),
-                editor_layout,
-            );
+            let settings = EditorSettings::as_ref(ctx);
+            let layout = editor_layout.unwrap_or(*settings.open_file_layout);
+            let target = if is_markdown_file(Path::new(&path)) && *settings.prefer_markdown_viewer {
+                FileTarget::MarkdownViewer(layout)
+            } else {
+                FileTarget::CodeEditor(layout)
+            };
             ctx.emit(FileTreeEvent::OpenSshFile {
                 files: files.clone(),
                 path,

@@ -322,6 +322,22 @@ impl NotebooksEditorModel {
         <Self as RichTextEditorModel>::reset_with_markdown(self, markdown, ctx);
     }
 
+    pub fn reset_with_formatted_text(&mut self, text: FormattedText, ctx: &mut ModelContext<Self>) {
+        self.clear_buffer(ctx);
+        self.update_content(
+            |mut content, ctx| {
+                content.apply_edit(
+                    BufferEditAction::InsertFormatted(text),
+                    EditOrigin::SystemEdit,
+                    self.buffer_selection_model().clone(),
+                    ctx,
+                );
+            },
+            ctx,
+        );
+        self.validate(ctx);
+    }
+
     pub fn update_to_new_markdown(&mut self, markdown: &str, ctx: &mut ModelContext<Self>) {
         <Self as RichTextEditorModel>::update_to_new_markdown(self, markdown, ctx);
     }

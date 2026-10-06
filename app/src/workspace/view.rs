@@ -6076,6 +6076,28 @@ impl Workspace {
         code_source: CodeSource,
         ctx: &mut ViewContext<Self>,
     ) {
+        // A transferred remote file must stay in the app even if local preferences use an external editor.
+        let (target, code_source) = if let Some(source) =
+            warp_files::FileModel::as_ref(ctx).ssh_source(&path)
+        {
+            let layout = match target {
+                FileTarget::MarkdownViewer(layout) | FileTarget::CodeEditor(layout) => Some(layout),
+                _ => None,
+            };
+            (
+                crate::util::openable_file_type::resolve_file_target_to_open_in_warp(
+                    &path,
+                    EditorSettings::as_ref(ctx),
+                    layout,
+                ),
+                CodeSource::SshFile {
+                    path: path.clone(),
+                    remote_path: source.path.clone(),
+                },
+            )
+        } else {
+            (target, code_source)
+        };
         // Handle directories for CodeEditor(NewTab) target by opening a new terminal tab
         if path.is_dir() && matches!(target, FileTarget::CodeEditor(EditorLayout::NewTab)) {
             self.add_tab_with_pane_layout(

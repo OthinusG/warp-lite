@@ -328,6 +328,39 @@ impl FileNotebookView {
     /// Reset the rich text contents based on the given Markdown content.
     pub fn set_content(&mut self, content: &str, ctx: &mut ViewContext<Self>) {
         let doc_path = self.file_state.local_path().map(|p| p.to_path_buf());
+        #[cfg(feature = "local_fs")]
+        if let Some(source) = doc_path
+            .as_ref()
+            .and_then(|path| FileModel::as_ref(ctx).ssh_source(path))
+        {
+            let expected_path = doc_path.clone();
+            let content = content.to_owned();
+            ctx.spawn(async move {
+                let mut text = markdown_parser::parse_markdown_with_gfm_tables(&content)?;
+                let mut images = 0;
+                for line in &mut text.lines {
+                    if let markdown_parser::FormattedTextLine::Image(image) = line {
+                        if image.source.starts_with("https://") || image.source.starts_with("http://") { continue; }
+                        images += 1;
+                        if images > 32 { return Err(anyhow::anyhow!("Too many remote preview images")); }
+                        let path = source.files.document_link(&source.path, &image.source)?;
+                        let (cache, _) = source.files.download(&path).await?;
+                        image.source = cache.to_string_lossy().into_owned();
+                    }
+                }
+                Ok::<_, anyhow::Error>(text)
+            }, move |view, result, ctx| {
+                if view.file_state.local_path().map(Path::to_path_buf) != expected_path { return; }
+                match result {
+                    Ok(text) => view.editor.update(ctx, |editor, ctx| editor.reset_with_formatted_text(text, ctx)),
+                    Err(_) => {
+                        view.editor.update(ctx, |editor, ctx| editor.reset_with_markdown("Remote preview could not load its resources. Refresh the file after checking the connection and image paths.", ctx));
+                    }
+                }
+                ctx.notify();
+            });
+            return;
+        }
         self.editor.update(ctx, |editor, ctx| {
             editor.reset_with_markdown(content, ctx);
             // Set the document path for resolving relative image paths
@@ -351,6 +384,10 @@ impl FileNotebookView {
 
     /// Set the notebook's location context.
     fn set_context(&mut self, path: &Path, session: Arc<Session>, ctx: &mut ViewContext<Self>) {
+        #[cfg(feature = "local_fs")]
+        let display_path = FileModel::as_ref(ctx).display_path(path);
+        #[cfg(feature = "local_fs")]
+        let path = display_path.as_path();
         self.location = Some(FileLocation::new(path, session.home_dir()));
         let title = self.title();
         self.pane_configuration.update(ctx, |pane_config, ctx| {
@@ -379,6 +416,20 @@ impl FileNotebookView {
         ctx: &mut ViewContext<Self>,
     ) {
         let local_path = path.into();
+
+        #[cfg(feature = "local_fs")]
+        if let Some(source) = FileModel::as_ref(ctx).ssh_source(&local_path) {
+            self.code_source = Some(CodeSource::SshFile {
+                path: local_path.clone(),
+                remote_path: source.path.clone(),
+            });
+            self.location = Some(FileLocation::new(Path::new(&source.path), None));
+            self.links
+                .update(ctx, |links, ctx| links.set_ssh_source(Some(source), ctx));
+        } else {
+            self.links
+                .update(ctx, |links, ctx| links.set_ssh_source(None, ctx));
+        }
 
         // If a session is available, initialize the location and link context now. Otherwise,
         // we'll wait until one is available.
@@ -510,6 +561,25 @@ impl FileNotebookView {
 
     /// Reload the file that was most recently opened (or attempted to open).
     fn reload_file(&mut self, ctx: &mut ViewContext<Self>) {
+        #[cfg(feature = "local_fs")]
+        if let Some(source) = self
+            .local_path()
+            .and_then(|path| FileModel::as_ref(ctx).ssh_source(&path))
+        {
+            ctx.spawn(async move { source.reload().await }, |view, result, ctx| {
+                match result {
+                    Ok(content) => view.set_content(&content, ctx),
+                    Err(_) => view.editor.update(ctx, |editor, ctx| {
+                        editor.reset_with_markdown(
+                            "Remote file could not be refreshed. Check the SSH connection.",
+                            ctx,
+                        )
+                    }),
+                }
+                ctx.notify();
+            });
+            return;
+        }
         // We can take the file state here because either it's (a) already NoFile or (b) about to
         // be replaced with a loading state.
         let (local_path, session) = match mem::replace(&mut self.file_state, FileState::NoFile) {
@@ -854,8 +924,12 @@ impl TypedActionView for FileNotebookView {
             #[cfg(feature = "local_fs")]
             FileNotebookAction::CopyFilePath => {
                 if let Some(path) = self.local_path() {
-                    ctx.clipboard()
-                        .write(ClipboardContent::plain_text(path.display().to_string()));
+                    ctx.clipboard().write(ClipboardContent::plain_text(
+                        FileModel::as_ref(ctx)
+                            .display_path(&path)
+                            .display()
+                            .to_string(),
+                    ));
                 }
             }
             #[cfg(feature = "local_fs")]

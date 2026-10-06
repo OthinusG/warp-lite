@@ -36,6 +36,12 @@ mod tests;
 /// The target of a notebook link.
 #[derive(Debug, Clone)]
 pub enum LinkTarget {
+    #[cfg(feature = "local_fs")]
+    SshFile {
+        source: Arc<warp_files::SshFile>,
+        path: String,
+        session: Arc<Session>,
+    },
     Url(Url),
     LocalFile {
         path: PathBuf,
@@ -68,6 +74,8 @@ impl LinkTarget {
                 accessibility_content: "Edit Markdown file".into(),
             }),
             LinkTarget::Url(_) | LinkTarget::LocalFile { .. } => None,
+            #[cfg(feature = "local_fs")]
+            LinkTarget::SshFile { .. } => None,
         }
     }
 }
@@ -105,6 +113,8 @@ impl PartialEq for LinkTarget {
 impl fmt::Display for LinkTarget {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            #[cfg(feature = "local_fs")]
+            LinkTarget::SshFile { path, .. } => path.fmt(f),
             LinkTarget::Url(url) => url.fmt(f),
             LinkTarget::LocalFile { path, .. } => path.display().fmt(f),
             LinkTarget::LocalDirectory { path, .. } => path.display().fmt(f),
@@ -115,6 +125,8 @@ impl fmt::Display for LinkTarget {
 /// Model for resolving and opening links in a notebook, taking into account their context (for
 /// example, resolving relative file paths).
 pub struct NotebookLinks {
+    #[cfg(feature = "local_fs")]
+    ssh_source: Option<Arc<warp_files::SshFile>>,
     session_source: SessionSource,
 }
 
@@ -125,7 +137,21 @@ impl NotebookLinks {
             Self::handle_active_session_change,
         );
 
-        Self { session_source }
+        Self {
+            session_source,
+            #[cfg(feature = "local_fs")]
+            ssh_source: None,
+        }
+    }
+
+    #[cfg(feature = "local_fs")]
+    pub fn set_ssh_source(
+        &mut self,
+        source: Option<Arc<warp_files::SshFile>>,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        self.ssh_source = source;
+        ctx.emit(LinkEvent::RefreshLinks);
     }
 
     /// Resolve a link target. If the link is a valid URL or starts with a potential domain name,
@@ -137,6 +163,27 @@ impl NotebookLinks {
         link: &str,
         ctx: &AppContext,
     ) -> impl Future<Output = Result<LinkTarget, ResolveError>> {
+        #[cfg(feature = "local_fs")]
+        if let Some(source) = &self.ssh_source {
+            if !link.starts_with("http://") && !link.starts_with("https://") {
+                let target = self
+                    .session_source
+                    .session(ctx)
+                    .ok_or(ResolveError::MissingContext)
+                    .and_then(|session| {
+                        let path = source
+                            .files
+                            .document_link(&source.path, link)
+                            .map_err(|_| ResolveError::FileNotFound)?;
+                        Ok(LinkTarget::SshFile {
+                            source: source.clone(),
+                            path,
+                            session,
+                        })
+                    });
+                return Either::Right(future::ready(target));
+            }
+        }
         if let Ok(url) = Url::parse(link) {
             // The `url` crate only provides `to_file_path` on certain platforms.
             #[cfg(feature = "local_fs")]
@@ -264,6 +311,46 @@ impl NotebookLinks {
     /// * Other files are opened in the configured editor or system-default application.
     pub fn open(&self, link: LinkTarget, ctx: &mut ModelContext<Self>) {
         match link {
+            #[cfg(feature = "local_fs")]
+            LinkTarget::SshFile {
+                source,
+                path,
+                session,
+            } => {
+                ctx.spawn(
+                    async move {
+                        let (cache, hash) = source.files.download(&path).await?;
+                        Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((
+                            source, path, cache, hash, session,
+                        ))
+                    },
+                    |me, result, ctx| {
+                        if let Ok((source, path, cache, hash, session)) = result {
+                            if warp_files::FileModel::handle(ctx)
+                                .update(ctx, |model, _| {
+                                    model.register_ssh_file(
+                                        source.files.clone(),
+                                        path,
+                                        cache.clone(),
+                                        hash,
+                                    )
+                                })
+                                .is_ok()
+                            {
+                                me.open(
+                                    LinkTarget::LocalFile {
+                                        is_markdown: is_markdown_file(&cache),
+                                        path: cache,
+                                        line_and_column: None,
+                                        session,
+                                    },
+                                    ctx,
+                                );
+                            }
+                        }
+                    },
+                );
+            }
             LinkTarget::Url(url) => {
                 if let Some(WarpWebLink::DriveObject(args)) = get_item_data_from_warp_link(&url) {
                     return ctx.emit(LinkEvent::OpenWarpDriveLink {
@@ -373,6 +460,19 @@ fn open_file(
 ) {
     #[cfg(feature = "local_fs")]
     {
+        if warp_files::FileModel::as_ref(ctx).is_ssh_file(&path) {
+            let target = crate::util::openable_file_type::resolve_file_target_to_open_in_warp(
+                &path,
+                EditorSettings::as_ref(ctx),
+                None,
+            );
+            ctx.emit(LinkEvent::OpenFileWithTarget {
+                path,
+                target,
+                line_col: line_and_column,
+            });
+            return;
+        }
         // Images are safe to open with the system default viewer.
         if is_supported_image_file(&path) {
             ctx.emit(LinkEvent::OpenFileWithTarget {

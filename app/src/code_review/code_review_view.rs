@@ -2888,7 +2888,9 @@ impl CodeReviewView {
                 .diff_state_model
                 .as_ref(ctx)
                 .is_git_operation_blocked(ctx);
-        let discard_tooltip_text = if git_operation_blocked {
+        let discard_tooltip_text = if self.diff_state_model.as_ref(ctx).is_ssh() {
+            "Discard changes in the remote terminal".to_owned()
+        } else if git_operation_blocked {
             get_discard_button_disabled_tooltip(git_operation_blocked)
         } else {
             "Discard changes".to_string()
@@ -5200,7 +5202,10 @@ impl CodeReviewView {
     ) -> Box<dyn Element> {
         let theme = appearance.theme();
 
-        let file_name = file.file_diff.file_path.display().to_string();
+        let file_name = warp_files::FileModel::as_ref(app)
+            .display_path(&file.file_diff.file_path)
+            .display()
+            .to_string();
 
         let mut left_section = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)

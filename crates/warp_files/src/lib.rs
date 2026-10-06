@@ -141,9 +141,10 @@ impl FileBackend {
 }
 
 #[cfg(not(target_family = "wasm"))]
+#[derive(Debug)]
 pub struct SshFile {
-    files: std::sync::Arc<remote_server::RemoteFiles>,
-    path: String,
+    pub files: std::sync::Arc<remote_server::RemoteFiles>,
+    pub path: String,
     hash: futures::lock::Mutex<String>,
 }
 

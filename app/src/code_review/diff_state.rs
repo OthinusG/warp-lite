@@ -435,7 +435,7 @@ impl DiffStateModel {
         self.state = InternalDiffState::Loading;
         let reference = match &self.mode {
             DiffMode::Head => "HEAD".to_owned(),
-            DiffMode::MainBranch => "main".to_owned(),
+            DiffMode::MainBranch => "@main".to_owned(),
             DiffMode::OtherBranch(branch) => branch.clone(),
         };
         let identity = files.identity.clone();
@@ -445,10 +445,21 @@ impl DiffStateModel {
                 let status = files
                     .control(ProjectFilesRequest {
                         action: ProjectFileAction::ProjectGitStatus as i32,
+                        destination: if reference == "HEAD" {
+                            String::new()
+                        } else {
+                            reference.clone()
+                        },
                         ..Default::default()
                     })
                     .await?;
-                let changed = Self::parse_git_status(&status.git_output)?;
+                let mut changed = Self::parse_git_status(&status.git_output)?;
+                if reference != "HEAD" {
+                    changed.retain(|(_, status)| matches!(status, GitFileStatus::Untracked));
+                    changed.extend(Self::parse_git_diff_name_status(&status.git_name_status)?);
+                }
+                let reference = status.git_base;
+
                 let mut diffs = Vec::new();
                 let mut registrations = Vec::new();
                 for (path, status) in changed {
@@ -473,11 +484,12 @@ impl DiffStateModel {
                     let is_binary = content
                         .as_ref()
                         .is_some_and(|bytes| warp_util::file_type::is_buffer_binary(bytes));
-                    let new_file = matches!(status, GitFileStatus::Untracked | GitFileStatus::New);
+                    let new_file = reference.is_empty()
+                        || matches!(status, GitFileStatus::Untracked | GitFileStatus::New);
                     let base_path = match &status {
                         GitFileStatus::Renamed { old_path }
-                        | GitFileStatus::Copied { old_path } => old_path,
-                        _ => &path,
+                        | GitFileStatus::Copied { old_path } => Path::new(old_path),
+                        _ => path.as_path(),
                     };
                     let base = if new_file {
                         Some(String::new())
@@ -564,7 +576,7 @@ impl DiffStateModel {
                                 hash,
                             )?;
                         }
-                        Ok::<_, warp_files::FileSaveError>(())
+                        Ok::<_, warp_util::file::FileSaveError>(())
                     })?;
                     Ok(changes)
                 });

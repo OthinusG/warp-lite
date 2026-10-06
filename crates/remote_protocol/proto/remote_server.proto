@@ -153,6 +153,8 @@ message ProjectFilesResult {
   uint64 size = 7;
   // Bounded Git metadata and patch output, never file content.
   string git_output = 8;
+  string git_base = 9;
+  string git_name_status = 10;
 }
 message TerminalLaunch {
   ManagedFence fence = 1;
