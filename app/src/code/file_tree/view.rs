@@ -338,7 +338,8 @@ impl FileTreeView {
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn ssh_checkpoint_ready(&self) -> bool {
-        self.ssh_files.is_some()
+        self.is_active
+            && self.ssh_files.is_some()
             && self.displayed_directories.iter().all(|root| {
                 self.root_directories
                     .get(root)
@@ -434,7 +435,14 @@ impl FileTreeView {
                     view.apply_pending_focus_target();
                     view.poll_ssh(ctx);
                 }
-                Err(error) => view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation.")),
+                Err(error) => {
+                    #[cfg(debug_assertions)]
+                    if std::env::var_os("WARP_COLLABORATION_CAPTURE").is_some() {
+                        // ConnectionError contains only fixed variants, never runtime payloads.
+                        eprintln!("Native SSH file failure: {error:?}");
+                    }
+                    view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation."));
+                },
             }
             ctx.notify();
         });

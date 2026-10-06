@@ -103,6 +103,8 @@ def main():
                     installed.parent.mkdir(parents=True)
                     shutil.copy2(companion, installed)
                     env["WARP_TEST_REMOTE_HOME"] = str(remote_home)
+                    env["WARP_TEST_COMPANION_PATH"] = str(installed)
+                    subprocess.run(test, env=env, check=True, timeout=120)
                     executable = args.capture.resolve()
                     subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
                 print("Owned native SSH/SFTP file acceptance passed")

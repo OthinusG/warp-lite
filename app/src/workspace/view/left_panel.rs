@@ -533,7 +533,10 @@ impl LeftPanelView {
             .get_global_search_view(pane_group_id)
     }
 
-    fn active_file_tree_view(&self, app: &AppContext) -> Option<ViewHandle<FileTreeView>> {
+    pub(crate) fn active_file_tree_view(
+        &self,
+        app: &AppContext,
+    ) -> Option<ViewHandle<FileTreeView>> {
         let pane_group_id = self
             .active_pane_group
             .as_ref()

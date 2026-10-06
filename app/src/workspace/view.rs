@@ -5668,7 +5668,7 @@ impl Workspace {
 
     /// Searches this workspace's tabs for the given terminal view and focuses it.
     /// Returns true if the terminal view was found and focused.
-    fn focus_terminal_view_locally(
+    pub(crate) fn focus_terminal_view_locally(
         &mut self,
         terminal_view_id: EntityId,
         ctx: &mut ViewContext<Self>,

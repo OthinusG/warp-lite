@@ -4048,6 +4048,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             TestStep::new("connect existing Explorer to owned SSH project").with_action(
                 |app, window, data| {
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| assert!(workspace.focus_terminal_view_locally(terminal.id(), ctx)));
                     let (parent, cwd) = terminal.read(app, |terminal, _| (terminal.active_block_session_id().unwrap(), terminal.pwd().unwrap()));
                     data.insert("owned_parent_session", parent);
                     data.insert("owned_parent_cwd", cwd);
@@ -4097,6 +4100,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     terminal.update(app, |terminal, ctx| {
                         terminal.input().update(ctx, |input, ctx| input.replace_buffer_content("unsent collaboration draft", ctx));
                     });
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| {
+                        if !workspace.is_left_panel_open(ctx) {
+                            workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                        }
+                    });
                     let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                     panel.update(app, |panel, ctx| {
                         panel.handle_action_with_force_open(
@@ -4105,10 +4115,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ctx,
                         )
                     });
-                    let tree = app
-                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
-                        .unwrap()[0]
-                        .clone();
+                    let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                    let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
                     tree.update(app, |tree, ctx| tree.connect_ssh_checkpoint(ctx));
                 },
             ),
@@ -4116,21 +4124,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("remote Explorer uses native file rows")
                 .add_named_assertion("owned remote tree populated", |app, window| {
-                    warpui::async_assert!(app
-                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
-                        .is_some_and(|trees| trees
-                            .iter()
-                            .any(|tree| tree.read(app, |tree, _| tree.ssh_checkpoint_ready()))))
+                    let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx).is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready())))
                 })
                 .with_take_screenshot("live-ssh-file-explorer.png"),
         )
         .with_step(
             TestStep::new("click remote code in existing Explorer").with_action(
                 |app, window, _| {
-                    let tree = app
-                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
-                        .unwrap()[0]
-                        .clone();
+                    let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                    let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
                     tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("example.rs", ctx));
                 },
             ),
@@ -4178,10 +4181,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("click remote Markdown in existing Explorer").with_action(
                 |app, window, _| {
-                    let tree = app
-                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
-                        .unwrap()[0]
-                        .clone();
+                    let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                    let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
                     tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("preview.md", ctx));
                 },
             ),
