@@ -4328,7 +4328,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             );
         }
     }
-    let driver = driver.with_on_finish(move |_, _, _| {
+    let driver = driver.with_on_finish(move |app, window, data| {
+        // Keep the original failing step; missing later screenshots must not mask it.
+        if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
+            for editor in app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap_or_default() {
+                editor.update(app, |editor, ctx| {
+                    if let Some(path) = editor.file_path().filter(|path| path.parent().and_then(|parent| parent.file_name()).is_some_and(|name| name.to_string_lossy().starts_with("warpai-ssh-"))) {
+                        let source = warp_files::FileModel::as_ref(ctx).is_ssh_file(path);
+                        let cache = path.is_file();
+                        let loaded = editor.file_loaded(ctx);
+                        eprintln!("Remote editor diagnostic: source={source}, cache={cache}, loaded={loaded}");
+                    }
+                });
+            }
+            return Box::pin(async {});
+        }
         let directory = directory.clone();
         let filenames = filenames.clone();
         Box::pin(async move {

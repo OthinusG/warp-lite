@@ -1409,6 +1409,9 @@ impl LocalCodeEditorView {
     /// Adds the LSP status footer to the editor view.
     pub(crate) fn add_footer(&mut self, ctx: &mut ViewContext<Self>) {
         if let Some(path) = self.file_path() {
+            if warp_files::FileModel::as_ref(ctx).is_ssh_file(path) {
+                return;
+            }
             let footer =
                 ctx.add_typed_action_view(|ctx| CodeFooterView::new(path.to_path_buf(), ctx));
             ctx.subscribe_to_view(&footer, |_, _, event, ctx| match event {

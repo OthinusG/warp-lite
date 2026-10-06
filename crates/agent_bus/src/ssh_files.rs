@@ -382,7 +382,15 @@ impl RemoteFiles {
             client.fence().unwrap().service_id,
             client.root_identity
         );
-        let canonical_root = client.canonical_root.clone();
+        // Verbatim Windows paths reject mixed separators when extending the remote cwd.
+        let canonical_root = if matches!(
+            profile.remote_shell,
+            super::ssh_remote::RemoteShell::PowerShell
+        ) {
+            windows_path(&client.canonical_root)
+        } else {
+            client.canonical_root.clone()
+        };
         let cache = tempfile::Builder::new()
             .prefix("warpai-ssh-")
             .tempdir()
