@@ -62,18 +62,15 @@ impl HeaderToolbarItemKind {
                     && *TabSettings::as_ref(app).use_vertical_tabs
             }
             Self::ToolsPanel => true,
-            // warp-lite: AI/agent/code-review/notification toolbar items are
-            // unsupported in pure-terminal mode (UI cleanup). Their backing
-            // logic still compiles, but no header buttons surface them.
-            Self::AgentManagement | Self::CodeReview | Self::NotificationsMailbox => false,
+            Self::CodeReview => cfg!(feature = "local_fs"),
+            Self::AgentManagement | Self::NotificationsMailbox => false,
         }
     }
 
     /// Whether this item should be shown in the toolbar.
     /// Checks both `is_supported` and user show/hide preferences.
     pub fn is_available(&self, app: &AppContext) -> bool {
-        // warp-lite: AI/CodeReview/Notifications are unsupported (see is_supported);
-        // for the remaining variants, no per-user preference gates them off.
+        // Toolbar placement controls visibility for supported items.
         self.is_supported(app)
     }
 

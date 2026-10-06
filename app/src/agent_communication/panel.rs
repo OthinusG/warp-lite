@@ -4046,8 +4046,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     driver = driver
         .with_step(
             TestStep::new("connect existing Explorer to owned SSH project").with_action(
-                |app, window, _| {
+                |app, window, data| {
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    let (parent, cwd) = terminal.read(app, |terminal, _| (terminal.active_block_session_id().unwrap(), terminal.pwd().unwrap()));
+                    data.insert("owned_parent_session", parent);
+                    data.insert("owned_parent_cwd", cwd);
                     terminal.update(app, |terminal, _| {
                         use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue};
                         let config = std::env::var("WARP_TEST_SSH_CONFIG").unwrap();
@@ -4086,6 +4089,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("open Explorer after confirmed SSH cd").with_action(|app, window, _| {
+                    app.update(|ctx| {
+                        let sizes = ResizableData::as_ref(ctx).get_all_handles(window).unwrap();
+                        sizes.left_panel_width.lock().unwrap().set_size(320.);
+                    });
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
                     terminal.update(app, |terminal, ctx| {
                         terminal.input().update(ctx, |input, ctx| input.replace_buffer_content("unsent collaboration draft", ctx));
@@ -4201,7 +4208,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     let workspace =
                         root.read(app, |root, _| root.workspace_view().unwrap().clone());
                     workspace.update(app, |workspace, ctx| {
-                        workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx)
+                        if workspace.is_left_panel_open(ctx) {
+                            workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                        }
+                        if !workspace.active_tab_pane_group().as_ref(ctx).right_panel_open {
+                            workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx);
+                        }
                     });
                     let panel = app
                         .views_of_type::<crate::workspace::view::right_panel::RightPanelView>(
@@ -4216,7 +4228,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("remote changes render in existing Review")
                 .add_named_assertion("remote Review has one changed file", |app, window| {
-                    warpui::async_assert!(app
+                    warpui::async_assert!(app.update(|ctx| crate::workspace::header_toolbar_item::HeaderToolbarItemKind::CodeReview.is_available(ctx)) && app
                         .views_of_type::<crate::code_review::code_review_view::CodeReviewView>(
                             window
                         )
@@ -4263,6 +4275,59 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 },
             ),
     );
+    driver = driver
+        .with_step(
+            TestStep::new("exit owned SSH restores terminal-driven local cwd")
+                .with_action(|app, window, data| {
+                    let parent = *data
+                        .get::<_, warp_core::SessionId>("owned_parent_session")
+                        .unwrap();
+                    let cwd = data.get::<_, String>("owned_parent_cwd").unwrap().clone();
+                    let terminal = app
+                        .views_of_type::<crate::terminal::TerminalView>(window)
+                        .unwrap()[0]
+                        .clone();
+                    terminal.update(app, |terminal, _| {
+                        use crate::terminal::model::ansi::{ExitShellValue, Handler, PrecmdValue};
+                        let mut model = terminal.model.lock();
+                        model.command_finished(Default::default());
+                        model.exit_shell(ExitShellValue {
+                            session_id: 987654321_u64.into(),
+                        });
+                        model.precmd(PrecmdValue {
+                            session_id: Some(parent.as_u64()),
+                            pwd: Some(cwd),
+                            ..Default::default()
+                        });
+                    });
+                })
+                .add_named_assertion(
+                    "original local terminal selection restored",
+                    |app, window| {
+                        warpui::async_assert!(app.update(|ctx| {
+                            crate::workspace::ActiveSession::as_ref(ctx)
+                                .session(window)
+                                .is_some_and(|session| session.is_local())
+                                && crate::remote_server::selected_session::selected_ssh(ctx, window)
+                                    .is_none()
+                        }))
+                    },
+                ),
+        )
+        .with_step(
+            TestStep::new("prepare local SSH banner fixture").with_action(|app, window, _| {
+                let terminal = app
+                    .views_of_type::<crate::terminal::TerminalView>(window)
+                    .unwrap()[0]
+                    .clone();
+                terminal.update(app, |terminal, ctx| {
+                    ctx.focus_self();
+                    terminal.input().update(ctx, |input, ctx| {
+                        input.replace_buffer_content("unsent collaboration draft", ctx)
+                    });
+                });
+            }),
+        );
     for (theme_kind, theme_name) in [
         (ThemeKind::ClaudeWarmLight, "claude-warm"),
         (ThemeKind::Dark, "dark"),
@@ -4413,6 +4478,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     let driver = driver.with_on_finish(move |app, window, data| {
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
+            if let Some(assertion) = data.get("failed_assertion_name") {
+                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "remote Review has one changed file"] {
+                    if assertion == name {
+                        eprintln!("Native checkpoint failed: {name}");
+                    }
+                }
+            }
             for editor in app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap_or_default() {
                 editor.update(app, |editor, ctx| {
                     if let Some(path) = editor.file_path().filter(|path| path.parent().and_then(|parent| parent.file_name()).is_some_and(|name| name.to_string_lossy().starts_with("warpai-ssh-"))) {

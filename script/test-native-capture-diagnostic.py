@@ -16,4 +16,7 @@ log = "\n".join([
 ])
 assert module.failed_steps(source, log) == ["owned checkpoint"]
 assert module.failed_steps(source, "unrelated runtime payload") == []
+assert module.failed_assertions('add_named_assertion("owned assertion", callback)',
+    "Native checkpoint failed: owned assertion\nNative checkpoint failed: runtime payload") == ["owned assertion"]
+assert module.failed_assertions(source, "Native checkpoint failed: runtime payload") == []
 print("Native capture diagnostic redaction passed")

@@ -13,6 +13,12 @@ def failed_steps(source: str, log: str) -> list[str]:
     return sorted(set(observed).intersection(allowed))
 
 
+def failed_assertions(source: str, log: str) -> list[str]:
+    allowed = set(re.findall(r'add_named_assertion\(\s*"([^"\n]+)"', source))
+    observed = re.findall(r"Native checkpoint failed: ([^\n]{1,200})", log)
+    return sorted(set(observed).intersection(allowed))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--log", type=Path, action="append", required=True)
@@ -26,6 +32,7 @@ def main() -> None:
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
         "failed_steps": failed_steps(source.read_text(), log),
+        "failed_assertions": failed_assertions(source.read_text(), log),
         "panic_locations": locations,
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }
