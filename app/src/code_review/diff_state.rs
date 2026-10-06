@@ -470,7 +470,8 @@ impl DiffStateModel {
                     changed.extend(Self::parse_git_diff_name_status(&status.git_name_status)?);
                 }
                 let initial_status = status.git_output.clone();
-                let initial_head = (reference == "HEAD").then(|| status.git_base.clone());
+                let initial_names = status.git_name_status.clone();
+                let requested_reference = reference.clone();
                 let reference = status.git_base;
 
                 let mut diffs = Vec::new();
@@ -579,11 +580,17 @@ impl DiffStateModel {
                 let current = files
                     .control(ProjectFilesRequest {
                         action: ProjectFileAction::ProjectGitStatus as i32,
+                        destination: if requested_reference == "HEAD" {
+                            String::new()
+                        } else {
+                            requested_reference
+                        },
                         ..Default::default()
                     })
                     .await?;
                 if current.git_output != initial_status
-                    || initial_head.is_some_and(|head| head != current.git_base)
+                    || reference != current.git_base
+                    || initial_names != current.git_name_status
                 {
                     return Err(anyhow!(
                         "Remote Git status changed while loading Review. Refresh to retry."
