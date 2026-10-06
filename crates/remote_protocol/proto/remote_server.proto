@@ -127,6 +127,10 @@ enum ProjectFileAction {
   PROJECT_FILE_DELETE = 7;
   PROJECT_FILE_PREPARE_WRITE = 8;
   PROJECT_FILE_COMMIT_WRITE = 9;
+  PROJECT_GIT_STATUS = 10;
+  PROJECT_GIT_DIFF = 11;
+  PROJECT_GIT_PREPARE_BASE = 12;
+  PROJECT_GIT_ROOT = 13;
 }
 message ProjectFilesRequest {
   ManagedFence fence = 1;
@@ -147,6 +151,8 @@ message ProjectFilesResult {
   string transfer_id = 5;
   string sha256 = 6;
   uint64 size = 7;
+  // Bounded Git metadata and patch output, never file content.
+  string git_output = 8;
 }
 message TerminalLaunch {
   ManagedFence fence = 1;

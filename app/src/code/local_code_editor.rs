@@ -936,6 +936,10 @@ impl LocalCodeEditorView {
             return;
         };
 
+        if warp_files::FileModel::as_ref(ctx).is_ssh_file(&path) {
+            return;
+        }
+
         let Some(lsp_server) = lsp_manager.as_ref(ctx).server_for_path(&path, ctx) else {
             // If the LSP is not registered, try to start it via PersistedWorkspace.
             #[cfg(feature = "local_fs")]
@@ -1672,7 +1676,8 @@ impl LocalCodeEditorView {
     }
     /// Keeps unsaved remote buffers when their original attachment disconnects.
     pub fn is_remote_disconnected(&self, app: &AppContext) -> bool {
-        self.file_id().is_some_and(|id| warp_files::FileModel::as_ref(app).is_remote_disconnected(id))
+        self.file_id()
+            .is_some_and(|id| warp_files::FileModel::as_ref(app).is_remote_disconnected(id))
     }
 
     /// Whether auto-save can persist this local editor's changes.

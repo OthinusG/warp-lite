@@ -165,6 +165,44 @@ impl FileTreeView {
             view.clear_buffer(ctx);
         });
 
+        if self.is_remote_item(&file_tree_id) {
+            if buffer_content.is_empty()
+                || buffer_content.contains('/')
+                || buffer_content.contains('\\')
+                || matches!(buffer_content.as_str(), "." | "..")
+            {
+                self.rebuild_flattened_items();
+                ctx.notify();
+                return;
+            }
+            let Some(item) = self
+                .root_directories
+                .get(&file_tree_id.root)
+                .and_then(|root| root.items.get(file_tree_id.index))
+            else {
+                return;
+            };
+            let old = item.path().clone();
+            let mut new = old.clone();
+            new.set_file_name(&buffer_content);
+            let destination = new.to_local_path_lossy().to_string_lossy().into_owned();
+            match pending_edit.kind {
+                PendingEditKind::CreateNewFile => self.mutate_ssh_file(
+                    remote_server::proto::ProjectFileAction::ProjectFileCreate,
+                    destination,
+                    String::new(),
+                    ctx,
+                ),
+                PendingEditKind::RenameExisting => self.mutate_ssh_file(
+                    remote_server::proto::ProjectFileAction::ProjectFileRename,
+                    old.to_local_path_lossy().to_string_lossy().into_owned(),
+                    destination,
+                    ctx,
+                ),
+            }
+            return;
+        }
+
         match pending_edit.kind {
             PendingEditKind::CreateNewFile => {
                 let new_entry = {

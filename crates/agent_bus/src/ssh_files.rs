@@ -444,6 +444,42 @@ impl RemoteFiles {
                 ..Default::default()
             })
             .await?;
+        self.download_staged(path, staged).await
+    }
+    pub async fn download_base(
+        &self,
+        path: &str,
+        reference: &str,
+    ) -> Result<(PathBuf, String), ConnectionError> {
+        let staged = self
+            .control(ProjectFilesRequest {
+                action: ProjectFileAction::ProjectGitPrepareBase as i32,
+                path: self.relative(path)?,
+                destination: reference.into(),
+                ..Default::default()
+            })
+            .await?;
+        // Base versions use a separate cache namespace so they cannot overwrite working files.
+        self.download_staged(
+            &format!(
+                "{}{}base-{}",
+                self.canonical_root,
+                if self.canonical_root.ends_with('/') {
+                    ""
+                } else {
+                    "/"
+                },
+                staged.transfer_id
+            ),
+            staged,
+        )
+        .await
+    }
+    async fn download_staged(
+        &self,
+        path: &str,
+        staged: ProjectFilesResult,
+    ) -> Result<(PathBuf, String), ConnectionError> {
         let result = async {
             let destination = self.cache_path(path)?;
             std::fs::create_dir_all(destination.parent().unwrap())

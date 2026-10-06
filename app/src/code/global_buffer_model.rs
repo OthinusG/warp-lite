@@ -545,8 +545,15 @@ impl GlobalBufferModel {
     pub fn discard_unsaved_changes(&mut self, path: &PathBuf, ctx: &mut ModelContext<Self>) {
         if let Some(id) = self.path_to_id.get_by_left(path).cloned() {
             let path_clone = path.clone();
+            let ssh_source = FileModel::as_ref(ctx).ssh_source(path);
             ctx.spawn(
-                async move { FileModel::read_content_for_file(&path_clone).await },
+                async move {
+                    if let Some(source) = ssh_source {
+                        source.reload().await
+                    } else {
+                        FileModel::read_content_for_file(&path_clone).await
+                    }
+                },
                 move |me, content, ctx| match content {
                     Ok(content) => {
                         // Consider this reload as a "new" version. This prevents any race condition when there is another
@@ -889,6 +896,9 @@ impl GlobalBufferModel {
         path: &Path,
         ctx: &mut ModelContext<Self>,
     ) -> Option<ModelHandle<LspServerModel>> {
+        if FileModel::as_ref(ctx).is_ssh_file(path) {
+            return None;
+        }
         LspManagerModel::as_ref(ctx).server_for_path(path, ctx)
     }
 

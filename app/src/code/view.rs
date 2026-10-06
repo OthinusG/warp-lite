@@ -1556,6 +1556,7 @@ impl CodeView {
         is_hovered: bool,
         has_unsaved_changes: bool,
         appearance: &Appearance,
+        app: &AppContext,
     ) -> Box<dyn Element> {
         let theme = appearance.theme();
         let text_color = if is_active {
@@ -1571,6 +1572,7 @@ impl CodeView {
         let file_name = tab_data
             .path
             .as_ref()
+            .map(|path| warp_files::FileModel::as_ref(app).display_path(path))
             .and_then(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
             .unwrap_or_else(|| "Untitled".to_string());
         let language_icon =
@@ -1786,6 +1788,7 @@ impl CodeView {
                             tab_handle.is_hovered(),
                             Self::show_unsaved_indicator(tab_data, app),
                             appearance,
+                            app,
                         ))
                         .with_horizontal_margin(TAB_HORIZONTAL_MARGIN)
                         .with_padding(Padding::uniform(TAB_PADDING))

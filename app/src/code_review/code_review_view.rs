@@ -828,13 +828,17 @@ impl CodeReviewView {
         self.update_current_repo(repo_path, ctx);
         ctx.subscribe_to_model(&self.diff_state_model, Self::handle_diff_state_model_event);
         self.load_diffs_for_active_repo(false, ctx);
-        if self.repo_path().is_some() {
+        if self.repo_path().is_some() && !self.diff_state_model.as_ref(ctx).is_ssh() {
             self.fetch_branches_and_setup_dropdown(ctx);
         }
         ctx.notify();
 
         // Create global LSP footer for the code review panel
-        if let Some(repo_path) = self.repo_path().cloned() {
+        if let Some(repo_path) = self
+            .repo_path()
+            .cloned()
+            .filter(|_| !self.diff_state_model.as_ref(ctx).is_ssh())
+        {
             let footer =
                 ctx.add_typed_action_view(|ctx| CodeFooterView::new_for_workspace(repo_path, ctx));
             ctx.subscribe_to_view(&footer, Self::handle_footer_event);
@@ -1567,6 +1571,9 @@ impl CodeReviewView {
     }
 
     fn fetch_branches_and_setup_dropdown(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.diff_state_model.as_ref(ctx).is_ssh() {
+            return;
+        }
         let Some(repo_path) = self.repo_path().cloned() else {
             return;
         };
@@ -2876,10 +2883,11 @@ impl CodeReviewView {
         files: &[FileDiffAndContent],
         ctx: &mut ViewContext<Self>,
     ) -> Vec<FileState> {
-        let git_operation_blocked = self
-            .diff_state_model
-            .as_ref(ctx)
-            .is_git_operation_blocked(ctx);
+        let git_operation_blocked = self.diff_state_model.as_ref(ctx).is_ssh()
+            || self
+                .diff_state_model
+                .as_ref(ctx)
+                .is_git_operation_blocked(ctx);
         let discard_tooltip_text = if git_operation_blocked {
             get_discard_button_disabled_tooltip(git_operation_blocked)
         } else {
@@ -6685,6 +6693,17 @@ impl CodeReviewView {
     /// Updates the primary git operations button, chevron visibility, and
     /// related state to match the current [`PrimaryGitActionMode`].
     fn update_git_operations_ui(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.diff_state_model.as_ref(ctx).is_ssh() {
+            self.git_primary_action_button.update(ctx, |button, ctx| {
+                button.set_label("Use remote terminal for Git actions", ctx);
+                button.set_disabled(true, ctx);
+                button.set_tooltip(
+                    Some("Commit, push and discard changes in the remote terminal"),
+                    ctx,
+                );
+            });
+            return;
+        }
         let mode = self.primary_git_action_mode(ctx);
 
         match mode {
@@ -7223,6 +7242,24 @@ impl TypedActionView for CodeReviewView {
     type Action = CodeReviewAction;
 
     fn handle_action(&mut self, action: &CodeReviewAction, ctx: &mut ViewContext<Self>) {
+        if self.diff_state_model.as_ref(ctx).is_ssh()
+            && matches!(
+                action,
+                CodeReviewAction::UndoRevert
+                    | CodeReviewAction::ShowDiscardConfirmDialog(_)
+                    | CodeReviewAction::ConfirmDiscardFile
+                    | CodeReviewAction::ToggleStashChanges
+                    | CodeReviewAction::InitProjectForCurrentDirectory
+                    | CodeReviewAction::OpenRepository
+                    | CodeReviewAction::OpenCommitDialog
+                    | CodeReviewAction::ToggleGitOperationsMenu
+                    | CodeReviewAction::OpenPushDialog
+                    | CodeReviewAction::OpenCreatePrDialog
+                    | CodeReviewAction::PublishBranch
+            )
+        {
+            return;
+        }
         match action {
             CodeReviewAction::OpenInNewTab {
                 path,

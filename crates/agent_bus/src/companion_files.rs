@@ -96,6 +96,103 @@ impl Files {
             ..Default::default()
         };
         match action {
+            ProjectFileAction::ProjectGitRoot => {
+                result.git_output = git_output(project, &["rev-parse", "--show-toplevel"])?;
+            }
+            ProjectFileAction::ProjectGitStatus
+            | ProjectFileAction::ProjectGitDiff
+            | ProjectFileAction::ProjectGitPrepareBase => {
+                if action == ProjectFileAction::ProjectGitStatus {
+                    result.git_output = git_output(
+                        project,
+                        &[
+                            "--no-optional-locks",
+                            "status",
+                            "--porcelain=2",
+                            "-z",
+                            "--untracked-files=all",
+                            "--",
+                            ".",
+                        ],
+                    )?;
+                } else {
+                    components(&request.path)?;
+                    // Resolve a commit before using it as an argument or object selector.
+                    let reference = if request.destination.is_empty() {
+                        "HEAD"
+                    } else {
+                        &request.destination
+                    };
+                    if reference.len() > 256 || reference.chars().any(char::is_control) {
+                        return Err(ManagedErrorCode::ManagedInvalidInput);
+                    }
+                    let commit = git_output(
+                        project,
+                        &[
+                            "rev-parse",
+                            "--verify",
+                            "--end-of-options",
+                            &format!("{reference}^{{commit}}"),
+                        ],
+                    )?;
+                    let commit = commit.trim();
+                    if !matches!(commit.len(), 40 | 64)
+                        || !commit.bytes().all(|b| b.is_ascii_hexdigit())
+                    {
+                        return Err(ManagedErrorCode::ManagedInvalidInput);
+                    }
+                    if action == ProjectFileAction::ProjectGitDiff {
+                        result.git_output = git_output(
+                            project,
+                            &[
+                                "--no-optional-locks",
+                                "diff",
+                                "--no-ext-diff",
+                                "--no-textconv",
+                                "--no-color",
+                                commit,
+                                "--",
+                                &request.path,
+                            ],
+                        )?;
+                    } else {
+                        if self.transfers.len() >= MAX_TRANSFERS {
+                            return Err(ManagedErrorCode::ManagedCapacityExceeded);
+                        }
+                        let bytes = git_bytes(
+                            project,
+                            &[
+                                "show",
+                                "--no-textconv",
+                                &format!("{commit}:{}", request.path),
+                            ],
+                            MAX_FILE_BYTES as usize,
+                        )?;
+                        identity::private_directory(&self.directory).map_err(path_error)?;
+                        let id = Uuid::new_v4().to_string();
+                        let directory = self.directory.join(&id);
+                        identity::private_directory(&directory).map_err(path_error)?;
+                        let transfer = Transfer {
+                            directory,
+                            target: None,
+                            expected_hash: String::new(),
+                        };
+                        let path = transfer.directory.join("content");
+                        use std::io::Write;
+                        let mut file = identity::private_file(&path).map_err(path_error)?;
+                        file.write_all(&bytes).map_err(path_error)?;
+                        file.sync_all().map_err(path_error)?;
+                        result.transfer_path = path
+                            .to_str()
+                            .ok_or(ManagedErrorCode::ManagedInvalidInput)?
+                            .into();
+                        result.transfer_id = id.clone();
+                        result.sha256 = format!("{:x}", Sha256::digest(&bytes));
+                        result.size = bytes.len() as u64;
+                        self.transfers.insert(id, transfer);
+                    }
+                }
+            }
             ProjectFileAction::ProjectFileList => {
                 let dir = Directory::at(project, &request.path)?;
                 let entries = dir.entries()?;
@@ -224,12 +321,9 @@ impl Files {
                     return Err(ManagedErrorCode::ManagedConflict);
                 }
                 result.size = staged.metadata().map_err(path_error)?.len();
-                parent.replace(
-                    &name,
-                    &mut staged,
-                    original.metadata().map_err(path_error)?.permissions(),
-                    &result.sha256,
-                )?;
+                let permissions = original.metadata().map_err(path_error)?.permissions();
+                drop(original);
+                parent.replace(&name, &mut staged, permissions, &result.sha256)?;
                 self.transfers.remove(&request.transfer_id);
             }
             ProjectFileAction::ProjectFileCreate | ProjectFileAction::ProjectDirectoryCreate => {
@@ -253,6 +347,71 @@ impl Files {
         }
         Ok(result)
     }
+}
+
+/// Bound subprocess lifetime and output before returning metadata over the control wire.
+fn git_output(project: &Project, arguments: &[&str]) -> Result<String> {
+    String::from_utf8(git_bytes(project, arguments, MAX_METADATA_BYTES)?)
+        .map_err(|_| ManagedErrorCode::ManagedInvalidInput)
+}
+
+fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<u8>> {
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    if !super::root_matches(&project.handle, &project.root).map_err(path_error)? {
+        return Err(ManagedErrorCode::ManagedStaleAttachment);
+    }
+    let mut child = Command::new("git")
+        .args(["-c", "core.fsmonitor=false", "-c", "core.hooksPath="])
+        .args(arguments)
+        .current_dir(&project.root)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_LITERAL_PATHSPECS", "1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || {
+        let mut output = Vec::new();
+        let result = stdout.take((limit + 1) as u64).read_to_end(&mut output);
+        let _ = sender.send(result.map(|_| output));
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let result = (|| {
+        let output = receiver
+            .recv_timeout(Duration::from_secs(10))
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+            .map_err(path_error)?;
+        if output.len() > limit {
+            return Err(ManagedErrorCode::ManagedCapacityExceeded);
+        }
+        loop {
+            if let Some(status) = child.try_wait().map_err(path_error)? {
+                if !status.success() {
+                    return Err(ManagedErrorCode::ManagedUnavailable);
+                }
+                break;
+            }
+            if Instant::now() >= deadline {
+                return Err(ManagedErrorCode::ManagedUnavailable);
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if !super::root_matches(&project.handle, &project.root).map_err(path_error)? {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        Ok(output)
+    })();
+    if result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    result
 }
 
 fn components(path: &str) -> Result<Vec<&std::ffi::OsStr>> {
@@ -385,7 +544,8 @@ impl Directory {
                 }
                 let file = OpenOptions::new()
                     .read(true)
-                    .share_mode(1)
+                    // Protect this directory from replacement while permitting child writes.
+                    .share_mode(3)
                     .custom_flags(0x02000000 | 0x00200000)
                     .open(&current)
                     .map_err(path_error)?;

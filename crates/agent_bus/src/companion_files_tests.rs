@@ -807,7 +807,7 @@ fn directory_snapshots_are_complete_repeatable_and_bounded_on_the_wire() {
             .unwrap();
         assert_eq!(snapshot.entries[0].subtree_metadata.len(), 1);
         assert!(matches!(&snapshot.entries[0].subtree_metadata[0].node,
-            Some(repo_node_metadata::Node::File(file)) if file.path.ends_with("nested/-literal.txt")));
+            Some(repo_node_metadata::Node::File(file)) if Path::new(&file.path).ends_with(Path::new("nested").join("-literal.txt"))));
     }
     for index in 0..4001 {
         fixture.write(&format!("item-{index}"), b"");

@@ -397,6 +397,54 @@ impl FileTreeView {
         self.set_remote_root_directories(&[remote_id], ctx);
     }
 
+    #[cfg(feature = "local_fs")]
+    fn mutate_ssh_file(
+        &mut self,
+        action: remote_server::proto::ProjectFileAction,
+        path: String,
+        destination: String,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let Some(files) = self.ssh_files.clone() else {
+            return;
+        };
+        let generation = self.ssh_generation;
+        ctx.spawn(
+            async move {
+                let path = files.relative(&path)?;
+                let destination = if destination.is_empty() {
+                    destination
+                } else {
+                    files.relative(&destination)?
+                };
+                files
+                    .control(remote_server::proto::ProjectFilesRequest {
+                        action: action as i32,
+                        path,
+                        destination,
+                        query_generation: generation,
+                        ..Default::default()
+                    })
+                    .await?;
+                files.list(&files.canonical_root, generation).await
+            },
+            move |view, result, ctx| {
+                if view.ssh_generation != generation {
+                    return;
+                }
+                match result {
+                    Ok(snapshot) => view.apply_ssh_snapshot(snapshot, true, ctx),
+                    Err(error) => {
+                        view.ssh_error = Some(format!(
+                            "Remote file operation failed: {error}. Refresh before retrying."
+                        ))
+                    }
+                }
+                ctx.notify();
+            },
+        );
+    }
+
     fn is_explicitly_collapsed(&self, root: &StandardizedPath, path: &StandardizedPath) -> bool {
         self.explicitly_collapsed
             .get(root)
@@ -830,7 +878,7 @@ impl FileTreeView {
         #[cfg(feature = "local_fs")]
         ctx.subscribe_to_model(
             &crate::workspace::ActiveSession::handle(ctx),
-            |view, _, ctx| {
+            |view, _, _, ctx| {
                 if view.is_active {
                     view.refresh_ssh(ctx);
                 }
@@ -2506,10 +2554,50 @@ impl FileTreeView {
         let mut items = vec![];
 
         if is_remote {
-            // Remote file trees only support a limited set of actions:
-            // copying paths and attaching as context. File opening,
-            // creation, rename, delete, cd, and reveal are unavailable
-            // because there is no local filesystem or editor support.
+            if self.ssh_files.is_some() {
+                let actions = if matches!(item, FileTreeItem::File { .. }) {
+                    vec![
+                        (
+                            "Open in new pane",
+                            FileTreeAction::OpenInNewPane { id: id.clone() },
+                        ),
+                        (
+                            "Open in new tab",
+                            FileTreeAction::OpenInNewTab { id: id.clone() },
+                        ),
+                    ]
+                } else {
+                    vec![
+                        (
+                            "New file",
+                            FileTreeAction::NewFileBelowDirectory { id: id.clone() },
+                        ),
+                        (
+                            "cd to directory",
+                            FileTreeAction::CDToDirectory { id: id.clone() },
+                        ),
+                    ]
+                };
+                for (label, action) in actions {
+                    items.push(
+                        MenuItemFields::new(label)
+                            .with_on_select_action(action)
+                            .into_item(),
+                    );
+                }
+                if id.index != 0 {
+                    items.push(
+                        MenuItemFields::new("Rename")
+                            .with_on_select_action(FileTreeAction::Rename { id: id.clone() })
+                            .into_item(),
+                    );
+                    items.push(
+                        MenuItemFields::new("Delete")
+                            .with_on_select_action(FileTreeAction::Delete { id: id.clone() })
+                            .into_item(),
+                    );
+                }
+            }
         } else {
             match item {
                 FileTreeItem::File { .. } => {
@@ -2678,6 +2766,18 @@ impl FileTreeView {
             return;
         };
 
+        if root_dir.is_remote() {
+            self.open_ssh_file(
+                item.path()
+                    .to_local_path_lossy()
+                    .to_string_lossy()
+                    .into_owned(),
+                Some(EditorLayout::SplitPane),
+                ctx,
+            );
+            return;
+        }
+
         self.open_file(
             &item.path().to_local_path_lossy(),
             Some(EditorLayout::SplitPane),
@@ -2692,6 +2792,20 @@ impl FileTreeView {
         let Some(item) = root_dir.items.get(id.index) else {
             return;
         };
+
+        if root_dir.is_remote() {
+            if matches!(item, FileTreeItem::File { .. }) {
+                self.open_ssh_file(
+                    item.path()
+                        .to_local_path_lossy()
+                        .to_string_lossy()
+                        .into_owned(),
+                    Some(EditorLayout::NewTab),
+                    ctx,
+                );
+            }
+            return;
+        }
 
         let path = item.path().to_local_path_lossy();
         if path.is_dir() {
@@ -2711,7 +2825,7 @@ impl FileTreeView {
 
         let path = item.path().to_local_path_lossy();
 
-        if !path.is_dir() {
+        if !matches!(item, FileTreeItem::DirectoryHeader { .. }) {
             log::warn!(
                 "CDToDirectory called on non-directory path: {}",
                 path.display()
@@ -2743,6 +2857,16 @@ impl FileTreeView {
 
         let path = item.path().to_local_path_lossy();
         let std_path = item.path().clone();
+
+        if root_dir.is_remote() {
+            self.mutate_ssh_file(
+                remote_server::proto::ProjectFileAction::ProjectFileDelete,
+                path.to_string_lossy().into_owned(),
+                String::new(),
+                ctx,
+            );
+            return;
+        }
 
         let result = if path.is_dir() {
             std::fs::remove_dir_all(&path)
@@ -3280,22 +3404,22 @@ impl TypedActionView for FileTreeView {
                 self.attach_as_context(id, ctx);
             }
             FileTreeAction::NewFileBelowDirectory { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.create_new_file(id, ctx);
                 }
             }
             FileTreeAction::OpenInNewPane { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.open_in_new_pane(id, ctx);
                 }
             }
             FileTreeAction::OpenInNewTab { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.open_in_new_tab(id, ctx);
                 }
             }
             FileTreeAction::CDToDirectory { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.cd_to_directory(id, ctx);
                 }
                 self.context_menu_state.take();
@@ -3312,13 +3436,13 @@ impl TypedActionView for FileTreeView {
                 self.context_menu_state.take();
             }
             FileTreeAction::Rename { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.rename_item(id, ctx);
                 }
                 self.context_menu_state.take();
             }
             FileTreeAction::Delete { id } => {
-                if !self.is_remote_item(id) {
+                if !self.is_remote_item(id) || self.ssh_files.is_some() {
                     self.delete_item(id, ctx);
                 }
                 self.context_menu_state.take();

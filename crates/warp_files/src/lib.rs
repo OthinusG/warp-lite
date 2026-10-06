@@ -141,10 +141,25 @@ impl FileBackend {
 }
 
 #[cfg(not(target_family = "wasm"))]
-struct SshFile {
+pub struct SshFile {
     files: std::sync::Arc<remote_server::RemoteFiles>,
     path: String,
     hash: futures::lock::Mutex<String>,
+}
+
+#[cfg(not(target_family = "wasm"))]
+impl SshFile {
+    /// Reload the remote document before discarding edits, updating its save fence.
+    pub async fn reload(&self) -> Result<String, FileLoadError> {
+        let mut hash = self.hash.lock().await;
+        let (cache, downloaded_hash) =
+            self.files.download(&self.path).await.map_err(|error| {
+                FileLoadError::IOError(std::io::Error::other(error.to_string()))
+            })?;
+        let content = FileModel::read_content_for_file(&cache).await?;
+        *hash = downloaded_hash;
+        Ok(content)
+    }
 }
 
 #[derive(Default)]
@@ -410,6 +425,20 @@ impl FileModel {
     #[cfg(not(target_family = "wasm"))]
     pub fn is_ssh_file(&self, path: &Path) -> bool {
         self.ssh_sources.contains_key(path)
+    }
+
+    /// Display the original document identity while keeping cache paths internal.
+    pub fn display_path(&self, path: &Path) -> PathBuf {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(source) = self.ssh_sources.get(path) {
+            return PathBuf::from(&source.path);
+        }
+        path.to_owned()
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    pub fn ssh_source(&self, path: &Path) -> Option<std::sync::Arc<SshFile>> {
+        self.ssh_sources.get(path).cloned()
     }
 
     pub fn is_remote_disconnected(&self, file_id: FileId) -> bool {
