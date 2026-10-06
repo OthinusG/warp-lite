@@ -130,3 +130,39 @@ Normalize only that installer string with Trim before exact comparison; keep
 application string/numeric checks and native resource checks strict. Dispatch
 the corrected workflow from main while checking out the unchanged immutable
 v1.1.0 source tag. Rerun the Windows release gate before uploading or publishing.
+
+## 1.1.0 public delivery receipt
+
+Published [Warpai 1.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)
+as the latest non-prerelease. Immutable tag source:
+`574b2f97772cbd0f932128662445a686dd196a5e`.
+
+- Full application regressions: run 37340966290; final native UI/actions:
+  run 37349315123, 163 frames per platform with archive integrity and visual QA.
+- Tagged macOS desktop and three native companion installers: run 37355772889.
+  All remote install/reinstall checks passed; installed optimized Windows
+  companion binary stdio tests passed.
+- Corrected Windows desktop release: run 37411727676. Application string/numeric
+  versions, normalized installer version, icon, bridge and archive contents passed.
+- Downloaded all five formal installers and both checksum files. All hashes
+  match GitHub asset digests; Windows installer is byte-identical to its native
+  CI artifact and release-source receipt matches the immutable tag.
+- Both DMGs passed native checksum verification and read-only mounted inspection.
+  Desktop bundle identity/version, executable, strict deep code signature,
+  reviewed ICNS, local MCP bridge, Applications shortcut and actual Finder custom
+  volume-icon flag passed. Companion source/target/version manifests, payload
+  hashes, artwork, launcher resource fork and actual volume-icon flag passed.
+- Linux payload licenses, target/source/version manifest, executable checksum
+  and companion artwork matched the tagged source. Windows setup PE/version
+  resources passed; native CI performed the platform-specific installation checks.
+
+| Public installer | SHA-256 |
+| --- | --- |
+| `Warpai.dmg` | `0ae508be02dc210b30d0c86dc2667b1518cc1afd5287cd45eda011573aa11f2a` |
+| `WarpaiCompanion-linux-x64.run` | `85e4ba3b7d68195b1b9e6d1b631717c0eabe741183e5dec538f4f3dead08954e` |
+| `WarpaiCompanion-macos-arm64.dmg` | `32b7c5cddadafbcdffd42d883b8ec7a288de776df1e47b1965077e5ca2da7d27` |
+| `WarpaiCompanion-windows-x64-setup.exe` | `4ef9e059c87b8c1d4331135f35d21dc3b291907208720e874a336db22dc32148` |
+| `WarpaiSetup-x64.exe` | `3893afe0e9285a24f0147391df035dbe5a8cd68eaa60e68361e32e31861546fb` |
+
+No desktop or raw companion ZIP is published. Ad-hoc macOS signing and unsigned
+Windows installation remain the documented first-launch constraints.

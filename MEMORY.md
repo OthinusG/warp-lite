@@ -1157,3 +1157,13 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   failed because Inno Setup pads ProductVersion with whitespace. Trim only that
   installer comparison; preserve strict app checks and immutable v1.1.0 source
   574b2f9. Dispatch the corrected main workflow against that same tag.
+
+- Warpai v1.1.0 published as latest on 2026-10-06 after formal macOS/companion
+  run 37355772889 and corrected Windows run 37411727676 passed. Immutable tag
+  source is 574b2f9; only the main workflow's padded installer-version verifier
+  changed after tagging. All five downloaded installers and two checksum files
+  match GitHub digests. Windows native artifact/source match, macOS strict bundle
+  signature/identity/bridge, both DMG Finder volume flags/icons, companion
+  manifests/hashes and installed native protocol checks passed. Public assets
+  contain DMG/EXE desktops plus Linux .run/macOS DMG/Windows EXE remote installers,
+  no raw ZIPs. Historical private 1.0.1 draft remains unpublished.
