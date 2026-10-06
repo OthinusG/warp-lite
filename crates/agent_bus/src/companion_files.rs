@@ -96,6 +96,17 @@ impl Files {
             ..Default::default()
         };
         match action {
+            ProjectFileAction::ProjectGitBranches => {
+                result.git_output = git_output(
+                    project,
+                    &[
+                        "for-each-ref",
+                        "--format=%(refname:short)",
+                        "refs/heads",
+                        "refs/remotes",
+                    ],
+                )?;
+            }
             ProjectFileAction::ProjectGitRoot => {
                 result.git_output = git_output(project, &["rev-parse", "--show-toplevel"])?;
             }

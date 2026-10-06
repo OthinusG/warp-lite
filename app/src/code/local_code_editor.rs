@@ -1704,6 +1704,15 @@ impl LocalCodeEditorView {
 
     /// Open a save dialog to save the file with a new name, optionally with a completion callback.
     pub fn save_as(&mut self, callback: Option<SaveCallback>, ctx: &mut ViewContext<Self>) {
+        if self
+            .file_path()
+            .is_some_and(|path| warp_files::FileModel::as_ref(ctx).is_ssh_file(path))
+        {
+            if let Some(callback) = callback {
+                callback(SaveOutcome::Canceled, ctx);
+            }
+            return;
+        }
         ctx.open_save_file_picker(
             move |path_opt, me, ctx| Self::handle_save_as(callback, path_opt, me, ctx),
             if let Some(default_dir) = &self.default_directory {

@@ -413,6 +413,11 @@ impl DiffStateModel {
         self.ssh_files = Some(files);
     }
 
+    #[cfg(feature = "local_fs")]
+    pub fn ssh_files(&self) -> Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>> {
+        self.ssh_files.clone()
+    }
+
     pub fn is_ssh(&self) -> bool {
         #[cfg(feature = "local_fs")]
         {

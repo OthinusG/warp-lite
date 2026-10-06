@@ -342,10 +342,14 @@ impl FileNotebookView {
                     if let markdown_parser::FormattedTextLine::Image(image) = line {
                         if image.source.starts_with("https://") || image.source.starts_with("http://") { continue; }
                         images += 1;
-                        if images > 32 { return Err(anyhow::anyhow!("Too many remote preview images")); }
-                        let path = source.files.document_link(&source.path, &image.source)?;
-                        let (cache, _) = source.files.download(&path).await?;
-                        image.source = cache.to_string_lossy().into_owned();
+                        let downloaded = if images <= 32 {
+                            match source.files.document_link(&source.path, &image.source) {
+                                Ok(path) => source.files.download(&path).await.ok().map(|(cache, _)| cache),
+                                Err(_) => None,
+                            }
+                        } else { None };
+                        // Missing or outside-root images remain placeholders; document text still renders.
+                        image.source = downloaded.unwrap_or_else(|| source.files.cache_path(&source.path).unwrap().with_extension("missing-image")).to_string_lossy().into_owned();
                     }
                 }
                 Ok::<_, anyhow::Error>(text)

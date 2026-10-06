@@ -83,6 +83,23 @@ impl LinkTarget {
 impl PartialEq for LinkTarget {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            #[cfg(feature = "local_fs")]
+            (
+                Self::SshFile {
+                    source: left,
+                    path: left_path,
+                    session: left_session,
+                },
+                Self::SshFile {
+                    source: right,
+                    path: right_path,
+                    session: right_session,
+                },
+            ) => {
+                left.files.identity == right.files.identity
+                    && left_path == right_path
+                    && Arc::ptr_eq(left_session, right_session)
+            }
             (Self::Url(my_url), Self::Url(other_url)) => my_url == other_url,
             (
                 Self::LocalFile {

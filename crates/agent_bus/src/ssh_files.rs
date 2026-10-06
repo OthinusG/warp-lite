@@ -303,6 +303,16 @@ pub struct RemoteFiles {
     connected: AtomicBool,
     cache: tempfile::TempDir,
 }
+
+/// A canceled transfer closes its control attachment so owned staging is reclaimed.
+struct TransferCancellation<'a>(Option<&'a RemoteFiles>);
+impl Drop for TransferCancellation<'_> {
+    fn drop(&mut self) {
+        if let Some(files) = self.0 {
+            files.disconnect();
+        }
+    }
+}
 impl std::fmt::Debug for RemoteFiles {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RemoteFiles")
@@ -484,6 +494,7 @@ impl RemoteFiles {
         result
     }
     pub async fn download(&self, path: &str) -> Result<(PathBuf, String), ConnectionError> {
+        let mut cancellation = TransferCancellation(Some(self));
         let staged = self
             .control(ProjectFilesRequest {
                 action: ProjectFileAction::ProjectFilePrepareRead as i32,
@@ -491,13 +502,16 @@ impl RemoteFiles {
                 ..Default::default()
             })
             .await?;
-        self.download_staged(path, staged).await
+        let result = self.download_staged(path, staged).await;
+        cancellation.0 = None;
+        result
     }
     pub async fn download_base(
         &self,
         path: &str,
         reference: &str,
     ) -> Result<(PathBuf, String), ConnectionError> {
+        let mut cancellation = TransferCancellation(Some(self));
         let staged = self
             .control(ProjectFilesRequest {
                 action: ProjectFileAction::ProjectGitPrepareBase as i32,
@@ -507,20 +521,23 @@ impl RemoteFiles {
             })
             .await?;
         // Base versions use a separate cache namespace so they cannot overwrite working files.
-        self.download_staged(
-            &format!(
-                "{}{}base-{}",
-                self.canonical_root,
-                if self.canonical_root.ends_with('/') {
-                    ""
-                } else {
-                    "/"
-                },
-                staged.transfer_id
-            ),
-            staged,
-        )
-        .await
+        let result = self
+            .download_staged(
+                &format!(
+                    "{}{}base-{}",
+                    self.canonical_root,
+                    if self.canonical_root.ends_with('/') {
+                        ""
+                    } else {
+                        "/"
+                    },
+                    staged.transfer_id
+                ),
+                staged,
+            )
+            .await;
+        cancellation.0 = None;
+        result
     }
     async fn download_staged(
         &self,
@@ -549,6 +566,27 @@ impl RemoteFiles {
             if format!("{:x}", Sha256::digest(&bytes)) != staged.sha256 {
                 self.disconnect();
                 return Err(ConnectionError::StaleAttachment);
+            }
+            // Do not evict cache files that may back unsaved editor buffers.
+            let entries = std::fs::read_dir(self.cache.path())
+                .map_err(|_| ConnectionError::CapacityExceeded)?;
+            let mut total = metadata.len();
+            let mut count = 0;
+            for entry in entries {
+                let entry = entry.map_err(|_| ConnectionError::CapacityExceeded)?;
+                if entry.path() == destination || entry.path() == temporary.path() {
+                    continue;
+                }
+                total = total.saturating_add(
+                    entry
+                        .metadata()
+                        .map_err(|_| ConnectionError::CapacityExceeded)?
+                        .len(),
+                );
+                count += 1;
+                if total > 128 * 1024 * 1024 || count > 1024 {
+                    return Err(ConnectionError::CapacityExceeded);
+                }
             }
             temporary
                 .persist(&destination)

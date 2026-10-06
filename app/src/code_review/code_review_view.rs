@@ -828,7 +828,7 @@ impl CodeReviewView {
         self.update_current_repo(repo_path, ctx);
         ctx.subscribe_to_model(&self.diff_state_model, Self::handle_diff_state_model_event);
         self.load_diffs_for_active_repo(false, ctx);
-        if self.repo_path().is_some() && !self.diff_state_model.as_ref(ctx).is_ssh() {
+        if self.repo_path().is_some() {
             self.fetch_branches_and_setup_dropdown(ctx);
         }
         ctx.notify();
@@ -1571,7 +1571,38 @@ impl CodeReviewView {
     }
 
     fn fetch_branches_and_setup_dropdown(&mut self, ctx: &mut ViewContext<Self>) {
-        if self.diff_state_model.as_ref(ctx).is_ssh() {
+        #[cfg(feature = "local_fs")]
+        if let Some(files) = self.diff_state_model.as_ref(ctx).ssh_files() {
+            ctx.spawn(
+                async move {
+                    files
+                        .control(remote_server::proto::ProjectFilesRequest {
+                            action: remote_server::proto::ProjectFileAction::ProjectGitBranches
+                                as i32,
+                            ..Default::default()
+                        })
+                        .await
+                },
+                |view, result, ctx| {
+                    if let Ok(result) = result {
+                        if let Some(repo) = &mut view.active_repo {
+                            let names: Vec<_> = result
+                                .git_output
+                                .lines()
+                                .filter(|name| !name.ends_with("/HEAD"))
+                                .collect();
+                            let main = ["main", "master", "origin/main", "origin/master"]
+                                .into_iter()
+                                .find(|candidate| names.contains(candidate));
+                            repo.available_branches = names
+                                .into_iter()
+                                .map(|name| (name.into(), Some(name) == main))
+                                .collect();
+                        }
+                        view.update_diff_selector_selection(ctx);
+                    }
+                },
+            );
             return;
         }
         let Some(repo_path) = self.repo_path().cloned() else {
@@ -7554,7 +7585,8 @@ impl TypedActionView for CodeReviewView {
             }
             CodeReviewAction::CopyFilePath(path) => {
                 if let Some(repo_path) = self.repo_path() {
-                    let absolute_path = repo_path.join(path);
+                    let absolute_path =
+                        warp_files::FileModel::as_ref(ctx).display_path(&repo_path.join(path));
                     if let Some(path_str) = absolute_path.to_str() {
                         ctx.clipboard()
                             .write(ClipboardContent::plain_text(path_str.to_string()));

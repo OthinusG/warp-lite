@@ -13,6 +13,11 @@ use remote_protocol::{
 };
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
+#[cfg(test)]
+#[path = "companion_files_tests.rs"]
+mod file_tests;
+#[path = "companion_files.rs"]
+pub(crate) mod files;
 #[path = "companion_identity.rs"]
 mod identity;
 #[path = "companion_service.rs"]
@@ -21,11 +26,6 @@ mod service;
 mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
-#[path = "companion_files.rs"]
-pub(crate) mod files;
-#[cfg(test)]
-#[path = "companion_files_tests.rs"]
-mod file_tests;
 pub(crate) use tasks::decode_result as decode_task_result;
 pub use tasks::Command as TaskCommand;
 
@@ -172,8 +172,9 @@ impl Companion {
             }
             Some(managed_request::Operation::ProjectFiles(request)) => {
                 self.check_project(request.fence.as_ref())?;
-                self.files.execute(request, self.project.as_ref().unwrap())
-                    .map(managed_response::Result::ProjectFiles)
+                self.files
+                    .execute(request, self.project.as_ref().unwrap())
+                    .map(|result| managed_response::Result::ProjectFiles(Box::new(result)))
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }

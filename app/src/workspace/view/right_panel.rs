@@ -512,7 +512,10 @@ impl RightPanelView {
                         model
                     });
                     let view = ctx.add_typed_action_view(|ctx| CodeReviewView::new(cache_root.clone(), model, None, None, ctx));
-                    ctx.subscribe_to_view(&view, |me, view, event, ctx| me.handle_code_review_event(&view, event, ctx));
+                    let bound_selection = key.clone();
+                    ctx.subscribe_to_view(&view, move |me, view, event, ctx| {
+                        if me.ssh_selection == bound_selection { me.handle_code_review_event(&view, event, ctx); }
+                    });
                     view.update(ctx, |view, ctx| view.on_open(cache_root, ctx));
                     me.ssh_review = Some(view);
                 }

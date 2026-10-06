@@ -330,7 +330,7 @@ impl Fixture {
         ) {
             managed_response::Result::ProjectFiles(value) => {
                 assert_eq!(value.fence.as_ref(), Some(&self.fence));
-                Ok(value)
+                Ok(*value)
             }
             managed_response::Result::Error(error) => {
                 Err(ManagedErrorCode::try_from(error.code).unwrap())
@@ -902,4 +902,103 @@ fn altered_stage_links_fifos_and_modes_are_rejected_without_touching_original() 
         release.transfer_id = transfer.transfer_id;
         fixture.execute(release).unwrap();
     }
+}
+
+#[test]
+fn git_review_uses_native_status_patch_and_immutable_sftp_base() {
+    let mut fixture = Fixture::new();
+    let git_root = fixture.root.path().to_owned();
+    let git = |args: &[&str]| {
+        let output = std::process::Command::new("git")
+            .args([
+                "-c",
+                "core.hooksPath=",
+                "-c",
+                "user.name=Warpai Fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+            ])
+            .args(args)
+            .current_dir(&git_root)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "Controlled Git fixture command failed"
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    git(&["init", "--initial-branch=main"]);
+    fixture.write("document 多语言.md", b"original\n");
+    git(&["add", "--", "."]);
+    git(&["commit", "-m", "fixture base"]);
+    let head = git(&["rev-parse", "HEAD"]).trim().to_owned();
+    git(&["branch", "comparison"]);
+    fixture.write("document 多语言.md", b"staged\n");
+    git(&["add", "--", "."]);
+    fixture.write("document 多语言.md", b"working\n");
+    fixture.write("new.txt", b"new\n");
+    let status = fixture
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .unwrap();
+    assert_eq!(
+        status.git_output,
+        git(&[
+            "--no-optional-locks",
+            "status",
+            "--porcelain=2",
+            "-z",
+            "--untracked-files=all",
+            "--",
+            "."
+        ])
+    );
+    assert_eq!(status.git_base, head);
+    let patch = fixture
+        .run(ProjectFileAction::ProjectGitDiff, "document 多语言.md")
+        .unwrap();
+    assert_eq!(
+        patch.git_output,
+        git(&[
+            "--no-optional-locks",
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-color",
+            &head,
+            "--",
+            "document 多语言.md"
+        ])
+    );
+    let base = fixture
+        .run(
+            ProjectFileAction::ProjectGitPrepareBase,
+            "document 多语言.md",
+        )
+        .unwrap();
+    assert_eq!(std::fs::read(&base.transfer_path).unwrap(), b"original\n");
+    let mut comparison = fixture.query(ProjectFileAction::ProjectGitStatus, "");
+    comparison.destination = "@main".into();
+    let comparison = fixture.execute(comparison).unwrap();
+    assert_eq!(comparison.git_base, head);
+    assert!(comparison.git_name_status.contains("document 多语言.md"));
+    let branches = fixture
+        .run(ProjectFileAction::ProjectGitBranches, "")
+        .unwrap();
+    assert!(branches.git_output.lines().any(|line| line == "comparison"));
+    let root = fixture.run(ProjectFileAction::ProjectGitRoot, "").unwrap();
+    assert_eq!(
+        Path::new(root.git_output.trim()).canonicalize().unwrap(),
+        fixture.root.path().canonicalize().unwrap()
+    );
+    assert!(fixture
+        .run(ProjectFileAction::ProjectGitDiff, "../outside")
+        .is_err());
+    let mut malicious = fixture.query(ProjectFileAction::ProjectGitDiff, "new.txt");
+    malicious.destination = "--output=outside".into();
+    assert!(fixture.execute(malicious).is_err());
+    let mut release = fixture.query(ProjectFileAction::ProjectFileRelease, "");
+    release.transfer_id = base.transfer_id;
+    fixture.execute(release).unwrap();
+    assert!(!Path::new(&base.transfer_path).exists());
 }

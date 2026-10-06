@@ -79,3 +79,22 @@ MCP discovery. The flag takes no user-supplied path and does not change cwd.
 The Codex per-invocation server uses this mode; other native adapters retain
 `mcp`. Initial local scope follows the verified native directory, while already
 registered or explicitly bound workspace identities cannot change scope.
+
+### Existing Review over SSH
+
+`project_files` also admits typed, read-only `PROJECT_GIT_ROOT`,
+`PROJECT_GIT_BRANCHES`, `PROJECT_GIT_STATUS`, `PROJECT_GIT_DIFF`, and
+`PROJECT_GIT_PREPARE_BASE` actions. There is no caller-supplied command or argument
+vector. Status carries porcelain-v2 records, the resolved base commit, and
+name-status records for merge-base comparisons. Git metadata and patches are
+bounded at 512 KiB and each subprocess has a 10-second deadline. Base file bytes
+use the same connection-owned, hashed SFTP staging and release lifecycle.
+
+Head mode includes staged, unstaged and untracked files. Branch comparisons use
+local remote-host refs and merge bases; no implicit network fetch occurs. Git
+write operations remain available in the remote terminal and are visibly disabled
+in Review. Failed reads never fall through to desktop Git or desktop file paths.
+
+Task list projections include a bounded 512-character `description` preview.
+Task detail continues to carry the full description; mutation revisions remain
+unchanged and are no longer displayed in the daily Collaboration view.

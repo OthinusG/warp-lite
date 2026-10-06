@@ -95,6 +95,7 @@ enum PendingEditKind {
 
 #[derive(Debug, Clone)]
 pub enum FileTreeAction {
+    RefreshRemote,
     ItemClicked {
         id: FileTreeIdentifier,
     },
@@ -256,6 +257,8 @@ pub struct FileTreeView {
     ssh_error: Option<String>,
     #[cfg(feature = "local_fs")]
     ssh_in_flight: bool,
+    #[cfg(feature = "local_fs")]
+    ssh_poll: Option<warpui::r#async::SpawnedFutureHandle>,
     /// Per-root state, keyed by root path
     root_directories: HashMap<StandardizedPath, RootDirectory>,
     /// The displayed directories
@@ -334,9 +337,14 @@ impl FileTreeView {
             .as_ref()
             .map(|(profile, connection)| selection_key(profile, connection));
         if self.ssh_selection == key {
+            self.poll_ssh(ctx);
             return;
         }
+        if let Some(handle) = self.ssh_poll.take() {
+            handle.abort();
+        }
         self.ssh_generation += 1;
+        self.set_remote_root_directories(&[], ctx);
         self.ssh_selection = key.clone();
         self.ssh_files = None;
         self.ssh_error = None;
@@ -360,12 +368,67 @@ impl FileTreeView {
                     view.ssh_files = Some(files);
                     view.displayed_directories.retain(|root| view.root_directories.get(root).is_some_and(|dir| dir.is_remote()));
                     view.apply_ssh_snapshot(snapshot, true, ctx);
+                    view.poll_ssh(ctx);
                 }
                 Err(error) => view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation.")),
             }
             ctx.notify();
         });
         ctx.notify();
+    }
+
+    #[cfg(feature = "local_fs")]
+    fn poll_ssh(&mut self, ctx: &mut ViewContext<Self>) {
+        if !self.is_active || self.ssh_poll.is_some() {
+            return;
+        }
+        let Some(files) = self.ssh_files.clone().filter(|files| files.connected()) else {
+            return;
+        };
+        let generation = self.ssh_generation;
+        let mut paths: Vec<String> = self
+            .root_directories
+            .values()
+            .filter(|root| root.is_remote())
+            .flat_map(|root| &root.expanded_folders)
+            .map(|path| path.to_local_path_lossy().to_string_lossy().into_owned())
+            .collect();
+        paths.push(files.canonical_root.clone());
+        paths.sort_by_key(|path| path.len());
+        paths.dedup();
+        self.ssh_poll = Some(ctx.spawn(
+            async move {
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                let mut snapshots = Vec::new();
+                for path in paths {
+                    snapshots.push(files.list(&path, generation).await?);
+                }
+                Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>(snapshots)
+            },
+            move |view, result, ctx| {
+                if view.ssh_generation != generation {
+                    return;
+                }
+                view.ssh_poll = None;
+                if !view.is_active {
+                    return;
+                }
+                match result {
+                    Ok(snapshots) => {
+                        for snapshot in snapshots {
+                            view.apply_ssh_snapshot(snapshot, false, ctx);
+                        }
+                        view.poll_ssh(ctx);
+                    }
+                    Err(error) => {
+                        view.ssh_error = Some(format!(
+                            "Remote files could not refresh: {error}. Refresh to reconnect."
+                        ));
+                    }
+                }
+                ctx.notify();
+            },
+        ));
     }
 
     #[cfg(feature = "local_fs")]
@@ -849,6 +912,8 @@ impl FileTreeView {
             ssh_error: None,
             #[cfg(feature = "local_fs")]
             ssh_in_flight: false,
+            #[cfg(feature = "local_fs")]
+            ssh_poll: None,
             root_directories: HashMap::new(),
             displayed_directories: Vec::new(),
             #[cfg(feature = "local_fs")]
@@ -2557,6 +2622,11 @@ impl FileTreeView {
 
         if is_remote {
             if self.ssh_files.is_some() {
+                items.push(
+                    MenuItemFields::new("Refresh")
+                        .with_on_select_action(FileTreeAction::RefreshRemote)
+                        .into_item(),
+                );
                 let actions = if matches!(item, FileTreeItem::File { .. }) {
                     vec![
                         (
@@ -3250,7 +3320,9 @@ impl View for FileTreeView {
     #[cfg(feature = "local_fs")]
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         if let Some(error) = &self.ssh_error {
-            return self.render_error_state(error.clone(), app);
+            return self
+                .render_error_state(format!("{error} Click to reconnect."), app)
+                .on_click(|ctx, _, _| ctx.dispatch_typed_action(FileTreeAction::RefreshRemote));
         }
         if self.ssh_in_flight {
             return self.render_loading_state(app);
@@ -3306,6 +3378,10 @@ impl TypedActionView for FileTreeView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
+            FileTreeAction::RefreshRemote => {
+                self.ssh_selection = None;
+                self.refresh_ssh(ctx);
+            }
             FileTreeAction::ItemClicked { id } => {
                 ctx.focus_self();
                 self.select_and_execute_item_at_id(id, ctx);

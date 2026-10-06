@@ -478,11 +478,19 @@ impl HostClient {
         }
         query.fence = self.fence.clone();
         let generation = query.query_generation;
-        let reply = self.request(managed_request::Operation::ProjectFiles(query)).await?;
+        let reply = self
+            .request(managed_request::Operation::ProjectFiles(query))
+            .await?;
         if let managed_response::Result::ProjectFiles(reply) = reply {
-            if reply.fence == self.fence && reply.query_generation == generation
-                && reply.snapshot.as_ref().is_none_or(|snapshot| snapshot.repo_path == self.canonical_root)
-            { return Ok(reply); }
+            if reply.fence == self.fence
+                && reply.query_generation == generation
+                && reply
+                    .snapshot
+                    .as_ref()
+                    .is_none_or(|snapshot| snapshot.repo_path == self.canonical_root)
+            {
+                return Ok(*reply);
+            }
         }
         self.close();
         Err(ConnectionError::StaleAttachment)
@@ -587,7 +595,9 @@ impl HostClient {
                         ConnectionError::FeatureUnavailable
                     }
                     Ok(ManagedErrorCode::ManagedInvalidInput) => ConnectionError::InvalidInput,
-                    Ok(ManagedErrorCode::ManagedPermissionDenied) => ConnectionError::PermissionDenied,
+                    Ok(ManagedErrorCode::ManagedPermissionDenied) => {
+                        ConnectionError::PermissionDenied
+                    }
                     Ok(ManagedErrorCode::ManagedNotFound) => ConnectionError::NotFound,
                     Ok(ManagedErrorCode::ManagedConflict) => ConnectionError::Conflict,
                     Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
@@ -595,7 +605,10 @@ impl HostClient {
                     }
                     _ => ConnectionError::CompanionUnavailable,
                 };
-                if matches!(error, ConnectionError::StaleAttachment | ConnectionError::IncompatibleVersion) {
+                if matches!(
+                    error,
+                    ConnectionError::StaleAttachment | ConnectionError::IncompatibleVersion
+                ) {
                     self.close();
                 }
                 Err(error)
@@ -609,7 +622,6 @@ impl HostClient {
         self.fence = None;
         let _ = self.child.start_kill();
     }
-
 }
 
 #[cfg(all(test, windows))]

@@ -1292,7 +1292,7 @@ impl Store {
             },
             None => None,
         };
-        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?))) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?))) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
@@ -1318,7 +1318,7 @@ impl Store {
         include_archived: bool,
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
-        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq FROM tasks WHERE project = ? AND state = COALESCE(?, state) AND (assignee = COALESCE(?, assignee) OR ? = '') AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND state = COALESCE(?, state) AND (assignee = COALESCE(?, assignee) OR ? = '') AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(project)
             .bind::<Nullable<Text>, _>(state)
             .bind::<Nullable<Text>, _>(assignee)
@@ -4310,6 +4310,7 @@ fn task_summaries(rows: Vec<TaskSummaryRow>, limit: u32) -> Value {
             json!({
                 "id": row.id,
                 "state": row.state,
+                "description": row.description,
                 "revision": row.revision as u32,
                 "version": row.version as u64,
                 "assignee": row.assignee,
@@ -4575,6 +4576,8 @@ struct TaskSummaryRow {
     reviewer: String,
     #[diesel(sql_type = BigInt)]
     created_seq: i64,
+    #[diesel(sql_type = Text)]
+    description: String,
 }
 
 #[derive(QueryableByName)]

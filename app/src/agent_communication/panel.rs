@@ -145,6 +145,8 @@ struct PanelAgent {
 #[derive(Deserialize)]
 struct PanelTask {
     id: String,
+    #[serde(default)]
+    description: String,
     state: String,
     revision: u32,
     version: u64,
@@ -625,27 +627,18 @@ impl CollaborationPanel {
         };
         if self.remote.is_none() {
             fixture.sections.push(Section {
-                title: "Scope".into(),
-                rows: vec![
-                    format!(
-                        "{} · {}",
-                        if self.remote.is_some() {
-                            "Remote project"
-                        } else if cfg!(target_os = "windows") {
-                            "This Windows PC"
-                        } else {
-                            "This Mac"
-                        },
-                        snapshot.project
-                    ),
-                    "Only explicitly participating agents in this scope can collaborate.".into(),
-                    format!(
-                        "Task filters · state {} · assignee {} · archived {}",
-                        self.query.task_state.as_deref().unwrap_or("any"),
-                        self.query.task_assignee.as_deref().unwrap_or("any"),
-                        self.query.include_archived
-                    ),
-                ],
+                title: "Project".into(),
+                rows: vec![format!(
+                    "{} · {}",
+                    if self.remote.is_some() {
+                        "Remote project"
+                    } else if cfg!(target_os = "windows") {
+                        "This Windows PC"
+                    } else {
+                        "This Mac"
+                    },
+                    snapshot.project
+                )],
             });
         }
         if self.query.history {
@@ -701,10 +694,10 @@ impl CollaborationPanel {
             }
             .into();
             fixture.sections.push(Section {
-                title: format!("Messages · query {} · thread {}", self.query.message_query.as_deref().unwrap_or("not set"), self.query.selected_thread.as_deref().unwrap_or("search results")),
+                title: if self.query.selected_thread.is_some() { "Conversation".into() } else { "Messages".into() },
                 rows: if snapshot.messages.is_empty() { vec!["No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.".into()] }
                     else { snapshot.messages.iter().flat_map(|message| [
-                        format!("{} · {} · {} → {} · subject {} · thread {} · reply {} · task {} · {}", message.sequence, message.id, message.from, message.to, message.subject.as_deref().unwrap_or("none"), message.thread_id.as_deref().unwrap_or(&message.id), message.reply_to.as_deref().unwrap_or("root"), message.task_id.as_deref().unwrap_or("unlinked"), if message.acknowledged { "acknowledged" } else { "pending acknowledgement" }),
+                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or("Message"), if message.acknowledged { "read" } else { "unread" }),
                         message.body.clone(),
                     ]).collect() },
             });
@@ -763,7 +756,7 @@ impl CollaborationPanel {
                         task.state
                     ),
                     rows: {
-                        let mut rows = vec![
+                        let rows = vec![
                         format!(
                             "Issuer: {} · assignee: {} · reviewer: {}",
                             task.issuer, task.assignee, task.reviewer
@@ -787,12 +780,7 @@ impl CollaborationPanel {
                             })
                             .unwrap_or_default(),
                         ];
-                        if let Some(runtime) = &snapshot.task_runtime {
-                            if let Some(phase) = &runtime.delivery_phase {
-                                rows.push(format!("Native prompt {} · receiver acknowledgement and TaskStart remain separate{}",
-                                    phase, if runtime.delivery_retained == Some(false) { " · delivery history could not be retained" } else { "" }));
-                            }
-                        }
+
                         rows
                     },
                 },
@@ -811,8 +799,7 @@ impl CollaborationPanel {
                         .iter()
                         .map(|attempt| {
                             format!(
-                                "{} · {} · owner {} · outcome {}",
-                                attempt.id,
+                                "{} · owner {} · outcome {}",
                                 attempt.certainty,
                                 attempt.owner,
                                 attempt.outcome.as_deref().unwrap_or("unknown")
@@ -1514,8 +1501,12 @@ impl View for CollaborationPanel {
                             builder
                                 .button(ButtonVariant::Text, self.task_buttons[&task.id].clone())
                                 .with_text_label(format!(
-                                    "Open task {}",
-                                    task.id.chars().take(8).collect::<String>()
+                                    "{}",
+                                    if task.description.is_empty() {
+                                        "Open task"
+                                    } else {
+                                        &task.description
+                                    }
                                 ))
                                 .build()
                                 .on_click(move |ctx, _, _| {
