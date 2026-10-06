@@ -743,7 +743,7 @@ impl RemoteFiles {
             let mut count = 0;
             for entry in entries {
                 let entry = entry.map_err(|_| ConnectionError::CapacityExceeded)?;
-                if entry.path() == destination || entry.path() == temporary.as_ref() {
+                if entry.path() == destination || entry.path() == &*temporary {
                     continue;
                 }
                 total = total.saturating_add(
