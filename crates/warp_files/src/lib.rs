@@ -413,6 +413,14 @@ impl FileModel {
                 "Invalid remote cache identity".into(),
             ));
         }
+        // Views retain the original source while editors or Review still reference it.
+        self.ssh_sources.retain(|path, source| {
+            if std::sync::Arc::strong_count(source) > 1 {
+                return true;
+            }
+            if path != &cache { let _ = std::fs::remove_file(path); }
+            false
+        });
         self.ssh_sources.entry(cache).or_insert_with(|| {
             std::sync::Arc::new(SshFile {
                 files,
@@ -787,9 +795,11 @@ impl FileModel {
         self.abort_handles.remove(&file_id);
         let removed = self.file_state.remove(file_id);
         #[cfg(not(target_family = "wasm"))]
-        if let Some((FileBackend::Ssh { cache, .. }, false)) = &removed {
-            self.ssh_sources.remove(cache);
-            let _ = std::fs::remove_file(cache);
+        if let Some((FileBackend::Ssh { cache, source, .. }, false)) = &removed {
+            if std::sync::Arc::strong_count(source) <= 2 {
+                self.ssh_sources.remove(cache);
+                let _ = std::fs::remove_file(cache);
+            }
         }
         if let Some((FileBackend::Local(file), path_still_used)) = removed {
             let path = file.path;

@@ -522,14 +522,22 @@ impl RemoteFiles {
         result
     }
     pub async fn download(&self, path: &str) -> Result<(PathBuf, String), ConnectionError> {
+        let relative = self.relative(path)?;
         let mut cancellation = TransferCancellation(Some(self));
         let staged = self
             .control(ProjectFilesRequest {
                 action: ProjectFileAction::ProjectFilePrepareRead as i32,
-                path: self.relative(path)?,
+                path: relative,
                 ..Default::default()
             })
-            .await?;
+            .await;
+        let staged = match staged {
+            Ok(staged) => staged,
+            Err(error) => {
+                cancellation.0 = None;
+                return Err(error);
+            }
+        };
         let result = self.download_staged(path, staged).await;
         cancellation.0 = None;
         result
@@ -539,15 +547,23 @@ impl RemoteFiles {
         path: &str,
         reference: &str,
     ) -> Result<(PathBuf, String), ConnectionError> {
+        let relative = self.relative(path)?;
         let mut cancellation = TransferCancellation(Some(self));
         let staged = self
             .control(ProjectFilesRequest {
                 action: ProjectFileAction::ProjectGitPrepareBase as i32,
-                path: self.relative(path)?,
+                path: relative,
                 destination: reference.into(),
                 ..Default::default()
             })
-            .await?;
+            .await;
+        let staged = match staged {
+            Ok(staged) => staged,
+            Err(error) => {
+                cancellation.0 = None;
+                return Err(error);
+            }
+        };
         // Base versions use a separate cache namespace so they cannot overwrite working files.
         let result = self
             .download_staged(

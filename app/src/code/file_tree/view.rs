@@ -50,7 +50,9 @@ use crate::terminal::view::{TerminalDropTargetData, TerminalView};
 use crate::ui_components::item_highlight::{ImageOrIcon, ItemHighlightState};
 #[cfg(feature = "local_fs")]
 use crate::util::file::external_editor::EditorSettings;
-use crate::util::openable_file_type::{is_file_content_binary, EditorLayout, FileTarget};
+use crate::util::openable_file_type::{
+    is_file_content_binary, is_markdown_file, EditorLayout, FileTarget,
+};
 #[cfg(feature = "local_fs")]
 use crate::util::openable_file_type::{
     resolve_file_target_to_open_in_warp, resolve_file_target_with_editor_choice,
@@ -401,7 +403,12 @@ impl FileTreeView {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 let mut snapshots = Vec::new();
                 for path in paths {
-                    snapshots.push(files.list(&path, generation).await?);
+                    match files.list(&path, generation).await {
+                        Ok(snapshot) => snapshots.push(snapshot),
+                        Err(warp_agent_bus::ssh_remote::ConnectionError::NotFound)
+                            if path != files.canonical_root => {}
+                        Err(error) => return Err(error),
+                    }
                 }
                 Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>(snapshots)
             },

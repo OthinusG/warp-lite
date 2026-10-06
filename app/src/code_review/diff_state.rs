@@ -366,6 +366,8 @@ pub struct DiffStateModel {
     #[cfg(feature = "local_fs")]
     ssh_files: Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>>,
     #[cfg(feature = "local_fs")]
+    ssh_sources: Vec<Arc<warp_files::SshFile>>,
+    #[cfg(feature = "local_fs")]
     repository: Option<ModelHandle<Repository>>,
     #[cfg(feature = "local_fs")]
     subscriber_id: Option<SubscriberId>,
@@ -606,17 +608,22 @@ impl DiffStateModel {
                     return;
                 }
                 let result = result.and_then(|(changes, registrations)| {
-                    warp_files::FileModel::handle(ctx).update(ctx, |model, _| {
-                        for (path, cache, hash) in registrations {
-                            model.register_ssh_file(
-                                registration_files.clone(),
-                                path,
-                                cache,
-                                hash,
-                            )?;
-                        }
-                        Ok::<_, warp_util::file::FileSaveError>(())
-                    })?;
+                    me.ssh_sources =
+                        warp_files::FileModel::handle(ctx).update(ctx, |model, _| {
+                            let mut sources = Vec::new();
+                            for (path, cache, hash) in registrations {
+                                model.register_ssh_file(
+                                    registration_files.clone(),
+                                    path,
+                                    cache.clone(),
+                                    hash,
+                                )?;
+                                if let Some(source) = model.ssh_source(&cache) {
+                                    sources.push(source);
+                                }
+                            }
+                            Ok::<_, warp_util::file::FileSaveError>(sources)
+                        })?;
                     Ok(changes)
                 });
                 let diffs = DiffsWithBaseContent {
@@ -634,6 +641,8 @@ impl DiffStateModel {
         let model = Self {
             #[cfg(feature = "local_fs")]
             ssh_files: None,
+            #[cfg(feature = "local_fs")]
+            ssh_sources: Vec::new(),
             #[cfg(feature = "local_fs")]
             repository: None,
             state: InternalDiffState::default(),

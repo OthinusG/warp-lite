@@ -2270,12 +2270,12 @@ impl TypedActionView for CodeView {
             #[cfg(feature = "local_fs")]
             CodeViewAction::CopyFilePath => {
                 if let Some(path) = self.local_path(ctx) {
-                    ctx.clipboard().write(ClipboardContent::plain_text(
-                        warp_files::FileModel::as_ref(ctx)
-                            .display_path(&path)
-                            .display()
-                            .to_string(),
-                    ));
+                    let display_path = warp_files::FileModel::as_ref(ctx)
+                        .display_path(&path)
+                        .display()
+                        .to_string();
+                    ctx.clipboard()
+                        .write(ClipboardContent::plain_text(display_path));
                 }
             }
             #[cfg(feature = "local_fs")]

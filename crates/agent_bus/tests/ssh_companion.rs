@@ -346,7 +346,10 @@ async fn established_terminal_socket_probes_and_fences_the_companion() {
     let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
     let companion = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
     // OpenSSH appends a temporary suffix; macOS Unix sockets have a 104-byte limit.
-    let directory = tempfile::Builder::new().prefix("warpai-ssh-").tempdir_in("/tmp").unwrap();
+    let directory = tempfile::Builder::new()
+        .prefix("warpai-ssh-")
+        .tempdir_in("/tmp")
+        .unwrap();
     let socket = directory.path().join("ssh-control");
     let mut master = tokio::process::Command::new("ssh")
         .arg("-F")
@@ -418,14 +421,29 @@ async fn established_terminal_socket_probes_and_fences_the_companion() {
     );
     drop(native);
     use warp_agent_bus::ssh_files::{RemoteFiles, SshConnection};
-    let selected_files = RemoteFiles::connect(profile.clone(), SshConnection::Multiplexed {
-        socket: socket.clone(), wsl: None,
-    }).await.unwrap();
+    let selected_files = RemoteFiles::connect(
+        profile.clone(),
+        SshConnection::Multiplexed {
+            socket: socket.clone(),
+            wsl: None,
+        },
+    )
+    .await
+    .unwrap();
     controlled_remote_files(&selected_files).await;
-    let native_files = RemoteFiles::connect(profile.clone(), SshConnection::Native {
-        arguments: vec!["-F".into(), config_path.to_str().unwrap().into(), "warpai-test".into()],
-        session: Uuid::new_v4().to_string(),
-    }).await.unwrap();
+    let native_files = RemoteFiles::connect(
+        profile.clone(),
+        SshConnection::Native {
+            arguments: vec![
+                "-F".into(),
+                config_path.to_str().unwrap().into(),
+                "warpai-test".into(),
+            ],
+            session: Uuid::new_v4().to_string(),
+        },
+    )
+    .await
+    .unwrap();
     controlled_remote_files(&native_files).await;
     let account = client.account_id.clone();
     assert!(!account.is_empty());
@@ -440,8 +458,14 @@ async fn established_terminal_socket_probes_and_fences_the_companion() {
     drop(client);
     master.kill().await.unwrap();
     master.wait().await.unwrap();
-    assert!(selected_files.list(&selected_files.canonical_root, 99).await.is_err());
-    assert!(!selected_files.connected(), "Closed master disables retained file attachment");
+    assert!(selected_files
+        .list(&selected_files.canonical_root, 99)
+        .await
+        .is_err());
+    assert!(
+        !selected_files.connected(),
+        "Closed master disables retained file attachment"
+    );
     assert!(
         HostClient::connect_session(&profile, &socket, None)
             .await
@@ -457,10 +481,21 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
     let directory = format!("file-check-{}", Uuid::new_v4());
     let name = format!("{directory}/literal ' [1]*? 多语言.md");
     let control = |action, path: &str| ProjectFilesRequest {
-        action: action as i32, path: path.into(), ..Default::default()
+        action: action as i32,
+        path: path.into(),
+        ..Default::default()
     };
-    files.control(control(ProjectFileAction::ProjectDirectoryCreate, &directory)).await.unwrap();
-    files.control(control(ProjectFileAction::ProjectFileCreate, &name)).await.unwrap();
+    files
+        .control(control(
+            ProjectFileAction::ProjectDirectoryCreate,
+            &directory,
+        ))
+        .await
+        .unwrap();
+    files
+        .control(control(ProjectFileAction::ProjectFileCreate, &name))
+        .await
+        .unwrap();
     let absolute = format!("{}/{name}", files.canonical_root.trim_end_matches('/'));
     let (cached, original_hash) = files.download(&absolute).await.unwrap();
     assert_eq!(std::fs::read(&cached).unwrap(), b"");
@@ -469,11 +504,55 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
     let (cached, observed_hash) = files.download(&absolute).await.unwrap();
     assert_eq!(std::fs::read(&cached).unwrap(), bytes);
     assert_eq!(hash, observed_hash);
-    assert_eq!(files.save(&absolute, b"must not overwrite", &original_hash).await.unwrap_err(), ConnectionError::Conflict);
-    assert_eq!(std::fs::read(files.download(&absolute).await.unwrap().0).unwrap(), bytes);
-    let snapshot = files.list(&format!("{}/{directory}", files.canonical_root), 77).await.unwrap();
+    assert_eq!(
+        files
+            .document_link(&absolute, "./linked image.svg")
+            .unwrap(),
+        format!(
+            "{}/{directory}/linked image.svg",
+            files.canonical_root.trim_end_matches('/')
+        )
+    );
+    assert!(files
+        .document_link(&absolute, "../../../outside.md")
+        .is_err());
+    files.disconnect();
+    assert_eq!(
+        files.download(&absolute).await.unwrap_err(),
+        ConnectionError::ConnectionLost
+    );
+    files.reconnect().await.unwrap();
+    assert_eq!(
+        std::fs::read(files.download(&absolute).await.unwrap().0).unwrap(),
+        bytes
+    );
+
+    assert_eq!(
+        files
+            .save(&absolute, b"must not overwrite", &original_hash)
+            .await
+            .unwrap_err(),
+        ConnectionError::Conflict
+    );
+    assert_eq!(
+        std::fs::read(files.download(&absolute).await.unwrap().0).unwrap(),
+        bytes
+    );
+    let snapshot = files
+        .list(&format!("{}/{directory}", files.canonical_root), 77)
+        .await
+        .unwrap();
     assert_eq!(snapshot.entries[0].subtree_metadata.len(), 1);
-    assert!(files.download(&format!("{}/../outside", files.canonical_root)).await.is_err());
-    files.control(control(ProjectFileAction::ProjectFileDelete, &directory)).await.unwrap();
-    assert_eq!(files.download(&absolute).await.unwrap_err(), ConnectionError::NotFound);
+    assert!(files
+        .download(&format!("{}/../outside", files.canonical_root))
+        .await
+        .is_err());
+    files
+        .control(control(ProjectFileAction::ProjectFileDelete, &directory))
+        .await
+        .unwrap();
+    assert_eq!(
+        files.download(&absolute).await.unwrap_err(),
+        ConnectionError::NotFound
+    );
 }

@@ -298,6 +298,7 @@ impl CodeReviewState {
 #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
 pub enum RightPanelAction {
     ToggleFileSidebar,
+    ReconnectRemote,
     SelectRepo {
         repo_path: PathBuf,
         from_dropdown: bool,
@@ -832,12 +833,19 @@ impl RightPanelView {
             let content = if let Some(view) = &self.ssh_review {
                 ChildView::new(view).finish()
             } else if let Some(error) = &self.ssh_error {
-                appearance
-                    .ui_builder()
-                    .span(error.clone())
-                    .with_soft_wrap()
-                    .build()
-                    .finish()
+                warpui::elements::EventHandler::new(
+                    appearance
+                        .ui_builder()
+                        .span(format!("{error} Click to reconnect."))
+                        .with_soft_wrap()
+                        .build()
+                        .finish(),
+                )
+                .on_left_mouse_up(|ctx, _, _| {
+                    ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
+                    warpui::elements::DispatchEventResult::StopPropagation
+                })
+                .finish()
             } else {
                 CodeReviewView::render_loading_state(appearance)
             };
@@ -1797,6 +1805,11 @@ impl TypedActionView for RightPanelView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
+            RightPanelAction::ReconnectRemote => {
+                self.ssh_selection = None;
+                self.refresh_ssh_review(ctx);
+                ctx.notify();
+            }
             RightPanelAction::ToggleFileSidebar => {
                 if let Some(state) = &self.code_review_state {
                     if let Some(repo_path) = &state.selected_repo_path {

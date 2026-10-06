@@ -932,12 +932,12 @@ impl TypedActionView for FileNotebookView {
             #[cfg(feature = "local_fs")]
             FileNotebookAction::CopyFilePath => {
                 if let Some(path) = self.local_path() {
-                    ctx.clipboard().write(ClipboardContent::plain_text(
-                        FileModel::as_ref(ctx)
-                            .display_path(&path)
-                            .display()
-                            .to_string(),
-                    ));
+                    let display_path = FileModel::as_ref(ctx)
+                        .display_path(&path)
+                        .display()
+                        .to_string();
+                    ctx.clipboard()
+                        .write(ClipboardContent::plain_text(display_path));
                 }
             }
             #[cfg(feature = "local_fs")]
