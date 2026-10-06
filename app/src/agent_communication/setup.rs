@@ -1106,7 +1106,7 @@ mod tests {
         std::fs::write(
             &codex_path,
             format!(
-                "# Preserve this comment\n[mcp_servers.{SERVER}]\ncommand = \"{bridge}\"\nargs = [\"mcp\"]\n\n[mcp_servers.user-server]\ncommand = \"user-tool\"\n"
+                "# Preserve this comment\nmodel = \"existing\"\n\n[mcp_servers.{SERVER}]\ncommand = \"{bridge}\"\nargs = [\"mcp\"]\n\n[mcp_servers.user-server]\ncommand = \"user-tool\"\n"
             ),
         )
         .unwrap();
@@ -1126,6 +1126,7 @@ mod tests {
         uninstall(&codex).unwrap();
         let remaining = std::fs::read_to_string(&codex_path).unwrap();
         assert!(remaining.contains("# Preserve this comment"));
+        assert!(remaining.contains("model = \"existing\""));
         assert!(remaining.contains("user-server"));
         assert!(!remaining.contains(SERVER));
     }
