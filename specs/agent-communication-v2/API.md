@@ -16,6 +16,24 @@ Removed host-status/list tags and detach/attach/generation fields are reserved.
 
 Capabilities: project_open, managed_agent, project_tasks, project_mcp.
 
+## Existing file tools (implementation in progress)
+
+`project_files` admits only typed `ProjectFilesRequest` operations under the
+current project fence: directory metadata, staged reads, staged saves, explicit
+create/rename/delete and transfer release. Requests and results echo selection
+generation. Metadata reuses the existing repository snapshot schema, including
+non-Git directories. File bytes use SFTP, never a managed file-content payload.
+Staged transfers are bounded and connection-owned; transfer IDs are not reusable
+across attachments. Saves require the observed SHA-256 before replacement.
+Root/path replacement, symlink escape and stale replies must fail before access.
+An old Companion without this capability keeps existing Agent operations.
+
+Managed file errors distinguish invalid input, missing path (`MANAGED_NOT_FOUND`,
+appended as code 9), permission denial, conflict, capacity and stale attachment.
+Stale/incompatible control and failed SFTP routes close the retained attachment;
+they cannot silently retry against a desktop path or a newly connected host.
+Service crash-transfer cleanup requires exclusive service ownership.
+
 ## Agent lifecycle and IO
 
 TerminalLaunch carries a launch-intent UUID, absolute executable, bounded argv,

@@ -1234,3 +1234,37 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   manifests/hashes and installed native protocol checks passed. Public assets
   contain DMG/EXE desktops plus Linux .run/macOS DMG/Windows EXE remote installers,
   no raw ZIPs. Historical private 1.0.1 draft remains unpublished.
+
+## 2026-10-06 — Remote file tools and Companion verification
+
+- User explicitly approved `REMOTE-FILE-TOOLS.md` implementation and requires
+  comprehensive Companion checks before later integration. Track receipts and
+  remaining release gates in `specs/agent-communication-v2/COMPANION-CHECKS.md`;
+  file/preview/Git UI parity remains unfinished until its native acceptance runs.
+- Existing SSH selection is shared with file tools. Typed fenced file metadata
+  and mutations use the account Companion; content uses system SFTP staging.
+  Never enable upstream unrestricted command handlers or desktop-path fallback.
+- Real OpenSSH batch tests exposed double escaping of quoted glob characters.
+  The batch parser already escapes these; quote/backslash escaping alone passes
+  literal-path binary transfers. Keep the actual subsystem round-trip regression.
+- Windows std filesystem rename can replace a destination. Remote rename uses
+  explicit native no-replace flags; file save uses explicit atomic replace.
+  Reject Windows device/stream/trimming aliases and reparse traversal.
+- Pin Unix parent descriptors, bound metadata/staging and recursive delete depth,
+  and preflight known deletion budgets before mutations. Stale/error transport
+  closes control to release connection-owned transfers; crash cleanup occurs
+  only under the service's exclusive lock. Do not claim exclusion of external
+  filesystem writers or automatically repeat an uncertain mutation.
+- Remote rendering caches use hashed names with a safe extension, preventing
+  remote drive/reserved-name/case aliases from becoming desktop paths. Remote
+  relative assets and original display identity still require UI integration.
+- macOS real SSH fixtures require a short master socket path: OpenSSH adds a
+  temporary suffix against the 104-byte Unix socket limit. An owned loopback
+  fixture passed master/native-argument SFTP operations and closure fencing.
+- QoderCN fallback regression was affected by this machine's installed CLI in
+  PATH. The lookup accepts an explicit environment-path iterator for isolated
+  tests; production path precedence and user configuration stay unchanged.
+- Local verification uses installed Homebrew Rust 1.98.1; pinned 1.92.0 and
+  Windows/Linux native receipts remain separate gates. The desktop check cannot
+  reach application type checking without `xcrun metal`; strict package Clippy
+  also reports pre-existing broad lint failures. No cloud jobs were monitored.

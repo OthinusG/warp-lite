@@ -94,6 +94,12 @@ enum WatcherType {
 /// Remote files dispatch through [`RemoteServerClient`] via [`RemoteServerManager`].
 enum FileBackend {
     Local(LocalFile),
+    #[cfg(not(target_family = "wasm"))]
+    Ssh {
+        source: std::sync::Arc<SshFile>,
+        cache: PathBuf,
+        version: Option<ContentVersion>,
+    },
     Remote {
         /// Identifies the remote host. The actual client is looked up from
         /// [`RemoteServerManager`] at call time, which naturally handles
@@ -110,6 +116,8 @@ impl FileBackend {
         match self {
             FileBackend::Local(f) => Some(f),
             FileBackend::Remote { .. } => None,
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { .. } => None,
         }
     }
 
@@ -117,6 +125,8 @@ impl FileBackend {
         match self {
             FileBackend::Local(f) => f.version,
             FileBackend::Remote { .. } => None,
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { version, .. } => *version,
         }
     }
 
@@ -124,8 +134,17 @@ impl FileBackend {
         match self {
             FileBackend::Local(f) => f.version = Some(version),
             FileBackend::Remote { .. } => {}
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { version: saved, .. } => *saved = Some(version),
         }
     }
+}
+
+#[cfg(not(target_family = "wasm"))]
+struct SshFile {
+    files: std::sync::Arc<remote_server::RemoteFiles>,
+    path: String,
+    hash: futures::lock::Mutex<String>,
 }
 
 #[derive(Default)]
@@ -217,6 +236,8 @@ impl FileState {
                 }
             }
             FileBackend::Remote { .. } => false,
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { cache, .. } => self.files.values().any(|other| matches!(other, FileBackend::Ssh { cache: other_cache, .. } if other_cache == cache)),
         };
         Some((backend, path_still_used))
     }
@@ -243,6 +264,8 @@ impl FileState {
             .filter_map(|(id, backend)| match backend {
                 FileBackend::Local(f) => Some((id, f)),
                 FileBackend::Remote { .. } => None,
+                #[cfg(not(target_family = "wasm"))]
+                FileBackend::Ssh { .. } => None,
             })
     }
 }
@@ -296,6 +319,8 @@ impl RepoPathMappingState {
 }
 
 pub struct FileModel {
+    #[cfg(not(target_family = "wasm"))]
+    ssh_sources: HashMap<PathBuf, std::sync::Arc<SshFile>>,
     file_state: FileState,
     abort_handles: HashMap<FileId, SpawnedFutureHandle>,
     watcher: ModelHandle<BulkFilesystemWatcher>,
@@ -314,6 +339,8 @@ impl FileModel {
         });
 
         Self {
+            #[cfg(not(target_family = "wasm"))]
+            ssh_sources: HashMap::new(),
             watcher,
             file_state: FileState::default(),
             abort_handles: HashMap::new(),
@@ -337,6 +364,10 @@ impl FileModel {
     }
 
     pub fn file_path(&self, file_id: FileId) -> Option<PathBuf> {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(FileBackend::Ssh { cache, .. }) = self.file_state.get(file_id) {
+            return Some(cache.clone());
+        }
         self.file_state
             .get_local(file_id)
             .and_then(|x| x.path.clone())
@@ -352,6 +383,43 @@ impl FileModel {
         file_id
     }
 
+    /// Register a downloaded rendering input with its original SSH save target.
+    #[cfg(not(target_family = "wasm"))]
+    pub fn register_ssh_file(
+        &mut self,
+        files: std::sync::Arc<remote_server::RemoteFiles>,
+        path: String,
+        cache: PathBuf,
+        hash: String,
+    ) -> Result<(), FileSaveError> {
+        if files.cache_path(&path).ok().as_ref() != Some(&cache) {
+            return Err(FileSaveError::RemoteError(
+                "Invalid remote cache identity".into(),
+            ));
+        }
+        self.ssh_sources.entry(cache).or_insert_with(|| {
+            std::sync::Arc::new(SshFile {
+                files,
+                path,
+                hash: futures::lock::Mutex::new(hash),
+            })
+        });
+        Ok(())
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    pub fn is_ssh_file(&self, path: &Path) -> bool {
+        self.ssh_sources.contains_key(path)
+    }
+
+    pub fn is_remote_disconnected(&self, file_id: FileId) -> bool {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(FileBackend::Ssh { source, .. }) = self.file_state.get(file_id) {
+            return !source.files.connected();
+        }
+        false
+    }
+
     /// Register a file path and immediately return a FileId without loading the file.
     /// This is useful when you need a FileId in a constructor but don't need to load the file. This will
     /// also not opt-in to receive file watcher updates.
@@ -362,6 +430,18 @@ impl FileModel {
         ctx: &mut ModelContext<Self>,
     ) -> FileId {
         let file_id = FileId::new();
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(source) = self.ssh_sources.get(file_path) {
+            self.file_state.files.insert(
+                file_id,
+                FileBackend::Ssh {
+                    source: source.clone(),
+                    cache: file_path.into(),
+                    version: None,
+                },
+            );
+            return file_id;
+        }
 
         let watcher_type = if subscribe_to_updates {
             // Try to use repository-level watching if available
@@ -398,6 +478,44 @@ impl FileModel {
         ctx: &mut ModelContext<Self>,
     ) -> FileId {
         let file_id = FileId::new();
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(source) = self.ssh_sources.get(file_path) {
+            self.file_state.files.insert(
+                file_id,
+                FileBackend::Ssh {
+                    source: source.clone(),
+                    cache: file_path.into(),
+                    version: None,
+                },
+            );
+            let path = file_path.to_owned();
+            let handle = ctx.spawn(
+                async move { Self::read_content_for_file(&path).await },
+                move |me, result, ctx| {
+                    me.abort_handles.remove(&file_id);
+                    if me.file_state.get(file_id).is_none() {
+                        return;
+                    }
+                    match result {
+                        Ok(content) => {
+                            let version = ContentVersion::new();
+                            me.set_version(file_id, version);
+                            ctx.emit(FileModelEvent::FileLoaded {
+                                content,
+                                id: file_id,
+                                version,
+                            });
+                        }
+                        Err(error) => ctx.emit(FileModelEvent::FailedToLoad {
+                            id: file_id,
+                            error: Rc::new(error),
+                        }),
+                    }
+                },
+            );
+            self.abort_handles.insert(file_id, handle);
+            return file_id;
+        }
 
         // Determine watcher type before spawning async work
         let watcher_type = if subscribe_to_updates {
@@ -637,7 +755,13 @@ impl FileModel {
 
     pub fn unsubscribe(&mut self, file_id: FileId, ctx: &mut ModelContext<Self>) {
         self.abort_handles.remove(&file_id);
-        if let Some((FileBackend::Local(file), path_still_used)) = self.file_state.remove(file_id) {
+        let removed = self.file_state.remove(file_id);
+        #[cfg(not(target_family = "wasm"))]
+        if let Some((FileBackend::Ssh { cache, .. }, false)) = &removed {
+            self.ssh_sources.remove(cache);
+            let _ = std::fs::remove_file(cache);
+        }
+        if let Some((FileBackend::Local(file), path_still_used)) = removed {
             let path = file.path;
             let watcher_type = file.watcher_type;
 
@@ -679,6 +803,38 @@ impl FileModel {
             .ok_or(FileSaveError::NoFilePath(file_id))?;
 
         match backend {
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { source, cache, .. } => {
+                let source = source.clone();
+                let cache = cache.clone();
+                ctx.spawn(
+                    async move {
+                        // Serialize saves of the same source, including its observed hash.
+                        let mut hash = source.hash.lock().await;
+                        *hash = source
+                            .files
+                            .save(&source.path, content.as_bytes(), &hash)
+                            .await
+                            .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
+                        async_fs::write(&cache, content)
+                            .await
+                            .map_err(|error| FileSaveError::IOError { error, path: cache })
+                    },
+                    move |me, result, ctx| match result {
+                        Ok(()) => {
+                            me.set_version(file_id, version);
+                            ctx.emit(FileModelEvent::FileSaved {
+                                id: file_id,
+                                version,
+                            });
+                        }
+                        Err(error) => ctx.emit(FileModelEvent::FailedToSave {
+                            id: file_id,
+                            error: Rc::new(error),
+                        }),
+                    },
+                );
+            }
             FileBackend::Local(_) => {
                 let file_path = self
                     .file_path(file_id)
@@ -759,6 +915,12 @@ impl FileModel {
         version: ContentVersion,
         ctx: &mut ModelContext<Self>,
     ) -> Result<(), FileSaveError> {
+        #[cfg(not(target_family = "wasm"))]
+        if matches!(self.file_state.get(file_id), Some(FileBackend::Ssh { .. })) {
+            return Err(FileSaveError::RemoteError(
+                "Rename remote files in Project Explorer".into(),
+            ));
+        }
         let file_path = self
             .file_path(file_id)
             .ok_or(FileSaveError::NoFilePath(file_id))?;
@@ -830,6 +992,12 @@ impl FileModel {
             .ok_or(FileSaveError::NoFilePath(file_id))?;
 
         match backend {
+            #[cfg(not(target_family = "wasm"))]
+            FileBackend::Ssh { .. } => {
+                return Err(FileSaveError::RemoteError(
+                    "Delete remote files in Project Explorer".into(),
+                ));
+            }
             FileBackend::Local(_) => {
                 let file_path = self
                     .file_path(file_id)

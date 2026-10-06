@@ -54,6 +54,7 @@ message ManagedRequest {
     TerminalLaunch terminal_launch = 4;
     TerminalControl terminal_control = 5;
     ProjectTasksRequest project_tasks = 7;
+    ProjectFilesRequest project_files = 8;
   }
 }
 message ManagedResponse {
@@ -64,6 +65,7 @@ message ManagedResponse {
     ManagedError error = 4;
     TerminalState terminal_state = 5;
     ProjectTasksResult project_tasks = 7;
+    ProjectFilesResult project_files = 8;
   }
 }
 message ManagedInitialize { uint32 protocol_major = 1; }
@@ -100,6 +102,7 @@ enum ManagedErrorCode {
   MANAGED_FEATURE_UNAVAILABLE = 6;
   MANAGED_CONFLICT = 7;
   MANAGED_CAPACITY_EXCEEDED = 8;
+  MANAGED_NOT_FOUND = 9;
 }
 message ManagedError { ManagedErrorCode code = 1; }
 message ProjectTasksRequest {
@@ -111,6 +114,39 @@ message ProjectTasksResult {
   ManagedFence fence = 1;
   uint64 query_generation = 2;
   bytes result_json = 3;
+}
+// Metadata/control only. File content is transferred through system SFTP.
+enum ProjectFileAction {
+  PROJECT_FILE_ACTION_UNSPECIFIED = 0;
+  PROJECT_FILE_LIST = 1;
+  PROJECT_FILE_PREPARE_READ = 2;
+  PROJECT_FILE_RELEASE = 3;
+  PROJECT_FILE_CREATE = 4;
+  PROJECT_DIRECTORY_CREATE = 5;
+  PROJECT_FILE_RENAME = 6;
+  PROJECT_FILE_DELETE = 7;
+  PROJECT_FILE_PREPARE_WRITE = 8;
+  PROJECT_FILE_COMMIT_WRITE = 9;
+}
+message ProjectFilesRequest {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+  ProjectFileAction action = 3;
+  // Project-relative native path; empty means the admitted root.
+  string path = 4;
+  string destination = 5;
+  string expected_hash = 6;
+  string transfer_id = 7;
+}
+message ProjectFilesResult {
+  ManagedFence fence = 1;
+  uint64 query_generation = 2;
+  optional RepoMetadataSnapshot snapshot = 3;
+  // A connection-owned staging path; it is never an editor save target.
+  string transfer_path = 4;
+  string transfer_id = 5;
+  string sha256 = 6;
+  uint64 size = 7;
 }
 message TerminalLaunch {
   ManagedFence fence = 1;

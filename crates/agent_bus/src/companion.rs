@@ -21,6 +21,11 @@ mod service;
 mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
+#[path = "companion_files.rs"]
+pub(crate) mod files;
+#[cfg(test)]
+#[path = "companion_files_tests.rs"]
+mod file_tests;
 pub(crate) use tasks::decode_result as decode_task_result;
 pub use tasks::Command as TaskCommand;
 
@@ -37,6 +42,7 @@ pub struct Companion {
     project: Option<Project>,
     terminals: std::sync::Arc<terminals::Terminals>,
     tasks: std::sync::Arc<tasks::Projects>,
+    files: files::Files,
 }
 
 impl Companion {
@@ -53,6 +59,7 @@ impl Companion {
             project: None,
             terminals: std::sync::Arc::new(terminals::Terminals::default()),
             tasks: std::sync::Arc::new(tasks::Projects::new(data_directory)),
+            files: files::Files::new(data_directory),
             identity,
         })
     }
@@ -107,6 +114,7 @@ impl Companion {
                         "managed_agent".into(),
                         "project_tasks".into(),
                         "project_mcp".into(),
+                        "project_files".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))
@@ -130,6 +138,7 @@ impl Companion {
                 let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
                 let canonical_root = root.to_str().unwrap().to_owned();
                 self.terminals.disconnect(&self.fence.connection_id);
+                self.files.clear();
                 self.project = Some(Project { root, handle });
                 self.fence.project_id = id;
                 Ok(managed_response::Result::ProjectOpened(ProjectOpened {
@@ -160,6 +169,11 @@ impl Companion {
                 self.tasks
                     .execute(request, &self.fence, &self.project.as_ref().unwrap().root)
                     .map(managed_response::Result::ProjectTasks)
+            }
+            Some(managed_request::Operation::ProjectFiles(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                self.files.execute(request, self.project.as_ref().unwrap())
+                    .map(managed_response::Result::ProjectFiles)
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -200,6 +214,8 @@ impl Companion {
 fn path_error(error: std::io::Error) -> ManagedErrorCode {
     if error.kind() == std::io::ErrorKind::PermissionDenied {
         ManagedErrorCode::ManagedPermissionDenied
+    } else if error.kind() == std::io::ErrorKind::NotFound {
+        ManagedErrorCode::ManagedNotFound
     } else {
         ManagedErrorCode::ManagedUnavailable
     }

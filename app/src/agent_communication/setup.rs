@@ -177,8 +177,19 @@ fn output(executable: &Path, args: &[String], search_paths: &[PathBuf]) -> Resul
     Ok(success.then_some(text))
 }
 fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<PathBuf> {
-    let mut paths: Vec<_> =
-        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
+    executable_with_environment(
+        command, search_paths, home,
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+    )
+}
+
+fn executable_with_environment(
+    command: &str,
+    search_paths: &[PathBuf],
+    home: &Path,
+    environment_paths: impl IntoIterator<Item = PathBuf>,
+) -> Option<PathBuf> {
+    let mut paths: Vec<_> = environment_paths.into_iter().collect();
     paths.splice(0..0, search_paths.iter().cloned());
     // GUI launches may not inherit the login shell's PATH.
     {
@@ -1186,7 +1197,7 @@ mod tests {
         assert_eq!(remove, ["mcp", "remove", "--scope", "user", SERVER]);
         assert!(!get_all);
         assert_eq!(
-            executable("qodercn", &paths[..1], home.path()),
+            executable_with_environment("qodercn", &paths[..1], home.path(), []),
             Some(cli),
             "Vendor entry fallback must work without a login-shell PATH"
         );

@@ -114,7 +114,7 @@ pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
         .create(true)
         .truncate(false)
         .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(path)?;
     let metadata = file.metadata()?;
     if !metadata.is_file()

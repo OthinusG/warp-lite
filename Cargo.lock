@@ -10081,6 +10081,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
+ "warp-agent-bus",
  "warp_core",
  "warp_util",
  "warpui",

@@ -1,6 +1,8 @@
 // Re-export everything from the `remote_server` crate so existing
 // `crate::remote_server::*` imports in `app` continue to work.
 pub use remote_server::*;
+#[cfg(not(target_family = "wasm"))]
+pub(crate) mod selected_session;
 
 #[cfg(not(target_family = "wasm"))]
 pub mod server_model;

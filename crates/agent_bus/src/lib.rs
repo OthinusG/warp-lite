@@ -8,6 +8,7 @@ pub mod storage;
 pub mod transport;
 pub mod companion;
 pub mod ssh_remote;
+pub mod ssh_files;
 pub mod native_pty;
 
 pub use storage::{Store, WorkspaceBinding};

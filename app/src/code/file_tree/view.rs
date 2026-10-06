@@ -246,6 +246,16 @@ impl RootDirectory {
 }
 
 pub struct FileTreeView {
+    #[cfg(feature = "local_fs")]
+    ssh_selection: Option<String>,
+    #[cfg(feature = "local_fs")]
+    ssh_files: Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>>,
+    #[cfg(feature = "local_fs")]
+    ssh_generation: u64,
+    #[cfg(feature = "local_fs")]
+    ssh_error: Option<String>,
+    #[cfg(feature = "local_fs")]
+    ssh_in_flight: bool,
     /// Per-root state, keyed by root path
     root_directories: HashMap<StandardizedPath, RootDirectory>,
     /// The displayed directories
@@ -316,6 +326,77 @@ struct PendingFocusTarget {
 }
 
 impl FileTreeView {
+    #[cfg(feature = "local_fs")]
+    fn refresh_ssh(&mut self, ctx: &mut ViewContext<Self>) {
+        use crate::remote_server::selected_session::{selected_ssh, selection_key};
+        let selected = selected_ssh(ctx, ctx.window_id());
+        let key = selected
+            .as_ref()
+            .map(|(profile, connection)| selection_key(profile, connection));
+        if self.ssh_selection == key {
+            return;
+        }
+        self.ssh_generation += 1;
+        self.ssh_selection = key.clone();
+        self.ssh_files = None;
+        self.ssh_error = None;
+        self.ssh_in_flight = false;
+        let Some((profile, connection)) = selected else {
+            self.set_remote_root_directories(&[], ctx);
+            return;
+        };
+        self.ssh_in_flight = true;
+        let generation = self.ssh_generation;
+        ctx.spawn(async move {
+            let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
+            let snapshot = files.list(&files.canonical_root, generation).await?;
+            Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, snapshot))
+        }, move |view, result, ctx| {
+            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
+            if view.ssh_generation != generation || current != key { return; }
+            view.ssh_in_flight = false;
+            match result {
+                Ok((files, snapshot)) => {
+                    view.ssh_files = Some(files);
+                    view.displayed_directories.retain(|root| view.root_directories.get(root).is_some_and(|dir| dir.is_remote()));
+                    view.apply_ssh_snapshot(snapshot, true, ctx);
+                }
+                Err(error) => view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation.")),
+            }
+            ctx.notify();
+        });
+        ctx.notify();
+    }
+
+    #[cfg(feature = "local_fs")]
+    fn apply_ssh_snapshot(
+        &mut self,
+        snapshot: remote_server::proto::RepoMetadataSnapshot,
+        initial: bool,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let Some(files) = &self.ssh_files else {
+            return;
+        };
+        let host = warp_core::HostId::new(files.identity.clone());
+        let Some(update) = remote_server::repo_metadata_proto::proto_snapshot_to_update(&snapshot)
+        else {
+            self.ssh_error = Some("Invalid remote directory metadata".into());
+            ctx.notify();
+            return;
+        };
+        let remote_id =
+            repo_metadata::RemoteRepositoryIdentifier::new(host.clone(), update.repo_path.clone());
+        RepoMetadataModel::handle(ctx).update(ctx, |model, ctx| {
+            if initial {
+                model.insert_remote_snapshot(host, &update, ctx);
+            } else {
+                model.apply_remote_incremental_update(&host, &update, ctx);
+            }
+        });
+        self.set_remote_root_directories(&[remote_id], ctx);
+    }
+
     fn is_explicitly_collapsed(&self, root: &StandardizedPath, path: &StandardizedPath) -> bool {
         self.explicitly_collapsed
             .get(root)
@@ -342,6 +423,9 @@ impl FileTreeView {
     #[cfg(feature = "local_fs")]
     pub fn set_is_active(&mut self, is_active: bool, ctx: &mut ViewContext<Self>) {
         self.set_is_active_local_fs(is_active, ctx);
+        if is_active {
+            self.refresh_ssh(ctx);
+        }
     }
 
     #[cfg(not(feature = "local_fs"))]
@@ -707,6 +791,16 @@ impl FileTreeView {
         let repository_metadata_model = RepoMetadataModel::handle(ctx);
 
         let picker = Self {
+            #[cfg(feature = "local_fs")]
+            ssh_selection: None,
+            #[cfg(feature = "local_fs")]
+            ssh_files: None,
+            #[cfg(feature = "local_fs")]
+            ssh_generation: 0,
+            #[cfg(feature = "local_fs")]
+            ssh_error: None,
+            #[cfg(feature = "local_fs")]
+            ssh_in_flight: false,
             root_directories: HashMap::new(),
             displayed_directories: Vec::new(),
             #[cfg(feature = "local_fs")]
@@ -733,6 +827,15 @@ impl FileTreeView {
             show_hidden_files: *CodeSettings::as_ref(ctx).show_hidden_files,
         };
 
+        #[cfg(feature = "local_fs")]
+        ctx.subscribe_to_model(
+            &crate::workspace::ActiveSession::handle(ctx),
+            |view, _, ctx| {
+                if view.is_active {
+                    view.refresh_ssh(ctx);
+                }
+            },
+        );
         picker
     }
 
@@ -899,6 +1002,9 @@ impl FileTreeView {
         enablement: CodingPanelEnablementState,
         ctx: &mut ViewContext<Self>,
     ) {
+        if self.is_active {
+            self.refresh_ssh(ctx);
+        }
         if self.enablement == enablement {
             return;
         }
@@ -1464,6 +1570,29 @@ impl FileTreeView {
         ctx: &mut ViewContext<Self>,
     ) {
         use crate::remote_server::manager::RemoteServerManager;
+
+        if let Some(files) = &self.ssh_files {
+            let files = files.clone();
+            let generation = self.ssh_generation;
+            let path = target_item.path().to_string();
+            ctx.spawn(
+                async move { files.list(&path, generation).await },
+                move |view, result, ctx| {
+                    if generation != view.ssh_generation {
+                        return;
+                    }
+                    match result {
+                        Ok(snapshot) => view.apply_ssh_snapshot(snapshot, false, ctx),
+                        Err(error) => {
+                            view.ssh_error =
+                                Some(format!("Could not load the remote directory: {error}"));
+                            ctx.notify();
+                        }
+                    }
+                },
+            );
+            return;
+        }
 
         if !FeatureFlag::SshRemoteServer.is_enabled() {
             return;
@@ -2287,6 +2416,27 @@ impl FileTreeView {
         });
     }
 
+    #[cfg(feature = "local_fs")]
+    fn open_ssh_file(
+        &self,
+        path: String,
+        editor_layout: Option<EditorLayout>,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if let Some(files) = &self.ssh_files {
+            let target = resolve_file_target_to_open_in_warp(
+                Path::new(&path),
+                EditorSettings::as_ref(ctx),
+                editor_layout,
+            );
+            ctx.emit(FileTreeEvent::OpenSshFile {
+                files: files.clone(),
+                path,
+                target,
+            });
+        }
+    }
+
     fn select_and_execute_item_at_id(
         &mut self,
         id: &FileTreeIdentifier,
@@ -2303,8 +2453,18 @@ impl FileTreeView {
 
         match item {
             FileTreeItem::File { metadata, .. } => {
-                // Remote file trees don't support opening files in the editor.
-                if !is_remote {
+                if is_remote {
+                    #[cfg(feature = "local_fs")]
+                    self.open_ssh_file(
+                        metadata
+                            .path
+                            .to_local_path_lossy()
+                            .to_string_lossy()
+                            .into_owned(),
+                        None,
+                        ctx,
+                    );
+                } else {
                     let path = metadata.path.to_local_path_lossy();
                     self.open_file(&path, None, ctx);
                 }
@@ -2920,6 +3080,12 @@ impl FileTreeView {
 }
 
 pub enum FileTreeEvent {
+    #[cfg(feature = "local_fs")]
+    OpenSshFile {
+        files: std::sync::Arc<warp_agent_bus::ssh_files::RemoteFiles>,
+        path: String,
+        target: FileTarget,
+    },
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     AttachAsContext { path: PathBuf },
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
@@ -2957,6 +3123,12 @@ impl View for FileTreeView {
 
     #[cfg(feature = "local_fs")]
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
+        if let Some(error) = &self.ssh_error {
+            return self.render_error_state(error.clone(), app);
+        }
+        if self.ssh_in_flight {
+            return self.render_loading_state(app);
+        }
         if matches!(self.enablement, CodingPanelEnablementState::Disabled) {
             return self.render_error_state(DISABLED_TEXT.to_string(), app);
         }

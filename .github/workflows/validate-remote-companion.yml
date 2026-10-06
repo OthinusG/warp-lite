@@ -32,7 +32,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler openssh-client openssh-server
       - name: Install macOS protobuf compiler
         if: runner.os == 'macOS'
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
@@ -52,6 +52,7 @@ jobs:
           cargo test -p warp-agent-bus --test native_pty --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+          cargo test -p warp-agent-bus --lib ssh_files::tests --locked
           cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
       - name: Verify local communication and retained history migrations
@@ -90,6 +91,7 @@ jobs:
           UsePAM yes
           PermitRootLogin no
           StrictModes yes
+          Subsystem sftp internal-sftp
           EOF
           cat > "$WARP_TEST_SSH_CONFIG" <<EOF
           Host warpai-test

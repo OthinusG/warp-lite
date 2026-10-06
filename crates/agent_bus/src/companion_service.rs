@@ -122,6 +122,7 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
     identity::private_directory(&directory)?;
     let lock = identity::private_file(&directory.join("service.lock"))?;
     lock.try_lock().map_err(std::io::Error::other)?;
+    files::clean_abandoned(&directory)?;
     let endpoint = endpoint(&directory)?;
     let boot = Uuid::new_v4().to_string();
     #[cfg(unix)]

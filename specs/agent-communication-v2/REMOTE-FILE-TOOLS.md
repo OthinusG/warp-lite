@@ -1,6 +1,6 @@
 # Existing File Tools over SSH
 
-Date: 2026-10-06. Status: implementation proposal; no runtime changes made.
+Date: 2026-10-06. Status: implementation in progress; full feature acceptance pending.
 
 ## Outcome and scope
 
@@ -235,6 +235,10 @@ the backend/protocol pieces needed for its gate.
 
 ## Verification plan
 
+The [Companion verification matrix](COMPANION-CHECKS.md) inventories protocol,
+installation, routing, native filesystem, lifecycle, resource, failure and
+platform checks. It records executed receipts separately from remaining gates.
+
 - **Backend boundaries:** malformed paths, Unicode/whitespace/leading hyphens,
   symlink and Windows reparse escapes, replaced roots, stale fences, late replies,
   permission denial, special files and bounded large directories/files.
@@ -263,6 +267,15 @@ the backend/protocol pieces needed for its gate.
   remain required regression paths. Record exact-source results and limitations.
 
 ## Completion
+
+## Collaboration panel delivery
+
+The daily view shows project, agent availability, task descriptions, assignees,
+messages, results and review actions. Protocol identifiers, revision counters,
+readiness provenance and lease bookkeeping stay out of the daily view. History
+and workspace maintenance retain their existing explicit navigation. Empty
+maintenance sections are hidden; failures and interrupted execution remain visible.
+
 
 On a supported, provisioned remote target, ordinary SSH and `cd` are sufficient
 to use the existing file-management, in-app viewing/editing and Review surfaces.

@@ -40,6 +40,8 @@ pub enum ConnectionError {
     InvalidInput,
     Conflict,
     CapacityExceeded,
+    PermissionDenied,
+    NotFound,
 }
 
 fn target(value: &str) -> bool {
@@ -466,6 +468,26 @@ impl HostClient {
         Err(ConnectionError::StaleAttachment)
     }
 
+    /// File control never transports file bytes or admits legacy command execution.
+    pub async fn project_files(
+        &mut self,
+        mut query: ProjectFilesRequest,
+    ) -> Result<ProjectFilesResult, ConnectionError> {
+        if !self.capabilities.iter().any(|c| c == "project_files") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        query.fence = self.fence.clone();
+        let generation = query.query_generation;
+        let reply = self.request(managed_request::Operation::ProjectFiles(query)).await?;
+        if let managed_response::Result::ProjectFiles(reply) = reply {
+            if reply.fence == self.fence && reply.query_generation == generation
+                && reply.snapshot.as_ref().is_none_or(|snapshot| snapshot.repo_path == self.canonical_root)
+            { return Ok(reply); }
+        }
+        self.close();
+        Err(ConnectionError::StaleAttachment)
+    }
+
     pub async fn terminal_launch(
         &mut self,
         request: TerminalLaunch,
@@ -554,7 +576,7 @@ impl HostClient {
         };
         match result {
             managed_response::Result::Error(error) => {
-                Err(match ManagedErrorCode::try_from(error.code) {
+                let error = match ManagedErrorCode::try_from(error.code) {
                     Ok(ManagedErrorCode::ManagedIncompatibleVersion) => {
                         ConnectionError::IncompatibleVersion
                     }
@@ -565,12 +587,18 @@ impl HostClient {
                         ConnectionError::FeatureUnavailable
                     }
                     Ok(ManagedErrorCode::ManagedInvalidInput) => ConnectionError::InvalidInput,
+                    Ok(ManagedErrorCode::ManagedPermissionDenied) => ConnectionError::PermissionDenied,
+                    Ok(ManagedErrorCode::ManagedNotFound) => ConnectionError::NotFound,
                     Ok(ManagedErrorCode::ManagedConflict) => ConnectionError::Conflict,
                     Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
                         ConnectionError::CapacityExceeded
                     }
                     _ => ConnectionError::CompanionUnavailable,
-                })
+                };
+                if matches!(error, ConnectionError::StaleAttachment | ConnectionError::IncompatibleVersion) {
+                    self.close();
+                }
+                Err(error)
             }
             result => Ok(result),
         }
@@ -581,6 +609,7 @@ impl HostClient {
         self.fence = None;
         let _ = self.child.start_kill();
     }
+
 }
 
 #[cfg(all(test, windows))]

@@ -12,6 +12,7 @@ use std::{
 };
 use warp_agent_bus::{
     companion::TaskCommand,
+    ssh_files::SshConnection,
     ssh_remote::{HostClient, SshProfile},
 };
 use warp_agent_bus::{transport::PanelQuery, Agent, Event, Message, Reservation, Task};
@@ -249,27 +250,6 @@ pub(crate) struct CollaborationPanel {
     remote_connection: Option<SshConnection>,
 }
 
-#[derive(Clone)]
-enum SshConnection {
-    Multiplexed {
-        socket: std::path::PathBuf,
-        wsl: Option<String>,
-    },
-    Native {
-        arguments: Vec<String>,
-        session: String,
-    },
-}
-
-impl SshConnection {
-    fn scope_key(&self) -> String {
-        match self {
-            Self::Multiplexed { socket, wsl } => format!("master:{socket:?}:{wsl:?}"),
-            Self::Native { session, .. } => format!("native:{session}"),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
     NextFixture,
@@ -358,36 +338,7 @@ impl CollaborationPanel {
     }
 
     fn selected_ssh(&self, ctx: &ViewContext<Self>) -> Option<(SshProfile, SshConnection)> {
-        let active = crate::workspace::ActiveSession::as_ref(ctx);
-        let session = active.session(ctx.window_id())?;
-        // Nested or opaque SSH commands cannot adopt a desktop-side transport.
-        let arguments = session.ssh_arguments()?;
-        let connection = match session.ssh_control_socket() {
-            Some(socket) => SshConnection::Multiplexed {
-                socket: socket.to_owned(),
-                wsl: session.wsl_distro_name().map(str::to_owned),
-            },
-            None if session.wsl_distro_name().is_some() => return None,
-            None => SshConnection::Native {
-                arguments: arguments.to_vec(),
-                session: format!("{:?}", session.id()),
-            },
-        };
-        let root = active.current_directory(ctx.window_id())?;
-        let (path, shell) = warp_agent_bus::installation::companion_path(
-            session.home_dir()?,
-            session.host_info().os_category.as_deref()?,
-        )
-        .ok()?;
-        let profile = SshProfile {
-            target: session.hostname().into(),
-            config_file: None,
-            remote_root: root.into(),
-            companion_path: path,
-            remote_shell: shell,
-        };
-        profile.validate().ok()?;
-        Some((profile, connection))
+        crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
     }
 
     fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
@@ -808,8 +759,8 @@ impl CollaborationPanel {
             fixture.sections.extend([
                 Section {
                     title: format!(
-                        "Task {} · {} · revision {} · version {}",
-                        task.id, task.state, task.revision, task.version
+                        "Task · {}",
+                        task.state
                     ),
                     rows: {
                         let mut rows = vec![
@@ -944,54 +895,41 @@ impl CollaborationPanel {
                     .agents
                     .iter()
                     .map(|row| {
-                        let activity = row.activity.map(|activity| match activity {
-                            warp_agent_bus::readiness::Activity::Starting => "starting",
-                            warp_agent_bus::readiness::Activity::Idle => "idle",
-                            warp_agent_bus::readiness::Activity::Working => "working",
-                            warp_agent_bus::readiness::Activity::WaitingApproval => "waiting for approval",
-                            warp_agent_bus::readiness::Activity::WaitingInput => "waiting for input",
-                            warp_agent_bus::readiness::Activity::Cancelled => "cancelled",
-                            warp_agent_bus::readiness::Activity::Error => "error",
-                        }).unwrap_or("unknown activity");
-                        if self.remote.is_some() {
-                            return format!("{} · {} · {} · {}\nRun {} · last observation {} · {}{}",
-                                row.agent.name, row.agent.program,
-                                if !self.connected { "stale; current state unknown" } else if row.online { "online" } else { "offline" },
-                                activity, row.run.as_deref().unwrap_or("not observed"),
-                                row.last_observed_ms.map(|age| format!("{}s ago", age / 1000)).unwrap_or_else(|| "not observed".into()),
-                                if row.ready { "ready" } else { "readiness not reported" },
-                                if row.blocked { " · waiting for approval" } else if row.paused { " · paused" } else { "" });
-                        }
+                        let activity = row
+                            .activity
+                            .map(|activity| match activity {
+                                warp_agent_bus::readiness::Activity::Starting => "starting",
+                                warp_agent_bus::readiness::Activity::Idle => "idle",
+                                warp_agent_bus::readiness::Activity::Working => "working",
+                                warp_agent_bus::readiness::Activity::WaitingApproval => {
+                                    "waiting for approval"
+                                }
+                                warp_agent_bus::readiness::Activity::WaitingInput => {
+                                    "waiting for input"
+                                }
+                                warp_agent_bus::readiness::Activity::Cancelled => "cancelled",
+                                warp_agent_bus::readiness::Activity::Error => "error",
+                            })
+                            .unwrap_or("unknown activity");
                         format!(
-                            "{} · {} · {} · {} · draft {} · {} · readiness {} ({})\n{} · checkout {} · last observation {}{} · run {}",
+                            "{} · {} · {} · {}{}",
                             row.agent.name,
                             row.agent.program,
-                            if self.remote.is_some() && !self.connected { if row.online { "last observed online; current state unknown" } else { "last observed offline; current state unknown" } } else if row.online { "online" } else { "offline" },
+                            if self.remote.is_some() && !self.connected {
+                                "disconnected; last known state"
+                            } else if row.online {
+                                "online"
+                            } else {
+                                "offline"
+                            },
                             activity,
-                            row.draft.as_deref().unwrap_or("unknown"),
                             if row.blocked {
-                                "waiting for approval"
+                                " · approval required"
                             } else if row.paused {
-                                "manual pause"
+                                " · paused"
                             } else {
-                                "no permission blocker recorded"
-                            },
-                            if row.ready {
-                                "reported idle"
-                            } else {
-                                "not ready"
-                            },
-                            row.readiness_source.as_deref().unwrap_or("unavailable"),
-                            row.device.as_ref().filter(|device| device.as_str() != "local")
-                                .map(|device| format!("Remote device {device}"))
-                                .unwrap_or_else(|| "This device".into()),
-                            row.workspace.as_deref().unwrap_or("unavailable"),
-                            row.last_observed_ms.map(|age| format!("{} · {}s ago",
-                                row.observation_source.as_deref().unwrap_or("observation"), age / 1000))
-                                .unwrap_or_else(|| "unavailable".into()),
-                            row.delivery_phase.as_ref().map(|phase| format!("\nLast native prompt {} · acknowledgement remains separate{}",
-                                phase, if row.delivery_retained == Some(false) { " · history record unavailable" } else { "" })).unwrap_or_default(),
-                            row.run.as_deref().unwrap_or("not observed"),
+                                ""
+                            }
                         )
                     })
                     .collect(),
@@ -1091,14 +1029,19 @@ impl TypedActionView for CollaborationPanel {
                 }
                 Action::RemoteSetup => {
                     let active = crate::workspace::ActiveSession::as_ref(ctx);
-                    let anchor = self.remote.as_ref().and_then(|_| active.session(ctx.window_id())).and_then(|session| {
-                        match session.host_info().os_category.as_deref()? {
-                            "Windows" => Some("windows"),
-                            "MacOS" | "Darwin" => Some("macos"),
-                            "Linux" => Some("linux"),
-                            _ => None,
-                        }
-                    }).unwrap_or("install-on-the-remote-machine");
+                    let anchor = self
+                        .remote
+                        .as_ref()
+                        .and_then(|_| active.session(ctx.window_id()))
+                        .and_then(
+                            |session| match session.host_info().os_category.as_deref()? {
+                                "Windows" => Some("windows"),
+                                "MacOS" | "Darwin" => Some("macos"),
+                                "Linux" => Some("linux"),
+                                _ => None,
+                            },
+                        )
+                        .unwrap_or("install-on-the-remote-machine");
                     ctx.open_url(&format!("https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md#{anchor}"));
                     return;
                 }
@@ -1582,10 +1525,7 @@ impl View for CollaborationPanel {
                         );
                         body.add_child(
                             builder
-                                .span(format!(
-                                    "{} · {} · rev {} · v{} · {}",
-                                    task.id, task.state, task.revision, task.version, task.assignee
-                                ))
+                                .span(format!("{} · {}", task.state, task.assignee))
                                 .with_soft_wrap()
                                 .build()
                                 .finish(),
@@ -1632,6 +1572,18 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
+            if !self.preview
+                && !self.query.history
+                && !self.show_spaces
+                && (section.title.starts_with("File reservations")
+                    || section.title.starts_with("Activity")
+                    || section.title == "Scheduling and deadlines")
+            {
+                continue;
+            }
+            if section.rows.is_empty() {
+                continue;
+            }
             if leading_status
                 && matches!(
                     section.title.as_str(),
@@ -4095,45 +4047,68 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         let filename = format!("ssh-powershell-integration-{theme_name}.png");
         filenames.push(filename.clone());
         driver = driver.with_step(
-            TestStep::new(&format!("review SSH PowerShell integration entry {theme_name}"))
-                .with_action(move |app, window, _| {
-                    app.update(|ctx| {
-                        let theme = Settings::theme_for_theme_kind(&theme_kind, ctx);
-                        Appearance::handle(ctx).update(ctx, |appearance, ctx| {
-                            appearance.set_theme(theme, ctx);
-                        });
-                        ctx.set_zoom_factor(1.);
+            TestStep::new(&format!(
+                "review SSH PowerShell integration entry {theme_name}"
+            ))
+            .with_action(move |app, window, _| {
+                app.update(|ctx| {
+                    let theme = Settings::theme_for_theme_kind(&theme_kind, ctx);
+                    Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                        appearance.set_theme(theme, ctx);
                     });
-                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
-                    terminal.update(app, |terminal, ctx| {
-                        use crate::terminal::model::ansi::{Handler, PreexecValue};
-                        if terminal.model.lock().block_list().active_block().block_banner().is_none() {
-                            // A banner belongs to a running block; no SSH process is executed.
-                            let mut model = terminal.model.lock();
-                            model.block_list_mut().active_block_mut().start();
-                            for character in "ssh user@host".chars() {
-                                model.block_list_mut().input(character);
-                            }
-                            model.block_list_mut().preexec(PreexecValue {
-                                command: "ssh user@host".into(),
-                            });
+                    ctx.set_zoom_factor(1.);
+                });
+                let terminal = app
+                    .views_of_type::<crate::terminal::TerminalView>(window)
+                    .unwrap()[0]
+                    .clone();
+                terminal.update(app, |terminal, ctx| {
+                    use crate::terminal::model::ansi::{Handler, PreexecValue};
+                    if terminal
+                        .model
+                        .lock()
+                        .block_list()
+                        .active_block()
+                        .block_banner()
+                        .is_none()
+                    {
+                        // A banner belongs to a running block; no SSH process is executed.
+                        let mut model = terminal.model.lock();
+                        model.block_list_mut().active_block_mut().start();
+                        for character in "ssh user@host".chars() {
+                            model.block_list_mut().input(character);
                         }
-                        terminal.handle_action(
-                            &crate::terminal::view::TerminalAction::ShowWarpifySshBanner("ssh user@host".into(), Some("host".into())),
-                            ctx,
-                        );
-                    });
-                })
-                .add_named_assertion("SSH banner belongs to a visible command block", |app, window| {
-                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
-                    warpui::async_assert!(terminal.read(app, |terminal, _| {
-                        let model = terminal.model.lock();
-                        let block = model.block_list().active_block();
-                        block.command_to_string() == "ssh user@host"
-                            && block.block_banner().is_some()
-                    }) && checkpoint_draft(app, window) == "unsent collaboration draft")
-                })
-                .with_take_screenshot(filename),
+                        model.block_list_mut().preexec(PreexecValue {
+                            command: "ssh user@host".into(),
+                        });
+                    }
+                    terminal.handle_action(
+                        &crate::terminal::view::TerminalAction::ShowWarpifySshBanner(
+                            "ssh user@host".into(),
+                            Some("host".into()),
+                        ),
+                        ctx,
+                    );
+                });
+            })
+            .add_named_assertion(
+                "SSH banner belongs to a visible command block",
+                |app, window| {
+                    let terminal = app
+                        .views_of_type::<crate::terminal::TerminalView>(window)
+                        .unwrap()[0]
+                        .clone();
+                    warpui::async_assert!(
+                        terminal.read(app, |terminal, _| {
+                            let model = terminal.model.lock();
+                            let block = model.block_list().active_block();
+                            block.command_to_string() == "ssh user@host"
+                                && block.block_banner().is_some()
+                        }) && checkpoint_draft(app, window) == "unsent collaboration draft"
+                    )
+                },
+            )
+            .with_take_screenshot(filename),
         );
     }
     driver = driver.with_step(

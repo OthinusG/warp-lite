@@ -120,6 +120,8 @@ pub enum CodeSource {
     ProjectRules { path: PathBuf },
     /// Opened from file tree.
     FileTree { path: PathBuf },
+    /// A session-bound remote document; the path is an owned local transfer cache.
+    SshFile { path: PathBuf, remote_path: String },
     /// Opened from macOS Finder via "Open With".
     Finder { path: PathBuf },
     /// Opened from a skill.
@@ -140,6 +142,7 @@ impl CodeSource {
             | Self::AIAction { .. }
             | Self::ProjectRules { .. }
             | Self::FileTree { .. }
+            | Self::SshFile { .. }
             | Self::Finder { .. }
             | Self::Skill { .. } => None,
         }
@@ -151,6 +154,7 @@ impl CodeSource {
             Self::Link { path, .. }
             | Self::ProjectRules { path }
             | Self::FileTree { path }
+            | Self::SshFile { path, .. }
             | Self::Finder { path }
             | Self::Skill { path, .. } => Some(path.clone()),
         }
@@ -187,6 +191,7 @@ impl CodeSource {
             Self::AIAction { .. } => "ai_action",
             Self::ProjectRules { .. } => "project_rules",
             Self::FileTree { .. } => "file_tree",
+            Self::SshFile { .. } => "ssh_file",
             Self::Finder { .. } => "finder",
             Self::Skill { .. } => "skill",
         }
@@ -197,7 +202,7 @@ impl CodeSource {
     /// `AIAction` is ephemeral (tied to a live conversation) and should not
     /// be restored.
     pub fn is_restorable(&self) -> bool {
-        !matches!(self, Self::AIAction { .. })
+        !matches!(self, Self::AIAction { .. } | Self::SshFile { .. })
     }
 }
 

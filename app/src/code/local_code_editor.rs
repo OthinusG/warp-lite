@@ -1670,11 +1670,9 @@ impl LocalCodeEditorView {
         self.has_unsaved_changes(app)
             && self.base_content_version != GlobalBufferModel::as_ref(app).base_version(file_id)
     }
-    /// Returns `true` when this editor is backed by a remote file whose host no
-    /// longer has any connected session. The lite build's code editor is
-    /// local-only, so this is always `false`.
-    pub fn is_remote_disconnected(&self, _app: &AppContext) -> bool {
-        false
+    /// Keeps unsaved remote buffers when their original attachment disconnects.
+    pub fn is_remote_disconnected(&self, app: &AppContext) -> bool {
+        self.file_id().is_some_and(|id| warp_files::FileModel::as_ref(app).is_remote_disconnected(id))
     }
 
     /// Whether auto-save can persist this local editor's changes.

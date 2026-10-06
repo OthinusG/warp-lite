@@ -80,6 +80,12 @@ pub enum LeftPanelAction {
 }
 
 pub enum LeftPanelEvent {
+    #[cfg(feature = "local_fs")]
+    OpenSshFile {
+        files: std::sync::Arc<warp_agent_bus::ssh_files::RemoteFiles>,
+        path: String,
+        target: FileTarget,
+    },
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     FileTree(pane_group::Event),
     WarpDrive(DrivePanelEvent),
@@ -749,6 +755,17 @@ impl LeftPanelView {
     #[cfg(feature = "local_fs")]
     fn handle_file_tree_event(&mut self, event: &FileTreeEvent, ctx: &mut ViewContext<Self>) {
         match event {
+            FileTreeEvent::OpenSshFile {
+                files,
+                path,
+                target,
+            } => {
+                ctx.emit(LeftPanelEvent::OpenSshFile {
+                    files: files.clone(),
+                    path: path.clone(),
+                    target: target.clone(),
+                });
+            }
             FileTreeEvent::FileRenamed { old_path, new_path } => {
                 ctx.emit(LeftPanelEvent::FileTree(pane_group::Event::FileRenamed {
                     old_path: old_path.clone(),

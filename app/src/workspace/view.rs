@@ -6172,6 +6172,63 @@ impl Workspace {
 
     fn handle_left_panel_event(&mut self, event: &LeftPanelEvent, ctx: &mut ViewContext<Self>) {
         match event {
+            #[cfg(feature = "local_fs")]
+            LeftPanelEvent::OpenSshFile {
+                files,
+                path,
+                target,
+            } => {
+                let files = files.clone();
+                let path = path.clone();
+                let target = target.clone();
+                ctx.spawn(
+                    async move {
+                        let (cache, hash) = files.download(&path).await?;
+                        Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((
+                            files, path, cache, hash,
+                        ))
+                    },
+                    move |me, result, ctx| {
+                        let result = result.map_err(|error| error.to_string()).and_then(
+                            |(files, remote_path, cache, hash)| {
+                                warp_files::FileModel::handle(ctx)
+                                    .update(ctx, |model, _| {
+                                        model.register_ssh_file(
+                                            files,
+                                            remote_path.clone(),
+                                            cache.clone(),
+                                            hash,
+                                        )
+                                    })
+                                    .map_err(|error| error.to_string())?;
+                                Ok((remote_path, cache))
+                            },
+                        );
+                        match result {
+                            Ok((remote_path, cache)) => {
+                                me.open_file_with_target(
+                                    cache.clone(),
+                                    target,
+                                    None,
+                                    CodeSource::SshFile {
+                                        path: cache,
+                                        remote_path,
+                                    },
+                                    ctx,
+                                );
+                            }
+                            Err(error) => me.toast_stack.update(ctx, |stack, ctx| {
+                                stack.add_persistent_toast(
+                                    DismissibleToast::error(format!(
+                                        "Could not open remote file: {error}"
+                                    )),
+                                    ctx,
+                                );
+                            }),
+                        }
+                    },
+                );
+            }
             LeftPanelEvent::FileTree(pane_group_event) => {
                 let pane_group = self.active_tab_pane_group().clone();
                 self.handle_file_tree_event(pane_group, pane_group_event, ctx);
@@ -17420,7 +17477,6 @@ impl Workspace {
 
     /// Opens the Codex modal.
 
-
     /// Opens a new tab and enters agent view with a prompt from a Linear deeplink.
     pub fn open_linear_issue_work(
         &mut self,
@@ -24997,7 +25053,6 @@ impl View for Workspace {
         if should_show_modal && one_time_modal_model.is_build_plan_migration_modal_open() {
             stack.add_child(ChildView::new(&self.build_plan_migration_modal).finish());
         }
-
 
         #[cfg(feature = "cloud_mode")]
         if FeatureFlag::CloudMode.is_enabled()

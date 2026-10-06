@@ -25,6 +25,7 @@ warpui.workspace = true
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 async-io.workspace = true
 async-process.workspace = true
+warp-agent-bus = { path = "../agent_bus" }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
