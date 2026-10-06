@@ -75,7 +75,7 @@ mod render;
 
 use crate::settings::{CodeSettings, CodeSettingsChangedEvent};
 
-const REMOTE_TEXT: &str = "The Project Explorer requires access to your local workspace, which isn’t supported in remote sessions.";
+const REMOTE_TEXT: &str = "Remote files require a confirmed SSH session with shell integration, Warpai Companion and SFTP.";
 const DISABLED_TEXT: &str = "The Project Explorer requires access to your local workspace. Open a new session or navigate to an active session to view.";
 const WSL_TEXT: &str = "The Project Explorer doesn't currently work in WSL.";
 
@@ -1284,8 +1284,11 @@ impl FileTreeView {
             .filter(|_| {
                 #[cfg(feature = "local_fs")]
                 {
-                    crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
-                        .is_none()
+                    let active = crate::workspace::ActiveSession::as_ref(ctx);
+                    !active.remote_pending(ctx.window_id())
+                        && !active
+                            .session(ctx.window_id())
+                            .is_some_and(|session| !session.is_local())
                 }
                 #[cfg(not(feature = "local_fs"))]
                 {
