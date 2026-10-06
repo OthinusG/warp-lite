@@ -1,10 +1,11 @@
-# Warpai 1.1.0 release
+# Warpai releases
 
-## Current delivery contract
+## Current delivery: 1.1.5
 
-Publish `v1.1.0` only after cloud desktop regressions, native screenshot review
-and three-platform remote installation/transport checks pass. Build committed
-tagged source with the existing release workflows; do not compile Rust locally.
+Publish `v1.1.5` only after the tagged desktop/agent regressions, native UI
+review and three-platform remote installation/transport checks pass. Build
+committed tagged source with the existing release workflows; do not compile
+Rust locally.
 The formal companion jobs reuse disposable-runner native install/reinstall checks
 and exercise Windows binary stdio against the installed optimized executable.
 
@@ -17,8 +18,8 @@ account's Warpai component and metadata; follow the
 
 The macOS workflow creates a draft. Windows attaches its version/icon-checked
 installer and leaves that draft private. Inspect downloaded formal packages,
-source manifests, checksums, native identities and artwork before explicitly
-publishing the complete release. Never overwrite the historical 1.0.1 tag.
+source manifests, checksums, native identities and artwork before publishing
+the complete release. Preserve all prior release tags and assets.
 
 README images must be unmodified native macOS captures with vertical tabs and
 Claude Warm Light, with exact source/run provenance. Native Windows independent
@@ -27,6 +28,14 @@ modify vendor commands, shell profiles or SSH configuration. macOS ad-hoc
 signing and unsigned Windows installation remain documented.
 The desktop DMG contains the signed app, an Applications shortcut and the
 canonical Warpai Finder volume icon. Verify these in the mounted formal image.
+
+The 1.1.5 code change adds a Settings action to remove only Warpai-owned MCP
+entries from supported installed agents, including entries created by the old
+`warp-agent` bridge. Ordinary Codex enable/disable remains session-only; Codex
+persistent configuration is inspected only by the explicit cleanup action.
+Preserve unrelated MCP entries and report unsupported or failed cleanup.
+
+## Historical releases
 
 ## Historical 1.0.1 preparation (not published)
 

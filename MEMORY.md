@@ -1,5 +1,47 @@
 # Project Memory
 
+## Agent setup debug — 2026-10-06
+
+- Installed Warpai reports 1.1.0. Isolated temporary-HOME setup using installed
+  vendor CLIs passed Claude Code 2.1.267 add/get/remove and QoderCN 1.1.65
+  add/get/remove with the exact generated scope/transport arguments. An isolated
+  DSH 0.10.2 home-level `cordis.patch.yml` was loaded by `dsh --dump-config`.
+  No personal agent configuration was read or changed.
+- Settings setup was reducing adapter preflight, write and native CLI rejection
+  errors to generic status text. Source now preserves actionable error context;
+  the CLI adapter includes the vendor's rejection output. This source edit does
+  not update the installed 1.1.0 app.
+- Owner reports every non-Codex selection shows `setup failure, existing
+  configuration preserved`. In 1.1.0 that exact generic status is emitted only
+  when the read-only `configure(enable=false, owned=false)` preflight fails;
+  vendor add commands have not run. The underlying per-agent error remains
+  unknown because 1.1.0 discards it and personal configs are not inspected.
+- Focused Rust setup tests could not reach the test binary because the local
+  Command Line Tools lack Apple's `metal` shader compiler (`warpui/build.rs`).
+  Rust formatting and `git diff --check` pass; rerun the focused suite on a full
+  Xcode environment or CI before accepting the code change.
+
+## Legacy agent MCP cleanup — 2026-10-06
+
+- User confirmed the installed 1.1.0 app was finding MCP entries created under
+  the previous Warp/Warp Lite name. A sanitized local scan found six reserved
+  `warp-lite-communication` entries using the old `warp-agent mcp` command in
+  Claude, Cursor, Gemini, QoderCN, Codex and DSH configuration. They were
+  removed through each native CLI or a targeted structured edit; a follow-up
+  scan found no remaining matching entries in those agent config locations.
+- Settings now has a one-click cleanup action. It disables communication first,
+  discovers installed supported agents even while disabled, and removes only
+  the reserved entry when its command matches the old `warp-agent` or current
+  `warpai-agent` bridge. Other servers and sibling DSH patch inserts are kept;
+  failed cleanups remain visible for retry. Codex stays session-only for setup;
+  its config is read only during this explicitly requested legacy cleanup.
+  Ordinary global disable or agent deselection never reads or removes Codex's
+  persistent MCP configuration; those controls only stop future session injection.
+- Added a focused regression test for legacy JSON, Codex TOML and DSH YAML
+  cleanup. The test is currently blocked before compilation because the local
+  Command Line Tools do not include Apple's `metal` shader compiler; rerun with
+  full Xcode or CI.
+
 ## Current delivery — 2026-10-05
 
 - Owner superseded 1.0.1 release with **1.1.0** remote deployment iteration.

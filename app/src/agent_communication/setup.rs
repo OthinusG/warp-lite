@@ -114,13 +114,16 @@ pub struct Available {
 }
 
 pub fn companion() -> Result<PathBuf> {
-    let path = std::env::current_exe()?.with_file_name(if cfg!(windows) {
+    let path = companion_path()?;
+    ensure!(path.is_file(), "Bundled communication bridge is missing");
+    Ok(path)
+}
+pub fn companion_path() -> Result<PathBuf> {
+    Ok(std::env::current_exe()?.with_file_name(if cfg!(windows) {
         "warpai-agent.exe"
     } else {
         "warpai-agent"
-    });
-    ensure!(path.is_file(), "Bundled communication bridge is missing");
-    Ok(path)
+    }))
 }
 fn run(executable: &Path, args: &[String], search_paths: &[PathBuf]) -> Result<(bool, String)> {
     use tokio::io::AsyncReadExt;
@@ -548,6 +551,59 @@ fn vibe_servers(path: &Path) -> Result<Vec<Value>> {
         None => Ok(vec![]),
     }
 }
+fn bridge_command(value: &Value) -> Option<String> {
+    let command = value.get("command")?;
+    command
+        .as_str()
+        .map(str::to_owned)
+        .or_else(|| command.as_array()?.first()?.as_str().map(str::to_owned))
+}
+fn bridge_args(value: &Value) -> Vec<&str> {
+    if let Some(command) = value.get("command").and_then(Value::as_array) {
+        return command
+            .iter()
+            .skip(1)
+            .filter_map(Value::as_str)
+            .chain(
+                value
+                    .get("args")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str),
+            )
+            .collect();
+    }
+    value
+        .get("args")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect()
+}
+fn is_warp_communication_entry(value: &Value) -> bool {
+    let entry = value.get("config").unwrap_or(value);
+    let Some(command) = bridge_command(entry) else {
+        return false;
+    };
+    let basename = Path::new(&command)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    matches!(
+        basename.as_str(),
+        "warp-agent" | "warp-agent.exe" | "warpai-agent" | "warpai-agent.exe"
+    ) && bridge_args(entry).first() == Some(&"mcp")
+}
+fn is_warp_communication_cli_entry(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    lower.contains("mcp")
+        && ["warp-agent", "warpai-agent"]
+            .iter()
+            .any(|executable| lower.contains(executable))
+}
 /// Vibe's native environment layer supplies the stdio child env at runtime, never on disk.
 pub fn vibe_environment(
     installed: &Installed,
@@ -602,6 +658,17 @@ pub fn vibe_environment(
     Ok(())
 }
 pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
+    configure_inner(installed, enable, owned, false)
+}
+pub fn uninstall(installed: &Installed) -> Result<()> {
+    configure_inner(installed, false, true, true)
+}
+fn configure_inner(
+    installed: &Installed,
+    enable: bool,
+    owned: bool,
+    remove_legacy_codex: bool,
+) -> Result<()> {
     match &installed.adapter {
         Adapter::Vibe(path) => {
             if enable {
@@ -624,8 +691,15 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
                 .and_then(|v| v.get(SERVER))
                 .is_some();
             if present {
+                let existing = parsed
+                    .get("mcp_servers")
+                    .and_then(|servers| servers.get(SERVER))
+                    .map(serde_json::to_value)
+                    .transpose()?;
                 ensure!(
-                    owned && text.contains(&block),
+                    owned
+                        && (text.contains(&block)
+                            || existing.as_ref().is_some_and(is_warp_communication_entry)),
                     "Communication configuration was changed or belongs to the user; preserved"
                 );
             }
@@ -680,12 +754,29 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
                     "Duplicate communication entries; preserved"
                 );
                 if let Some(&index) = matches.first() {
+                    let entries = rows[index]["insert"]
+                        .as_array_mut()
+                        .ok_or_else(|| anyhow::anyhow!("Invalid Cordis insert patch; configuration was preserved"))?;
+                    let targets: Vec<_> = entries
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, entry)| {
+                            entry["id"] == SERVER || entry["config"]["serverName"] == SERVER
+                        })
+                        .map(|(index, _)| index)
+                        .collect();
                     ensure!(
-                        owned && rows[index] == expected,
+                        targets.len() == 1
+                            && owned
+                            && (&entries[targets[0]] == value
+                                || is_warp_communication_entry(&entries[targets[0]])),
                         "Communication configuration was changed or belongs to the user; preserved"
                     );
                     if !enable {
-                        rows.remove(index);
+                        entries.remove(targets[0]);
+                        if entries.is_empty() {
+                            rows.remove(index);
+                        }
                     }
                 } else if enable {
                     rows.push(expected);
@@ -717,7 +808,9 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
                 );
                 if let Some(&index) = matches.first() {
                     ensure!(
-                        owned && rows[index] == *value,
+                        owned
+                            && (rows[index] == *value
+                                || is_warp_communication_entry(&rows[index])),
                         "Communication configuration was changed or belongs to the user; preserved"
                     );
                     if !enable {
@@ -729,8 +822,43 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             }
             atomic_write(path, serde_yaml::to_string(&root)?.as_bytes())
         }
-        // Session-only configuration: never inspect or modify the user's Codex files.
-        Adapter::Codex(_) => Ok(()),
+        Adapter::Codex(path) => {
+            if enable || !owned || !remove_legacy_codex {
+                return Ok(());
+            }
+            let text = read_text(path)?;
+            if text.trim().is_empty() {
+                return Ok(());
+            }
+            let mut document = text.parse::<toml_edit::DocumentMut>()
+                .map_err(|_| anyhow::anyhow!("Invalid Codex TOML; configuration was preserved"))?;
+            let Some(servers) = document.get_mut("mcp_servers").and_then(toml_edit::Item::as_table_mut) else {
+                return Ok(());
+            };
+            let Some(server) = servers.get(SERVER) else {
+                return Ok(());
+            };
+            let command = server
+                .get("command")
+                .and_then(toml_edit::Item::as_str)
+                .unwrap_or_default();
+            let args = server
+                .get("args")
+                .and_then(toml_edit::Item::as_array)
+                .map(|args| {
+                    args.iter()
+                        .filter_map(toml_edit::Value::as_str)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let value = json!({"command":command,"args":args});
+            ensure!(
+                is_warp_communication_entry(&value),
+                "Communication configuration was changed or belongs to the user; preserved"
+            );
+            servers.remove(SERVER);
+            atomic_write(path, document.to_string().as_bytes())
+        }
         Adapter::Json { path, key, value } | Adapter::Yaml { path, key, value } => {
             let text = match std::fs::read(path) {
                 Ok(s) => s,
@@ -763,7 +891,8 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             }
             if let Some(existing) = servers.get(SERVER) {
                 ensure!(
-                    owned && existing == value,
+                    owned
+                        && (existing == value || is_warp_communication_entry(existing)),
                     "Communication configuration was changed or belongs to the user; preserved"
                 );
             }
@@ -813,22 +942,27 @@ pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()>
             if let Some(current) = &current {
                 ensure!(
                     owned
-                        && current.contains(&*installed.bridge.to_string_lossy())
-                        && current.contains("mcp"),
+                        && (current.contains(&*installed.bridge.to_string_lossy())
+                            || is_warp_communication_cli_entry(current)),
                     "Communication server already exists or was modified; preserved"
                 );
             }
             if enable && current.is_some() || !enable && current.is_none() {
                 return Ok(());
             }
+            let (success, text) = run(
+                &installed.executable,
+                if enable { add } else { remove },
+                &installed.search_paths,
+            )?;
             ensure!(
-                output(
-                    &installed.executable,
-                    if enable { add } else { remove },
-                    &installed.search_paths
-                )?
-                .is_some(),
-                "Agent rejected communication configuration"
+                success,
+                "Agent rejected communication configuration{}",
+                if text.trim().is_empty() {
+                    String::new()
+                } else {
+                    format!(": {}", text.trim())
+                }
             );
             Ok(())
         }
@@ -903,6 +1037,97 @@ mod tests {
             injected[field] = serde_json::json!("synthetic");
             assert!(serde_json::from_value::<LegacyRemoteProfile>(injected).is_err());
         }
+    }
+
+    #[test]
+    fn legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers() {
+        let directory = tempfile::tempdir().unwrap();
+        let bridge = "/old-install/warp-agent";
+        let json_path = directory.path().join("mcp.json");
+        std::fs::write(
+            &json_path,
+            serde_json::to_vec(&json!({
+                "mcpServers": {
+                    SERVER: {"command":bridge,"args":["mcp"],"env":{"OLD":"${OLD}"}},
+                    "user-server": {"command":"user-tool","args":[]}
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let installed = Installed {
+            active: false,
+            program: "cursor-agent".into(),
+            executable: PathBuf::from("cursor-agent"),
+            adapter: Adapter::Json {
+                path: json_path.clone(),
+                key: "mcpServers".into(),
+                value: json!({"command":"/current/warpai-agent","args":["mcp"]}),
+            },
+            bridge: PathBuf::from("/current/warpai-agent"),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        configure(&installed, false, true).unwrap();
+        let parsed: Value = serde_json::from_slice(&std::fs::read(&json_path).unwrap()).unwrap();
+        assert!(parsed["mcpServers"].get(SERVER).is_none());
+        assert_eq!(parsed["mcpServers"]["user-server"]["command"], "user-tool");
+
+        let dsh_path = directory.path().join("cordis.patch.yml");
+        std::fs::write(
+            &dsh_path,
+            format!(
+                "- insert:\n    - id: {SERVER}\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: {SERVER}\n        transport: stdio\n        command: {bridge}\n        args: [mcp]\n    - id: user-plugin\n      name: user-plugin\n"
+            ),
+        )
+        .unwrap();
+        let dsh = Installed {
+            active: false,
+            program: "dsh".into(),
+            executable: PathBuf::from("dsh"),
+            adapter: Adapter::Cordis {
+                path: dsh_path.clone(),
+                value: json!({
+                    "id": SERVER,
+                    "name": "@deepseek-ai/dsh-mcp-client",
+                    "config": {"serverName":SERVER,"transport":"stdio","command":"/current/warpai-agent","args":["mcp"]}
+                }),
+            },
+            bridge: PathBuf::from("/current/warpai-agent"),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        configure(&dsh, false, true).unwrap();
+        let remaining: Value =
+            serde_yaml::from_str(&std::fs::read_to_string(dsh_path).unwrap()).unwrap();
+        assert_eq!(remaining[0]["insert"][0]["id"], "user-plugin");
+
+        let codex_path = directory.path().join("config.toml");
+        std::fs::write(
+            &codex_path,
+            format!(
+                "# Preserve this comment\n[mcp_servers.{SERVER}]\ncommand = \"{bridge}\"\nargs = [\"mcp\"]\n\n[mcp_servers.user-server]\ncommand = \"user-tool\"\n"
+            ),
+        )
+        .unwrap();
+        let codex = Installed {
+            active: false,
+            program: "codex".into(),
+            executable: PathBuf::from("codex"),
+            adapter: Adapter::Codex(codex_path.clone()),
+            bridge: PathBuf::from("/current/warpai-agent"),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        configure(&codex, false, true).unwrap();
+        assert!(std::fs::read_to_string(&codex_path)
+            .unwrap()
+            .contains(SERVER));
+        uninstall(&codex).unwrap();
+        let remaining = std::fs::read_to_string(&codex_path).unwrap();
+        assert!(remaining.contains("# Preserve this comment"));
+        assert!(remaining.contains("user-server"));
+        assert!(!remaining.contains(SERVER));
     }
 
     #[cfg(unix)]
@@ -1114,6 +1339,13 @@ mod tests {
             configure(&installed, enable, true).unwrap();
             assert_eq!(std::fs::read(&path).unwrap(), original);
         }
+
+        let legacy = format!(
+            "[mcp_servers.{SERVER}]\ncommand = \"/old-install/warp-agent\"\nargs = [\"mcp\"]\n"
+        );
+        std::fs::write(&path, &legacy).unwrap();
+        configure(&installed, false, true).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), legacy);
     }
     #[test]
     fn managed_configuration_is_reversible_and_preserves_user_settings() {
@@ -1283,5 +1515,27 @@ esac
             std::fs::read_to_string(directory.path().join("entry")).unwrap(),
             foreign
         );
+
+        std::fs::remove_file(directory.path().join("entry")).unwrap();
+        configure(&installed, false, true).unwrap();
+        std::fs::write(
+            directory.path().join("entry"),
+            "/old-install/warp-agent mcp",
+        )
+        .unwrap();
+        configure(&installed, false, true).unwrap();
+        assert!(!directory.path().join("entry").exists());
+        std::fs::write(
+            &installed.executable,
+            source.replace(
+                "add) printf '%s mcp' \"$5\" > \"$entry\" ;;",
+                "add) echo 'native validation rejected entry' >&2; exit 17 ;;",
+            ),
+        )
+        .unwrap();
+        let error = configure(&installed, true, false).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("native validation rejected entry"));
     }
 }

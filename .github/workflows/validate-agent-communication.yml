@@ -186,6 +186,7 @@ jobs:
         run: |
           cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warpai --lib collaboration_fixtures_cover_required_states_and_long_content --locked
+          cargo test -p warpai --lib agent_communication::setup::tests::legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers --locked
           cargo test -p warpai --lib native_intent_requires_explicit_fields_and_typed_override --locked
           cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked

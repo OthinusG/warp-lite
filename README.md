@@ -13,11 +13,11 @@ projects and coordinate independently installed CLI agents in one workspace.
 
 **Command blocks · GPU rendering · Vertical tabs · Agent collaboration · SSH projects**
 
-[Download 1.1.0](#get-warpai) · [Get started](#start-working) ·
+[Download 1.1.5](#get-warpai) · [Get started](#start-working) ·
 [Agent compatibility](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)
+[![Release](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.5)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 
@@ -144,14 +144,14 @@ transfer uses SFTP. See [remote installation](docs/REMOTE-INSTALLATION.md) and t
 
 ## Get Warpai
 
-**[Warpai 1.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)** is the
-first release under the Warpai name, including local agent collaboration,
-session-scoped Codex MCP, SSH projects and the new application icon.
+**[Warpai 1.1.5](https://github.com/OthinusG/warpai/releases/tag/v1.1.5)** includes
+local agent collaboration, session-scoped Codex MCP, SSH projects, and cleanup
+for legacy Warpai MCP settings in supported CLI agents.
 
 | Platform | Downloads | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/Warpai.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.5/Warpai.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -169,9 +169,9 @@ record the exact source revision, Rust target and SHA-256 checksum.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-windows-x64-setup.exe) |
 
 ## Settings and local control
 

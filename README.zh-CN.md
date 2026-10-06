@@ -13,11 +13,11 @@
 
 **命令分块 · GPU 渲染 · 垂直标签页 · Agent 协作 · SSH 项目**
 
-[下载 1.1.0](#get-warpai) · [快速开始](#start-working) ·
+[下载 1.1.5](#get-warpai) · [快速开始](#start-working) ·
 [Agent 使用与兼容性](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)
+[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.1.5)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 
@@ -133,13 +133,13 @@ Windows 原生 OpenSSH 会另建 companion 控制连接，通过系统 SSH 密�
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.1.0)** 是改名后的首个版本，
-包含本地 Agent 协作、Codex 会话级 MCP、SSH 项目和新的应用图标。
+**[Warpai 1.1.5](https://github.com/OthinusG/warpai/releases/tag/v1.1.5)** 包含本地 Agent 协作、
+Codex 会话级 MCP、SSH 项目，以及清理受支持 CLI Agent 中旧版 Warpai MCP 配置的功能。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.5/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
 
 macOS 应用采用临时签名，尚未进行公证。如果首次启动被系统拦截，确认下载来源后，
 在 **System Settings > Privacy & Security > Open Anyway** 中批准打开。
@@ -155,9 +155,9 @@ Windows 可能要求确认运行未签名安装器。发布页面提供校验和
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-linux-x64.run) |
-| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-linux-x64.run) |
+| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.5/WarpaiCompanion-windows-x64-setup.exe) |
 
 ## 设置与本地控制
 

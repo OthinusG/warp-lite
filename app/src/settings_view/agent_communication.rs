@@ -26,10 +26,12 @@ pub enum Action {
     Enable,
     Select(String),
     Refresh,
+    UninstallAll,
 }
 pub struct CommunicationSettingsView {
     switch: SwitchStateHandle,
     refresh: MouseStateHandle,
+    uninstall_all: MouseStateHandle,
     checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
 }
 impl CommunicationSettingsView {
@@ -38,6 +40,7 @@ impl CommunicationSettingsView {
         Self {
             switch: Default::default(),
             refresh: Default::default(),
+            uninstall_all: Default::default(),
             checkboxes: Default::default(),
         }
     }
@@ -52,6 +55,7 @@ impl TypedActionView for CommunicationSettingsView {
             Action::Enable => model.configure(Some(!model.preferences.enabled), None, ctx),
             Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
             Action::Refresh => model.configure(None, None, ctx),
+            Action::UninstallAll => model.uninstall_all(ctx),
         });
     }
 }
@@ -171,6 +175,24 @@ impl View for CommunicationSettingsView {
                     .finish(),
             )
             .with_margin_top(12.)
+            .finish(),
+        );
+        let uninstall_all = builder
+            .button(ButtonVariant::Secondary, self.uninstall_all.clone())
+            .with_text_label("Remove Warpai MCP from all agents".to_owned());
+        let uninstall_all = if model.busy {
+            uninstall_all.disabled()
+        } else {
+            uninstall_all
+        };
+        body.add_child(
+            Container::new(
+                uninstall_all
+                    .build()
+                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::UninstallAll))
+                    .finish(),
+            )
+            .with_margin_top(8.)
             .finish(),
         );
         Container::new(body.finish())

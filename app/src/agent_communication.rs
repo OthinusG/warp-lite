@@ -190,6 +190,18 @@ impl AgentCommunication {
         command: Option<String>,
         ctx: &mut ModelContext<Self>,
     ) {
+        self.configure_inner(enabled, command, false, ctx);
+    }
+    pub(crate) fn uninstall_all(&mut self, ctx: &mut ModelContext<Self>) {
+        self.configure_inner(Some(false), None, true, ctx);
+    }
+    fn configure_inner(
+        &mut self,
+        enabled: Option<bool>,
+        command: Option<String>,
+        uninstall_all: bool,
+        ctx: &mut ModelContext<Self>,
+    ) {
         if self.busy {
             return;
         }
@@ -202,6 +214,11 @@ impl AgentCommunication {
                 self.policy();
             }
         }
+        if uninstall_all {
+            preferences.enabled = false;
+            self.preferences.enabled = false;
+            self.policy();
+        }
         for (name, entry) in &mut preferences.selected {
             if !preferences.enabled || command.as_ref() == Some(name) {
                 entry.active = false;
@@ -210,7 +227,11 @@ impl AgentCommunication {
         self.preferences = preferences.clone();
         self.policy();
         self.busy = true;
-        self.status = "Updating native MCP configuration…".into();
+        self.status = if uninstall_all {
+            "Removing Warpai MCP configuration from installed agents…".into()
+        } else {
+            "Updating native MCP configuration…".into()
+        };
         let path = self.preferences_path.clone();
         let mut commands: Vec<(String, String)> = enum_iterator::all::<CLIAgent>()
             .flat_map(|agent| {
@@ -279,17 +300,40 @@ impl AgentCommunication {
         self.pending = Some(receiver);
         std::thread::spawn(move || {
             let mut errors = Vec::new();
-            let mut available = if preferences.enabled {
-                match setup::companion() {
+            let mut available = if preferences.enabled || uninstall_all {
+                let bridge = if preferences.enabled {
+                    setup::companion()
+                } else {
+                    setup::companion_path()
+                };
+                match bridge {
                     Ok(bridge) => setup::discover(commands, &bridge, search_paths),
                     Err(_) => {
-                        errors.push("Bundled communication bridge is missing".to_owned());
+                        errors.push(
+                            "Could not determine the bundled communication bridge path".into(),
+                        );
                         vec![]
                     }
                 }
             } else {
                 vec![]
             };
+            if uninstall_all {
+                for row in &available {
+                    if let Some(mut entry) = row.installed.clone() {
+                        entry.active = false;
+                        preferences
+                            .selected
+                            .entry(row.command.clone())
+                            .or_insert(entry);
+                    } else {
+                        errors.push(format!(
+                            "{}: no safe MCP cleanup adapter is available for this installed agent version; configuration was left unchanged",
+                            row.command
+                        ));
+                    }
+                }
+            }
             if setup::save_preferences(&path, &preferences).is_err() {
                 preferences.enabled = false;
                 let _ = sender.send((
@@ -315,10 +359,18 @@ impl AgentCommunication {
             };
             for name in remove {
                 let entry = &preferences.selected[&name];
-                if setup::configure(entry, false, true).is_ok() {
-                    preferences.selected.remove(&name);
+                let cleanup = if uninstall_all {
+                    setup::uninstall(entry)
                 } else {
-                    errors.push(format!("{name}: cleanup failed; configuration was preserved. Retry by unchecking or disabling communication."));
+                    setup::configure(entry, false, true)
+                };
+                match cleanup {
+                    Ok(()) => {
+                        preferences.selected.remove(&name);
+                    }
+                    Err(error) => errors.push(format!(
+                        "{name}: cleanup failed; configuration was preserved. Retry cleanup from Settings. {error:#}"
+                    )),
                 }
             }
             if preferences.enabled {
@@ -333,24 +385,26 @@ impl AgentCommunication {
                             .find(|row| &row.command == name)
                             .and_then(|row| row.installed.clone())
                         {
-                            if setup::configure(&entry, false, false).is_ok() {
+                            if let Err(error) = setup::configure(&entry, false, false) {
+                                errors.push(format!(
+                                    "{name}: setup preflight failed; existing configuration was preserved. {error:#}"
+                                ));
+                            } else {
                                 let mut pending_entry = entry.clone();
                                 pending_entry.active = false;
                                 preferences.selected.insert(name.clone(), pending_entry);
                                 // Persist cleanup intent before invoking a vendor command or replacing its file.
-                                if setup::save_preferences(&path, &preferences).is_ok()
-                                    && setup::configure(&entry, true, false).is_ok()
-                                {
-                                    preferences.selected.insert(name.clone(), entry);
-                                } else {
+                                if let Err(error) = setup::save_preferences(&path, &preferences) {
                                     errors.push(format!(
-                                        "{name}: setup failed; cleanup remains pending"
+                                        "{name}: could not save setup intent; configuration was not changed. {error:#}"
                                     ));
+                                } else if let Err(error) = setup::configure(&entry, true, false) {
+                                    errors.push(format!(
+                                        "{name}: setup failed; cleanup remains pending. {error:#}"
+                                    ));
+                                } else {
+                                    preferences.selected.insert(name.clone(), entry);
                                 }
-                            } else {
-                                errors.push(format!(
-                                    "{name}: setup failed; existing configuration was preserved"
-                                ));
                             }
                         }
                     }
@@ -385,7 +439,9 @@ impl AgentCommunication {
                 );
             }
             let status = if errors.is_empty() {
-                if !preferences.enabled {
+                if uninstall_all {
+                    "Communication MCP cleanup completed for all discovered agents.".into()
+                } else if !preferences.enabled {
                     "Communication is off.".into()
                 } else if preferences.selected.is_empty() {
                     "Select installed agents to configure communication.".into()
