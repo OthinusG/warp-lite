@@ -168,7 +168,7 @@ impl FileTreeView {
         if self.is_remote_item(&file_tree_id) {
             if buffer_content.is_empty()
                 || buffer_content.contains('/')
-                || buffer_content.contains('\\')
+                || (file_tree_id.root.is_windows() && buffer_content.contains('\\'))
                 || matches!(buffer_content.as_str(), "." | "..")
             {
                 self.rebuild_flattened_items();
@@ -185,7 +185,7 @@ impl FileTreeView {
             let old = item.path().clone();
             let mut new = old.clone();
             new.set_file_name(&buffer_content);
-            let destination = new.to_local_path_lossy().to_string_lossy().into_owned();
+            let destination = new.as_str().to_owned();
             match pending_edit.kind {
                 PendingEditKind::CreateNewFile => self.mutate_ssh_file(
                     remote_server::proto::ProjectFileAction::ProjectFileCreate,
@@ -195,7 +195,7 @@ impl FileTreeView {
                 ),
                 PendingEditKind::RenameExisting => self.mutate_ssh_file(
                     remote_server::proto::ProjectFileAction::ProjectFileRename,
-                    old.to_local_path_lossy().to_string_lossy().into_owned(),
+                    old.as_str().to_owned(),
                     destination,
                     ctx,
                 ),

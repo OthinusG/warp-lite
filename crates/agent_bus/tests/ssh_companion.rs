@@ -590,14 +590,33 @@ async fn native_ssh_file_tools_save_conflict_preview_resources_and_reconnect() {
             RemoteShell::Posix
         },
     };
-    let files = RemoteFiles::connect(
-        profile,
-        SshConnection::Native {
-            arguments: vec!["-F".into(), config, "warpai-test".into()],
-            session: "owned-native-file-fixture".into(),
-        },
-    )
-    .await
-    .unwrap();
+    let connection = SshConnection::Native {
+        arguments: vec!["-F".into(), config, "warpai-test".into()],
+        session: "owned-native-file-fixture".into(),
+    };
+    let files = RemoteFiles::connect(profile.clone(), connection.clone())
+        .await
+        .unwrap();
+    if let Ok(repository) = files.repository().await {
+        assert_eq!(repository.identity, files.identity);
+        let directory = format!("nested-cwd-{}", Uuid::new_v4());
+        files
+            .control(remote_protocol::proto::ProjectFilesRequest {
+                action: remote_protocol::proto::ProjectFileAction::ProjectDirectoryCreate as i32,
+                path: directory.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let mut nested_profile = profile;
+        nested_profile.remote_root =
+            format!("{}/{directory}", files.canonical_root.trim_end_matches('/'));
+        let nested = RemoteFiles::connect(nested_profile, connection)
+            .await
+            .unwrap();
+        let parent = nested.repository().await.unwrap();
+        assert_eq!(parent.identity, files.identity);
+        assert_eq!(parent.canonical_root, files.canonical_root);
+    }
     controlled_remote_files(&files).await;
 }

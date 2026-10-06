@@ -142,6 +142,8 @@ message ProjectFilesRequest {
   string destination = 5;
   string expected_hash = 6;
   string transfer_id = 7;
+  // Git diff only: previous project-relative path for rename/copy comparisons.
+  string git_previous_path = 8;
 }
 message ProjectFilesResult {
   ManagedFence fence = 1;

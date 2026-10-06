@@ -252,7 +252,7 @@ impl FileNotebookView {
                     && source
                         .files
                         .cache_path(&format!(
-                            "{}/image.svg",
+                            "{}/image.png",
                             source.files.canonical_root.trim_end_matches('/')
                         ))
                         .is_ok_and(|cache| cache.is_file())
@@ -360,9 +360,33 @@ impl FileNotebookView {
             .and_then(|path| FileModel::as_ref(ctx).ssh_source(path))
         {
             let expected_path = doc_path.clone();
-            let content = content.to_owned();
+            let Ok(mut text) = markdown_parser::parse_markdown_with_gfm_tables(content) else {
+                self.editor.update(ctx, |editor, ctx| {
+                    editor
+                        .reset_with_markdown("This remote Markdown file could not be parsed.", ctx)
+                });
+                return;
+            };
+            let placeholder = doc_path
+                .as_ref()
+                .unwrap()
+                .with_extension("missing-image")
+                .to_string_lossy()
+                .into_owned();
+            let mut initial = text.clone();
+            for line in &mut initial.lines {
+                if let markdown_parser::FormattedTextLine::Image(image) = line {
+                    if !image.source.starts_with("https://") && !image.source.starts_with("http://")
+                    {
+                        image.source = placeholder.clone();
+                    }
+                }
+            }
+            // Text is usable immediately while bounded remote images load.
+            self.editor.update(ctx, |editor, ctx| {
+                editor.reset_with_formatted_text(initial, ctx)
+            });
             ctx.spawn(async move {
-                let mut text = markdown_parser::parse_markdown_with_gfm_tables(&content)?;
                 let mut images = 0;
                 for line in &mut text.lines {
                     if let markdown_parser::FormattedTextLine::Image(image) = line {
@@ -375,7 +399,7 @@ impl FileNotebookView {
                             }
                         } else { None };
                         // Missing or outside-root images remain placeholders; document text still renders.
-                        image.source = downloaded.unwrap_or_else(|| source.files.cache_path(&source.path).unwrap().with_extension("missing-image")).to_string_lossy().into_owned();
+                        image.source = downloaded.unwrap_or_else(|| PathBuf::from(&placeholder)).to_string_lossy().into_owned();
                     }
                 }
                 Ok::<_, anyhow::Error>(text)
@@ -596,18 +620,39 @@ impl FileNotebookView {
             .local_path()
             .and_then(|path| FileModel::as_ref(ctx).ssh_source(&path))
         {
-            ctx.spawn(async move { source.reload().await }, |view, result, ctx| {
-                match result {
-                    Ok(content) => view.set_content(&content, ctx),
-                    Err(_) => view.editor.update(ctx, |editor, ctx| {
-                        editor.reset_with_markdown(
-                            "Remote file could not be refreshed. Check the SSH connection.",
-                            ctx,
-                        )
-                    }),
-                }
-                ctx.notify();
-            });
+            ctx.spawn(
+                async move {
+                    if !source.files.connected() {
+                        source.files.reconnect().await.map_err(|error| {
+                            warp_util::file::FileLoadError::IOError(std::io::Error::other(
+                                error.to_string(),
+                            ))
+                        })?;
+                    }
+                    // A read-only preview must not advance a dirty editor's save baseline.
+                    let (cache, _) =
+                        source.files.download(&source.path).await.map_err(|error| {
+                            warp_util::file::FileLoadError::IOError(std::io::Error::other(
+                                error.to_string(),
+                            ))
+                        })?;
+                    async_fs::read_to_string(cache)
+                        .await
+                        .map_err(warp_util::file::FileLoadError::from)
+                },
+                |view, result, ctx| {
+                    match result {
+                        Ok(content) => view.set_content(&content, ctx),
+                        Err(_) => view.editor.update(ctx, |editor, ctx| {
+                            editor.reset_with_markdown(
+                                "Remote file could not be refreshed. Check the SSH connection.",
+                                ctx,
+                            )
+                        }),
+                    }
+                    ctx.notify();
+                },
+            );
             return;
         }
         // We can take the file state here because either it's (a) already NoFile or (b) about to

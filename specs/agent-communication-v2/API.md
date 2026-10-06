@@ -85,7 +85,8 @@ registered or explicitly bound workspace identities cannot change scope.
 `project_git_review`, alongside `project_files`, admits typed, read-only `PROJECT_GIT_ROOT`,
 `PROJECT_GIT_BRANCHES`, `PROJECT_GIT_STATUS`, `PROJECT_GIT_DIFF`, and
 `PROJECT_GIT_PREPARE_BASE` actions. There is no caller-supplied command or argument
-vector. Status carries porcelain-v2 records, the resolved base commit, and
+vector. `git_previous_path` admits a validated project-relative old path for
+rename/copy patch selection; it is never a command argument override. Status carries porcelain-v2 records, the resolved base commit, and
 name-status records for merge-base comparisons. Git metadata and patches are
 bounded at 512 KiB and each subprocess has a 10-second deadline. Base file bytes
 use the same connection-owned, hashed SFTP staging and release lifecycle.

@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
+import zlib
 import tempfile
 import time
 import uuid
@@ -16,7 +18,9 @@ def main():
     parser.add_argument("--capture", type=Path)
     args = parser.parse_args()
     windows = os.name == "nt"
-    server = shutil.which("sshd") or ("C:/Windows/System32/OpenSSH/sshd.exe" if windows else "/usr/sbin/sshd")
+    server = "C:/Windows/System32/OpenSSH/sshd.exe" if windows else (shutil.which("sshd") or "/usr/sbin/sshd")
+    if windows:
+        os.environ["PATH"] = str(Path(server).parent) + os.pathsep + os.environ.get("PATH", "")
     if not Path(server).is_file():
         raise SystemExit("Owned SSH acceptance requires the native OpenSSH server")
     # Keep POSIX fixtures under the owner home: sshd StrictModes rejects shared temp ancestors.
@@ -29,6 +33,7 @@ def main():
         if windows:
             for name in ["host", "client", "client.pub"]:
                 subprocess.run(["icacls", str(fixture / name), "/inheritance:r", "/grant:r", f"{getpass.getuser()}:F", "*S-1-5-18:F", "*S-1-5-32-544:F"], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["icacls", str(fixture / "host"), "/setowner", "*S-1-5-18", "/remove", getpass.getuser()], check=True, stdout=subprocess.DEVNULL)
         public = (fixture / "host.pub").read_text().split()
         (fixture / "known_hosts").write_text(f"[127.0.0.1]:22222 {public[0]} {public[1]}\n")
         native = fixture.as_posix()
@@ -41,8 +46,11 @@ def main():
         )
         config = fixture / "client.conf"
         config.write_text(f'Host warpai-test\n HostName 127.0.0.1\n Port 22222\n User {getpass.getuser()}\n IdentityFile "{native}/client"\n IdentitiesOnly yes\n UserKnownHostsFile "{native}/known_hosts"\n')
-        (root / "preview.md").write_text("# Remote project\n\n![Remote image](image.svg)\n\n[Open code](example.rs)\n", encoding="utf-8")
-        (root / "image.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><rect width="240" height="80" fill="#4477aa"/></svg>')
+        (root / "preview.md").write_text("# Remote project\n\n![Remote image](image.png)\n\n[Open code](example.rs)\n", encoding="utf-8")
+        def chunk(kind, data):
+            return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+        png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 240, 80, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress((b"\0" + b"\x44\x77\xaa" * 240) * 80)) + chunk(b"IEND", b"")
+        (root / "image.png").write_bytes(png)
         (root / "example.rs").write_text('fn main() { println!("Remote original"); }\n')
         for command in [["init", "--initial-branch=main"], ["add", "--", "."], ["-c", "user.name=Warpai Fixture", "-c", "user.email=fixture@example.invalid", "-c", "core.hooksPath=", "commit", "-m", "Fixture base"]]:
             subprocess.run(["git", *command], cwd=root, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -54,19 +62,22 @@ def main():
         with (fixture / "server.log").open("w") as log:
             service = "warpai-file-check-" + uuid.uuid4().hex if windows else None
             if windows:
-                subprocess.run(["sc.exe", "create", service, "binPath=", f'"{server}" -f "{fixture / "server.conf"}"', "start=", "demand"], check=True, stdout=subprocess.DEVNULL)
+                subprocess.run(["sc.exe", "create", service, "binPath=", f'"{server}" -f "{fixture / "server.conf"}" -E "{fixture / "server.log"}"', "start=", "demand"], check=True, stdout=subprocess.DEVNULL)
                 subprocess.run(["sc.exe", "start", service], check=True, stdout=subprocess.DEVNULL)
                 daemon = None
             else:
                 daemon = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=log)
             try:
                 for _ in range(30):
-                    probe = subprocess.run(["ssh", "-F", str(config), "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test", "echo", "ready"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                    probe = subprocess.run(["ssh", "-F", str(config), "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test", "echo", "ready"], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
                     if probe.returncode == 0:
                         break
                     time.sleep(0.2)
                 else:
-                    raise RuntimeError("Owned loopback SSH authentication failed")
+                    diagnostic = (fixture / "server.log").read_text(errors="replace")
+                    reasons = [label for marker, label in [("bad ownership", "host-key ownership"), ("bad permissions", "key permissions"), ("Bad owner", "file ownership"), ("no hostkeys", "host-key admission"), ("Bad configuration", "server configuration")] if marker.lower() in diagnostic.lower()]
+                    reason = ", ".join(reasons) or ("connection refused" if b"refused" in probe.stderr.lower() else "authentication rejected")
+                    raise RuntimeError(f"Owned loopback SSH failed: {reason}")
                 env = os.environ.copy()
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))

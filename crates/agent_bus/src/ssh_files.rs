@@ -220,10 +220,21 @@ fn batch_path(path: &str) -> Result<String, ConnectionError> {
     Ok(result)
 }
 
+fn windows_path(path: &str) -> String {
+    let path = path.replace('\\', "/");
+    if let Some(unc) = path.strip_prefix("//?/UNC/") {
+        format!("//{unc}")
+    } else if path.starts_with("//?/") && path.as_bytes().get(5) == Some(&b':') {
+        path[4..].into()
+    } else {
+        path
+    }
+}
+
 fn relative_path(root: &str, path: &str, windows: bool) -> Result<String, ConnectionError> {
     let normalize = |s: &str| {
         if windows {
-            s.replace('\\', "/")
+            windows_path(s)
         } else {
             s.to_owned()
         }
@@ -386,6 +397,28 @@ impl RemoteFiles {
             cache,
         }))
     }
+    /// Reuse the current attachment when cwd is already the repository root.
+    pub async fn repository(self: &Arc<Self>) -> Result<Arc<Self>, ConnectionError> {
+        let root = self
+            .control(ProjectFilesRequest {
+                action: ProjectFileAction::ProjectGitRoot as i32,
+                ..Default::default()
+            })
+            .await?
+            .git_output
+            .trim()
+            .to_owned();
+        if self
+            .relative(&root)
+            .is_ok_and(|relative| relative.is_empty())
+        {
+            return Ok(self.clone());
+        }
+        let mut profile = self.profile.clone();
+        profile.remote_root = root;
+        Self::connect(profile, self.connection.clone()).await
+    }
+
     pub fn connected(&self) -> bool {
         self.connected.load(Ordering::Acquire)
     }
@@ -454,15 +487,11 @@ impl RemoteFiles {
             super::ssh_remote::RemoteShell::PowerShell
         );
         let document = if windows {
-            document.replace('\\', "/")
+            windows_path(document)
         } else {
             document.into()
         };
-        let link = if windows {
-            link.replace('\\', "/")
-        } else {
-            link
-        };
+        let link = if windows { windows_path(&link) } else { link };
         let joined = if link.starts_with('/') || (windows && link.as_bytes().get(1) == Some(&b':'))
         {
             link
@@ -548,7 +577,7 @@ impl RemoteFiles {
                 self.profile.remote_shell,
                 super::ssh_remote::RemoteShell::PowerShell
             ) {
-                staged.replace('\\', "/")
+                windows_path(staged)
             } else {
                 staged.into()
             };
@@ -839,6 +868,19 @@ mod tests {
             "project/x"
         );
         assert_eq!(relative_path("/project", "/project", false).unwrap(), "");
+        assert_eq!(
+            windows_path(r"\\?\C:\project\file.md"),
+            "C:/project/file.md"
+        );
+        assert_eq!(
+            windows_path(r"\\?\UNC\server\share\file.md"),
+            "//server/share/file.md"
+        );
+        assert_eq!(
+            relative_path(r"\\?\C:\project", "C:/project/file", true).unwrap(),
+            "file"
+        );
+
         assert_eq!(
             relative_path("C:/Project", "c:/project/FILE.md", true).unwrap(),
             "FILE.md"

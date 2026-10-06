@@ -1072,6 +1072,23 @@ fn git_review_handles_unborn_rename_delete_binary_conflict_and_worktree() {
             ])
         );
     }
+    let mut rename = fixture.query(ProjectFileAction::ProjectGitDiff, "renamed.txt");
+    rename.git_previous_path = "rename.txt".into();
+    assert_eq!(
+        fixture.execute(rename.clone()).unwrap().git_output,
+        fixture.git(&[
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-color",
+            "HEAD",
+            "--",
+            "renamed.txt",
+            "rename.txt"
+        ])
+    );
+    rename.git_previous_path = "../outside".into();
+    assert!(fixture.execute(rename).is_err());
     let mut missing = fixture.query(ProjectFileAction::ProjectGitStatus, "");
     missing.destination = "missing-comparison".into();
     assert!(fixture.execute(missing).is_err());

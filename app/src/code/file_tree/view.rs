@@ -377,11 +377,7 @@ impl FileTreeView {
                     .enumerate()
                     .find_map(|(index, item)| match item {
                         FileTreeItem::File { metadata, .. }
-                            if metadata
-                                .path
-                                .to_local_path_lossy()
-                                .to_string_lossy()
-                                .ends_with(name) =>
+                            if metadata.path.as_str().ends_with(name) =>
                         {
                             Some(FileTreeIdentifier {
                                 root: root.clone(),
@@ -421,18 +417,33 @@ impl FileTreeView {
         self.ssh_in_flight = true;
         let generation = self.ssh_generation;
         ctx.spawn(async move {
+            let cwd = profile.remote_root.clone();
             let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
+            let files = match files.repository().await {
+                Ok(repository) => repository,
+                Err(_) if files.connected() => files,
+                Err(error) => return Err(error),
+            };
             let snapshot = files.list(&files.canonical_root, generation).await?;
-            Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, snapshot))
+            let root = StandardizedPath::try_new(&files.canonical_root).map_err(|_| warp_agent_bus::ssh_remote::ConnectionError::InvalidInput)?;
+            let cwd = root.join(&files.relative(&cwd)?);
+            Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, snapshot, root, cwd))
         }, move |view, result, ctx| {
             let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
             if view.ssh_generation != generation || current != key { return; }
             view.ssh_in_flight = false;
             match result {
-                Ok((files, snapshot)) => {
+                Ok((files, snapshot, root, cwd)) => {
                     view.ssh_files = Some(files);
                     view.displayed_directories.retain(|root| view.root_directories.get(root).is_some_and(|dir| dir.is_remote()));
                     view.apply_ssh_snapshot(snapshot, true, ctx);
+                    view.expand_ancestors_to_path(&root, &cwd, ctx);
+                    if let Some(directory) = view.root_directories.get_mut(&root) {
+                        directory.expanded_folders.insert(cwd.clone());
+                    }
+                    view.ensure_loaded_path(&root, &cwd, ctx);
+                    view.pending_focus_target = Some(PendingFocusTarget { root, path: cwd, scrolled: false });
+                    view.apply_pending_focus_target();
                     view.poll_ssh(ctx);
                 }
                 Err(error) => view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation.")),
@@ -456,7 +467,7 @@ impl FileTreeView {
             .values()
             .filter(|root| root.is_remote())
             .flat_map(|root| &root.expanded_folders)
-            .map(|path| path.to_local_path_lossy().to_string_lossy().into_owned())
+            .map(|path| path.as_str().to_owned())
             .collect();
         paths.push(files.canonical_root.clone());
         paths.sort_by_key(|path| path.len());
@@ -2640,15 +2651,7 @@ impl FileTreeView {
             FileTreeItem::File { metadata, .. } => {
                 if is_remote {
                     #[cfg(feature = "local_fs")]
-                    self.open_ssh_file(
-                        metadata
-                            .path
-                            .to_local_path_lossy()
-                            .to_string_lossy()
-                            .into_owned(),
-                        None,
-                        ctx,
-                    );
+                    self.open_ssh_file(metadata.path.as_str().to_owned(), None, ctx);
                 } else {
                     let path = metadata.path.to_local_path_lossy();
                     self.open_file(&path, None, ctx);
@@ -2910,10 +2913,7 @@ impl FileTreeView {
 
         if root_dir.is_remote() {
             self.open_ssh_file(
-                item.path()
-                    .to_local_path_lossy()
-                    .to_string_lossy()
-                    .into_owned(),
+                item.path().as_str().to_owned(),
                 Some(EditorLayout::SplitPane),
                 ctx,
             );
@@ -2938,10 +2938,7 @@ impl FileTreeView {
         if root_dir.is_remote() {
             if matches!(item, FileTreeItem::File { .. }) {
                 self.open_ssh_file(
-                    item.path()
-                        .to_local_path_lossy()
-                        .to_string_lossy()
-                        .into_owned(),
+                    item.path().as_str().to_owned(),
                     Some(EditorLayout::NewTab),
                     ctx,
                 );
@@ -2965,7 +2962,7 @@ impl FileTreeView {
             return;
         };
 
-        let path = item.path().to_local_path_lossy();
+        let path = PathBuf::from(item.path().as_str());
 
         if !matches!(item, FileTreeItem::DirectoryHeader { .. }) {
             log::warn!(
@@ -3003,7 +3000,7 @@ impl FileTreeView {
         if root_dir.is_remote() {
             self.mutate_ssh_file(
                 remote_server::proto::ProjectFileAction::ProjectFileDelete,
-                path.to_string_lossy().into_owned(),
+                item.path().as_str().to_owned(),
                 String::new(),
                 ctx,
             );

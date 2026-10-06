@@ -491,16 +491,12 @@ impl RightPanelView {
         self.ssh_selection = key.clone();
         self.ssh_review = None;
         self.ssh_error = None;
-        let Some((mut profile, connection)) = selection else {
+        let Some((profile, connection)) = selection else {
             return;
         };
         ctx.spawn(async move {
-            use remote_server::proto::{ProjectFileAction, ProjectFilesRequest};
-            let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile.clone(), connection.clone()).await?;
-            let root = files.control(ProjectFilesRequest { action: ProjectFileAction::ProjectGitRoot as i32, ..Default::default() }).await?.git_output.trim().to_owned();
-            if root == files.canonical_root { return Ok(files); }
-            profile.remote_root = root;
-            warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await
+            let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
+            files.repository().await
         }, move |me, result: Result<_, warp_agent_bus::ssh_remote::ConnectionError>, ctx| {
             let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
             if me.ssh_selection != key || current != key { return; }

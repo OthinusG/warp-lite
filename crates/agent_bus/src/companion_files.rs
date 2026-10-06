@@ -210,19 +210,21 @@ impl Files {
                             Err(ManagedErrorCode::ManagedNotFound) => None,
                             Err(error) => return Err(error),
                         };
-                        result.git_output = git_output(
-                            project,
-                            &[
-                                "--no-optional-locks",
-                                "diff",
-                                "--no-ext-diff",
-                                "--no-textconv",
-                                "--no-color",
-                                commit,
-                                "--",
-                                &request.path,
-                            ],
-                        )?;
+                        let mut arguments = vec![
+                            "--no-optional-locks",
+                            "diff",
+                            "--no-ext-diff",
+                            "--no-textconv",
+                            "--no-color",
+                            commit,
+                            "--",
+                            &request.path,
+                        ];
+                        if !request.git_previous_path.is_empty() {
+                            components(&request.git_previous_path)?;
+                            arguments.push(&request.git_previous_path);
+                        }
+                        result.git_output = git_output(project, &arguments)?;
                         let after = match Directory::parent(project, &request.path)
                             .and_then(|(parent, name)| parent.open_file(&name))
                             .and_then(|mut file| digest(&mut file))

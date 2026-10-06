@@ -538,6 +538,11 @@ impl DiffStateModel {
                             .control(ProjectFilesRequest {
                                 action: ProjectFileAction::ProjectGitDiff as i32,
                                 path: relative.into(),
+                                git_previous_path: match &status {
+                                    GitFileStatus::Renamed { old_path }
+                                    | GitFileStatus::Copied { old_path } => old_path.clone(),
+                                    _ => String::new(),
+                                },
                                 destination: reference.clone(),
                                 ..Default::default()
                             })
