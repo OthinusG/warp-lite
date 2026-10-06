@@ -83,11 +83,13 @@ impl Companion {
             } else {
                 String::new()
             },
-            message: Some(server_message::Message::Managed(ManagedResponse {
-                result: Some(result.unwrap_or_else(|code| {
-                    managed_response::Result::Error(ManagedError { code: code.into() })
-                })),
-            })),
+            message: Some(server_message::Message::Managed(Box::new(
+                ManagedResponse {
+                    result: Some(result.unwrap_or_else(|code| {
+                        managed_response::Result::Error(ManagedError { code: code.into() })
+                    })),
+                },
+            ))),
         }
     }
 

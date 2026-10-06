@@ -202,6 +202,14 @@ impl Files {
                         return Err(ManagedErrorCode::ManagedInvalidInput);
                     }
                     if action == ProjectFileAction::ProjectGitDiff {
+                        let before = match Directory::parent(project, &request.path)
+                            .and_then(|(parent, name)| parent.open_file(&name))
+                            .and_then(|mut file| digest(&mut file))
+                        {
+                            Ok(hash) => Some(hash),
+                            Err(ManagedErrorCode::ManagedNotFound) => None,
+                            Err(error) => return Err(error),
+                        };
                         result.git_output = git_output(
                             project,
                             &[
@@ -215,6 +223,18 @@ impl Files {
                                 &request.path,
                             ],
                         )?;
+                        let after = match Directory::parent(project, &request.path)
+                            .and_then(|(parent, name)| parent.open_file(&name))
+                            .and_then(|mut file| digest(&mut file))
+                        {
+                            Ok(hash) => Some(hash),
+                            Err(ManagedErrorCode::ManagedNotFound) => None,
+                            Err(error) => return Err(error),
+                        };
+                        if before != after {
+                            return Err(ManagedErrorCode::ManagedConflict);
+                        }
+                        result.sha256 = after.unwrap_or_default();
                     } else {
                         if self.transfers.len() >= MAX_TRANSFERS {
                             return Err(ManagedErrorCode::ManagedCapacityExceeded);

@@ -33,9 +33,9 @@ use warp_util::{
 use warpui::{
     elements::{
         Border, ChildAnchor, ChildView, ClippedScrollStateHandle, ConstrainedBox, Container,
-        CornerRadius, CrossAxisAlignment, DropShadow, Flex, Hoverable, MainAxisAlignment,
-        MainAxisSize, MouseStateHandle, OffsetPositioning, ParentAnchor, ParentElement,
-        ParentOffsetBounds, Radius, Rect, Shrinkable, Stack, Text,
+        CornerRadius, CrossAxisAlignment, DispatchEventResult, DropShadow, EventHandler, Flex,
+        Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle, OffsetPositioning,
+        ParentAnchor, ParentElement, ParentOffsetBounds, Radius, Rect, Shrinkable, Stack, Text,
     },
     keymap::{macros::*, FixedBinding},
     text::point::Point,
@@ -190,6 +190,7 @@ struct SelectionAsContextTooltip {
 
 #[derive(Debug, Clone)]
 pub enum LocalCodeEditorAction {
+    ReconnectRemote,
     InsertSelectedTextToInput,
     SaveFile,
     DiscardUnsavedChanges,
@@ -2252,7 +2253,12 @@ impl View for LocalCodeEditorView {
         let base: Box<dyn Element> =
             if self.base_content_version.is_some() && self.is_remote_disconnected(app) {
                 let appearance = Appearance::as_ref(app);
-                let banner = render_remote_disconnected_banner(appearance);
+                let banner = EventHandler::new(render_remote_disconnected_banner(appearance))
+                    .on_left_mouse_up(|ctx, _, _| {
+                        ctx.dispatch_typed_action(LocalCodeEditorAction::ReconnectRemote);
+                        DispatchEventResult::StopPropagation
+                    })
+                    .finish();
                 let mut col = Flex::column().with_child(banner);
 
                 let editor_view = ChildView::new(&self.editor).finish();
@@ -2381,7 +2387,29 @@ impl TypedActionView for LocalCodeEditorView {
     type Action = LocalCodeEditorAction;
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
+        if matches!(action, LocalCodeEditorAction::ReconnectRemote) {
+            if let Some(source) = self
+                .file_path()
+                .and_then(|path| warp_files::FileModel::as_ref(ctx).ssh_source(path))
+            {
+                ctx.spawn(
+                    async move { source.files.reconnect().await },
+                    |_, result, ctx| {
+                        if let Err(error) = result {
+                            ctx.emit(LocalCodeEditorEvent::FailedToSave {
+                                error: Rc::new(FileSaveError::RemoteError(format!(
+                                    "Could not reconnect the original remote file: {error}"
+                                ))),
+                            });
+                        }
+                        ctx.notify();
+                    },
+                );
+            }
+            return;
+        }
         match action {
+            LocalCodeEditorAction::ReconnectRemote => {}
             LocalCodeEditorAction::InsertSelectedTextToInput => {
                 self.insert_selected_text_to_input(ctx);
             }
@@ -2568,7 +2596,7 @@ pub fn render_remote_disconnected_banner(appearance: &Appearance) -> Box<dyn Ele
             Shrinkable::new(
                 1.,
                 Text::new(
-                    "Remote host disconnected. You will not be able to see updates and save changes.",
+                    "Remote host disconnected. Your edits are preserved. Click to reconnect before saving.",
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )

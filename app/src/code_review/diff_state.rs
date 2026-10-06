@@ -373,6 +373,7 @@ pub struct DiffStateModel {
     mode: DiffMode,
     metadata: Option<DiffMetadata>,
     computing_diffs_abort_handle: Option<SpawnedFutureHandle>,
+    ssh_reload_pending: bool,
     computing_metadata_abort_handle: Option<SpawnedFutureHandle>,
     /// Controls whether periodic throttled metadata refresh is active.
     /// Refresh is suppressed when the code review pane is not open.
@@ -434,8 +435,11 @@ impl DiffStateModel {
         ctx: &mut ModelContext<Self>,
     ) {
         use remote_server::proto::{ProjectFileAction, ProjectFilesRequest};
-        if let Some(handle) = self.computing_diffs_abort_handle.take() {
-            handle.abort();
+        // Finish the bounded transfer before changing modes so cancellation does not
+        // disconnect other editors sharing this attachment. Coalesce rapid refreshes.
+        if self.computing_diffs_abort_handle.is_some() {
+            self.ssh_reload_pending = true;
+            return;
         }
         self.state = InternalDiffState::Loading;
         let reference = match &self.mode {
@@ -463,6 +467,8 @@ impl DiffStateModel {
                     changed.retain(|(_, status)| matches!(status, GitFileStatus::Untracked));
                     changed.extend(Self::parse_git_diff_name_status(&status.git_name_status)?);
                 }
+                let initial_status = status.git_output.clone();
+                let initial_head = (reference == "HEAD").then(|| status.git_base.clone());
                 let reference = status.git_base;
 
                 let mut diffs = Vec::new();
@@ -478,11 +484,13 @@ impl DiffStateModel {
                     );
                     let cache = files.cache_path(&absolute)?;
                     let deleted = matches!(status, GitFileStatus::Deleted);
+                    let mut working_hash = None;
                     let content = if deleted {
                         None
                     } else {
                         let (cache, hash) = files.download(&absolute).await?;
                         let bytes = async_fs::read(&cache).await?;
+                        working_hash = Some(hash.clone());
                         registrations.push((absolute.clone(), cache, hash));
                         Some(bytes)
                     };
@@ -523,15 +531,20 @@ impl DiffStateModel {
                                 .collect::<String>()
                         )
                     } else {
-                        files
+                        let patch = files
                             .control(ProjectFilesRequest {
                                 action: ProjectFileAction::ProjectGitDiff as i32,
                                 path: relative.into(),
                                 destination: reference.clone(),
                                 ..Default::default()
                             })
-                            .await?
-                            .git_output
+                            .await?;
+                        if working_hash.as_deref().unwrap_or("") != patch.sha256 {
+                            return Err(anyhow!(
+                                "Remote file changed while loading Review. Refresh to retry."
+                            ));
+                        }
+                        patch.git_output
                     };
                     let hunks = Self::parse_diff_hunks(&patch)?;
                     let max_line_number = hunks
@@ -555,6 +568,19 @@ impl DiffStateModel {
                         content_at_head: base,
                     });
                 }
+                let current = files
+                    .control(ProjectFilesRequest {
+                        action: ProjectFileAction::ProjectGitStatus as i32,
+                        ..Default::default()
+                    })
+                    .await?;
+                if current.git_output != initial_status
+                    || initial_head.is_some_and(|head| head != current.git_base)
+                {
+                    return Err(anyhow!(
+                        "Remote Git status changed while loading Review. Refresh to retry."
+                    ));
+                }
                 let changes = GitDiffWithBaseContent {
                     total_additions: diffs.iter().map(|file| file.file_diff.additions()).sum(),
                     total_deletions: diffs.iter().map(|file| file.file_diff.deletions()).sum(),
@@ -564,6 +590,14 @@ impl DiffStateModel {
                 Ok::<_, anyhow::Error>((changes, registrations))
             },
             move |me, result, ctx| {
+                me.computing_diffs_abort_handle = None;
+                if me.ssh_reload_pending {
+                    me.ssh_reload_pending = false;
+                    if let Some(files) = me.ssh_files.clone() {
+                        me.load_ssh_diffs(files, ctx);
+                    }
+                    return;
+                }
                 if me
                     .ssh_files
                     .as_ref()
@@ -608,6 +642,7 @@ impl DiffStateModel {
             mode: DiffMode::default(),
             metadata: None,
             computing_diffs_abort_handle: None,
+            ssh_reload_pending: false,
             computing_metadata_abort_handle: None,
             metadata_refresh_enabled: false,
         };
@@ -1254,6 +1289,10 @@ impl DiffStateModel {
         ctx: &mut ModelContext<Self>,
     ) {
         if !self.metadata_refresh_enabled {
+            return;
+        }
+        if let Some(files) = self.ssh_files.clone() {
+            self.load_ssh_diffs(files, ctx);
             return;
         }
         let Some(current_repository) = &self.repository else {

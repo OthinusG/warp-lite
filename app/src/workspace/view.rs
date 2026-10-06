@@ -8399,7 +8399,24 @@ impl Workspace {
             return;
         };
 
-        let cd_command = format!("cd {}", shell_words::quote(path_str));
+        let quoted = {
+            #[cfg(feature = "local_fs")]
+            if crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
+                .is_some_and(|(profile, _)| {
+                    matches!(
+                        profile.remote_shell,
+                        warp_agent_bus::ssh_remote::RemoteShell::PowerShell
+                    )
+                })
+            {
+                format!("'{}'", path_str.replace('\'', "''"))
+            } else {
+                shell_words::quote(path_str).into_owned()
+            }
+            #[cfg(not(feature = "local_fs"))]
+            shell_words::quote(path_str).into_owned()
+        };
+        let cd_command = format!("cd {quoted}");
         input_handle.update(ctx, |input_view, ctx| {
             input_view.replace_buffer_content(&cd_command, ctx);
         });

@@ -575,10 +575,11 @@ impl HostClient {
             self.close();
             return Err(ConnectionError::StaleAttachment);
         }
-        let Some(server_message::Message::Managed(ManagedResponse {
-            result: Some(result),
-        })) = response.message
-        else {
+        let Some(server_message::Message::Managed(reply)) = response.message else {
+            self.close();
+            return Err(ConnectionError::IncompatibleVersion);
+        };
+        let Some(result) = reply.result else {
             self.close();
             return Err(ConnectionError::IncompatibleVersion);
         };

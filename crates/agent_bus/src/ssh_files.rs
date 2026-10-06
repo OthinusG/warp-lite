@@ -360,6 +360,27 @@ impl RemoteFiles {
             client.disconnect();
         }
     }
+
+    /// Explicit reconnect preserves the original account and project identity.
+    pub async fn reconnect(&self) -> Result<(), ConnectionError> {
+        let mut previous = self.client.lock().await;
+        let mut replacement = self.connection.connect(&self.profile).await?;
+        if replacement.account_id != previous.account_id
+            || replacement.root_identity != previous.root_identity
+            || replacement.canonical_root != previous.canonical_root
+            || !replacement
+                .capabilities()
+                .iter()
+                .any(|capability| capability == "project_files")
+        {
+            replacement.disconnect();
+            return Err(ConnectionError::StaleAttachment);
+        }
+        previous.disconnect();
+        *previous = replacement;
+        self.connected.store(true, Ordering::Release);
+        Ok(())
+    }
     pub fn relative(&self, path: &str) -> Result<String, ConnectionError> {
         relative_path(
             &self.canonical_root,
@@ -416,7 +437,14 @@ impl RemoteFiles {
                 _ => parts.push(part),
             }
         }
-        let path = format!("{}{}", if windows { "" } else { "/" }, parts.join("/"));
+        let prefix = if windows && joined.starts_with("//") {
+            "//"
+        } else if windows {
+            ""
+        } else {
+            "/"
+        };
+        let path = format!("{prefix}{}", parts.join("/"));
         self.relative(&path)?;
         Ok(path)
     }

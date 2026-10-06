@@ -3320,9 +3320,14 @@ impl View for FileTreeView {
     #[cfg(feature = "local_fs")]
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         if let Some(error) = &self.ssh_error {
-            return self
-                .render_error_state(format!("{error} Click to reconnect."), app)
-                .on_click(|ctx, _, _| ctx.dispatch_typed_action(FileTreeAction::RefreshRemote));
+            return warpui::elements::EventHandler::new(
+                self.render_error_state(format!("{error} Click to reconnect."), app),
+            )
+            .on_left_mouse_up(|ctx, _, _| {
+                ctx.dispatch_typed_action(FileTreeAction::RefreshRemote);
+                warpui::elements::DispatchEventResult::StopPropagation
+            })
+            .finish();
         }
         if self.ssh_in_flight {
             return self.render_loading_state(app);

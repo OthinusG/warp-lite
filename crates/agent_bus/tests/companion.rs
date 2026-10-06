@@ -35,10 +35,10 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
     .unwrap()
     .unwrap();
     assert_eq!(reply.request_id, request_id);
-    let Some(server_message::Message::Managed(ManagedResponse {
-        result: Some(managed_response::Result::Initialized(first)),
-    })) = reply.message
-    else {
+    let Some(server_message::Message::Managed(reply)) = reply.message else {
+        panic!("Expected managed response")
+    };
+    let Some(managed_response::Result::Initialized(first)) = reply.result else {
         panic!("Expected account-service attachment")
     };
     assert_eq!(
@@ -80,11 +80,11 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
     .await
     .unwrap()
     .unwrap();
-    let Some(server_message::Message::Managed(ManagedResponse {
-        result: Some(managed_response::Result::Initialized(second)),
-    })) = reply.message
-    else {
-        panic!("Expected reused account service")
+    let Some(server_message::Message::Managed(reply)) = reply.message else {
+        panic!("Expected managed response")
+    };
+    let Some(managed_response::Result::Initialized(second)) = reply.result else {
+        panic!("Expected account-service attachment")
     };
     let first = first.fence.unwrap();
     let second = second.fence.unwrap();

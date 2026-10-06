@@ -89,6 +89,7 @@ pub struct FileNotebookView {
     retry_button_mouse_state: MouseStateHandle,
     /// Tracks the state for loading the backing Markdown file.
     file_state: FileState,
+    content_generation: u64,
     /// File watcher id for the currently opened file (if any). Only needed when we have local fs
     /// access.
     #[cfg(feature = "local_fs")]
@@ -285,6 +286,7 @@ impl FileNotebookView {
             location: None,
             editor,
             file_state: FileState::NoFile,
+            content_generation: 0,
             retry_button_mouse_state: Default::default(),
             #[cfg(feature = "local_fs")]
             file_id: None,
@@ -327,6 +329,8 @@ impl FileNotebookView {
 
     /// Reset the rich text contents based on the given Markdown content.
     pub fn set_content(&mut self, content: &str, ctx: &mut ViewContext<Self>) {
+        self.content_generation = self.content_generation.wrapping_add(1);
+        let generation = self.content_generation;
         let doc_path = self.file_state.local_path().map(|p| p.to_path_buf());
         #[cfg(feature = "local_fs")]
         if let Some(source) = doc_path
@@ -354,7 +358,7 @@ impl FileNotebookView {
                 }
                 Ok::<_, anyhow::Error>(text)
             }, move |view, result, ctx| {
-                if view.file_state.local_path().map(Path::to_path_buf) != expected_path { return; }
+                if view.content_generation != generation || view.file_state.local_path().map(Path::to_path_buf) != expected_path { return; }
                 match result {
                     Ok(text) => view.editor.update(ctx, |editor, ctx| editor.reset_with_formatted_text(text, ctx)),
                     Err(_) => {
