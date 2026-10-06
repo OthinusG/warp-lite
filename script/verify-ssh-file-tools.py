@@ -43,7 +43,7 @@ def main():
             f'AuthorizedKeysFile "{native}/client.pub"\n'
             'PasswordAuthentication no\nKbdInteractiveAuthentication no\nStrictModes yes\n'
             + ("" if windows else "UsePAM yes\n")
-            + 'Subsystem sftp internal-sftp\n'
+            + ('Subsystem sftp C:/Windows/System32/OpenSSH/sftp-server.exe\n' if windows else 'Subsystem sftp internal-sftp\n')
         )
         config = fixture / "client.conf"
         config.write_text(f'Host warpai-test\n HostName 127.0.0.1\n Port 22222\n User {getpass.getuser()}\n IdentityFile "{native}/client"\n IdentitiesOnly yes\n UserKnownHostsFile "{native}/known_hosts"\n')
