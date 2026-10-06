@@ -46,7 +46,10 @@ def main():
             + ('Subsystem sftp C:/Windows/System32/OpenSSH/sftp-server.exe\n' if windows else 'Subsystem sftp internal-sftp\n')
         )
         config = fixture / "client.conf"
-        config.write_text(f'Host warpai-test\n HostName 127.0.0.1\n Port 22222\n User {getpass.getuser()}\n IdentityFile "{native}/client"\n IdentitiesOnly yes\n UserKnownHostsFile "{native}/known_hosts"\n')
+        host_settings = f' HostName 127.0.0.1\n Port 22222\n User {getpass.getuser()}\n IdentityFile "{native}/client"\n IdentitiesOnly yes\n UserKnownHostsFile "{native}/known_hosts"\n'
+        config.write_text(f'Host warpai-test\n{host_settings}')
+        jump_config = fixture / "jump.conf"
+        jump_config.write_text(f'Host warpai-test\n ProxyJump warpai-bastion\n{host_settings}Host warpai-bastion\n{host_settings}')
         (root / "preview.md").write_text("# Remote project\n\n![Remote image](image.png)\n\n[Open code](example.rs)\n", encoding="utf-8")
         def chunk(kind, data):
             return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
@@ -89,7 +92,11 @@ def main():
                 assert (fixture / "sftp-preview.md").read_bytes() == (root / "preview.md").read_bytes()
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
-                subprocess.run(["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored"], env=env, check=True, timeout=120)
+                test = ["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored"]
+                subprocess.run(test, env=env, check=True, timeout=120)
+                jump_env = dict(env, WARP_TEST_SSH_CONFIG=str(jump_config))
+                subprocess.run(test, env=jump_env, check=True, timeout=120)
+                print("Owned ProxyJump SSH/SFTP file acceptance passed")
                 if args.capture:
                     executable = args.capture.resolve()
                     subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
