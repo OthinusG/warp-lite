@@ -15975,6 +15975,12 @@ impl Workspace {
                 }
             }
         } else {
+            let window = ctx.window_id();
+            ActiveSession::handle(ctx).update(ctx, |active, ctx| {
+                // File-only tabs must not inherit a terminal from another tab.
+                active.set_session_state(window, None, None, None, ctx);
+                active.set_current_directory(window, None, false, ctx);
+            });
             #[cfg(feature = "local_fs")]
             let is_remote = ActiveSession::as_ref(ctx)
                 .file_source(ctx.window_id())
