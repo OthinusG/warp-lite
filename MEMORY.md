@@ -1,5 +1,20 @@
 # Project Memory
 
+## Existing file tools over SSH — 2026-10-06
+
+- Owner clarified the next feature: after ordinary SSH connection and `cd`, the
+  existing file-management, editor/preview and Review surfaces should operate on
+  the remote cwd. Reuse the current frontend panels and interaction patterns;
+  do not design another Explorer, file manager or Review UI.
+- Implementation proposal is in
+  specs/agent-communication-v2/REMOTE-FILE-TOOLS.md. Existing remote repo metadata,
+  FileModel backends and diff rendering are reuse points, but current Companion
+  capabilities lack the file/Git backend and several UI events still carry only
+  local paths. Removing remote guards alone is insufficient. File bytes must use
+  SFTP per AGENTS.md; the old upstream headless remote daemon is not the portable
+  Companion. This checkpoint changes documentation only and claims no runtime
+  acceptance.
+
 ## Agent setup debug — 2026-10-06
 
 - Installed Warpai reports 1.1.0. Isolated temporary-HOME setup using installed
@@ -971,6 +986,16 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   documentation scenarios; use source-matched raw PNGs and update both language
   captions/provenance. Do not recolor screenshots or change the application's
   default theme to compensate for the capture driver's earlier Dark selection.
+
+- User's Warpai product positioning (2026-10-06): present it as an agent-first
+  workflow built on a full-featured terminal, with Agent sessions as the work
+  units and a lead Agent delegating, collecting, reviewing and integrating work.
+  Explain how Agent management, terminal, project files/editor/preview and code
+  review reduce app switching; include research, writing and other non-code
+  workflows, and describe Rust/UI/rendering stack. Avoid user-facing launch/MCP
+  mechanics. Reuse existing README screenshots. Accuracy boundary: the
+  companion-based SSH workflow supports Agent messaging, tasks and task-result
+  reviews; Project Explorer and Git Code Review remain local-workspace tools.
 
 - Collaboration UI polish on 2026-10-04: panel title is now the strongest text role (14px semibold primary); SSH entry uses a Secondary button and shares a row with Refresh; panel spacing uses GAP_TIGHT/ROW/SECTION in panel.rs. MCP settings group agents under an "Agents" sub-header and show legacy-cleanup warnings in ui_warning_color, superseding the earlier ordinary-contrast rule. Native captures/README images must be regenerated on GitHub.
 
