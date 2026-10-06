@@ -215,7 +215,7 @@ pub(super) fn subscribe_to_link_model(
         LinkEvent::OpenFailed(message) => {
             use warpui::SingletonEntity as _;
             let window = ctx.window_id();
-            crate::workspace::toast_stack::ToastStack::handle(ctx).update(ctx, |stack, ctx| {
+            crate::workspace::ToastStack::handle(ctx).update(ctx, |stack, ctx| {
                 stack.add_ephemeral_toast(
                     crate::view_components::DismissibleToast::error(message.clone()),
                     window,

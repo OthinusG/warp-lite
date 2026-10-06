@@ -4063,12 +4063,29 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             |view, app| view.file_path().is_some_and(|path| {
                                 warp_files::FileModel::as_ref(app)
                                     .ssh_source(path)
-                                    .is_some_and(|source| source.path.ends_with("example.rs"))
+                                    .is_some_and(|source| source.path.ends_with("example.rs") && view.editor().as_ref(app).text(app).as_str().contains("Remote changed"))
                             })
                         ))))
                 })
                 .with_take_screenshot("live-ssh-code-editor.png"),
         )
+        .with_step(TestStep::new("edit remote code in existing editor").with_action(|app, window, _| {
+            let views = app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap();
+            let editor = views.iter().find(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)))).unwrap().clone();
+            editor.update(app, |view, ctx| {
+                assert!(view.file_loaded(ctx));
+                view.editor().update(ctx, |editor, ctx| editor.append_at_end("// Native remote UI save\n", ctx));
+                assert!(view.has_unsaved_changes(ctx));
+            });
+        }).with_take_screenshot("live-ssh-code-dirty.png"))
+        .with_step(TestStep::new("save remote code through existing FileModel").with_action(|app, window, _| {
+            let views = app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap();
+            let editor = views.iter().find(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)))).unwrap().clone();
+            editor.update(app, |view, ctx| view.save_local(ctx).expect("Remote editor save starts"));
+        }).add_named_assertion("remote original contains saved editor changes", |app, window| {
+            let remote_path = std::path::PathBuf::from(std::env::var_os("WARP_TEST_REMOTE_ROOT").unwrap()).join("example.rs");
+            warpui::async_assert!(std::fs::read_to_string(remote_path).is_ok_and(|text| text.contains("// Native remote UI save")) && app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).is_some_and(|views| views.iter().any(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)) && !view.has_unsaved_changes(app)))))
+        }).with_take_screenshot("live-ssh-code-saved.png"))
         .with_step(
             TestStep::new("click remote Markdown in existing Explorer").with_action(
                 |app, window, _| {
@@ -4135,6 +4152,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         [
             "live-ssh-file-explorer.png",
             "live-ssh-code-editor.png",
+            "live-ssh-code-dirty.png",
+            "live-ssh-code-saved.png",
             "live-ssh-markdown-preview.png",
             "live-ssh-file-review.png",
         ]

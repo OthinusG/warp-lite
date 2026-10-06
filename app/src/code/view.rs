@@ -1948,8 +1948,11 @@ impl CodeView {
             .tab_group
             .first()
             .and_then(|tab| tab.path.as_ref())
-            .and_then(|path| path.file_name())
-            .map(|name| name.to_string_lossy().to_string())
+            .map(|path| warp_files::FileModel::as_ref(app).display_path(path))
+            .and_then(|path| {
+                path.file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+            })
             .unwrap_or_else(|| "Untitled".to_string());
 
         let appearance = Appearance::as_ref(app);
@@ -2110,10 +2113,15 @@ impl CodeView {
                 MenuItemFields::new("Copy file path")
                     .with_on_select_action(CodeViewAction::CopyFilePath)
                     .into_item(),
-                MenuItemFields::new(reveal_label)
-                    .with_on_select_action(CodeViewAction::RevealInFinder)
-                    .into_item(),
             ]);
+
+            if !warp_files::FileModel::as_ref(ctx).is_ssh_file(&path) {
+                items.push(
+                    MenuItemFields::new(reveal_label)
+                        .with_on_select_action(CodeViewAction::RevealInFinder)
+                        .into_item(),
+                );
+            }
 
             if is_markdown_file(&path) {
                 items.push(

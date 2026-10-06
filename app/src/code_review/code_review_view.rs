@@ -4845,8 +4845,9 @@ impl CodeReviewView {
 
         // When the flag is off, sidebar goes on the left (legacy).
         if !sidebar_on_right && self.file_sidebar_expanded && !state.file_states.is_empty() {
-            sidebar_and_diffs_row
-                .add_child(Container::new(self.render_file_sidebar(state, appearance)).finish());
+            sidebar_and_diffs_row.add_child(
+                Container::new(self.render_file_sidebar(state, appearance, app)).finish(),
+            );
 
             let vertical_separator = ConstrainedBox::new(
                 Rect::new()
@@ -4902,8 +4903,9 @@ impl CodeReviewView {
             .finish();
 
             sidebar_and_diffs_row.add_child(vertical_separator);
-            sidebar_and_diffs_row
-                .add_child(Container::new(self.render_file_sidebar(state, appearance)).finish());
+            sidebar_and_diffs_row.add_child(
+                Container::new(self.render_file_sidebar(state, appearance, app)).finish(),
+            );
         }
 
         Shrinkable::new(1., sidebar_and_diffs_row.finish()).finish()
@@ -4913,13 +4915,14 @@ impl CodeReviewView {
         &self,
         state: &LoadedState,
         appearance: &Appearance,
+        app: &AppContext,
     ) -> Box<dyn Element> {
         let mut column = Flex::column()
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Start);
 
         for (file_index, file_state) in state.file_states.values().enumerate() {
-            let file_row = self.render_file_sidebar_row(file_state, appearance);
+            let file_row = self.render_file_sidebar_row(file_state, appearance, app);
             column.add_child(
                 Hoverable::new(file_state.sidebar_mouse_state.clone(), |mouse_state| {
                     let mut container = Container::new(Shrinkable::new(1., file_row).finish())
@@ -4989,16 +4992,14 @@ impl CodeReviewView {
         &self,
         file_state: &FileState,
         appearance: &Appearance,
+        app: &AppContext,
     ) -> Box<dyn Element> {
-        let file_name = file_state
-            .file_diff
-            .file_path
+        let path = warp_files::FileModel::as_ref(app).display_path(&file_state.file_diff.file_path);
+        let file_name = path
             .file_name()
-            .and_then(|file_name| file_name.to_str())
+            .and_then(|name| name.to_str())
             .unwrap_or_default();
-        let dir_path = file_state
-            .file_diff
-            .file_path
+        let dir_path = path
             .parent()
             .and_then(|parent| parent.to_str())
             .unwrap_or_default();

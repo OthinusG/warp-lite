@@ -1084,7 +1084,16 @@ fn git_review_handles_unborn_rename_delete_binary_conflict_and_worktree() {
     fixture.write("unborn.txt", b"other line\n");
     fixture.git(&["commit", "-am", "other change"]);
     let merge = std::process::Command::new("git")
-        .args(["-c", "core.hooksPath=", "merge", "main"])
+        .args([
+            "-c",
+            "core.hooksPath=",
+            "-c",
+            "user.name=Warpai Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "merge",
+            "main",
+        ])
         .current_dir(fixture.root.path())
         .output()
         .unwrap();
