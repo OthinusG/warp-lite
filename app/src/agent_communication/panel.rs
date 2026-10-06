@@ -214,6 +214,25 @@ struct Snapshot {
     history: Option<HistoryPage>,
 }
 
+impl Snapshot {
+    fn participant_label(&self, id: &str) -> String {
+        if id.is_empty() {
+            return "Unassigned".into();
+        }
+        if id.starts_with("warp:") {
+            return "You".into();
+        }
+        if let Some(row) = self.agents.iter().find(|row| row.agent.id == id) {
+            return row.agent.name.clone();
+        }
+        if uuid::Uuid::parse_str(id).is_ok() {
+            "Unavailable agent".into()
+        } else {
+            id.into()
+        }
+    }
+}
+
 pub(crate) struct CollaborationPanel {
     fixtures: Vec<Fixture>,
     selected: usize,
@@ -539,7 +558,7 @@ impl CollaborationPanel {
                     panel.status = if panel.remote.is_some() { "Connected to the remote project. Agent presence is observed remotely.".into() } else { match snapshot.admission.as_str() {
                         "revoked" => "Participation revoked. Existing effects may still be running; review the mapping and open a fresh shared pane.",
                         "directory_mismatch" => "This pane changed checkout. Its shared native connection is unavailable in this directory; open a fresh pane for the reviewed workspace.",
-                        _ => "Connected to the local coordinator. Execution and presence are separate.",
+                        _ => "Connected.",
                     }.into() };
                     panel.snapshot = Some(snapshot);
                 }
@@ -759,7 +778,7 @@ impl CollaborationPanel {
                         let rows = vec![
                         format!(
                             "Issuer: {} · assignee: {} · reviewer: {}",
-                            task.issuer, task.assignee, task.reviewer
+                            snapshot.participant_label(&task.issuer), snapshot.participant_label(&task.assignee), snapshot.participant_label(&task.reviewer)
                         ),
                         task.wait_reason.clone().unwrap_or_else(|| {
                             "No recorded dependency or delivery blocker.".into()
@@ -1500,14 +1519,17 @@ impl View for CollaborationPanel {
                         body.add_child(
                             builder
                                 .button(ButtonVariant::Text, self.task_buttons[&task.id].clone())
-                                .with_text_label(format!(
-                                    "{}",
-                                    if task.description.is_empty() {
-                                        "Open task"
-                                    } else {
-                                        &task.description
-                                    }
-                                ))
+                                .with_custom_label(
+                                    builder
+                                        .span(if task.description.is_empty() {
+                                            "Open task".to_owned()
+                                        } else {
+                                            task.description.clone()
+                                        })
+                                        .with_soft_wrap()
+                                        .build()
+                                        .finish(),
+                                )
                                 .build()
                                 .on_click(move |ctx, _, _| {
                                     ctx.dispatch_typed_action(Action::SelectTask(id.clone()))
@@ -1516,7 +1538,11 @@ impl View for CollaborationPanel {
                         );
                         body.add_child(
                             builder
-                                .span(format!("{} · {}", task.state, task.assignee))
+                                .span(format!(
+                                    "{} · {}",
+                                    task.state,
+                                    snapshot.participant_label(&task.assignee)
+                                ))
                                 .with_soft_wrap()
                                 .build()
                                 .finish(),
@@ -1524,7 +1550,11 @@ impl View for CollaborationPanel {
                     }
                     let mut buttons = Vec::new();
                     for (label, action, index) in [
-                        ("First task page", Some(Action::FirstTasks), 0),
+                        (
+                            "First task page",
+                            self.query.task_after.map(|_| Action::FirstTasks),
+                            0,
+                        ),
                         (
                             "Next task page",
                             snapshot
@@ -1533,7 +1563,11 @@ impl View for CollaborationPanel {
                                 .map(|_| Action::NextTasks),
                             1,
                         ),
-                        ("First agent page", Some(Action::FirstAgents), 2),
+                        (
+                            "First agent page",
+                            self.query.agent_after.as_ref().map(|_| Action::FirstAgents),
+                            2,
+                        ),
                         (
                             "Next agent page",
                             snapshot.agent_cursor.as_ref().map(|_| Action::NextAgents),
@@ -1595,7 +1629,7 @@ impl View for CollaborationPanel {
             for (label, state, action) in [
                 (
                     format!(
-                        "Task state: {} (next)",
+                        "Task state: {}",
                         self.query.task_state.as_deref().unwrap_or("any")
                     ),
                     self.scope_buttons[4].clone(),
@@ -1603,7 +1637,7 @@ impl View for CollaborationPanel {
                 ),
                 (
                     format!(
-                        "Archived: {} (toggle)",
+                        "Archived: {}",
                         if self.query.include_archived {
                             "included"
                         } else {
@@ -1818,7 +1852,7 @@ impl View for CollaborationPanel {
                 }
             }
         }
-        if !self.preview {
+        if !self.preview && (self.show_spaces || self.query.history) {
             if let Some(snapshot) = &self.snapshot {
                 let mut buttons = Vec::new();
                 for (index, label, action) in [
@@ -4367,6 +4401,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn collaboration_participant_labels_hide_internal_identifiers() {
+        let id = "94cdc52c-48eb-415c-a1f2-355a6be4fbe9";
+        let snapshot: Snapshot = serde_json::from_value(serde_json::json!({
+            "project": "/project", "agents": [{"agent": {"id": id, "terminal": "terminal", "name": "Reviewer", "program": "codex", "project": "/project"}, "online": true, "blocked": false, "paused": false, "ready": true}],
+            "tasks": [], "events": [], "admission": "active", "spaces": [], "reservations": [], "messages": []
+        })).unwrap();
+        assert_eq!(snapshot.participant_label(id), "Reviewer");
+        assert_eq!(snapshot.participant_label("warp:/project"), "You");
+        assert_eq!(snapshot.participant_label(""), "Unassigned");
+        assert_eq!(
+            snapshot.participant_label("3479c354-aac2-4ce9-975b-d7aa525c488d"),
+            "Unavailable agent"
+        );
+        assert_eq!(
+            snapshot.participant_label("Legacy reviewer"),
+            "Legacy reviewer"
+        );
+    }
     #[test]
     fn collaboration_fixtures_cover_required_states_and_long_content() {
         let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(

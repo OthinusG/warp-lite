@@ -807,7 +807,10 @@ impl CodeView {
             .is_some_and(|t| t.editor_view.as_ref(ctx).is_new_file());
 
         let title = if let Some(file) = file {
-            file.display().to_string()
+            warp_files::FileModel::as_ref(ctx)
+                .display_path(&file)
+                .display()
+                .to_string()
         } else {
             "Untitled".to_string()
         };

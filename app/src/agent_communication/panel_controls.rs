@@ -806,7 +806,7 @@ impl CollaborationPanel {
                     _ => {}
                 }
             }
-            body.add_child(heading(appearance, "Human controls"));
+            body.add_child(heading(appearance, "Actions"));
             let mut buttons = Vec::new();
             for (index, kind) in kinds.into_iter().enumerate() {
                 let button = builder
@@ -829,7 +829,7 @@ impl CollaborationPanel {
             if let Some(buttons) = button_row(buttons) {
                 body.add_child(buttons);
             }
-            body.add_child(note(appearance, "Cancellation requests do not stop the CLI process. Native approvals and terminal drafts remain under your control."));
+            body.add_child(note(appearance, "Task cancellation leaves the terminal running. Agent approvals stay in the terminal."));
         }
         body.finish()
     }
