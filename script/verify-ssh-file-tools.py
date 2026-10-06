@@ -80,6 +80,13 @@ def main():
                     reason = ", ".join(reasons) or ("connection refused" if b"refused" in probe.stderr.lower() else "authentication rejected")
                     raise RuntimeError(f"Owned loopback SSH failed: {reason}")
                 env = os.environ.copy()
+                batch = f'get "{root.as_posix()}/preview.md" "{fixture.as_posix()}/sftp-preview.md"\n'
+                transfer = subprocess.run(["sftp", "-F", str(config), "-b", "-", "warpai-test"], input=batch.encode(), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=30)
+                if transfer.returncode:
+                    output = transfer.stderr.lower()
+                    labels = [label for marker, label in [(b"subsystem", "subsystem"), (b"permission denied", "permission"), (b"no such file", "path"), (b"not found", "path"), (b"connection", "connection")] if marker in output]
+                    raise RuntimeError("Owned native SFTP failed: " + ", ".join(sorted(set(labels))))
+                assert (fixture / "sftp-preview.md").read_bytes() == (root / "preview.md").read_bytes()
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
                 subprocess.run(["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored"], env=env, check=True, timeout=120)

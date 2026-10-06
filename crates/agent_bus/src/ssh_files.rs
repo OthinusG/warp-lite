@@ -285,11 +285,16 @@ fn cache_path(directory: &Path, relative: &str) -> Result<PathBuf, ConnectionErr
 }
 
 async fn transfer_batch(mut command: Command, batch: &str) -> Result<(), ConnectionError> {
+    let diagnose = cfg!(debug_assertions) && std::env::var_os("WARP_TEST_SSH_CONFIG").is_some();
     command.kill_on_drop(true);
     let mut child = command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(if diagnose {
+            std::process::Stdio::piped()
+        } else {
+            std::process::Stdio::null()
+        })
         .spawn()
         .map_err(|_| ConnectionError::SshUnavailable)?;
     tokio::time::timeout(std::time::Duration::from_secs(30), async {
@@ -299,13 +304,34 @@ async fn transfer_batch(mut command: Command, batch: &str) -> Result<(), Connect
             .await
             .map_err(|_| ConnectionError::ConnectionLost)?;
         drop(input);
-        let status = child
-            .wait()
-            .await
-            .map_err(|_| ConnectionError::ConnectionLost)?;
+        let stderr = child.stderr.take();
+        let (status, diagnostic) = tokio::join!(child.wait(), async {
+            use tokio::io::AsyncReadExt;
+            let mut bytes = Vec::new();
+            if let Some(stderr) = stderr {
+                let _ = stderr.take(4096).read_to_end(&mut bytes).await;
+            }
+            bytes
+        });
+        let status = status.map_err(|_| ConnectionError::ConnectionLost)?;
         if status.success() {
             Ok(())
         } else {
+            if diagnose {
+                let diagnostic = String::from_utf8_lossy(&diagnostic).to_lowercase();
+                for (marker, label) in [
+                    ("subsystem", "subsystem"),
+                    ("permission denied", "permission"),
+                    ("no such file", "path"),
+                    ("connection", "connection"),
+                    ("invalid command", "batch syntax"),
+                    ("invalid argument", "argument"),
+                ] {
+                    if diagnostic.contains(marker) {
+                        eprintln!("Owned SFTP failure category: {label}");
+                    }
+                }
+            }
             Err(ConnectionError::ConnectionLost)
         }
     })
