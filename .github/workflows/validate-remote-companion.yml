@@ -41,6 +41,10 @@ jobs:
         run: |
           choco install protoc innosetup -y
           echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
+      - name: Prepare native Windows SSH acceptance server
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
       - name: Verify shared control wire without desktop dependencies
         run: cargo test -p remote_protocol --locked
       - name: Lint shared control wire
@@ -63,6 +67,9 @@ jobs:
           cargo test -p warp-agent-bus --lib storage::tests --locked
           cargo test -p warp-agent-bus --test coordination --locked
           cargo test -p warp-agent-bus --test local_spaces --locked
+      - name: Verify native SSH and SFTP file tools
+        if: runner.os != 'Linux'
+        run: python script/verify-ssh-file-tools.py
       - name: Verify real controlled SSH companion on Linux
         if: runner.os == 'Linux'
         env:
@@ -136,7 +143,7 @@ jobs:
           digest = hashlib.sha256(binary.read_bytes()).hexdigest()
           (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
           version = subprocess.check_output([str(binary.resolve()), '--version'], text=True).strip()
-          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'managed_agent', 'project_tasks', 'project_mcp'], 'sha256': digest}, indent=2) + '\n')
+          (output / 'manifest.json').write_text(json.dumps({'source': os.environ['GITHUB_SHA'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'debug', 'capabilities': ['project_open', 'managed_agent', 'project_tasks', 'project_mcp', 'project_files', 'project_git_review'], 'sha256': digest}, indent=2) + '\n')
           for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL']:
               shutil.copy2(notice, output / notice)
           PY

@@ -48,7 +48,8 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "managed_agent",
             "project_tasks",
             "project_mcp",
-            "project_files"
+            "project_files",
+            "project_git_review"
         ]
     );
     input.get_mut().shutdown().await.unwrap();

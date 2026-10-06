@@ -4009,6 +4009,137 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         ]
         .map(str::to_owned),
     );
+    driver = driver
+        .with_step(
+            TestStep::new("connect existing Explorer to owned SSH project").with_action(
+                |app, window, _| {
+                    let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.handle_action_with_force_open(
+                            &LeftPanelAction::ProjectExplorer,
+                            false,
+                            ctx,
+                        )
+                    });
+                    let tree = app
+                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
+                        .unwrap()[0]
+                        .clone();
+                    tree.update(app, |tree, ctx| tree.connect_ssh_checkpoint(ctx));
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remote Explorer uses native file rows")
+                .add_named_assertion("owned remote tree populated", |app, window| {
+                    warpui::async_assert!(app
+                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
+                        .is_some_and(|trees| trees
+                            .iter()
+                            .any(|tree| tree.read(app, |tree, _| tree.ssh_checkpoint_ready()))))
+                })
+                .with_take_screenshot("live-ssh-file-explorer.png"),
+        )
+        .with_step(
+            TestStep::new("click remote code in existing Explorer").with_action(
+                |app, window, _| {
+                    let tree = app
+                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
+                        .unwrap()[0]
+                        .clone();
+                    tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("example.rs", ctx));
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remote code opens in existing app editor")
+                .add_named_assertion("editor retains original SSH save source", |app, window| {
+                    warpui::async_assert!(app
+                        .views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(
+                            window
+                        )
+                        .is_some_and(|views| views.iter().any(|view| view.read(
+                            app,
+                            |view, app| view.file_path().is_some_and(|path| {
+                                warp_files::FileModel::as_ref(app)
+                                    .ssh_source(path)
+                                    .is_some_and(|source| source.path.ends_with("example.rs"))
+                            })
+                        ))))
+                })
+                .with_take_screenshot("live-ssh-code-editor.png"),
+        )
+        .with_step(
+            TestStep::new("click remote Markdown in existing Explorer").with_action(
+                |app, window, _| {
+                    let tree = app
+                        .views_of_type::<crate::code::file_tree::FileTreeView>(window)
+                        .unwrap()[0]
+                        .clone();
+                    tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("preview.md", ctx));
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remote Markdown renders with transferred relative image")
+                .add_named_assertion(
+                    "in-app preview and remote resource loaded",
+                    |app, window| {
+                        warpui::async_assert!(app
+                            .views_of_type::<crate::notebooks::file::FileNotebookView>(window)
+                            .is_some_and(|views| views
+                                .iter()
+                                .any(|view| view
+                                    .read(app, |view, app| view.ssh_checkpoint_ready(app)))))
+                    },
+                )
+                .with_take_screenshot("live-ssh-markdown-preview.png"),
+        )
+        .with_step(
+            TestStep::new("connect existing Review to owned SSH repository").with_action(
+                |app, window, _| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx)
+                    });
+                    let panel = app
+                        .views_of_type::<crate::workspace::view::right_panel::RightPanelView>(
+                            window,
+                        )
+                        .unwrap()[0]
+                        .clone();
+                    panel.update(app, |panel, ctx| panel.connect_ssh_checkpoint(ctx));
+                },
+            ),
+        )
+        .with_step(
+            TestStep::new("remote changes render in existing Review")
+                .add_named_assertion("remote Review has one changed file", |app, window| {
+                    warpui::async_assert!(app
+                        .views_of_type::<crate::code_review::code_review_view::CodeReviewView>(
+                            window
+                        )
+                        .is_some_and(|views| views.iter().any(|view| view.read(
+                            app,
+                            |view, app| view.diff_state_model().as_ref(app).is_ssh()
+                                && view
+                                    .loaded_diff_stats()
+                                    .is_some_and(|stats| stats.files_changed == 1)
+                        ))))
+                })
+                .with_take_screenshot("live-ssh-file-review.png"),
+        );
+    filenames.extend(
+        [
+            "live-ssh-file-explorer.png",
+            "live-ssh-code-editor.png",
+            "live-ssh-markdown-preview.png",
+            "live-ssh-file-review.png",
+        ]
+        .map(str::to_owned),
+    );
     driver = driver.with_step(
         TestStep::new("close on-demand tasks without changing the terminal draft")
             .with_action(|app, window, _| {

@@ -236,6 +236,28 @@ pub fn init(app: &mut AppContext) {
 }
 
 impl FileNotebookView {
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn ssh_checkpoint_ready(&self, app: &AppContext) -> bool {
+        let Some(path) = self
+            .file_state
+            .local_path()
+            .filter(|_| matches!(self.file_state, FileState::Loaded(_)))
+        else {
+            return false;
+        };
+        FileModel::as_ref(app)
+            .ssh_source(path)
+            .is_some_and(|source| {
+                source.path.ends_with("preview.md")
+                    && source
+                        .files
+                        .cache_path(&format!(
+                            "{}/image.svg",
+                            source.files.canonical_root.trim_end_matches('/')
+                        ))
+                        .is_ok_and(|cache| cache.is_file())
+            })
+    }
     /// Create a new file notebook view, with no open file.
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
         let window_id = ctx.window_id();

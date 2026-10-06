@@ -40,6 +40,10 @@ jobs:
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Prepare Windows protobuf compiler
         run: choco install protoc -y
+      - name: Prepare native Windows SSH acceptance server
+        if: ${{ inputs.capture_ui }}
+        shell: pwsh
+        run: Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
       - name: Verify representative history and indexed query budget
@@ -104,7 +108,7 @@ jobs:
         run: |
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/.warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
-          $captureProcess = Start-Process -FilePath "$PWD/target/debug/warpai.exe" -WorkingDirectory "$PWD/target/debug" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
           # Keep only panic source locations, never the raw application log or payload.
           $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
@@ -118,7 +122,7 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          $expectedImages = $fixtureCount * 8 + 59
+          $expectedImages = $fixtureCount * 8 + 63
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && inputs.capture_ui }}
@@ -231,7 +235,7 @@ jobs:
           ordinary_before=0
           if [[ -e "$ordinary_marker" ]]; then ordinary_before=1; fi
           capture_exit=0
-          WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
+          python3 script/verify-ssh-file-tools.py --capture WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
           if [[ "$ordinary_before" == 0 ]]; then test ! -e "$ordinary_marker"; fi
           python3 script/test-native-capture-diagnostic.py
           python3 script/native-capture-diagnostic.py --log "$RUNNER_TEMP/collaboration-capture.log" --output "$WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code "$capture_exit"
@@ -242,7 +246,7 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = len(fixtures) * 8 + 59
+          expected = len(fixtures) * 8 + 63
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures

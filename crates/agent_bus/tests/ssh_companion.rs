@@ -479,7 +479,14 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
     use remote_protocol::proto::{ProjectFileAction, ProjectFilesRequest};
     use warp_agent_bus::ssh_remote::ConnectionError;
     let directory = format!("file-check-{}", Uuid::new_v4());
-    let name = format!("{directory}/literal ' [1]*? 多语言.md");
+    let name = format!(
+        "{directory}/{}",
+        if cfg!(windows) {
+            "literal ' [1] 多语言.md"
+        } else {
+            "literal ' [1]*? 多语言.md"
+        }
+    );
     let control = |action, path: &str| ProjectFilesRequest {
         action: action as i32,
         path: path.into(),
@@ -516,6 +523,17 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
     assert!(files
         .document_link(&absolute, "../../../outside.md")
         .is_err());
+    assert_eq!(
+        files
+            .document_link(&absolute, "linked%20image.svg#figure")
+            .unwrap(),
+        files.document_link(&absolute, "linked image.svg").unwrap()
+    );
+    assert!(files.document_link(&absolute, "%00.md").is_err());
+    assert!(files
+        .document_link(&absolute, "%2e%2e/%2e%2e/%2e%2e/outside")
+        .is_err());
+
     files.disconnect();
     assert_eq!(
         files.download(&absolute).await.unwrap_err(),
@@ -555,4 +573,32 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
         files.download(&absolute).await.unwrap_err(),
         ConnectionError::NotFound
     );
+}
+
+#[tokio::test]
+#[ignore = "requires the controlled OpenSSH fixture"]
+async fn native_ssh_file_tools_save_conflict_preview_resources_and_reconnect() {
+    use warp_agent_bus::ssh_files::{RemoteFiles, SshConnection};
+    let config = std::env::var("WARP_TEST_SSH_CONFIG").expect("Controlled SSH config");
+    let profile = SshProfile {
+        target: "warpai-test".into(),
+        config_file: None,
+        remote_root: std::env::var("WARP_TEST_REMOTE_ROOT").unwrap(),
+        companion_path: std::env::var("WARP_TEST_COMPANION_PATH").unwrap(),
+        remote_shell: if cfg!(windows) {
+            RemoteShell::PowerShell
+        } else {
+            RemoteShell::Posix
+        },
+    };
+    let files = RemoteFiles::connect(
+        profile,
+        SshConnection::Native {
+            arguments: vec!["-F".into(), config, "warpai-test".into()],
+            session: "owned-native-file-fixture".into(),
+        },
+    )
+    .await
+    .unwrap();
+    controlled_remote_files(&files).await;
 }

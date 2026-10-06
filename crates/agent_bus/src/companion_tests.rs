@@ -191,7 +191,8 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "managed_agent",
             "project_tasks",
             "project_mcp",
-            "project_files"
+            "project_files",
+            "project_git_review"
         ]
     );
     let mut fence = initialized.fence.unwrap();

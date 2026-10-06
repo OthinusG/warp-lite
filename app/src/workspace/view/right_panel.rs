@@ -506,24 +506,58 @@ impl RightPanelView {
             if me.ssh_selection != key || current != key { return; }
             match result {
                 Ok(files) => {
-                    let cache_root = files.cache_path(&format!("{}/review", files.canonical_root.trim_end_matches('/'))).ok().and_then(|path| path.parent().map(PathBuf::from));
-                    let model = ctx.add_model(|ctx| {
-                        let mut model = crate::code_review::diff_state::DiffStateModel::new(None, ctx);
-                        model.set_ssh_files(files);
-                        model
-                    });
-                    let view = ctx.add_typed_action_view(|ctx| CodeReviewView::new(cache_root.clone(), model, None, None, ctx));
-                    let bound_selection = key.clone();
-                    ctx.subscribe_to_view(&view, move |me, view, event, ctx| {
-                        if me.ssh_selection == bound_selection { me.handle_code_review_event(&view, event, ctx); }
-                    });
-                    view.update(ctx, |view, ctx| view.on_open(cache_root, ctx));
-                    me.ssh_review = Some(view);
+                    me.attach_ssh_review(files, ctx);
                 }
                 Err(error) => me.ssh_error = Some(format!("Remote Review unavailable: {error}. Check Git and Warpai Companion on the remote host.")),
             }
             ctx.notify();
         });
+    }
+
+    #[cfg(feature = "local_fs")]
+    fn attach_ssh_review(
+        &mut self,
+        files: Arc<warp_agent_bus::ssh_files::RemoteFiles>,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let cache_root = files
+            .cache_path(&format!(
+                "{}/review",
+                files.canonical_root.trim_end_matches('/')
+            ))
+            .ok()
+            .and_then(|path| path.parent().map(PathBuf::from));
+        let model = ctx.add_model(|ctx| {
+            let mut model = crate::code_review::diff_state::DiffStateModel::new(None, ctx);
+            model.set_ssh_files(files);
+            model
+        });
+        let view = ctx.add_typed_action_view(|ctx| {
+            CodeReviewView::new(cache_root.clone(), model, None, None, ctx)
+        });
+        let bound_selection = self.ssh_selection.clone();
+        ctx.subscribe_to_view(&view, move |me, view, event, ctx| {
+            if me.ssh_selection == bound_selection {
+                me.handle_code_review_event(&view, event, ctx);
+            }
+        });
+        view.update(ctx, |view, ctx| view.on_open(cache_root, ctx));
+        self.ssh_review = Some(view);
+    }
+
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn connect_ssh_checkpoint(&mut self, ctx: &mut ViewContext<Self>) {
+        self.code_review_session_env = Some(CodeReviewSessionEnv {
+            is_remote: true,
+            is_wsl: false,
+        });
+        ctx.spawn(
+            warp_agent_bus::ssh_files::RemoteFiles::connect_fixture(),
+            |view, result, ctx| {
+                view.attach_ssh_review(result.expect("Owned SSH Review attachment"), ctx);
+                ctx.notify();
+            },
+        );
     }
 
     pub fn selected_repo_path(&self) -> Option<&PathBuf> {

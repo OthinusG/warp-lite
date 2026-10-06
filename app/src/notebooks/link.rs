@@ -342,28 +342,13 @@ impl NotebookLinks {
                         ))
                     },
                     |me, result, ctx| {
-                        if let Ok((source, path, cache, hash, session)) = result {
-                            if warp_files::FileModel::handle(ctx)
-                                .update(ctx, |model, _| {
-                                    model.register_ssh_file(
-                                        source.files.clone(),
-                                        path,
-                                        cache.clone(),
-                                        hash,
-                                    )
-                                })
-                                .is_ok()
-                            {
-                                me.open(
-                                    LinkTarget::LocalFile {
-                                        is_markdown: is_markdown_file(&cache),
-                                        path: cache,
-                                        line_and_column: None,
-                                        session,
-                                    },
-                                    ctx,
-                                );
-                            }
+                        let result = result.map_err(|error| error.to_string()).and_then(|(source, path, cache, hash, session)| {
+                            warp_files::FileModel::handle(ctx).update(ctx, |model, _| model.register_ssh_file(source.files.clone(), path, cache.clone(), hash)).map_err(|error| error.to_string())?;
+                            Ok((cache, session))
+                        });
+                        match result {
+                            Ok((cache, session)) => me.open(LinkTarget::LocalFile { is_markdown: is_markdown_file(&cache), path: cache, line_and_column: None, session }, ctx),
+                            Err(error) => ctx.emit(LinkEvent::OpenFailed(format!("Remote link could not open: {error}. Check the connection and file path."))),
                         }
                     },
                 );
@@ -561,6 +546,7 @@ impl fmt::Display for ResolveError {
 
 #[derive(Debug, Clone)]
 pub enum LinkEvent {
+    OpenFailed(String),
     /// Emitted when the view should open a Markdown file as a notebook.
     OpenFileNotebook {
         path: PathBuf,
@@ -571,7 +557,9 @@ pub enum LinkEvent {
     },
     /// This event tells the parent pane group to open a new terminal session in the given
     /// directory.
-    StartLocalSession { path: PathBuf },
+    StartLocalSession {
+        path: PathBuf,
+    },
     /// Signal to views that they should re-resolve links because the backing context for
     /// resolution has changed.
     RefreshLinks,

@@ -296,6 +296,23 @@ impl Fixture {
             fence: opened.fence.unwrap(),
         }
     }
+    fn git(&self, arguments: &[&str]) -> String {
+        let output = std::process::Command::new("git")
+            .args([
+                "-c",
+                "core.hooksPath=",
+                "-c",
+                "user.name=Warpai Fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+            ])
+            .args(arguments)
+            .current_dir(self.root.path())
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "Controlled Git fixture failed");
+        String::from_utf8(output.stdout).unwrap()
+    }
     fn call(
         companion: &mut Companion,
         operation: managed_request::Operation,
@@ -1001,4 +1018,105 @@ fn git_review_uses_native_status_patch_and_immutable_sftp_base() {
     release.transfer_id = base.transfer_id;
     fixture.execute(release).unwrap();
     assert!(!Path::new(&base.transfer_path).exists());
+}
+
+#[test]
+fn git_review_handles_unborn_rename_delete_binary_conflict_and_worktree() {
+    let mut fixture = Fixture::new();
+    assert!(fixture
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .is_err());
+    fixture.git(&["init", "--initial-branch=main"]);
+    fixture.write("unborn.txt", b"first\n");
+    let unborn = fixture
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .unwrap();
+    assert!(unborn.git_base.is_empty());
+    assert!(unborn.git_output.contains("? unborn.txt"));
+    fixture.write("delete.txt", b"delete\n");
+    fixture.write("rename.txt", b"rename\n");
+    fixture.write("binary.dat", b"\0binary\xff");
+    fixture.git(&["add", "--", "."]);
+    fixture.git(&["commit", "-m", "fixture base"]);
+    fixture.git(&["mv", "--", "rename.txt", "renamed.txt"]);
+    fixture.git(&["rm", "--", "delete.txt"]);
+    fixture.write("binary.dat", b"\0changed\xff");
+    let status = fixture
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .unwrap();
+    assert_eq!(
+        status.git_output,
+        fixture.git(&[
+            "status",
+            "--porcelain=2",
+            "-z",
+            "--untracked-files=all",
+            "--",
+            "."
+        ])
+    );
+    for path in ["delete.txt", "renamed.txt", "binary.dat"] {
+        let patch = fixture
+            .run(ProjectFileAction::ProjectGitDiff, path)
+            .unwrap();
+        assert_eq!(
+            patch.git_output,
+            fixture.git(&[
+                "diff",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-color",
+                "HEAD",
+                "--",
+                path
+            ])
+        );
+    }
+    let mut missing = fixture.query(ProjectFileAction::ProjectGitStatus, "");
+    missing.destination = "missing-comparison".into();
+    assert!(fixture.execute(missing).is_err());
+    fixture.git(&["add", "--", "."]);
+    fixture.git(&["commit", "-m", "fixture changes"]);
+    fixture.git(&["branch", "other"]);
+    fixture.write("unborn.txt", b"main line\n");
+    fixture.git(&["commit", "-am", "main change"]);
+    fixture.git(&["checkout", "other"]);
+    fixture.write("unborn.txt", b"other line\n");
+    fixture.git(&["commit", "-am", "other change"]);
+    let merge = std::process::Command::new("git")
+        .args(["-c", "core.hooksPath=", "merge", "main"])
+        .current_dir(fixture.root.path())
+        .output()
+        .unwrap();
+    assert!(!merge.status.success());
+    let conflict = fixture
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .unwrap();
+    assert_eq!(
+        conflict.git_output,
+        fixture.git(&[
+            "status",
+            "--porcelain=2",
+            "-z",
+            "--untracked-files=all",
+            "--",
+            "."
+        ])
+    );
+    assert!(conflict.git_output.contains("u UU"));
+    fixture.git(&["merge", "--abort"]);
+    let worktree = Fixture::new();
+    fixture.git(&[
+        "worktree",
+        "add",
+        "--detach",
+        worktree.root.path().to_str().unwrap(),
+        "HEAD",
+    ]);
+    let mut worktree = worktree;
+    let status = worktree
+        .run(ProjectFileAction::ProjectGitStatus, "")
+        .unwrap();
+    assert_eq!(status.git_base, worktree.git(&["rev-parse", "HEAD"]).trim());
+    assert!(status.git_output.is_empty());
 }

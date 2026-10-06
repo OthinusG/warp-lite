@@ -321,6 +321,33 @@ impl std::fmt::Debug for RemoteFiles {
     }
 }
 impl RemoteFiles {
+    /// Connect only to the explicitly provisioned native acceptance server.
+    #[cfg(debug_assertions)]
+    pub async fn connect_fixture() -> Result<Arc<Self>, ConnectionError> {
+        let value = |name| std::env::var(name).map_err(|_| ConnectionError::InvalidProfile);
+        Self::connect(
+            SshProfile {
+                target: "warpai-test".into(),
+                config_file: None,
+                remote_root: value("WARP_TEST_REMOTE_ROOT")?,
+                companion_path: value("WARP_TEST_COMPANION_PATH")?,
+                remote_shell: if cfg!(windows) {
+                    super::ssh_remote::RemoteShell::PowerShell
+                } else {
+                    super::ssh_remote::RemoteShell::Posix
+                },
+            },
+            SshConnection::Native {
+                arguments: vec![
+                    "-F".into(),
+                    value("WARP_TEST_SSH_CONFIG")?,
+                    "warpai-test".into(),
+                ],
+                session: "owned-native-file-fixture".into(),
+            },
+        )
+        .await
+    }
     pub async fn connect(
         profile: SshProfile,
         connection: SshConnection,
@@ -400,6 +427,20 @@ impl RemoteFiles {
         if link.contains('\0') || link.len() > 4096 || link.contains("://") {
             return Err(ConnectionError::InvalidInput);
         }
+        let link = link.split('#').next().unwrap_or(link);
+        let mut decoded = Vec::with_capacity(link.len());
+        let mut bytes = link.as_bytes().iter().copied();
+        while let Some(byte) = bytes.next() {
+            if byte == b'%' {
+                let high = bytes.next().and_then(|byte| (byte as char).to_digit(16));
+                let low = bytes.next().and_then(|byte| (byte as char).to_digit(16));
+                let (high, low) = high.zip(low).ok_or(ConnectionError::InvalidInput)?;
+                decoded.push((high * 16 + low) as u8);
+            } else {
+                decoded.push(byte);
+            }
+        }
+        let link = String::from_utf8(decoded).map_err(|_| ConnectionError::InvalidInput)?;
         let windows = matches!(
             self.profile.remote_shell,
             super::ssh_remote::RemoteShell::PowerShell
@@ -412,7 +453,7 @@ impl RemoteFiles {
         let link = if windows {
             link.replace('\\', "/")
         } else {
-            link.into()
+            link
         };
         let joined = if link.starts_with('/') || (windows && link.as_bytes().get(1) == Some(&b':'))
         {

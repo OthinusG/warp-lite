@@ -117,6 +117,7 @@ impl Companion {
                         "project_tasks".into(),
                         "project_mcp".into(),
                         "project_files".into(),
+                        "project_git_review".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))

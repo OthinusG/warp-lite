@@ -476,6 +476,11 @@ impl HostClient {
         if !self.capabilities.iter().any(|c| c == "project_files") {
             return Err(ConnectionError::FeatureUnavailable);
         }
+        if query.action >= ProjectFileAction::ProjectGitStatus as i32
+            && !self.capabilities.iter().any(|c| c == "project_git_review")
+        {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         query.fence = self.fence.clone();
         let generation = query.query_generation;
         let reply = self
