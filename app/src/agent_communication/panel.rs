@@ -4108,9 +4108,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             let editor = views.iter().find(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)))).unwrap().clone();
             editor.update(app, |view, ctx| {
                 assert!(view.file_loaded(ctx));
-                view.editor().update(ctx, |editor, ctx| editor.append_at_end("// Native remote UI save\n", ctx));
-                assert!(view.has_unsaved_changes(ctx));
+                view.editor().update(ctx, |editor, ctx| {
+                    let offset = editor.cursor_head_offset(ctx);
+                    editor.apply_edits(vec1::vec1![("// Native remote UI save\n".to_string(), offset..offset)], ctx);
+                });
             });
+        }).add_named_assertion("user edit marks remote buffer dirty", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).is_some_and(|views| views.iter().any(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)) && view.has_unsaved_changes(app)))))
         }).with_take_screenshot("live-ssh-code-dirty.png"))
         .with_step(TestStep::new("save remote code through existing FileModel").with_action(|app, window, _| {
             let views = app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap();

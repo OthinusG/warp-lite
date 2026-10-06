@@ -34,9 +34,36 @@ struct WindowActiveSession {
     terminal_view_id: Option<EntityId>,
     current_directory: Option<String>,
     remote_pending: bool,
+    #[cfg(not(target_family = "wasm"))]
+    file_source: Option<Arc<warp_files::SshFile>>,
 }
 
 impl ActiveSession {
+    #[cfg(not(target_family = "wasm"))]
+    pub(crate) fn file_source(&self, window: WindowId) -> Option<&Arc<warp_files::SshFile>> {
+        self.window_sessions.get(&window)?.file_source.as_ref()
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    pub(super) fn set_file_source(
+        &mut self,
+        window: WindowId,
+        source: Option<Arc<warp_files::SshFile>>,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        let state = self.window_sessions.entry(window).or_default();
+        if state
+            .file_source
+            .as_ref()
+            .zip(source.as_ref())
+            .is_some_and(|(old, new)| Arc::ptr_eq(old, new))
+            || (state.file_source.is_none() && source.is_none())
+        {
+            return;
+        }
+        state.file_source = source;
+        ctx.notify();
+    }
     /// The workspace's active session, if there is one.
     pub fn session(&self, window_id: WindowId) -> Option<Arc<Session>> {
         self.window_sessions

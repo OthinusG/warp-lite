@@ -14380,6 +14380,17 @@ impl Workspace {
             .into_iter()
             .chain(notebook_local_paths)
             .chain(code_diff_local_paths)
+            .filter(|(_, path)| {
+                #[cfg(feature = "local_fs")]
+                {
+                    !warp_files::FileModel::as_ref(ctx).is_ssh_file(Path::new(path))
+                }
+                #[cfg(not(feature = "local_fs"))]
+                {
+                    let _ = path;
+                    true
+                }
+            })
             .collect();
 
         // Get the focused terminal ID to prioritize it in the repo_to_terminal map
@@ -15814,6 +15825,30 @@ impl Workspace {
     /// Update the active session model state.
     fn update_active_session(&mut self, ctx: &mut ViewContext<Self>) {
         let pane_group_handle = self.active_tab_pane_group();
+        #[cfg(feature = "local_fs")]
+        {
+            let group = pane_group_handle.as_ref(ctx);
+            let source = if group.active_session_view(ctx).is_none() {
+                let focused = group.focused_pane_id(ctx);
+                let path = group
+                    .code_view_from_pane_id(focused, ctx)
+                    .and_then(|view| view.as_ref(ctx).local_path(ctx))
+                    .or_else(|| {
+                        group.file_notebook_panes(ctx).find_map(|(id, view)| {
+                            (id == focused)
+                                .then(|| view.as_ref(ctx).local_path())
+                                .flatten()
+                        })
+                    });
+                path.and_then(|path| warp_files::FileModel::as_ref(ctx).ssh_source(&path))
+            } else {
+                None
+            };
+            let window = ctx.window_id();
+            ActiveSession::handle(ctx).update(ctx, |active, ctx| {
+                active.set_file_source(window, source, ctx)
+            });
+        }
         let file_tree_and_global_search_are_enabled = {
             #[cfg(feature = "local_fs")]
             {
@@ -15940,11 +15975,17 @@ impl Workspace {
                 }
             }
         } else {
+            #[cfg(feature = "local_fs")]
+            let is_remote = ActiveSession::as_ref(ctx)
+                .file_source(ctx.window_id())
+                .is_some();
+            #[cfg(not(feature = "local_fs"))]
+            let is_remote = false;
             let enablement = CodingPanelEnablementState::from_session_env(
                 file_tree_and_global_search_are_enabled,
+                is_remote,
                 false,
-                false,
-                false,
+                is_remote,
             );
 
             self.left_panel_view.update(ctx, |left_panel, ctx| {
@@ -15954,7 +15995,7 @@ impl Workspace {
             #[cfg(feature = "local_fs")]
             {
                 self.right_panel_view.update(ctx, |right_panel, ctx| {
-                    right_panel.update_session_env(false, false, ctx);
+                    right_panel.update_session_env(is_remote, false, ctx);
                 });
             }
         }

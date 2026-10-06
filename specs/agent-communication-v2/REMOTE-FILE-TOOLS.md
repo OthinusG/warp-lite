@@ -110,6 +110,12 @@ client still used by another file or Agent. Share resolution and lifecycle, not
 the collaboration panel's refresh state. Stop background work when tools/files
 no longer need it.
 
+Editor-only and Markdown-only tabs select the original SSH attachment from the
+focused file. Their cache paths must never become local working directories or
+Explorer roots. Terminal tabs continue to follow confirmed terminal cwd events.
+The native capture must perform a user-origin edit, wait for dirty state, save,
+and verify the original remote file rather than use streaming system edits.
+
 ### 2. Populate the existing tree model
 
 Add bounded managed Companion operations for directory snapshots, lazy child
