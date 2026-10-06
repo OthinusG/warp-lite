@@ -1151,3 +1151,9 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   uses byte-identical Claude Warm Light macOS vertical-tab frames. Three-OS
   installer/transport gate 37348866696 passed; formal tagged package inspection
   and public release remain the delivery gates.
+
+- Formal 1.1.0 macOS and three-platform companion build/install checks passed
+  in run 37355772889. Windows run 37362390293 built correct 1.1.0 assets but
+  failed because Inno Setup pads ProductVersion with whitespace. Trim only that
+  installer comparison; preserve strict app checks and immutable v1.1.0 source
+  574b2f9. Dispatch the corrected main workflow against that same tag.

@@ -155,7 +155,7 @@ jobs:
           $installer = (Get-Item WarpaiSetup-x64.exe).VersionInfo
           Write-Host "Application: product=$($product.ProductVersion), file=$($product.FileVersion)"
           Write-Host "Installer: product=$($installer.ProductVersion), file=$($installer.FileVersion)"
-          if ($installer.ProductVersion -ne $expected) { throw 'Installer product version mismatch' }
+          if ($installer.ProductVersion.Trim() -ne $expected) { throw 'Installer product version mismatch' }
           $icon = 'target/Warpai-portable-x64/icon.ico'
           if ((Get-FileHash $icon).Hash -ne (Get-FileHash app/assets/branding/warpai.ico).Hash) { throw 'Portable icon mismatch' }
           if (-not (Test-Path target/Warpai-portable-x64/warpai-agent.exe)) { throw 'Missing local MCP bridge' }

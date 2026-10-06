@@ -121,3 +121,12 @@ Fix plan (diagnose-ci-failures / fix-errors):
 
 - Tagged macOS/companion packaging passed [run 37277364402](https://github.com/OthinusG/warpai/actions/runs/37277364402). Downloaded macOS app inspection verified version 1.0.1, bundle identity, canonical ICNS, bridge and strict signing; the retained DMG passed SHA-256 and native image verification. All three companion archive manifests match immutable tag source `2bb47910ceadcf4ea47b4370166a6df7a34d2b96`, with valid binary/archive checksums.
 - Installer-only workflow correction `594f015` passed actionlint, YAML, shell syntax and bilingual download-link checks. The private draft now contains only DMG, three companions and their checksum file; Windows rerun [37290225101](https://github.com/OthinusG/warpai/actions/runs/37290225101) must pass before publication.
+
+### 1.1.0 Windows installer string normalization
+
+Run 37362390293 built the tagged Windows application and installer with product
+version 1.1.0, but Inno Setup pads its ProductVersion resource with spaces.
+Normalize only that installer string with Trim before exact comparison; keep
+application string/numeric checks and native resource checks strict. Dispatch
+the corrected workflow from main while checking out the unchanged immutable
+v1.1.0 source tag. Rerun the Windows release gate before uploading or publishing.
