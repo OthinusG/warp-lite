@@ -10,10 +10,10 @@ This plan replaces the broad SSH project-manager delivery. The objective is to
 extend working same-project Agent communication to Agents running through SSH,
 with concise connection/Agent/communication status in the existing panel.
 
-Proposed follow-up: [existing file tools over SSH](REMOTE-FILE-TOOLS.md) extends
+Approved follow-up: [existing file tools over SSH](REMOTE-FILE-TOOLS.md) extends
 the current Explorer, editor/preview and Git Review backends to terminal-selected
-remote directories. It is a documentation proposal, not completed acceptance of
-additional runtime scope.
+remote directories. Existing components are reused; its native acceptance and
+source-matched cloud receipts are tracked in [COMPANION-CHECKS.md](COMPANION-CHECKS.md).
 
 ## Scope and completion
 

@@ -12,9 +12,9 @@ workspace through the same controls used for local work.
 This extends the existing components. It does not introduce another Explorer,
 preview renderer, Review panel, connection form or transfer dashboard. The
 existing panel layout, shortcuts, menus, editor tabs and preview preferences are
-the interaction source. No new visual design is required for this proposal.
+the interaction source. No new visual design is required for this extension.
 
-This document proposes a narrow extension to the accepted SSH scope in
+This document implements the approved narrow extension to the accepted SSH scope in
 [PLAN.md](PLAN.md). The previously removed standalone file manager remains
 removed; archived remote-manager designs are not implementation instructions.
 Existing Agent task acceptance/rework already works remotely and is separate
@@ -282,3 +282,32 @@ to use the existing file-management, in-app viewing/editing and Review surfaces.
 The user does not select a second connection or configure another panel. Every
 operation retains its remote identity; failures are visible and never trigger a
 desktop-path fallback. This is a planned feature until those receipts exist.
+
+## Implemented behavior and delivery checks
+
+Existing Explorer follows confirmed SSH cwd and session selection, polls visible
+directories, and sends create/rename/delete through typed Companion control.
+Clicks, pane/tab opens, code/text editing, Markdown preview, relative image/file
+links and saves use the original remote identity. Local editor preferences cannot
+redirect these files to an external desktop editor. Windows terminal directory
+navigation uses native PowerShell quoting.
+
+Existing Review discovers the remote repository and uses the current renderer
+for HEAD, main and selected available refs. It compares native Git status/patch
+observations and downloads immutable base content through SFTP. Review Git writes
+are explicitly unavailable in the panel; users run Git actions in its remote
+terminal. No implicit fetch, desktop Git invocation or unrestricted command API
+is added. Companion advertises file and Git review capabilities separately.
+
+Open editors keep their original connection across cd/session changes. Save
+checks the observed SHA-256, preserves buffers on conflict/disconnect, and offers
+explicit reconnect to the same account/project. A replaced root fails admission.
+Transfers, patches, directory depth and rendering cache have bounded capacities.
+Canceled in-flight transfers close their attachment; completed missing-path
+errors do not disconnect unrelated open editors.
+
+The native acceptance harness uses an owned loopback SSH/SFTP server with generated
+fixture keys. It exercises existing Explorer file selection, in-app code and
+Markdown, a relative image, dirty buffer/save and existing remote Review. Native
+captures supplement backend and actual transport tests; exact cloud receipts are
+recorded in COMPANION-CHECKS.md after the corresponding jobs complete.

@@ -16,7 +16,7 @@ Removed host-status/list tags and detach/attach/generation fields are reserved.
 
 Capabilities: project_open, managed_agent, project_tasks, project_mcp.
 
-## Existing file tools (implementation in progress)
+## Existing file tools over SSH
 
 `project_files` admits only typed `ProjectFilesRequest` operations under the
 current project fence: directory metadata, staged reads, staged saves, explicit
@@ -82,7 +82,7 @@ registered or explicitly bound workspace identities cannot change scope.
 
 ### Existing Review over SSH
 
-`project_files` also admits typed, read-only `PROJECT_GIT_ROOT`,
+`project_git_review`, alongside `project_files`, admits typed, read-only `PROJECT_GIT_ROOT`,
 `PROJECT_GIT_BRANCHES`, `PROJECT_GIT_STATUS`, `PROJECT_GIT_DIFF`, and
 `PROJECT_GIT_PREPARE_BASE` actions. There is no caller-supplied command or argument
 vector. Status carries porcelain-v2 records, the resolved base commit, and
@@ -98,3 +98,10 @@ in Review. Failed reads never fall through to desktop Git or desktop file paths.
 Task list projections include a bounded 512-character `description` preview.
 Task detail continues to carry the full description; mutation revisions remain
 unchanged and are no longer displayed in the daily Collaboration view.
+
+Remote Review verifies working-content hashes against the patch observation and
+checks status/HEAD again before publishing. Rapid branch changes coalesce after
+the bounded transfer; obsolete observations never replace the selected mode.
+Remote cache sources stay referenced while Review or an editor uses them.
+Explicit reconnect verifies the original account, canonical root and root identity;
+it cannot replay an uncertain write or silently adopt a replaced project.

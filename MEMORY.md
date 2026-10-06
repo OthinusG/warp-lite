@@ -1268,3 +1268,28 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Windows/Linux native receipts remain separate gates. The desktop check cannot
   reach application type checking without `xcrun metal`; strict package Clippy
   also reports pre-existing broad lint failures. No cloud jobs were monitored.
+
+## 2026-10-06 — Complete existing SSH file surfaces and simplify collaboration
+
+- User explicitly requires remote Explorer clicks to reuse the in-app code/text
+  editor and Markdown preview, alongside remote management and Git Review. Do not
+  stop delivery at a tested Companion backend. Cloud push/verification is now
+  explicitly authorized, superseding the earlier hold on cloud monitoring.
+- Existing components are extended without new panels. Remote files retain an
+  original SSH save source behind a private rendering cache; cd does not retarget
+  dirty editors. Relative Markdown resources use the same SFTP admission checks.
+  Keep source references while Review still uses cached paths, including deleted
+  rows, so closing an editor cannot turn a Review open into a desktop-path lookup.
+- Cancellation cleanup must distinguish canceled transfers from completed domain
+  errors: missing/invalid paths do not disconnect sibling editors. Coalesce rapid
+  Review refreshes instead of aborting shared file transfers. Explicit reconnect
+  verifies account, canonical root and root identity; never replay uncertain writes.
+- Native Git fixture commands must supply their own identity for merges as well
+  as commits. A missing CI global identity can abort before creating a conflict,
+  producing a misleading merge-conflict regression failure.
+- Collaboration's daily view retains Agents, task descriptions, conversations,
+  results and actionable approvals. Hide protocol/run identifiers, readiness
+  sources, maintenance reservations and revision counters from that view.
+- Owned native SSH/SFTP acceptance now has a reproducible repository script and
+  existing-panel capture steps. Pinned three-platform/cloud receipts remain
+  separate from local Homebrew Rust checks and are recorded after job completion.

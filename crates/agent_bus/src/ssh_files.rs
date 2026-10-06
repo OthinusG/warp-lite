@@ -230,12 +230,20 @@ fn relative_path(root: &str, path: &str, windows: bool) -> Result<String, Connec
     };
     let root = normalize(root);
     let path = normalize(path);
-    let relative = if path == root {
+    let relative = if path == root || (windows && path.eq_ignore_ascii_case(&root)) {
         ""
     } else {
         let prefix = format!("{}/", root.trim_end_matches('/'));
-        path.strip_prefix(&prefix)
-            .ok_or(ConnectionError::InvalidInput)?
+        if windows
+            && path
+                .get(..prefix.len())
+                .is_some_and(|value| value.eq_ignore_ascii_case(&prefix))
+        {
+            &path[prefix.len()..]
+        } else {
+            path.strip_prefix(&prefix)
+                .ok_or(ConnectionError::InvalidInput)?
+        }
     };
     if path.len() > 4096
         || relative.chars().any(char::is_control)
@@ -699,6 +707,7 @@ impl RemoteFiles {
             return Err(ConnectionError::CapacityExceeded);
         }
         let relative = self.relative(path)?;
+        let mut cancellation = TransferCancellation(Some(self));
         let staged = self
             .control(ProjectFilesRequest {
                 action: ProjectFileAction::ProjectFilePrepareWrite as i32,
@@ -706,7 +715,14 @@ impl RemoteFiles {
                 expected_hash: expected_hash.into(),
                 ..Default::default()
             })
-            .await?;
+            .await;
+        let staged = match staged {
+            Ok(staged) => staged,
+            Err(error) => {
+                cancellation.0 = None;
+                return Err(error);
+            }
+        };
         let result = async {
             let mut temporary = tempfile::NamedTempFile::new_in(self.cache.path())
                 .map_err(|_| ConnectionError::CapacityExceeded)?;
@@ -741,6 +757,7 @@ impl RemoteFiles {
                 })
                 .await;
         }
+        cancellation.0 = None;
         result
     }
 }
@@ -822,6 +839,12 @@ mod tests {
             "project/x"
         );
         assert_eq!(relative_path("/project", "/project", false).unwrap(), "");
+        assert_eq!(
+            relative_path("C:/Project", "c:/project/FILE.md", true).unwrap(),
+            "FILE.md"
+        );
+        assert!(relative_path("C:/Project", "c:/project-other/file", true).is_err());
+
         assert_eq!(
             relative_path("C:\\project", "C:\\project\\目录\\file.md", true).unwrap(),
             "目录/file.md"

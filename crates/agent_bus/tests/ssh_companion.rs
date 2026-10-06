@@ -474,7 +474,6 @@ async fn established_terminal_socket_probes_and_fences_the_companion() {
     );
 }
 
-#[cfg(unix)]
 async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles) {
     use remote_protocol::proto::{ProjectFileAction, ProjectFilesRequest};
     use warp_agent_bus::ssh_remote::ConnectionError;

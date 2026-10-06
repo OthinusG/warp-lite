@@ -488,6 +488,7 @@ impl DiffStateModel {
                     let deleted = matches!(status, GitFileStatus::Deleted);
                     let mut working_hash = None;
                     let content = if deleted {
+                        registrations.push((absolute.clone(), cache.clone(), String::new()));
                         None
                     } else {
                         let (cache, hash) = files.download(&absolute).await?;
