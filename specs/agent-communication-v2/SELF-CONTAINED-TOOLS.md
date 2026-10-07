@@ -1,6 +1,6 @@
 # Self-contained remote project tools
 
-Date: 2026-10-07. Status: implementation in progress.
+Date: 2026-10-07. Status: implemented and verified; not released.
 
 ## Approved outcome
 
@@ -55,3 +55,21 @@ core communication/file tests. Unix packaging needs two focused repairs:
   iconv only for the static Linux runtime.
 Re-run native packaging on all three platforms; desktop compilation/capture is a
 separate running check. Include the runtime checksum list in the payload checksum.
+
+## Verification receipts
+
+- GitHub Remote Companion run 37600588598, source f7c749a4: Linux, macOS and
+  Windows all pass protocol/file tests, native packaging, repeated installation,
+  runtime checksums and private Git status/diff with system Git absent from PATH.
+- Local syntax checks, workflow YAML parsing, the staged Unix installer fixture
+  and native capture diagnostic redaction check pass. Rust builds run on GitHub.
+- Desktop run 37599409548 passes both default/platform application checks and
+  application tests on macOS and Windows. Its application sources are unchanged
+  by the packaging-only repair. Both native captures exit successfully with
+  all assertions and 170 nonempty PNGs each, including SSH Review and Code View.
+  The workflow's obsolete screenshot total fails after successful capture; the
+  corrected total (fixtures * 8 + 66) passes against the downloaded real artifact.
+  SSH Review and Code View screenshots were inspected on both desktop platforms.
+  The original run remains red for that post-capture count only; application
+  sources were not changed, and no redundant native rebuild was dispatched.
+- No public release or installation on personal machines has been performed.

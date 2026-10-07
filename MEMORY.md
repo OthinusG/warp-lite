@@ -10,8 +10,16 @@
 - Active specification: specs/agent-communication-v2/SELF-CONTAINED-TOOLS.md.
   Reuse accepted original Review code and share exact-session/project RemoteFiles
   attachments. Native installers carry private Git without altering PATH or
-  shell/SSH profiles. Verification is in progress; no release or installation
-  on personal machines has been performed.
+  shell/SSH profiles. No release or installation on personal machines has been
+  performed; source is on codex/self-contained-remote-tools.
+- GitHub run 37600588598 (f7c749a4) passes three-platform Companion protocol,
+  files, native installation and private Git checks without system Git on PATH.
+  Desktop run 37599409548 passes both default/platform builds, application tests
+  and native UI assertions on macOS/Windows, producing 170 nonempty PNGs each.
+  Its post-capture check remains red for an obsolete 171-image expectation;
+  corrected workflow count passes against both downloaded actual artifacts.
+  Review and Review-to-Code-View screenshots were inspected on both platforms.
+  App sources did not change after their tested commit 65b5a9dc.
 
 ## Original Code Review entry restored — 2026-10-07
 
