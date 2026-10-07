@@ -9,17 +9,19 @@
 ### 为 Agent 协作而生的终端工作空间。
 
 把一次 Agent 会话当作工作的基本单元。在同一个项目中组织多个 Agent，指定一位主 Agent
-拆解任务、分派工作、收集结果并整合交付。Warpai 以全功能原生终端为基础，面向 macOS 和 Windows。
+拆解任务、分派工作、收集结果并整合交付。Warpai 以全功能原生终端为基础，桌面支持 macOS 和 Windows，
+在远程 Linux、macOS 和 Windows 上也能保持同样的 Agent、文件和审阅工作流。
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.2.0](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.2.1](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.2.0)
+[![版本](https://img.shields.io/badge/release-1.2.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
+[![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
 
 </div>
 
@@ -47,17 +49,18 @@ Agent 下达任务、跟进进度、收回结果并整合交付。审阅者可�
 哪些还需要返工。
 
 ```mermaid
-flowchart LR
-    U[你提出目标] --> L[主 Agent 拆解任务]
-    L --> A[Agent：API]
-    L --> B[Agent：命令行入口]
-    L --> C[Agent：测试]
-    A --> L
-    B --> L
-    C --> L
-    L --> R[审阅 Agent 检查结果]
-    R -->|要求修改| A
-    R -->|审阅通过| F[主 Agent 整合并汇报]
+flowchart TB
+    Goal["你明确工作目标"] --> Lead["主 Agent 拆解任务并分派工作"]
+    Lead -->|下达任务| Team
+    subgraph Team["多个 Agent 并行工作、互通进展"]
+        direction LR
+        Build["Agent A<br/>实现功能"]
+        Test["Agent B<br/>测试与验证"]
+        Docs["Agent C<br/>撰写文档"]
+    end
+    Team -->|汇报结果| Review["主 Agent 与审阅者检查结果"]
+    Review -->|需要修改| Team
+    Review -->|通过审阅| Delivery["主 Agent 整合并交付"]
 ```
 
 这不要求所有 Agent 都直接改同一批文件。可以在任务中划分职责、明确交付物和验收标准，再由
@@ -90,34 +93,36 @@ Agent 及版本；当前支持范围见[兼容性指南](docs/AGENTS.zh-CN.md)�
 可以互发消息、接收委派任务、提交验证材料并参与审阅；不同项目相互隔离。排队任务会等到接收方
 Agent 就绪，Warpai 不会代替你处理权限请求。
 
-Agent 无法加入时，设置页会显示具体的设置错误。从 Warp Lite 或旧版 Warpai 升级后，可以用
-一键清理移除受支持、已安装 Agent 中的 Warpai 通信配置，保留其他 MCP 服务。清理完成后，
-重新启用你希望参与协作的 Agent。
+Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
+Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。
 
-## 远程协作也是这条工作流的一部分
+<a id="remote-workflow"></a>
 
-连接 SSH 项目后，可以协调运行在该远程账号和项目中的 Agent。协作面板显示远程项目的 Agent、
-消息、任务和连接状态。同一远程项目里的 Agent 可以互发消息、接收任务、提交结果并审阅任务交付。
-远端 companion 支持 Linux、macOS 和 Windows，文件传输使用 SFTP。
+## 远程也能完成同样的工作流
+
+**本地与远端保持同样的工作体验：**Agent 管理与协作、完整终端、文件管理、应用内编辑、文档预览和
+代码审阅都可以在远程项目中使用。在终端连接 Linux、macOS 或 Windows 主机，进入项目目录后，
+工作空间就会跟随该终端的远程 `cd`。
+
+远程协作视图显示项目中的 Agent、消息、任务与结果。主 Agent 可以像在本地一样分派工作、跟进进度、
+组织审阅并整合交付，同伴也可以互相通讯、协作处理同一项目。
 
 ![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
 *现有 SSH 项目原生应用截图。详见[截图来源](docs/images/README.zh-CN.md)。*
 
-这样一支 Agent 团队可以在个人工作站、开发服务器或远程科研机器上继续工作，不必把项目迁入
-Warpai 托管的云服务。在终端连接 SSH 后，文件面板会跟随远程 `cd`：在现有 Project Explorer 中
-浏览、创建、重命名和删除远程文件，点击代码或文本即可在应用内编辑，预览带远程图片和链接的
-Markdown，并将修改保存回原远程文件。Git Review 可以与远程 Agent 团队并排使用，检查修改并
-发送反馈，减少在终端、编辑器和文件工具之间切换。切换终端或目录后，已打开的文件仍绑定原远程项目。
-其他进程改动文件或连接中断时，未保存的修改会保留；保存冲突需要先处理，不会直接覆盖他人的工作。
+Project Explorer 可以浏览远程项目，创建、重命名和删除文件。点击代码或文本，就能在原有内置
+编辑器中打开；报告可以直接预览 Markdown、图片和链接，修改后保存到远程主机。原有 Git Review
+可以检查 Agent 的代码变更，并在当前工作上下文中发送反馈。切换目录或终端后，已打开的文件仍绑定
+原远程项目；连接中断或保存冲突时，未保存的修改会保留。
 
-例如，连接科研服务器进入分析项目，让不同 Agent 处理数据、检查分析脚本和撰写报告。
-你可以在同一应用中打开生成的脚本、预览报告及其嵌入的图片、修改文本并保存到服务器。
-数据和计算继续留在远端，任务协调、文件检查与结果审阅则形成完整的一条工作流。
+例如，连接科研服务器进入分析项目，让一位 Agent 处理数据、一位检查分析脚本，另一位撰写报告。
+它们工作时，你可以在 Warpai 中打开生成的脚本，预览带图表的报告，审阅修改并直接修正内容。
+主 Agent 再把结果整理成最终交付。数据与计算留在服务器上，任务协调、文件检查、预览和审阅仍在
+同一个应用中完成。
 
-在远程主机安装同一 1.2.0 Release 中的 Companion；之前使用 1.1 的主机也需要更新。
-远程文件工具通过 SSH 与 SFTP 工作，支持已验证的 SSH 跳板连接。Git Review 可以检查未提交变更
-和可用分支间的差异；提交等 Git 修改操作在远程终端中完成。
+远程开发机同样适用：让不同 Agent 分别实现功能、运行测试、维护文档，你检查文件与变更后，由
+主 Agent 整合通过审阅的结果，减少在终端、文件管理器、编辑器与 Agent 管理工具之间来回切换。
 
 ## 不止软件开发
 
@@ -161,13 +166,13 @@ SSH 项目由匹配版本的 Warpai companion 提供远端支持。
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.2.0](https://github.com/OthinusG/warpai/releases/tag/v1.2.0)** 将 Agent 协作、文件管理、
+**[Warpai 1.2.1](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)** 将 Agent 协作、文件管理、
 应用内编辑、预览和 Git Review 整合进本地与 SSH 项目的完整工作流。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.0/Warpai.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiSetup-x64.exe) | 运行 **WarpaiSetup-x64.exe**。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.1/Warpai-1.2.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiSetup-1.2.1-windows-x64.exe) | 运行安装器。 |
 
 macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
 **System Settings > Privacy & Security > Open Anyway** 中批准打开。Windows 可能要求确认
@@ -175,14 +180,14 @@ macOS 应用采用临时签名，尚未进行公证。若首次启动被系统�
 
 ### 远程 companion
 
-桌面应用与 companion 应来自同一个 release。安装包清单包含准确源码版本、Rust 目标平台与
-SHA-256 校验和。
+**Warpai Companion 2.0.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
+按你要连接的远程主机选择安装包。
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-linux-x64.run) |
-| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-linux-x64.run) |
+| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
 
 ## 本地优先
 

@@ -67,8 +67,9 @@ jobs:
 
           EXISTING_ASSETS="$(gh release view "$TARGET_TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)"
 
-          if echo "$EXISTING_ASSETS" | grep -qx "WarpaiSetup-x64.exe" && [[ "$FORCE_REBUILD" != "true" ]]; then
-            echo "Windows asset WarpaiSetup-x64.exe already exists on release $TARGET_TAG. Skipping build."
+          installer="WarpaiSetup-${TARGET_TAG#v}-windows-x64.exe"
+          if echo "$EXISTING_ASSETS" | grep -Fxq "$installer" && [[ "$FORCE_REBUILD" != "true" ]]; then
+            echo "Windows installer already exists on release $TARGET_TAG. Skipping build."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
           else
             echo "Release $TARGET_TAG requires Windows x64 assets."
@@ -175,7 +176,11 @@ jobs:
           RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
         run: |
           set -euo pipefail
+          installer="WarpaiSetup-${RELEASE_TAG#v}-windows-x64.exe"
+          checksums="SHA256SUMS-Warpai-${RELEASE_TAG#v}-windows-x64.txt"
+          cp WarpaiSetup-x64.exe "$installer"
+          sha256sum "$installer" > "$checksums"
           gh release upload "$RELEASE_TAG" \
-            WarpaiSetup-x64.exe \
-            SHA256SUMS-windows.txt \
+            "$installer" \
+            "$checksums" \
             --repo "$GITHUB_REPOSITORY"

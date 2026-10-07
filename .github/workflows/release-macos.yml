@@ -49,6 +49,7 @@ jobs:
       - name: Verify and build tagged companion
         run: |
           cargo test -p remote_protocol --locked
+          cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo build --release -p warp-agent-bus --bin warpai-companion --locked
@@ -74,6 +75,14 @@ jobs:
       - name: Verify tagged native companion installation
         run: |
           GITHUB_SHA="$(git rev-parse HEAD)" python3 script/companion/verify-installation.py
+      - name: Verify Windows Companion installer version
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $manifest = Get-Content companion-release/manifest.json -Raw | ConvertFrom-Json
+          $expected = ($manifest.version -split ' ')[1]
+          $installer = Get-Item "WarpaiCompanion-$expected-windows-x64-setup.exe"
+          if ($installer.VersionInfo.ProductVersion.Trim() -ne $expected) { throw 'Companion installer version mismatch' }
       - name: Verify installed Windows release protocol
         if: runner.os == 'Windows'
         run: |
@@ -148,8 +157,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          shasum -a 256 Warpai.dmg WarpaiCompanion-* > SHA256SUMS-macos-and-companions.txt
-          gh release create "$RELEASE_TAG" Warpai.dmg WarpaiCompanion-* SHA256SUMS-macos-and-companions.txt \
+          desktop="Warpai-${RELEASE_TAG#v}-macos-arm64.dmg"
+          checksums="SHA256SUMS-Warpai-${RELEASE_TAG#v}-macos-and-companions.txt"
+          mv Warpai.dmg "$desktop"
+          shasum -a 256 "$desktop" WarpaiCompanion-* > "$checksums"
+          gh release create "$RELEASE_TAG" "$desktop" WarpaiCompanion-* "$checksums" \
             --verify-tag --repo "$GITHUB_REPOSITORY" \
             --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt

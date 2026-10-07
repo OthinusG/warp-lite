@@ -1403,3 +1403,18 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   Companion installers. Retain old screenshots and verify formal assets before
   making the draft public. Companion component/protocol versions are independent
   of the product tag; use matching release manifests/capabilities for upgrades.
+- Owner correction: README must show the delivered release, both desktop and
+  all remote platforms, an understandable delegation flow and explicit remote
+  file-management/editor/preview parity. Remote feature copy must describe user
+  outcomes, not upgrade/version instructions or transport internals.
+- Owner requires versioned public installer names and Companion component 2.0.0.
+  Keep protocol major 1. Installer ProductVersion and names derive from the
+  compiled component's manifest version, independently of the desktop tag.
+- Owner explicitly chooses preserving the unpublished v1.2.0 tag rather than
+  replacing it. Cancelled its incomplete run 37575377385; release Warpai 1.2.1
+  with Companion 2.0.0 from a new tag. No published historical tag changes.
+- Packaging verification passed locally: Python/YAML/Bash syntax, component-2.0.0
+  Linux payload naming/manifest preservation, and both desktop public filename
+  and SHA-256 mappings in isolated temporary fixtures. These are packaging smoke
+  checks, not native installer/runtime acceptance; tagged cloud gates remain
+  required. All existing screenshots remain byte-identical.

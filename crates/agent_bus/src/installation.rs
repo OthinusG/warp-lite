@@ -1,7 +1,7 @@
 //! Remote installation metadata comes from the authenticated shell session, never local paths.
 use crate::ssh_remote::{ConnectionError, RemoteShell};
 
-pub const RELEASE_VERSION: &str = "1.1.0";
+pub const RELEASE_VERSION: &str = "2.0.0";
 
 /// Resolve the installer-owned executable without asking for a path or changing PATH.
 pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), ConnectionError> {

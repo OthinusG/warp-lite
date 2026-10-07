@@ -10,15 +10,18 @@ import sys
 if os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("Native installation verification requires a disposable GitHub runner")
 
+payload_manifest = json.loads(Path("companion-release/manifest.json").read_text())
+component_version = payload_manifest["version"].split()[1]
+
 if os.name == "nt":
     binary_name = "warpai-companion.exe"
-    command = [str(Path("WarpaiCompanion-windows-x64-setup.exe").resolve()), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+    command = [str(Path(f"WarpaiCompanion-{component_version}-windows-x64-setup.exe").resolve()), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
 else:
     binary_name = "warpai-companion"
     if sys.platform == "darwin":
         command = ["sh", "companion-image/payload/install-unix.sh"]
     else:
-        command = ["sh", "WarpaiCompanion-linux-x64.run"]
+        command = ["sh", f"WarpaiCompanion-{component_version}-linux-x64.run"]
 
 installed = Path.home() / ".config/.warpai/bin" / binary_name
 if sys.platform == "darwin":
@@ -33,7 +36,7 @@ for _ in range(2):
     assert metadata["source"] == os.environ["GITHUB_SHA"]
     assert metadata["sha256"] == hashlib.sha256(installed.read_bytes()).hexdigest()
     version = subprocess.check_output([str(installed), "--version"], text=True).strip()
-    assert version == "warpai-companion 1.1.0 protocol 1", version
+    assert version == payload_manifest["version"], version
     if os.name != "nt":
         assert installed.stat().st_mode & 0o777 == 0o700
     else:

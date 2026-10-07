@@ -11,17 +11,19 @@
 Make an Agent session the unit of work. Run a team in the same project, give one
 Agent the lead, and let it delegate, collect results and bring the work together.
 Warpai combines that workflow with a full-featured native terminal for macOS and
-Windows.
+Windows. Keep the same Agent, file and review workflow on remote Linux, macOS and
+Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.2.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.2.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/github/v/release/OthinusG/warpai)](https://github.com/OthinusG/warpai/releases/tag/v1.2.0)
+[![Release](https://img.shields.io/badge/release-1.2.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
+[![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
 
 </div>
 
@@ -54,17 +56,18 @@ project. Warpai keeps their messages, assignments, progress, evidence and review
 decisions together, so you can see what is underway and what still needs work.
 
 ```mermaid
-flowchart LR
-    U[You set the goal] --> L[Lead Agent breaks down work]
-    L --> A[Agent: API]
-    L --> B[Agent: CLI]
-    L --> C[Agent: tests]
-    A --> L
-    B --> L
-    C --> L
-    L --> R[Reviewer checks results]
-    R -->|Request changes| A
-    R -->|Accept| F[Lead integrates and reports]
+flowchart TB
+    Goal["You define the goal"] --> Lead["Lead Agent splits and assigns work"]
+    Lead -->|Assign tasks| Team
+    subgraph Team["Agents work in parallel and share progress"]
+        direction LR
+        Build["Agent A<br/>Implement the feature"]
+        Test["Agent B<br/>Test the behavior"]
+        Docs["Agent C<br/>Write the documentation"]
+    end
+    Team -->|Report results| Review["Lead Agent and reviewer check results"]
+    Review -->|Needs changes| Team
+    Review -->|Accepted| Delivery["Lead Agent integrates and delivers"]
 ```
 
 The same pattern works when the work is not code: assign research, analysis,
@@ -112,47 +115,46 @@ submit evidence and participate in review. Separate projects remain isolated.
 Queued work waits for the receiving Agent to be ready, and Warpai does not answer
 permission requests on an Agent's behalf.
 
-Settings reports useful setup errors when an Agent cannot join. If you are
-upgrading from Warp Lite or an older Warpai setup, the cleanup action removes
-Warpai's communication entries from supported installed Agents while preserving
-unrelated MCP servers. Enable the Agents you want to use again after cleanup.
+Settings reports useful setup errors when an Agent cannot join. A single cleanup
+action clears Warpai communication settings from supported installed Agents while
+preserving their other integrations, so you can reset participation and choose
+the Agents you want to use.
 
 ## Remote work is part of the same workflow
 
-Connect to an SSH project and coordinate Agents running in that remote account
-and project. The collaboration panel shows the remote project's Agents, messages,
-tasks and connection state. Agents in the same remote project can exchange
-messages, receive assignments, submit results and review task outcomes. Remote
-companions support Linux, macOS and Windows; file transfer uses SFTP.
+**The same working loop is available locally and remotely:** Agent management
+and collaboration, a full terminal, file management, in-app editing, document
+previews and code review. Connect to a Linux, macOS or Windows machine in the
+terminal and enter your project directory; the workspace follows that terminal's
+remote `cd`.
+
+The remote collaboration view shows the project's Agents, conversations,
+assignments and results. A lead Agent can delegate work to teammates, follow
+progress, request review and integrate the outcome just as it does locally.
 
 ![Warpai SSH project with a connected remote agent and task](docs/images/warpai-ssh-project.png)
 
 *Existing SSH project screenshot from the native application. See
 [screenshot provenance](docs/images/README.md).*
 
-This makes the Agent team useful on a workstation, a development server or a
-remote research machine without moving the project into a hosted Warpai service.
-After connecting in the terminal, the same workspace follows your remote `cd`:
-browse and manage remote files in Project Explorer, click code or text to edit
-inside Warpai, preview Markdown with its remote images and links, and save back
-to the original remote file. Keep Git Review beside the remote Agent team to
-inspect changes and send feedback without switching applications. Open tabs stay
-bound to their original remote project when you change terminals or directories.
-If another process changes a file or the connection drops, your unsaved edits
-stay available; a conflicting save asks you to resolve the change rather than
-silently overwriting someone else's work.
+Project Explorer browses the remote project and lets you create, rename and
+delete files. Click code or text to open the same built-in editor, preview
+Markdown reports with their images and links, and save changes on the remote
+machine. Use the existing Git Review workflow to inspect Agent changes and send
+feedback in context. Open files remain attached to their original remote project
+when you change directories or switch terminals. A connection interruption or
+save conflict preserves your unsaved edits.
 
-For example, connect to a research server, enter an analysis project, and ask
-Agents to process datasets and draft a report. Open the generated scripts and
-Markdown report in the same app, inspect plots embedded in the report, make a
-correction, and save it on the server. The data and execution stay remote while
-you retain the same review and coordination workflow.
+For example, connect to a research server and enter an analysis project. Ask one
+Agent to process datasets, another to check the scripts and a third to draft the
+report. While they work, open the generated scripts, preview the illustrated
+report, review their changes and make corrections in Warpai. The lead Agent can
+bring those results together while the data and computation stay on the server.
 
-Install the Companion from the same 1.2.0 release on your remote host, including
-when upgrading a host previously used with 1.1. Remote file tools work through
-SSH and SFTP, including supported SSH jump-host routes. Git Review inspects
-uncommitted changes and available branch comparisons; commits and other Git
-mutations use the remote terminal.
+The same workflow suits a remote development machine: divide implementation,
+testing and documentation among Agents, inspect the files and changes, then
+integrate the accepted result without moving between a terminal, file browser,
+editor and Agent dashboard.
 
 ## Beyond software development
 
@@ -199,14 +201,14 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.2.0](https://github.com/OthinusG/warpai/releases/tag/v1.2.0)** brings
+**[Warpai 1.2.1](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)** brings
 Agent coordination, file management, in-app editing, previews and Git Review to
 your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.0/Warpai.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiSetup-x64.exe) | Run **WarpaiSetup-x64.exe**. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.1/Warpai-1.2.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiSetup-1.2.1-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -215,14 +217,14 @@ Checksums are included on the release page.
 
 ### Remote companion
 
-Use companion packages from the same release as your desktop app. Their manifests
-record the exact source revision, Rust target and SHA-256 checksum.
+**Warpai Companion 2.0.0** provides the remote workspace on your Linux, macOS or
+Windows machine. Choose the installer for the machine you connect to.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.2.0/WarpaiCompanion-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
 
 ## Local by design
 

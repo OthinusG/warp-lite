@@ -1,17 +1,17 @@
 # Warpai releases
 
-## Current delivery: 1.2.0
+## Current delivery: 1.2.1
 
-Publish `v1.2.0` only after the tagged desktop/agent regressions, native UI
+Publish `v1.2.1` only after the tagged desktop/agent regressions, native UI
 review and three-platform remote installation/transport checks pass. Build
 committed tagged source with the existing release workflows; do not compile
 Rust locally.
 The formal companion jobs reuse disposable-runner native install/reinstall checks
 and exercise Windows binary stdio against the installed optimized executable.
 
-Deliver `Warpai.dmg`, `WarpaiSetup-x64.exe`,
-`WarpaiCompanion-linux-x64.run`, `WarpaiCompanion-macos-arm64.dmg` and
-`WarpaiCompanion-windows-x64-setup.exe`, with SHA-256 checksum files. No desktop
+Deliver `Warpai-1.2.1-macos-arm64.dmg`, `WarpaiSetup-1.2.1-windows-x64.exe`,
+`WarpaiCompanion-2.0.0-linux-x64.run`, `WarpaiCompanion-2.0.0-macos-arm64.dmg` and
+`WarpaiCompanion-2.0.0-windows-x64-setup.exe`, with SHA-256 checksum files. No desktop
 or raw companion ZIP is a public release asset. Remote installers own only the
 account's Warpai component and metadata; follow the
 [installation contract](agent-communication-v2/INSTALLATION.md).
@@ -29,23 +29,27 @@ signing and unsigned Windows installation remain documented.
 The desktop DMG contains the signed app, an Applications shortcut and the
 canonical Warpai Finder volume icon. Verify these in the mounted formal image.
 
-The 1.2.0 delivery completes the existing SSH Explorer, in-app editor/preview
+The 1.2.1 delivery completes the existing SSH Explorer, in-app editor/preview
 and original Git Review workflow, simplifies daily Agent collaboration, and
 includes the legacy MCP cleanup and actionable setup errors prepared after 1.1.
 Ordinary Codex communication remains session-only. The explicit cleanup preserves
 unrelated MCP entries and reports unsupported or failed cleanup.
 
 The public baseline is 1.1.0; the 1.1.5 preparation was not published. Explain
-changes from 1.1 to 1.2 in docs/releases/v1.2.0.md. Update the existing README
+changes from 1.1 to 1.2 in docs/releases/v1.2.1.md. Update the existing README
 feature/setup/remote/download sections in place, retaining the existing native
-screenshots; do not add a README changelog.
+screenshots; do not add a README changelog. The banner identifies the delivered
+version, both desktop targets and all three remote targets. Remote copy describes
+local/remote workflow parity, without upgrade history or transport internals.
 
-### 1.2.0 delivery tasks and acceptance
+### 1.2.1 delivery tasks and acceptance
 
-1. Retain the accepted runtime inputs from 60ea2810 (desktop/native run
-   37569663988) and the accepted Companion backend (three-platform run
-   37498107083). Create the immutable v1.2.0 tag after documentation changes.
-2. Dispatch release-macos.yml from main with release_tag=v1.2.0. Its three native
+1. Preserve the unpublished v1.2.0 tag at 210ebb4a as requested. Release Warpai
+   1.2.1 with Companion 2.0.0; protocol major remains 1. Retain accepted runtime
+   logic from 60ea2810 (desktop/native run 37569663988) and the accepted Companion
+   backend (three-platform run 37498107083). Verify the component-version change
+   and versioned packaging, then create the immutable v1.2.1 tag.
+2. Dispatch release-macos.yml from main with release_tag=v1.2.1. Its three native
    Companion jobs verify tagged builds and install/reinstall before the macOS
    desktop build creates a private draft. The existing Windows workflow follows
    automatically and attaches its version/icon-checked installer.

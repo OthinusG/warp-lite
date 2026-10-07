@@ -31,6 +31,10 @@ fn default_locations_follow_remote_native_home() {
 
 #[test]
 fn probes_reject_wrong_protocol_and_unbounded_or_ambiguous_output() {
+    assert!(
+        verify_version(format!("warpai-companion {RELEASE_VERSION} protocol 1\n").as_bytes())
+            .is_ok()
+    );
     assert!(verify_version(b"warpai-companion 1.1.0 protocol 1\n").is_ok());
     assert!(verify_version(b"warpai-companion v1.1.0 protocol 1\r\n").is_ok());
     for output in [
