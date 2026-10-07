@@ -1,6 +1,6 @@
 # Existing File Tools over SSH
 
-Date: 2026-10-07. Status: implemented and accepted in source; published 1.1.5 binaries predate this feature.
+Date: 2026-10-07. Status: implemented and accepted; packaging for the 1.2.0 release.
 
 ## Outcome and scope
 
@@ -339,5 +339,5 @@ Final desktop acceptance: [run 37569663988](https://github.com/OthinusG/warpai/a
 source `60ea2810`, passes default/warp_platform builds, focused application tests
 and complete native captures on macOS and Windows. The walkthrough uses original
 Explorer clicks, remote editing/save, Markdown with a relative image, original
-Review rendering and SSH exit/local restoration. Published installers remain
-1.1.5; use matching source builds for the app and Companion.
+Review rendering and SSH exit/local restoration. The 1.2.0 release packages
+matching desktop and Companion builds; update both components when upgrading.

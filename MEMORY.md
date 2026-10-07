@@ -1388,5 +1388,18 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   complete native file/editor/save/Markdown-image/original-Review walkthroughs,
   local restoration and retained Agent panel captures. The prior Windows grid
   failure was confined to simulated banner input and is fixed by its real reset
-  hook. Source acceptance is distinct from published 1.1.5 installers; no release
+  hook. Source acceptance preceded packaging (public baseline was 1.1.0); no release
   or local installation was requested for this delivery.
+
+## 2026-10-07 — Warpai 1.2.0 release preparation
+
+- User explicitly requests packaging and public release of the accepted current
+  code as 1.2, with Release notes covering changes from 1.1 and README updates
+  integrated into the existing feature sections, not a separate update list.
+- GitHub currently exposes 1.1.0 as latest; no v1.1.5 tag or public release exists.
+  Earlier source documentation incorrectly described 1.1.5 as published. The
+  1.2.0 release includes its prepared cleanup fixes and the accepted remote work.
+- Use immutable v1.2.0 source, existing macOS/Windows workflows and all three
+  Companion installers. Retain old screenshots and verify formal assets before
+  making the draft public. Companion component/protocol versions are independent
+  of the product tag; use matching release manifests/capabilities for upgrades.

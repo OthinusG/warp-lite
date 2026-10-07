@@ -1,8 +1,8 @@
 # Warpai releases
 
-## Current delivery: 1.1.5
+## Current delivery: 1.2.0
 
-Publish `v1.1.5` only after the tagged desktop/agent regressions, native UI
+Publish `v1.2.0` only after the tagged desktop/agent regressions, native UI
 review and three-platform remote installation/transport checks pass. Build
 committed tagged source with the existing release workflows; do not compile
 Rust locally.
@@ -29,11 +29,33 @@ signing and unsigned Windows installation remain documented.
 The desktop DMG contains the signed app, an Applications shortcut and the
 canonical Warpai Finder volume icon. Verify these in the mounted formal image.
 
-The 1.1.5 code change adds a Settings action to remove only Warpai-owned MCP
-entries from supported installed agents, including entries created by the old
-`warp-agent` bridge. Ordinary Codex enable/disable remains session-only; Codex
-persistent configuration is inspected only by the explicit cleanup action.
-Preserve unrelated MCP entries and report unsupported or failed cleanup.
+The 1.2.0 delivery completes the existing SSH Explorer, in-app editor/preview
+and original Git Review workflow, simplifies daily Agent collaboration, and
+includes the legacy MCP cleanup and actionable setup errors prepared after 1.1.
+Ordinary Codex communication remains session-only. The explicit cleanup preserves
+unrelated MCP entries and reports unsupported or failed cleanup.
+
+The public baseline is 1.1.0; the 1.1.5 preparation was not published. Explain
+changes from 1.1 to 1.2 in docs/releases/v1.2.0.md. Update the existing README
+feature/setup/remote/download sections in place, retaining the existing native
+screenshots; do not add a README changelog.
+
+### 1.2.0 delivery tasks and acceptance
+
+1. Retain the accepted runtime inputs from 60ea2810 (desktop/native run
+   37569663988) and the accepted Companion backend (three-platform run
+   37498107083). Create the immutable v1.2.0 tag after documentation changes.
+2. Dispatch release-macos.yml from main with release_tag=v1.2.0. Its three native
+   Companion jobs verify tagged builds and install/reinstall before the macOS
+   desktop build creates a private draft. The existing Windows workflow follows
+   automatically and attaches its version/icon-checked installer.
+3. Download all five installers and both checksum files. Check download hashes,
+   exact source manifests, target/version identity, bundled Agent bridge, license
+   notices and existing artwork. Mount both macOS DMGs read-only to check their
+   Finder icons and contents. Retain native Windows installation/version receipts.
+4. Publish the complete draft as latest only after these gates pass. Verify the
+   public asset inventory and README download links, and record the immutable
+   tag, jobs and delivery receipt in MEMORY.md. Preserve older releases.
 
 ## Historical releases
 
