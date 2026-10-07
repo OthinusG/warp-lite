@@ -15951,7 +15951,7 @@ impl Workspace {
             #[cfg(feature = "local_fs")]
             {
                 self.right_panel_view.update(ctx, |right_panel, ctx| {
-                    right_panel.update_session_env(is_remote, is_wsl_session, ctx);
+                    right_panel.update_session_env(is_remote || has_pending_ssh, is_wsl_session, ctx);
                 });
 
                 if self.active_tab_pane_group().as_ref(ctx).right_panel_open {
