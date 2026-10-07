@@ -1,5 +1,14 @@
 # Project Memory
 
+## Repository cover — 2026-10-07
+
+- Owner requests a shared README/Social preview cover incorporating the approved
+  Warpai icon and the official Warp repository's gradient style. Both READMEs
+  use docs/images/warpai-social-preview.jpg; application icons and native
+  screenshots stay unchanged. Prompt and visual checks: docs/images/SOCIAL-PREVIEW.md.
+- GitHub Social preview requires a separate Settings upload; current tools lack
+  browser upload capability. A README image does not configure Social preview.
+
 ## 1.3.0 release authorization — 2026-10-07
 
 - Owner authorizes packaging and public release of App 1.3.0 with Companion

@@ -4,7 +4,7 @@
 
 # Warpai
 
-<img src="app/assets/branding/warpai.png" alt="Warpai" width="160" height="160">
+<img src="docs/images/warpai-social-preview.jpg" alt="Warpai：围绕 Agent 构建的终端，支持本地与 SSH 工作流。" width="960">
 
 ### 为 Agent 协作而生的终端工作空间。
 

@@ -2,6 +2,9 @@
 
 [English](README.md) | **简体中文** · [返回产品介绍](../../README.zh-CN.md)
 
+README 顶部封面是生成的品牌宣传图，来源与上传说明见
+[Social preview 文档（英文）](SOCIAL-PREVIEW.md)。以下来源记录仅适用于原生应用截图。
+
 这些图片是原生 macOS 应用输出的原始 PNG 截图，未经修改。
 截图中的项目、Agent 和任务是原生验收驱动使用的样例，不是用户项目或经过认证的服务商模型会话。
 

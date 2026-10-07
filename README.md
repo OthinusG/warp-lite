@@ -4,7 +4,7 @@
 
 # Warpai
 
-<img src="app/assets/branding/warpai.png" alt="Warpai" width="160" height="160">
+<img src="docs/images/warpai-social-preview.jpg" alt="Warpai — The terminal built around agents. Local + SSH, your CLI agents." width="960">
 
 ### The terminal built around agents.
 

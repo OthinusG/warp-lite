@@ -2,6 +2,10 @@
 
 **English** | [简体中文](README.zh-CN.md) · [Product introduction](../../README.md)
 
+The README brand cover is a generated marketing image, documented separately in
+[Social preview provenance and upload instructions](SOCIAL-PREVIEW.md).
+The following provenance applies only to the native application screenshots.
+
 These are unmodified PNG captures from the native macOS application, not mockups
 or generated product images. Sample projects, agents and tasks were exercised by
 the native review driver; they are not customer projects or authenticated vendor
