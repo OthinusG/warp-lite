@@ -43,3 +43,15 @@ desktop deployment is not requested by the corrected scope.
 Risk controls: checksums before activation, staged runtime replacement, bounded
 Git output/timeouts, stale response rejection, and original SFTP save identity.
 No new wire operations or dependencies are needed for the existing Review adapter.
+
+## Packaging diagnosis and repair plan
+
+Run 37599403450 passes Windows native install/runtime and all three platforms'
+core communication/file tests. Unix packaging needs two focused repairs:
+- Exclude source-archive symlinks for optional Git GUI subprojects; Python's safe
+  extraction correctly rejects their external targets, and the core-only build
+  does not use them. Keep the extraction safety filter.
+- Keep macOS's OS-provided iconv for its filename normalization code. Disable
+  iconv only for the static Linux runtime.
+Re-run native packaging on all three platforms; desktop compilation/capture is a
+separate running check. Include the runtime checksum list in the payload checksum.

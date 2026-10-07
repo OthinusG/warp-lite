@@ -48,13 +48,14 @@ def build(destination):
             download(SOURCE_URL, SOURCE_SHA256, archive)
             with tarfile.open(archive) as tar:
                 # data rejects traversal and special files without relying on archive ownership.
-                tar.extractall(temporary, filter="data")
+                members = [entry for entry in tar.getmembers() if not entry.issym() and not entry.islnk()]
+                tar.extractall(temporary, members=members, filter="data")
             source = temporary / f"git-{SOURCE}"
             options = ["NO_CURL=YesPlease", "NO_EXPAT=YesPlease", "NO_OPENSSL=YesPlease",
                        "NO_GETTEXT=YesPlease", "NO_PERL=YesPlease", "NO_PYTHON=YesPlease",
-                       "NO_TCLTK=YesPlease", "NO_ICONV=YesPlease"]
+                       "NO_TCLTK=YesPlease"]
             if sys.platform == "linux":
-                options += ["LDFLAGS=-static"]
+                options += ["LDFLAGS=-static", "NO_ICONV=YesPlease"]
             elif sys.platform == "darwin":
                 options += ["CC=clang", "CFLAGS=-O2 -mmacosx-version-min=11.0"]
             else:

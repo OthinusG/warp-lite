@@ -24,7 +24,7 @@ manifest = json.loads((payload / "manifest.json").read_text())
 manifest["runtime_directory"] = runtime_name
 manifest["git_source"] = (payload / runtime_name / "git/SOURCE.txt").read_text().strip()
 (payload / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-checksums = sorted(path for path in payload.rglob("*") if path.is_file() and path.name != "SHA256SUMS")
+checksums = sorted(path for path in payload.rglob("*") if path.is_file() and path != payload / "SHA256SUMS")
 (payload / "SHA256SUMS").write_text("".join(hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.relative_to(payload).as_posix() + "\n" for path in checksums))
 match = re.fullmatch(r"warpai-companion ([0-9]+\.[0-9]+\.[0-9]+) protocol [0-9]+", manifest["version"])
 if match is None:
