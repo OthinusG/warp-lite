@@ -2,6 +2,10 @@
 
 ## Repository cover — 2026-10-07
 
+- Owner correction: cover copy must emphasize Agent management and communication
+  between agents, not SSH, generic "Your CLI agents" or human team collaboration.
+  Keep its visual style and use "Agent management · Agent-to-agent communication"
+  as the supporting line.
 - Owner requests a shared README/Social preview cover incorporating the approved
   Warpai icon and the official Warp repository's gradient style. Both READMEs
   use docs/images/warpai-social-preview.jpg; application icons and native
