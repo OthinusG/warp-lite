@@ -4,7 +4,7 @@
 
 - Owner correction: cover copy must emphasize Agent management and communication
   between agents, not SSH, generic "Your CLI agents" or human team collaboration.
-  Keep its visual style and use "Agent management · Agent-to-agent communication"
+  Keep its visual style and use "Agent Management · Project Agent Communication"
   as the supporting line.
 - Owner requests a shared README/Social preview cover incorporating the approved
   Warpai icon and the official Warp repository's gradient style. Both READMEs
@@ -22,6 +22,12 @@
 - Reuse the existing macOS/three-platform Companion workflow and automatic
   Windows workflow with auto_publish=true. Preserve historical tags and assets;
   verify complete public delivery. No local Rust build or personal installation.
+- Immutable v1.3.0 source: e2964f3b49923ab44e219b7ece0ae6071f9fe3a6.
+  Formal macOS/Companion run 37606929158 passes all four jobs. Windows run
+  37613962878 is in progress; the release remains a private draft pending it.
+  Four downloaded installer hashes pass. Read-only macOS DMG inspection passes
+  App 1.3.0 identity/signature/Agent bridge/artwork and Companion 3.0.0 source,
+  private runtime and all payload checksums; Linux payload provenance also passes.
 
 ## Self-contained SSH project tools — 2026-10-07
 

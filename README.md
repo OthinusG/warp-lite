@@ -4,7 +4,7 @@
 
 # Warpai
 
-<img src="docs/images/warpai-social-preview.jpg" alt="Warpai — The terminal built around agents. Agent management and agent-to-agent communication." width="960">
+<img src="docs/images/warpai-social-preview.jpg" alt="Warpai — The terminal built around agents. Agent Management and Project Agent Communication." width="960">
 
 ### The terminal built around agents.
 

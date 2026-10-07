@@ -3,7 +3,7 @@
 ## Asset and references
 
 - Final asset: [warpai-social-preview.jpg](warpai-social-preview.jpg), 1280 × 640,
-  271,422 bytes, opaque JPEG. Both READMEs use this file.
+  233,415 bytes, opaque JPEG. Both READMEs use this file.
 - Generated with the built-in imagegen tool on 2026-10-07; exported from its
   1774 × 887 PNG with native macOS `sips`, JPEG quality 90, without cropping.
 - Identity reference: [approved Warpai icon](../../app/assets/branding/warpai.png).
@@ -12,8 +12,8 @@
   Upstream logos and application screenshots are not included.
 - This is a marketing image, not a native application capture. Existing app
   icons and README screenshots are unchanged.
-- Copy revision: the supporting line is now **Agent management · Agent-to-agent
-  communication**, emphasizing AI agent management and communication between
+- Copy revision: the supporting line is now **Agent Management · Project Agent
+  Communication**, emphasizing AI agent management and communication between
   agents rather than SSH or human team collaboration. The established visual
   style, icon, wordmark and headline are retained.
 
@@ -42,7 +42,7 @@ both. See [GitHub's official instructions](https://docs.github.com/en/repositori
 ## Final text-edit prompt
 
 ```text
-Edit the supplied Warpai repository cover, changing ONLY the small bottom-right supporting line "Local + SSH · Your CLI agents" to exactly "Agent management · Agent-to-agent communication". This communicates management of AI agents and communication between AI agents, not human team collaboration. Keep the wordmark "Warpai" and the two-line headline "The terminal built / around agents." unchanged. Preserve the entire existing composition, icon geometry with six binding links, icon size and position, black material, blue/violet/teal grainy background, thin geometric frame, colors and main typography. Fit the new supporting copy within the current right text column as ONE line by using a suitably smaller font (approximately 21px at 1280px canvas width). Maintain its current baseline and light gray/white color, with readable spacing. No overlap, no clipping, no added text, no visual redesign, no SSH text. Opaque 2:1 landscape cover, ideally 1280x640 pixels.
+Edit this existing Warpai cover, changing ONLY the small supporting line at the bottom of the right text column. Replace "Agent management · Agent-to-agent communication" with EXACTLY "Agent Management · Project Agent Communication". Keep wordmark "Warpai", main two-line headline "The terminal built / around agents.", the approved notebook/terminal black icon with six binding links, its size and placement, blue-violet-teal grainy gradient, geometric framing, margins, colors and typography unchanged. Keep the replacement text on one line in the same location, readable light gray sans serif with sufficient right margin; adjust only this line's font size as needed. No clipping, no additional elements, no visual redesign. Output opaque landscape 2:1, ideally 1280x640 pixels.
 ```
 
 ## Original generation prompt
