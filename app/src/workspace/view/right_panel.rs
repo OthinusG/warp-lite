@@ -479,9 +479,11 @@ impl RightPanelView {
     }
 
     #[cfg(feature = "local_fs")]
-    fn refresh_ssh_review(&mut self, ctx: &mut ViewContext<Self>) {
+    pub(crate) fn refresh_ssh_review(&mut self, ctx: &mut ViewContext<Self>) {
         use crate::remote_server::selected_session::{selected_ssh, selection_key};
-        let selection = selected_ssh(ctx, ctx.window_id());
+        let visible = self.active_pane_group.as_ref()
+            .is_some_and(|group| group.as_ref(ctx).right_panel_open);
+        let selection = visible.then(|| selected_ssh(ctx, ctx.window_id())).flatten();
         let key = selection
             .as_ref()
             .map(|(profile, connection)| selection_key(profile, connection));
@@ -489,7 +491,9 @@ impl RightPanelView {
             return;
         }
         self.ssh_selection = key.clone();
-        self.ssh_review = None;
+        if let Some(view) = self.ssh_review.take() {
+            view.update(ctx, |view, ctx| view.on_close(ctx));
+        }
         self.ssh_error = None;
         let Some((profile, connection)) = selection else {
             return;
@@ -539,11 +543,6 @@ impl RightPanelView {
         });
         view.update(ctx, |view, ctx| view.on_open(cache_root, ctx));
         self.ssh_review = Some(view);
-    }
-
-    #[cfg(all(debug_assertions, feature = "local_fs"))]
-    pub(crate) fn connect_ssh_checkpoint(&mut self, ctx: &mut ViewContext<Self>) {
-        self.refresh_ssh_review(ctx);
     }
 
     pub fn selected_repo_path(&self) -> Option<&PathBuf> {
@@ -744,20 +743,21 @@ impl RightPanelView {
 
     /// Closes the currently active CodeReviewView (if any) by calling on_close.
     fn close_active_code_review_view(&self, ctx: &mut ViewContext<Self>) {
-        let Some(state) = &self.code_review_state else {
-            return;
-        };
-        let (Some(repo_path), Some(pane_group)) =
-            (&state.selected_repo_path, &self.active_pane_group)
-        else {
-            return;
-        };
-        self.close_code_review_view(pane_group.id(), repo_path, ctx);
+        if let Some(view) = self.get_active_code_review_view(ctx) {
+            view.update(ctx, |view, ctx| view.on_close(ctx));
+        }
     }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     pub fn close_code_review(&mut self, ctx: &mut ViewContext<Self>) {
         self.close_active_code_review_view(ctx);
+
+        #[cfg(feature = "local_fs")]
+        {
+            self.ssh_selection = None;
+            self.ssh_review = None;
+            self.ssh_error = None;
+        }
 
         // Views are cached in WorkingDirectoriesModel, so we just update the UI state
         if let Some(code_review_state) = &mut self.code_review_state {
@@ -767,6 +767,10 @@ impl RightPanelView {
     }
 
     fn render_repo_dropdown(&self) -> Option<Box<dyn Element>> {
+        #[cfg(feature = "local_fs")]
+        if self.code_review_session_env.as_ref().is_some_and(|env| env.is_remote) {
+            return None;
+        }
         let Some(state) = &self.code_review_state else {
             return None;
         };
@@ -843,38 +847,6 @@ impl RightPanelView {
         let appearance = Appearance::as_ref(app);
         let close_button = self.close_button(appearance, app);
 
-        #[cfg(feature = "local_fs")]
-        if self
-            .code_review_session_env
-            .as_ref()
-            .is_some_and(|env| env.is_remote)
-        {
-            let header = self.render_simple_header(close_button);
-            let content = if let Some(view) = &self.ssh_review {
-                ChildView::new(view).finish()
-            } else if let Some(error) = &self.ssh_error {
-                warpui::elements::EventHandler::new(
-                    appearance
-                        .ui_builder()
-                        .span(format!("{error} Click to reconnect."))
-                        .with_soft_wrap()
-                        .build()
-                        .finish(),
-                )
-                .on_left_mouse_up(|ctx, _, _| {
-                    ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
-                    warpui::elements::DispatchEventResult::StopPropagation
-                })
-                .finish()
-            } else {
-                CodeReviewView::render_loading_state(appearance)
-            };
-            return Flex::column()
-                .with_child(header)
-                .with_child(Shrinkable::new(1.0, content).finish())
-                .finish();
-        }
-
         let Some(state) = &self.code_review_state else {
             let simple_header = self.render_simple_header(close_button);
             return Flex::column()
@@ -890,7 +862,8 @@ impl RightPanelView {
             .as_ref()
             .filter(|repo_path| state.available_repos.contains(repo_path));
 
-        let Some(selected_repo_path) = selected_repo_path else {
+        let current_code_review_view = self.get_active_code_review_view(app);
+        if selected_repo_path.is_none() && current_code_review_view.is_none() {
             let simple_header = self.render_simple_header(close_button);
 
             #[cfg(feature = "local_fs")]
@@ -898,7 +871,20 @@ impl RightPanelView {
                 let button = Some(ChildView::new(&self.open_repository_button).finish());
                 if let Some(env) = &self.code_review_session_env {
                     if env.is_remote {
-                        CodeReviewView::render_remote_state(appearance, button)
+                        if let Some(error) = &self.ssh_error {
+                            warpui::elements::EventHandler::new(
+                                appearance.ui_builder()
+                                    .span(format!("{error} Click to reconnect."))
+                                    .with_soft_wrap().build().finish(),
+                            ).on_left_mouse_up(|ctx, _, _| {
+                                ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
+                                warpui::elements::DispatchEventResult::StopPropagation
+                            }).finish()
+                        } else if self.ssh_selection.is_some() {
+                            CodeReviewView::render_loading_state(appearance)
+                        } else {
+                            CodeReviewView::render_remote_state(appearance, button)
+                        }
                     } else if env.is_wsl {
                         CodeReviewView::render_wsl_state(appearance, button)
                     } else {
@@ -916,14 +902,7 @@ impl RightPanelView {
                 .with_child(simple_header)
                 .with_child(Shrinkable::new(1.0, no_repo_body).finish())
                 .finish();
-        };
-
-        let current_code_review_view = self.active_pane_group.as_ref().and_then(|pane_group| {
-            let pane_group_id = pane_group.id();
-            self.working_directories_model
-                .as_ref(app)
-                .get_code_review_view(pane_group_id, selected_repo_path)
-        });
+        }
 
         if let Some(code_review_view) = current_code_review_view {
             let header = if FeatureFlag::GitOperationsInCodeReview.is_enabled() {
@@ -967,7 +946,11 @@ impl RightPanelView {
         let sub_text_color = theme.sub_text_color(theme.background());
 
         let crv = code_review_view.as_ref(app);
-        let repo_path = crv.repo_path();
+        let repo_path = crv.repo_path().cloned();
+        #[cfg(feature = "local_fs")]
+        let repo_path = crv.diff_state_model().as_ref(app).ssh_files()
+            .map(|files| PathBuf::from(&files.canonical_root))
+            .or(repo_path);
         let branch_name = crv
             .diff_state_model()
             .read(app, |model, _| model.get_current_branch_name());
@@ -1050,18 +1033,7 @@ impl RightPanelView {
     /// Legacy header layout: "Code review" title + file nav button.
     fn render_header_legacy(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
         let file_navigation_button = {
-            let current_code_review_view = self
-                .code_review_state
-                .as_ref()
-                .and_then(|state| state.selected_repo_path.as_ref())
-                .and_then(|repo_path| {
-                    self.active_pane_group.as_ref().and_then(|pane_group| {
-                        let pane_group_id = pane_group.id();
-                        self.working_directories_model
-                            .as_ref(app)
-                            .get_code_review_view(pane_group_id, repo_path)
-                    })
-                });
+            let current_code_review_view = self.get_active_code_review_view(app);
 
             let has_files = current_code_review_view
                 .as_ref()

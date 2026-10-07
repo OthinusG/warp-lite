@@ -4091,6 +4091,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         if let Some(socket) = std::env::var_os("WARP_TEST_SSH_SOCKET") {
                             model.ssh(SSHValue { socket_path: socket.into(), remote_shell: "bash".into() });
                         }
+                        // Populate simulated session metadata without bootstrapping the real local PTY.
+                        let (wakeups, _wakeups_rx) = async_channel::unbounded();
+                        let (events, events_rx) = async_channel::unbounded();
+                        let (reads, _reads_rx) = async_broadcast::broadcast(1);
+                        let original_listener = std::mem::replace(
+                            &mut model.event_proxy,
+                            crate::terminal::event_listener::ChannelEventListener::new(wakeups, events, reads),
+                        );
                         model.init_shell(InitShellValue {
                             session_id: 987654321_u64.into(),
                             shell: "bash".into(),
@@ -4099,6 +4107,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             hostname: "warpai-test".into(),
                             ..Default::default()
                         });
+                        model.event_proxy = original_listener;
+                        while let Ok(event) = events_rx.try_recv() {
+                            if !matches!(event, crate::terminal::event::Event::Handler(
+                                crate::terminal::model::terminal_model::HandlerEvent::InitShell { .. }
+                            )) {
+                                model.event_proxy.send_terminal_event(event);
+                            }
+                        }
                         model.bootstrapped(BootstrappedValue {
                             shell: "bash".into(),
                             home_dir: Some(std::env::var("WARP_TEST_REMOTE_HOME").unwrap()),
@@ -4243,13 +4259,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx);
                         }
                     });
-                    let panel = app
-                        .views_of_type::<crate::workspace::view::right_panel::RightPanelView>(
-                            window,
-                        )
-                        .unwrap()[0]
-                        .clone();
-                    panel.update(app, |panel, ctx| panel.connect_ssh_checkpoint(ctx));
                 },
             ),
         )
