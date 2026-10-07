@@ -23,6 +23,29 @@ on macOS/Windows. The corrected 170-image count passes against actual captures.
 Three-platform self-contained Companion acceptance passed before this version
 bump. Tagged release checks verify the new component version and formal packages.
 
+### 1.3.0 public delivery receipt
+
+Published [Warpai 1.3.0 with Companion 3.0.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)
+as the latest formal release on 2026-10-07. Immutable tagged source:
+`e2964f3b49923ab44e219b7ece0ae6071f9fe3a6`.
+
+- [macOS and three-platform Companion release](https://github.com/OthinusG/warpai/actions/runs/37606929158):
+  all four jobs pass, including source-matched native installers, install/reinstall,
+  private Git without system Git on PATH and Windows installed release protocol.
+- [Windows desktop release](https://github.com/OthinusG/warpai/actions/runs/37613962878):
+  application numeric/string versions, installer ProductVersion 1.3.0, icon,
+  Agent bridge and package contents pass before automatic public delivery.
+- Read-only inspection of downloaded macOS DMGs passes App version/identity,
+  strict deep signature, Agent bridge, canonical artwork and Applications link;
+  Companion source/target/version, every payload checksum and Finder launcher
+  icon pass. Linux source/target/version and complete payload checksums pass.
+- Public delivery contains five versioned installers and two SHA-256 lists.
+  All public GitHub installer digests agree with those lists; Windows's public
+  digest matches the downloaded verified CI installer and its tagged-source
+  receipt. The public notes match the committed changelog exactly.
+  Release notes cover the v1.2.0 baseline through v1.3.0; earlier tags and assets
+  are preserved. No local Rust build or personal-machine installation occurred.
+
 ## Historical delivery: 1.2.2
 
 The owner authorizes pushing the Review baseline correction and triggering

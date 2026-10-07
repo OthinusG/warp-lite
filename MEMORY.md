@@ -24,10 +24,15 @@
   verify complete public delivery. No local Rust build or personal installation.
 - Immutable v1.3.0 source: e2964f3b49923ab44e219b7ece0ae6071f9fe3a6.
   Formal macOS/Companion run 37606929158 passes all four jobs. Windows run
-  37613962878 is in progress; the release remains a private draft pending it.
+  37613962878 passes and publishes v1.3.0 as the latest public release.
   Four downloaded installer hashes pass. Read-only macOS DMG inspection passes
   App 1.3.0 identity/signature/Agent bridge/artwork and Companion 3.0.0 source,
   private runtime and all payload checksums; Linux payload provenance also passes.
+  The Windows CI installer source receipt matches the immutable release tag.
+  All five public installer digests match the checksum lists; Windows's published
+  GitHub digest matches the downloaded verified CI installer. Public inventory
+  contains exactly five installers and two SHA-256 lists, and notes match the
+  committed v1.2.0-to-v1.3.0 changelog.
 
 ## Self-contained SSH project tools — 2026-10-07
 
@@ -39,8 +44,8 @@
 - Active specification: specs/agent-communication-v2/SELF-CONTAINED-TOOLS.md.
   Reuse accepted original Review code and share exact-session/project RemoteFiles
   attachments. Native installers carry private Git without altering PATH or
-  shell/SSH profiles. No release or installation on personal machines has been
-  performed; source is on codex/self-contained-remote-tools.
+  shell/SSH profiles. Subsequently published in App 1.3.0 with Companion 3.0.0;
+  no installation on personal machines has been performed.
 - GitHub run 37600588598 (f7c749a4) passes three-platform Companion protocol,
   files, native installation and private Git checks without system Git on PATH.
   Desktop run 37599409548 passes both default/platform builds, application tests

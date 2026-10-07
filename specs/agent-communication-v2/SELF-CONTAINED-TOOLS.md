@@ -1,6 +1,6 @@
 # Self-contained remote project tools
 
-Date: 2026-10-07. Status: implemented and verified; not released.
+Date: 2026-10-07. Status: released in App 1.3.0 with Companion 3.0.0.
 
 ## Approved outcome
 
@@ -72,4 +72,6 @@ separate running check. Include the runtime checksum list in the payload checksu
   SSH Review and Code View screenshots were inspected on both desktop platforms.
   The original run remains red for that post-capture count only; application
   sources were not changed, and no redundant native rebuild was dispatched.
-- No public release or installation on personal machines has been performed.
+- Subsequently released from immutable v1.3.0 source through formal runs
+  37606929158 and 37613962878, with all release jobs passing. No installation on
+  personal machines was performed; the delivery receipt is in specs/RELEASE.md.
