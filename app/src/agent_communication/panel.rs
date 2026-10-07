@@ -4055,7 +4055,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     data.insert("owned_parent_session", parent);
                     data.insert("owned_parent_cwd", cwd);
                     terminal.update(app, |terminal, _| {
-                        use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue};
+                        use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue, SSHValue};
                         let config = std::env::var("WARP_TEST_SSH_CONFIG").unwrap();
                         let command = format!("ssh -F \"{config}\" warpai-test");
                         let mut model = terminal.model.lock();
@@ -4064,6 +4064,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             model.block_list_mut().input(character);
                         }
                         model.preexec(PreexecValue { command });
+                        if let Some(socket) = std::env::var_os("WARP_TEST_SSH_SOCKET") {
+                            model.ssh(SSHValue { socket_path: socket.into(), remote_shell: "bash".into() });
+                        }
                         model.init_shell(InitShellValue {
                             session_id: 987654321_u64.into(),
                             shell: "bash".into(),
@@ -4480,9 +4483,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "remote Review has one changed file"] {
+                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
+                        // Windows GUI processes may not retain redirected stderr.
+                        std::fs::write(directory.join("checkpoint-assertion.txt"), name).unwrap();
                     }
                 }
             }

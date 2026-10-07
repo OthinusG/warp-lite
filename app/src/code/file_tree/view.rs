@@ -437,7 +437,7 @@ impl FileTreeView {
                 }
                 Err(error) => {
                     #[cfg(debug_assertions)]
-                    if std::env::var_os("WARP_COLLABORATION_CAPTURE").is_some() {
+                    if std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
                         // ConnectionError contains only fixed variants, never runtime payloads.
                         eprintln!("Native SSH file failure: {error:?}");
                     }

@@ -106,7 +106,25 @@ def main():
                     env["WARP_TEST_COMPANION_PATH"] = str(installed)
                     subprocess.run(test, env=env, check=True, timeout=120)
                     executable = args.capture.resolve()
-                    subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
+                    # Use the same authenticated master as native macOS SSH sessions.
+                    # Keep its socket below macOS's 104-byte Unix socket limit.
+                    with tempfile.TemporaryDirectory(prefix="wssh-", dir=None if windows else "/tmp") as sockets:
+                        master = None
+                        try:
+                            if not windows:
+                                socket = Path(sockets) / "control"
+                                master = subprocess.Popen(["ssh", "-F", str(config), "-M", "-S", str(socket), "-N", "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                deadline = time.monotonic() + 10
+                                while not socket.exists():
+                                    if master.poll() is not None or time.monotonic() >= deadline:
+                                        raise RuntimeError("Owned SSH master unavailable")
+                                    time.sleep(0.025)
+                                env["WARP_TEST_SSH_SOCKET"] = str(socket)
+                            subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
+                        finally:
+                            if master is not None:
+                                master.terminate()
+                                master.wait(timeout=10)
                 print("Owned native SSH/SFTP file acceptance passed")
             finally:
                 if windows:

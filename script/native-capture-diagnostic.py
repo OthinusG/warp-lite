@@ -27,12 +27,15 @@ def main() -> None:
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1] / "app/src/agent_communication/panel.rs"
     log = "\n".join(log.read_text(errors="replace") for log in args.log)
+    for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
+        log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", log.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
         "failed_steps": failed_steps(source.read_text(), log),
         "failed_assertions": failed_assertions(source.read_text(), log),
+        "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),
         "panic_locations": locations,
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }
