@@ -2,6 +2,9 @@
 #ifndef ProductVersion
   #error ProductVersion is required
 #endif
+#ifndef RuntimeDirectory
+  #error RuntimeDirectory is required
+#endif
 [Setup]
 AppId=dev.warpai.Companion
 AppName={#ProductName}
@@ -28,3 +31,4 @@ Source: "../../companion-release/warpai-companion.exe"; DestDir: "{app}"; Flags:
 Source: "../../companion-release/manifest.json"; DestDir: "{app}"; DestName: "companion-manifest.json"; Flags: ignoreversion
 Source: "../../companion-release/LICENSE-AGPL"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/FORK_NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/{#RuntimeDirectory}\*"; DestDir: "{app}\{#RuntimeDirectory}"; Flags: ignoreversion recursesubdirs createallsubdirs

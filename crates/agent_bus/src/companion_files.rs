@@ -445,7 +445,17 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
     if !super::root_matches(&project.handle, &project.root).map_err(path_error)? {
         return Err(ManagedErrorCode::ManagedStaleAttachment);
     }
-    let mut child = Command::new("git")
+    let git = crate::installation::git_executable().map_err(path_error)?;
+    let mut command = Command::new(&git);
+    if git.is_absolute() {
+        // Git may re-exec itself for submodules; keep the private runtime on this child's PATH only.
+        let mut paths = vec![git.parent().unwrap().to_path_buf()];
+        if let Some(path) = std::env::var_os("PATH") {
+            paths.extend(std::env::split_paths(&path));
+        }
+        command.env("PATH", std::env::join_paths(paths).map_err(|_| ManagedErrorCode::ManagedUnavailable)?);
+    }
+    let mut child = command
         .args(["-c", "core.fsmonitor=false", "-c", "core.hooksPath="])
         .args(arguments)
         .current_dir(&project.root)

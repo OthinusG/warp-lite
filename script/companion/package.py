@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package a verified source-matched payload as a native remote installer."""
 import json
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -10,15 +11,27 @@ import tarfile
 import time
 
 payload = Path("companion-release")
+subprocess.run(["python3", "script/companion/build-runtime.py", str(payload / "git-runtime/git")], check=True)
+runtime = payload / "git-runtime"
+runtime_files = sorted(path for path in runtime.rglob("*") if path.is_file())
+runtime_sums = "".join(hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.relative_to(runtime).as_posix() + "\n" for path in runtime_files)
+(runtime / "SHA256SUMS").write_text(runtime_sums)
+runtime_name = "companion-runtime-" + hashlib.sha256(runtime_sums.encode()).hexdigest()
+runtime.rename(payload / runtime_name)
 branding = Path("app/assets/branding")
 shutil.copy2(branding / "warpai-companion.png", payload / "companion.png")
 manifest = json.loads((payload / "manifest.json").read_text())
+manifest["runtime_directory"] = runtime_name
+manifest["git_source"] = (payload / runtime_name / "git/SOURCE.txt").read_text().strip()
+(payload / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+checksums = sorted(path for path in payload.rglob("*") if path.is_file() and path.name != "SHA256SUMS")
+(payload / "SHA256SUMS").write_text("".join(hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.relative_to(payload).as_posix() + "\n" for path in checksums))
 match = re.fullmatch(r"warpai-companion ([0-9]+\.[0-9]+\.[0-9]+) protocol [0-9]+", manifest["version"])
 if match is None:
     raise SystemExit("A semantic Companion component version is required")
 version = match.group(1)
 if os.name == "nt":
-    subprocess.run(["ISCC", f"/DProductVersion={version}", "script/companion/windows.iss"], check=True)
+    subprocess.run(["ISCC", f"/DProductVersion={version}", f"/DRuntimeDirectory={runtime_name}", "script/companion/windows.iss"], check=True)
     installer = f"WarpaiCompanion-{version}-windows-x64-setup.exe"
     shutil.move(Path("script/companion") / installer, installer)
 else:

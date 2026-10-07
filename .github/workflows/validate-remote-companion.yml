@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CARGO_BUILD_RUSTFLAGS: ''
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -32,7 +32,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y protobuf-compiler openssh-client openssh-server
+          sudo apt-get install -y protobuf-compiler openssh-client openssh-server zlib1g-dev
       - name: Install macOS protobuf compiler
         if: runner.os == 'macOS'
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
@@ -130,13 +130,16 @@ jobs:
           PY
             exit 1
           fi
+      - name: Build self-contained Windows Companion runtime
+        if: runner.os == 'Windows'
+        run: CARGO_BUILD_RUSTFLAGS='-C target-feature=+crt-static' cargo build -p warp-agent-bus --bin warpai-companion --target x86_64-pc-windows-msvc --locked
       - name: Prepare source-matched companion review artifact
         run: |
           python3 - <<'PY'
           import hashlib, json, os, shutil, subprocess
           from pathlib import Path
           target = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
-          binary = Path('target/debug/warpai-companion' + ('.exe' if os.name == 'nt' else ''))
+          binary = Path('target/x86_64-pc-windows-msvc/debug/warpai-companion.exe' if os.name == 'nt' else 'target/debug/warpai-companion')
           output = Path('companion-review')
           output.mkdir()
           shutil.copy2(binary, output / binary.name)
@@ -171,6 +174,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-companion-review-${{ runner.os }}-${{ runner.arch }}
-          path: companion-review/
+          path: companion-release/
           if-no-files-found: error
           retention-days: 7

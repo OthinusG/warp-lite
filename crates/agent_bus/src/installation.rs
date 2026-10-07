@@ -3,6 +3,47 @@ use crate::ssh_remote::{ConnectionError, RemoteShell};
 
 pub const RELEASE_VERSION: &str = "2.0.0";
 
+/// Native installers own a private Git runtime; unpackaged development builds use system Git.
+pub fn git_executable() -> std::io::Result<std::path::PathBuf> {
+    git_executable_in(std::env::current_exe()?.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Companion directory unavailable",
+        )
+    })?)
+}
+
+fn git_executable_in(directory: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
+    let manifest = match std::fs::read(directory.join("companion-manifest.json")) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok("git".into()),
+        Err(error) => return Err(error),
+    };
+    let manifest: serde_json::Value = serde_json::from_slice(&manifest)?;
+    let runtime = manifest["runtime_directory"]
+        .as_str()
+        .filter(|name| {
+            name.strip_prefix("companion-runtime-").is_some_and(|hash| {
+                hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+        })
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid Companion runtime")
+        })?;
+    let executable = directory.join(runtime).join(if cfg!(windows) {
+        "git/cmd/git.exe"
+    } else {
+        "git/bin/git"
+    });
+    if !executable.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Companion Git runtime unavailable",
+        ));
+    }
+    Ok(executable)
+}
+
 /// Resolve the installer-owned executable without asking for a path or changing PATH.
 pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), ConnectionError> {
     if home.is_empty() || home.len() > 4000 || home.chars().any(char::is_control) {

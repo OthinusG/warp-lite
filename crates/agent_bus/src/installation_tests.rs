@@ -1,6 +1,43 @@
 use super::*;
 
 #[test]
+fn private_git_runtime_is_required_for_installed_payloads() {
+    let directory = tempfile::tempdir().unwrap();
+    assert_eq!(
+        git_executable_in(directory.path()).unwrap(),
+        std::path::PathBuf::from("git")
+    );
+    let runtime = format!("companion-runtime-{}", "a".repeat(64));
+    let manifest = directory.path().join("companion-manifest.json");
+    std::fs::write(
+        &manifest,
+        serde_json::json!({"runtime_directory": runtime}).to_string(),
+    )
+    .unwrap();
+    assert!(git_executable_in(directory.path()).is_err());
+    let binary = directory.path().join(&runtime).join(if cfg!(windows) {
+        "git/cmd/git.exe"
+    } else {
+        "git/bin/git"
+    });
+    std::fs::create_dir_all(binary.parent().unwrap()).unwrap();
+    std::fs::write(&binary, b"fixture").unwrap();
+    assert_eq!(git_executable_in(directory.path()).unwrap(), binary);
+    for invalid in [
+        "../git",
+        "companion-runtime-../../git",
+        "companion-runtime-short",
+    ] {
+        std::fs::write(
+            &manifest,
+            serde_json::json!({"runtime_directory": invalid}).to_string(),
+        )
+        .unwrap();
+        assert!(git_executable_in(directory.path()).is_err());
+    }
+}
+
+#[test]
 fn default_locations_follow_remote_native_home() {
     let (path, shell) = companion_path("/Users/Remote Person/多语言", "Darwin").unwrap();
     assert_eq!(

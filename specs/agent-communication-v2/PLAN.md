@@ -2,6 +2,10 @@
 
 > Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
 
+> Approved 2026-10-07 follow-up: [self-contained remote tools](SELF-CONTAINED-TOOLS.md)
+> restores original SSH Review and bundles Companion's runtime dependencies,
+> superseding the later Review exclusion below. No desktop auto-deployment.
+
 Date: 2026-10-04. Status: S0–S5 accepted; source4fcb0c3 review builds verified.
 Quality follow-up: cleaned source `8b89938` passed the three-platform remote and
 two-platform desktop workflows. See [replacement decisions and acceptance](QUALITY.md).

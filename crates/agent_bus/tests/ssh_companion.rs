@@ -597,6 +597,13 @@ async fn native_ssh_file_tools_save_conflict_preview_resources_and_reconnect() {
     let files = RemoteFiles::connect(profile.clone(), connection.clone())
         .await
         .unwrap();
+    let shared = RemoteFiles::connect(profile.clone(), connection.clone())
+        .await
+        .unwrap();
+    assert!(
+        std::sync::Arc::ptr_eq(&files, &shared),
+        "Explorer and Review reuse the same attachment"
+    );
     if let Ok(repository) = files.repository().await {
         assert_eq!(repository.identity, files.identity);
         let directory = format!("nested-cwd-{}", Uuid::new_v4());

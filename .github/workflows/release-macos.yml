@@ -44,7 +44,7 @@ jobs:
           rustup toolchain install 1.92.0 --profile minimal
           if [[ "$RUNNER_OS" == Linux ]]; then
             sudo apt-get update -qq
-            sudo apt-get install -y protobuf-compiler
+            sudo apt-get install -y protobuf-compiler zlib1g-dev
           elif [[ "$RUNNER_OS" == macOS ]]; then
             HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
           else
@@ -58,13 +58,16 @@ jobs:
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test managed_agent --locked
           cargo build --release -p warp-agent-bus --bin warpai-companion --locked
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            CARGO_BUILD_RUSTFLAGS='-C target-feature=+crt-static' cargo build --release -p warp-agent-bus --bin warpai-companion --target x86_64-pc-windows-msvc --locked
+          fi
       - name: Package source-matched companion
         run: |
           python3 - <<'PY'
           import hashlib, json, os, shutil, subprocess
           from pathlib import Path
           target = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
-          binary = Path('target/release/warpai-companion' + ('.exe' if os.name == 'nt' else ''))
+          binary = Path('target/x86_64-pc-windows-msvc/release/warpai-companion.exe' if os.name == 'nt' else 'target/release/warpai-companion')
           output = Path('companion-release')
           output.mkdir()
           shutil.copy2(binary, output / binary.name)

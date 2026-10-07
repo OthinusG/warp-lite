@@ -11,14 +11,14 @@ use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RemoteShell {
     Posix,
     PowerShell,
 }
 
 /// Target metadata only; authentication and jump routing stay in system SSH config.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SshProfile {
     pub target: String,
     pub config_file: Option<PathBuf>,

@@ -18,6 +18,12 @@ Capabilities: project_open, managed_agent, project_tasks, project_mcp.
 
 ## Existing file tools over SSH
 
+The 2026-10-07 self-contained-tools iteration reuses `project_git_review` and the
+existing Git root/status/diff/branches/base-file operations. Explorer and Review
+share a session/project attachment. Native installers resolve Git from the private
+runtime named by companion-manifest.json; no system Git installation is required.
+No wire schema or protocol-major change is introduced.
+
 `project_files` admits only typed `ProjectFilesRequest` operations under the
 current project fence: directory metadata, staged reads, staged saves, explicit
 create/rename/delete and transfer release. Requests and results echo selection

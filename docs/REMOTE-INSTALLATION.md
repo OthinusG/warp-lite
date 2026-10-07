@@ -42,6 +42,17 @@ from the same release; protocol compatibility is checked before project binding.
 
 ## Connect and troubleshoot
 
+The self-contained-tools source iteration bundles a private Git runtime with
+Companion. Explorer/file operations, Agent coordination and the MCP bridge run
+inside Companion; code/text and Markdown preview render in the desktop app.
+These features do not require a separate Git, Python, Node, tmux or socat
+installation on the remote account. Vendor Agent CLIs retain their own runtimes
+and authentication. SSH/SFTP and session shell integration remain transport
+prerequisites. Private Git does not change the account's PATH or replace system Git.
+Use `warpai-companion --check-runtime` at its installed absolute path to verify
+the bundled runtime. This describes the source iteration, not an already released
+installer update.
+
 Select the SSH terminal and enter the project with `cd`. The collaboration panel
 uses the confirmed remote home, OS and directory to locate and probe the companion.
 If it is missing, cannot execute or has an incompatible protocol, install/update

@@ -6,12 +6,12 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, OnceLock, Weak,
     },
 };
 use tokio::{io::AsyncWriteExt, process::Command, sync::Mutex};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SshConnection {
     Multiplexed {
         socket: PathBuf,
@@ -411,6 +411,23 @@ impl RemoteFiles {
         profile: SshProfile,
         connection: SshConnection,
     ) -> Result<Arc<Self>, ConnectionError> {
+        type Attachments =
+            std::collections::HashMap<(SshProfile, SshConnection), Weak<RemoteFiles>>;
+        static ATTACHMENTS: OnceLock<Mutex<Attachments>> = OnceLock::new();
+        // ponytail: serialize attachment creation; use per-target locks if concurrent logins become slow.
+        let mut attachments = ATTACHMENTS
+            .get_or_init(|| Mutex::new(Attachments::new()))
+            .lock()
+            .await;
+        attachments.retain(|_, files| files.strong_count() > 0);
+        let key = (profile.clone(), connection.clone());
+        if let Some(files) = attachments
+            .get(&key)
+            .and_then(Weak::upgrade)
+            .filter(|files| files.connected())
+        {
+            return Ok(files);
+        }
         let client = connection.connect(&profile).await?;
         if !client.capabilities().iter().any(|c| c == "project_files") {
             return Err(ConnectionError::FeatureUnavailable);
@@ -435,7 +452,7 @@ impl RemoteFiles {
             .prefix("warpai-ssh-")
             .tempdir()
             .map_err(|_| ConnectionError::CapacityExceeded)?;
-        Ok(Arc::new(Self {
+        let files = Arc::new(Self {
             profile,
             connection,
             canonical_root,
@@ -443,7 +460,9 @@ impl RemoteFiles {
             client: Mutex::new(client),
             connected: AtomicBool::new(true),
             cache,
-        }))
+        });
+        attachments.insert(key, Arc::downgrade(&files));
+        Ok(files)
     }
     /// Reuse the current attachment when cwd is already the repository root.
     pub async fn repository(self: &Arc<Self>) -> Result<Arc<Self>, ConnectionError> {

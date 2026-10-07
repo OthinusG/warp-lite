@@ -364,6 +364,10 @@ impl DiffMetadataAgainstBase {
 /// Model that contains all state related to the current pane's open git repository.
 pub struct DiffStateModel {
     #[cfg(feature = "local_fs")]
+    ssh_files: Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>>,
+    #[cfg(feature = "local_fs")]
+    ssh_sources: Vec<Arc<warp_files::SshFile>>,
+    #[cfg(feature = "local_fs")]
     repository: Option<ModelHandle<Repository>>,
     #[cfg(feature = "local_fs")]
     subscriber_id: Option<SubscriberId>,
@@ -371,6 +375,7 @@ pub struct DiffStateModel {
     mode: DiffMode,
     metadata: Option<DiffMetadata>,
     computing_diffs_abort_handle: Option<SpawnedFutureHandle>,
+    ssh_reload_pending: bool,
     computing_metadata_abort_handle: Option<SpawnedFutureHandle>,
     /// Controls whether periodic throttled metadata refresh is active.
     /// Refresh is suppressed when the code review pane is not open.
@@ -406,9 +411,251 @@ struct GitNumStatMetadata {
 }
 
 impl DiffStateModel {
+    #[cfg(feature = "local_fs")]
+    pub fn set_ssh_files(&mut self, files: Arc<warp_agent_bus::ssh_files::RemoteFiles>) {
+        self.ssh_files = Some(files);
+    }
+
+    #[cfg(feature = "local_fs")]
+    pub fn ssh_files(&self) -> Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>> {
+        self.ssh_files.clone()
+    }
+
+    pub fn is_ssh(&self) -> bool {
+        #[cfg(feature = "local_fs")]
+        {
+            return self.ssh_files.is_some();
+        }
+        #[cfg(not(feature = "local_fs"))]
+        false
+    }
+
+    #[cfg(feature = "local_fs")]
+    fn load_ssh_diffs(
+        &mut self,
+        files: Arc<warp_agent_bus::ssh_files::RemoteFiles>,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        use remote_server::proto::{ProjectFileAction, ProjectFilesRequest};
+        // Finish the bounded transfer before changing modes so cancellation does not
+        // disconnect other editors sharing this attachment. Coalesce rapid refreshes.
+        if self.computing_diffs_abort_handle.is_some() {
+            self.ssh_reload_pending = true;
+            return;
+        }
+        self.state = InternalDiffState::Loading;
+        let reference = match &self.mode {
+            DiffMode::Head => "HEAD".to_owned(),
+            DiffMode::MainBranch => "@main".to_owned(),
+            DiffMode::OtherBranch(branch) => branch.clone(),
+        };
+        let identity = files.identity.clone();
+        let registration_files = files.clone();
+        self.computing_diffs_abort_handle = Some(ctx.spawn(
+            async move {
+                let status = files
+                    .control(ProjectFilesRequest {
+                        action: ProjectFileAction::ProjectGitStatus as i32,
+                        destination: if reference == "HEAD" {
+                            String::new()
+                        } else {
+                            reference.clone()
+                        },
+                        ..Default::default()
+                    })
+                    .await?;
+                let mut changed = Self::parse_git_status(&status.git_output)?;
+                if reference != "HEAD" {
+                    changed.retain(|(_, status)| matches!(status, GitFileStatus::Untracked));
+                    changed.extend(Self::parse_git_diff_name_status(&status.git_name_status)?);
+                }
+                let initial_status = status.git_output.clone();
+                let initial_names = status.git_name_status.clone();
+                let requested_reference = reference.clone();
+                let reference = status.git_base;
+
+                let mut diffs = Vec::new();
+                let mut registrations = Vec::new();
+                for (path, status) in changed {
+                    let relative = path
+                        .to_str()
+                        .ok_or_else(|| anyhow!("Invalid remote Git path"))?;
+                    let absolute = format!(
+                        "{}/{}",
+                        files.canonical_root.trim_end_matches('/'),
+                        relative
+                    );
+                    let cache = files.cache_path(&absolute)?;
+                    let deleted = matches!(status, GitFileStatus::Deleted);
+                    let mut working_hash = None;
+                    let content = if deleted {
+                        registrations.push((absolute.clone(), cache.clone(), String::new()));
+                        None
+                    } else {
+                        let (cache, hash) = files.download(&absolute).await?;
+                        let bytes = async_fs::read(&cache).await?;
+                        working_hash = Some(hash.clone());
+                        registrations.push((absolute.clone(), cache, hash));
+                        Some(bytes)
+                    };
+                    let is_binary = content
+                        .as_ref()
+                        .is_some_and(|bytes| warp_util::file_type::is_buffer_binary(bytes));
+                    let new_file = reference.is_empty()
+                        || matches!(status, GitFileStatus::Untracked | GitFileStatus::New);
+                    let base_path = match &status {
+                        GitFileStatus::Renamed { old_path }
+                        | GitFileStatus::Copied { old_path } => Path::new(old_path),
+                        _ => path.as_path(),
+                    };
+                    let base = if new_file {
+                        Some(String::new())
+                    } else {
+                        let base_absolute = format!(
+                            "{}/{}",
+                            files.canonical_root.trim_end_matches('/'),
+                            base_path.to_string_lossy()
+                        );
+                        let (base_cache, _) =
+                            files.download_base(&base_absolute, &reference).await?;
+                        let bytes = async_fs::read(&base_cache).await?;
+                        let _ = async_fs::remove_file(base_cache).await;
+                        String::from_utf8(bytes).ok()
+                    };
+                    let patch = if new_file {
+                        let text = content
+                            .as_ref()
+                            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                            .unwrap_or("");
+                        format!(
+                            "@@ -0,0 +1,{} @@\n{}",
+                            text.lines().count(),
+                            text.lines()
+                                .map(|line| format!("+{line}\n"))
+                                .collect::<String>()
+                        )
+                    } else {
+                        let patch = files
+                            .control(ProjectFilesRequest {
+                                action: ProjectFileAction::ProjectGitDiff as i32,
+                                path: relative.into(),
+                                git_previous_path: match &status {
+                                    GitFileStatus::Renamed { old_path }
+                                    | GitFileStatus::Copied { old_path } => old_path.clone(),
+                                    _ => String::new(),
+                                },
+                                destination: reference.clone(),
+                                ..Default::default()
+                            })
+                            .await?;
+                        if working_hash.as_deref().unwrap_or("") != patch.sha256 {
+                            return Err(anyhow!(
+                                "Remote file changed while loading Review. Refresh to retry."
+                            ));
+                        }
+                        patch.git_output
+                    };
+                    let hunks = Self::parse_diff_hunks(&patch)?;
+                    let max_line_number = hunks
+                        .iter()
+                        .flat_map(|hunk| &hunk.lines)
+                        .flat_map(|line| [line.old_line_number, line.new_line_number])
+                        .flatten()
+                        .max()
+                        .unwrap_or(0);
+                    diffs.push(FileDiffAndContent {
+                        file_diff: FileDiff {
+                            file_path: cache,
+                            status,
+                            is_binary: is_binary || patch.contains("Binary files "),
+                            is_autogenerated: super::is_file_autogenerated(&path, base.as_deref()),
+                            max_line_number,
+                            has_hidden_bidi_chars: Self::check_for_hidden_bidi_chars(&patch),
+                            size: compute_diff_size(&hunks, patch.len()),
+                            hunks: Arc::new(hunks),
+                        },
+                        content_at_head: base,
+                    });
+                }
+                let current = files
+                    .control(ProjectFilesRequest {
+                        action: ProjectFileAction::ProjectGitStatus as i32,
+                        destination: if requested_reference == "HEAD" {
+                            String::new()
+                        } else {
+                            requested_reference
+                        },
+                        ..Default::default()
+                    })
+                    .await?;
+                if current.git_output != initial_status
+                    || reference != current.git_base
+                    || initial_names != current.git_name_status
+                {
+                    return Err(anyhow!(
+                        "Remote Git status changed while loading Review. Refresh to retry."
+                    ));
+                }
+                let changes = GitDiffWithBaseContent {
+                    total_additions: diffs.iter().map(|file| file.file_diff.additions()).sum(),
+                    total_deletions: diffs.iter().map(|file| file.file_diff.deletions()).sum(),
+                    files_changed: diffs.len(),
+                    files: diffs,
+                };
+                Ok::<_, anyhow::Error>((changes, registrations))
+            },
+            move |me, result, ctx| {
+                me.computing_diffs_abort_handle = None;
+                if me.ssh_reload_pending {
+                    me.ssh_reload_pending = false;
+                    if let Some(files) = me.ssh_files.clone() {
+                        me.load_ssh_diffs(files, ctx);
+                    }
+                    return;
+                }
+                if me
+                    .ssh_files
+                    .as_ref()
+                    .is_none_or(|files| files.identity != identity)
+                {
+                    return;
+                }
+                let result = result.and_then(|(changes, registrations)| {
+                    me.ssh_sources =
+                        warp_files::FileModel::handle(ctx).update(ctx, |model, _| {
+                            let mut sources = Vec::new();
+                            for (path, cache, hash) in registrations {
+                                model.register_ssh_file(
+                                    registration_files.clone(),
+                                    path,
+                                    cache.clone(),
+                                    hash,
+                                )?;
+                                if let Some(source) = model.ssh_source(&cache) {
+                                    sources.push(source);
+                                }
+                            }
+                            Ok::<_, warp_util::file::FileSaveError>(sources)
+                        })?;
+                    Ok(changes)
+                });
+                let diffs = DiffsWithBaseContent {
+                    changes: result.map_err(|error| error.to_string()),
+                    repository_path: PathBuf::new(),
+                };
+                me.state = InternalDiffState::Loaded((&diffs).into());
+                ctx.emit(DiffStateModelEvent::NewDiffsComputed(diffs.changes.ok()));
+            },
+        ));
+    }
+
     #[cfg_attr(not(feature = "local_fs"), allow(unused_variables))]
     pub fn new(repo_path: Option<String>, ctx: &mut ModelContext<Self>) -> Self {
         let model = Self {
+            #[cfg(feature = "local_fs")]
+            ssh_files: None,
+            #[cfg(feature = "local_fs")]
+            ssh_sources: Vec::new(),
             #[cfg(feature = "local_fs")]
             repository: None,
             state: InternalDiffState::default(),
@@ -417,6 +664,7 @@ impl DiffStateModel {
             mode: DiffMode::default(),
             metadata: None,
             computing_diffs_abort_handle: None,
+            ssh_reload_pending: false,
             computing_metadata_abort_handle: None,
             metadata_refresh_enabled: false,
         };
@@ -665,7 +913,7 @@ impl DiffStateModel {
     pub fn is_inside_repository(&self) -> bool {
         cfg_if::cfg_if! {
             if #[cfg(feature = "local_fs")] {
-                self.repository.is_some()
+                self.repository.is_some() || self.ssh_files.is_some()
             } else {
                 false
             }
@@ -700,6 +948,10 @@ impl DiffStateModel {
         should_fetch_base: bool,
         ctx: &mut ModelContext<Self>,
     ) {
+        if let Some(files) = self.ssh_files.clone() {
+            self.load_ssh_diffs(files, ctx);
+            return;
+        }
         // Abort any previous diff loading operations before spawning a new one.
         if let Some(handle) = self.computing_diffs_abort_handle.take() {
             handle.abort();
@@ -1059,6 +1311,10 @@ impl DiffStateModel {
         ctx: &mut ModelContext<Self>,
     ) {
         if !self.metadata_refresh_enabled {
+            return;
+        }
+        if let Some(files) = self.ssh_files.clone() {
+            self.load_ssh_diffs(files, ctx);
             return;
         }
         let Some(current_repository) = &self.repository else {

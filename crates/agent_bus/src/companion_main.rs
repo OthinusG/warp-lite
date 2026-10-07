@@ -1,6 +1,20 @@
 //! Clean stdio endpoint invoked explicitly through verified system SSH.
 #[tokio::main]
 async fn main() {
+    if std::env::args_os().len() == 2
+        && std::env::args().nth(1).as_deref() == Some("--check-runtime")
+    {
+        let result = warp_agent_bus::installation::git_executable()
+            .and_then(|git| std::process::Command::new(git).arg("--version").output());
+        match result {
+            Ok(output) if output.status.success() => println!("Companion Git runtime ready"),
+            _ => {
+                eprintln!("Companion Git runtime unavailable");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     match std::env::args().nth(1).as_deref() {
         Some("forward") => {
             let result = match std::env::args().nth(2) {

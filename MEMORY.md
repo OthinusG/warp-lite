@@ -1,5 +1,29 @@
 # Project Memory
 
+## Self-contained SSH project tools — 2026-10-07
+
+- Owner authorizes original remote Review with the existing Explorer/Code View
+  and preview, and corrects the dependency request: Companion installers must
+  carry Warpai's own runtime dependencies, rather than desktop auto-deployment.
+  Vendor Agent CLIs/authentication remain user-owned. System tray is explicitly
+  deferred; keep on-demand startup and the existing 60-second idle shutdown.
+- Active specification: specs/agent-communication-v2/SELF-CONTAINED-TOOLS.md.
+  Reuse accepted original Review code and share exact-session/project RemoteFiles
+  attachments. Native installers carry private Git without altering PATH or
+  shell/SSH profiles. Verification is in progress; no release or installation
+  on personal machines has been performed.
+
+## Original Code Review entry restored — 2026-10-07
+
+- Owner now requests restoring only the original Warp Code Review panel entry,
+  superseding the earlier instruction to hide it. Enable the existing toolbar
+  item under local_fs and align its native capture assertion. Keep the original
+  panel implementation; do not restore the removed SSH Review extension.
+- Source audit: restoring the entry does not enable SSH Git Review. The panel
+  still uses path-keyed local DiffStateModel/Git commands, and its remote empty
+  state says "Diffs only work for local workspaces." Remote Explorer/SFTP file
+  opening is a separate data path. Native SSH Review was not runtime-verified.
+
 ## 1.2.2 release authorization — 2026-10-07
 
 - Owner requests push and v1.2.2 release triggering only, with no subsequent

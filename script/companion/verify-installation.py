@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 if os.environ.get("GITHUB_ACTIONS") != "true":
     raise SystemExit("Native installation verification requires a disposable GitHub runner")
@@ -37,6 +38,28 @@ for _ in range(2):
     assert metadata["sha256"] == hashlib.sha256(installed.read_bytes()).hexdigest()
     version = subprocess.check_output([str(installed), "--version"], text=True).strip()
     assert version == payload_manifest["version"], version
+    metadata = json.loads(installed.with_name("companion-manifest.json").read_text())
+    runtime = installed.parent / metadata["runtime_directory"]
+    for entry in (runtime / "SHA256SUMS").read_text().splitlines():
+        digest, name = entry.split("  ", 1)
+        assert hashlib.sha256((runtime / name).read_bytes()).hexdigest() == digest
+    environment = os.environ.copy()
+    environment["PATH"] = str(installed.parent)
+    subprocess.run([str(installed), "--check-runtime"], env=environment, check=True)
+    git = runtime / ("git/cmd/git.exe" if os.name == "nt" else "git/bin/git")
+    environment["GIT_CONFIG_NOSYSTEM"] = "1"
+    environment["GIT_CONFIG_GLOBAL"] = os.devnull
+    with tempfile.TemporaryDirectory(prefix="warpai-private-git-") as project:
+        def run_git(*arguments):
+            return subprocess.check_output([str(git), *arguments], cwd=project, env=environment, text=True)
+        run_git("init", "--template=")
+        file = Path(project) / "example.txt"
+        file.write_text("before\n")
+        run_git("add", "--", file.name)
+        run_git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture")
+        file.write_text("after\n")
+        assert "example.txt" in run_git("status", "--porcelain=2", "-z")
+        assert "-before\n+after" in run_git("diff", "--no-ext-diff", "--no-textconv", "HEAD", "--", file.name)
     if os.name != "nt":
         assert installed.stat().st_mode & 0o777 == 0o700
     else:
