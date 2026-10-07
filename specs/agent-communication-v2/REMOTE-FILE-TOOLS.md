@@ -2,6 +2,11 @@
 
 Date: 2026-10-07. Status: released in Warpai 1.2.1 with Companion 2.0.0.
 
+Owner correction, 2026-10-07: [REVIEW-BASELINE.md](REVIEW-BASELINE.md) supersedes
+the Git Review requirements and delivery claims below for current source.
+The SSH requirement is Explorer file management and existing in-app file
+opening/preview parity. Code Review logic and entry points return to v1.0.1.
+
 ## Outcome and scope
 
 After the user connects with ordinary `ssh user@host` and runs `cd`, the existing

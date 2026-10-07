@@ -7,6 +7,11 @@ on:
         description: "Existing repository tag to build and publish"
         required: true
         type: string
+      auto_publish:
+        description: "Publish after all macOS, Companion and Windows packaging checks pass"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -156,6 +161,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          AUTO_PUBLISH: ${{ inputs.auto_publish }}
         run: |
           desktop="Warpai-${RELEASE_TAG#v}-macos-arm64.dmg"
           checksums="SHA256SUMS-Warpai-${RELEASE_TAG#v}-macos-and-companions.txt"
@@ -165,8 +171,11 @@ jobs:
             --verify-tag --repo "$GITHUB_REPOSITORY" \
             --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt
+          printf '%s\n' "$AUTO_PUBLISH" > auto-publish.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-target
-          path: release-tag.txt
+          path: |
+            release-tag.txt
+            auto-publish.txt
           retention-days: 7

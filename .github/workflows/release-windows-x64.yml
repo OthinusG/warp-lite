@@ -43,12 +43,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          AUTO_PUBLISH=false
           if [[ -n "$INPUT_TAG" ]]; then
             TARGET_TAG="$INPUT_TAG"
           else
             if [[ -n "$SOURCE_RUN_ID" ]]; then
               gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-target --dir release-target
               TARGET_TAG="$(cat release-target/release-tag.txt)"
+              if [[ -f release-target/auto-publish.txt ]]; then
+                AUTO_PUBLISH="$(cat release-target/auto-publish.txt)"
+              fi
             else
               TARGET_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
             fi
@@ -64,6 +68,7 @@ jobs:
 
           echo "Target release tag: $TARGET_TAG"
           echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+          echo "auto_publish=$AUTO_PUBLISH" >> "$GITHUB_OUTPUT"
 
           EXISTING_ASSETS="$(gh release view "$TARGET_TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)"
 
@@ -184,3 +189,11 @@ jobs:
             "$installer" \
             "$checksums" \
             --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish complete release when requested
+        if: steps.check-release.outputs.should_build == 'true' && steps.check-release.outputs.auto_publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"

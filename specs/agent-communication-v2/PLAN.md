@@ -11,9 +11,11 @@ extend working same-project Agent communication to Agents running through SSH,
 with concise connection/Agent/communication status in the existing panel.
 
 Approved follow-up: [existing file tools over SSH](REMOTE-FILE-TOOLS.md) extends
-the current Explorer, editor/preview and Git Review backends to terminal-selected
+the current Explorer and editor/preview backends to terminal-selected
 remote directories. Existing components are reused; its native acceptance and
 source-matched cloud receipts are tracked in [COMPANION-CHECKS.md](COMPANION-CHECKS.md).
+The owner's 2026-10-07 correction restores Code Review to v1.0.1 and excludes
+the SSH Review extension; see [the current scope and acceptance](REVIEW-BASELINE.md).
 
 ## Scope and completion
 

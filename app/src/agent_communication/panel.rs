@@ -4166,6 +4166,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("remote Explorer uses native file rows")
+                .add_named_assertion("Code Review toolbar entry remains unsupported", |app, _| {
+                    warpui::async_assert!(app.update(|ctx| !crate::workspace::header_toolbar_item::HeaderToolbarItemKind::CodeReview.is_available(ctx)))
+                })
                 .add_named_assertion("owned remote tree populated", |app, window| {
                     let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                     warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx).is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window))))
@@ -4244,40 +4247,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     },
                 )
                 .with_take_screenshot("live-ssh-markdown-preview.png"),
-        )
-        .with_step(
-            TestStep::new("connect existing Review to owned SSH repository").with_action(
-                |app, window, _| {
-                    let root = app.root_view::<RootView>(window).unwrap();
-                    let workspace =
-                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
-                    workspace.update(app, |workspace, ctx| {
-                        if workspace.is_left_panel_open(ctx) {
-                            workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
-                        }
-                        if !workspace.active_tab_pane_group().as_ref(ctx).right_panel_open {
-                            workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx);
-                        }
-                    });
-                },
-            ),
-        )
-        .with_step(
-            TestStep::new("remote changes render in existing Review")
-                .add_named_assertion("remote Review has one changed file", |app, window| {
-                    warpui::async_assert!(app.update(|ctx| crate::workspace::header_toolbar_item::HeaderToolbarItemKind::CodeReview.is_available(ctx)) && app
-                        .views_of_type::<crate::code_review::code_review_view::CodeReviewView>(
-                            window
-                        )
-                        .is_some_and(|views| views.iter().any(|view| view.read(
-                            app,
-                            |view, app| view.diff_state_model().as_ref(app).is_ssh()
-                                && view
-                                    .loaded_diff_stats()
-                                    .is_some_and(|stats| stats.files_changed == 1)
-                        ))))
-                })
-                .with_take_screenshot("live-ssh-file-review.png"),
         );
     filenames.extend(
         [
@@ -4286,7 +4255,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             "live-ssh-code-dirty.png",
             "live-ssh-code-saved.png",
             "live-ssh-markdown-preview.png",
-            "live-ssh-file-review.png",
         ]
         .map(str::to_owned),
     );
@@ -4518,7 +4486,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry remains unsupported", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.

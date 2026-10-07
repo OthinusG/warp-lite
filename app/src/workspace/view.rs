@@ -9113,14 +9113,6 @@ impl Workspace {
             return;
         }
 
-        if ActiveSession::as_ref(ctx).remote_pending(ctx.window_id())
-            || ActiveSession::as_ref(ctx).session(ctx.window_id())
-                .is_some_and(|session| !session.is_local())
-        {
-            self.right_panel_view.update(ctx, |view, ctx| view.refresh_ssh_review(ctx));
-            return;
-        }
-
         // If context is provided, use it directly. Otherwise, derive from active pane group.
         let context_data: Option<(
             Option<PathBuf>,

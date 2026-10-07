@@ -1,6 +1,24 @@
 # Warpai releases
 
-## Current delivery: 1.2.1
+## Current delivery: 1.2.2
+
+The owner authorizes pushing the Review baseline correction and triggering
+v1.2.2, without monitoring afterward. Retain Companion 2.0.0 and protocol major
+1. Use docs/releases/v1.2.2.md and versioned desktop installer names.
+
+Dispatch release-macos.yml from main with release_tag=v1.2.2 and
+auto_publish=true. The option defaults to false for other releases. The macOS
+workflow creates a draft only after its desktop and three-platform Companion
+checks pass; its release-target artifact carries the explicit publication
+choice. Windows follows automatically, verifies and uploads its installer,
+then publishes the complete draft as latest when requested. Failed builds leave
+the release unpublished. This owner instruction supersedes manual monitoring
+and downloaded-package inspection for this delivery. Preserve historical tags.
+
+Local focused checks passed; desktop checks were blocked by the missing Metal
+compiler. Triggering automation does not constitute completed native acceptance.
+
+## Historical delivery: 1.2.1
 
 Publish `v1.2.1` only after the tagged desktop/agent regressions, native UI
 review and three-platform remote installation/transport checks pass. Build

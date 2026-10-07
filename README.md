@@ -16,11 +16,11 @@ Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.2.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.2.2](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.2.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)
+[![Release](https://img.shields.io/badge/release-1.2.2-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -92,10 +92,8 @@ review tool.
   click source or text to open the built-in editor, use Vim mode, and preview
   Markdown and supported formats. The same tools follow the focused terminal's
   directory in local and SSH projects.
-- **Review in context:** inspect code changes and review Agent submissions in
-  Warpai. Keep the terminal, files, preview and review close while deciding what
-  to accept or send back for revision. Git Review uses the same familiar
-  interactions for local and remote changes.
+- **Review Agent results:** inspect submitted files and reports, then accept
+  Agent tasks or request revisions through the collaboration panel.
 
 The lightweight editor and file tools make Warpai a useful agent-first workbench
 without requiring a full IDE for every task. Use a dedicated IDE when you need
@@ -123,8 +121,8 @@ the Agents you want to use.
 ## Remote work is part of the same workflow
 
 **The same working loop is available locally and remotely:** Agent management
-and collaboration, a full terminal, file management, in-app editing, document
-previews and code review. Connect to a Linux, macOS or Windows machine in the
+and collaboration, a full terminal, file management, in-app editing and document
+previews. Connect to a Linux, macOS or Windows machine in the
 terminal and enter your project directory; the workspace follows that terminal's
 remote `cd`.
 
@@ -140,8 +138,7 @@ progress, request review and integrate the outcome just as it does locally.
 Project Explorer browses the remote project and lets you create, rename and
 delete files. Click code or text to open the same built-in editor, preview
 Markdown reports with their images and links, and save changes on the remote
-machine. Use the existing Git Review workflow to inspect Agent changes and send
-feedback in context. Open files remain attached to their original remote project
+machine. Open files remain attached to their original remote project
 when you change directories or switch terminals. A connection interruption or
 save conflict preserves your unsaved edits.
 
@@ -201,14 +198,14 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.2.1](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)** brings
-Agent coordination, file management, in-app editing, previews and Git Review to
+**[Warpai 1.2.2](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)** brings
+Agent coordination, file management, in-app editing and previews to
 your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.1/Warpai-1.2.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiSetup-1.2.1-windows-x64.exe) | Run the installer. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.2/Warpai-1.2.2-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiSetup-1.2.2-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -222,9 +219,9 @@ Windows machine. Choose the installer for the machine you connect to.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.2.1/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
 
 ## Local by design
 

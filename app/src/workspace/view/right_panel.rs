@@ -298,7 +298,6 @@ impl CodeReviewState {
 #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
 pub enum RightPanelAction {
     ToggleFileSidebar,
-    ReconnectRemote,
     SelectRepo {
         repo_path: PathBuf,
         from_dropdown: bool,
@@ -328,12 +327,6 @@ pub enum RightPanelEvent {
 }
 
 pub struct RightPanelView {
-    #[cfg(feature = "local_fs")]
-    ssh_review: Option<ViewHandle<CodeReviewView>>,
-    #[cfg(feature = "local_fs")]
-    ssh_selection: Option<String>,
-    #[cfg(feature = "local_fs")]
-    ssh_error: Option<String>,
     resizable_state_handle: ResizableStateHandle,
     close_button_mouse_state: MouseStateHandle,
     file_navigation_button_mouse_state: MouseStateHandle,
@@ -430,12 +423,6 @@ impl RightPanelView {
         });
 
         Self {
-            #[cfg(feature = "local_fs")]
-            ssh_review: None,
-            #[cfg(feature = "local_fs")]
-            ssh_selection: None,
-            #[cfg(feature = "local_fs")]
-            ssh_error: None,
             resizable_state_handle,
             close_button_mouse_state: Default::default(),
             file_navigation_button_mouse_state: Default::default(),
@@ -474,75 +461,7 @@ impl RightPanelView {
         ctx: &mut ViewContext<Self>,
     ) {
         self.code_review_session_env = Some(CodeReviewSessionEnv { is_remote, is_wsl });
-        self.refresh_ssh_review(ctx);
         ctx.notify();
-    }
-
-    #[cfg(feature = "local_fs")]
-    pub(crate) fn refresh_ssh_review(&mut self, ctx: &mut ViewContext<Self>) {
-        use crate::remote_server::selected_session::{selected_ssh, selection_key};
-        let visible = self.active_pane_group.as_ref()
-            .is_some_and(|group| group.as_ref(ctx).right_panel_open);
-        let selection = visible.then(|| selected_ssh(ctx, ctx.window_id())).flatten();
-        let key = selection
-            .as_ref()
-            .map(|(profile, connection)| selection_key(profile, connection));
-        if key == self.ssh_selection {
-            return;
-        }
-        self.ssh_selection = key.clone();
-        if let Some(view) = self.ssh_review.take() {
-            view.update(ctx, |view, ctx| view.on_close(ctx));
-        }
-        self.ssh_error = None;
-        let Some((profile, connection)) = selection else {
-            return;
-        };
-        ctx.spawn(async move {
-            let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
-            files.repository().await
-        }, move |me, result: Result<_, warp_agent_bus::ssh_remote::ConnectionError>, ctx| {
-            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
-            if me.ssh_selection != key || current != key { return; }
-            match result {
-                Ok(files) => {
-                    me.attach_ssh_review(files, ctx);
-                }
-                Err(error) => me.ssh_error = Some(format!("Remote Review unavailable: {error}. Check Git and Warpai Companion on the remote host.")),
-            }
-            ctx.notify();
-        });
-    }
-
-    #[cfg(feature = "local_fs")]
-    fn attach_ssh_review(
-        &mut self,
-        files: Arc<warp_agent_bus::ssh_files::RemoteFiles>,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let cache_root = files
-            .cache_path(&format!(
-                "{}/review",
-                files.canonical_root.trim_end_matches('/')
-            ))
-            .ok()
-            .and_then(|path| path.parent().map(PathBuf::from));
-        let model = ctx.add_model(|ctx| {
-            let mut model = crate::code_review::diff_state::DiffStateModel::new(None, ctx);
-            model.set_ssh_files(files);
-            model
-        });
-        let view = ctx.add_typed_action_view(|ctx| {
-            CodeReviewView::new(cache_root.clone(), model, None, None, ctx)
-        });
-        let bound_selection = self.ssh_selection.clone();
-        ctx.subscribe_to_view(&view, move |me, view, event, ctx| {
-            if me.ssh_selection == bound_selection {
-                me.handle_code_review_event(&view, event, ctx);
-            }
-        });
-        view.update(ctx, |view, ctx| view.on_open(cache_root, ctx));
-        self.ssh_review = Some(view);
     }
 
     pub fn selected_repo_path(&self) -> Option<&PathBuf> {
@@ -743,21 +662,20 @@ impl RightPanelView {
 
     /// Closes the currently active CodeReviewView (if any) by calling on_close.
     fn close_active_code_review_view(&self, ctx: &mut ViewContext<Self>) {
-        if let Some(view) = self.get_active_code_review_view(ctx) {
-            view.update(ctx, |view, ctx| view.on_close(ctx));
-        }
+        let Some(state) = &self.code_review_state else {
+            return;
+        };
+        let (Some(repo_path), Some(pane_group)) =
+            (&state.selected_repo_path, &self.active_pane_group)
+        else {
+            return;
+        };
+        self.close_code_review_view(pane_group.id(), repo_path, ctx);
     }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     pub fn close_code_review(&mut self, ctx: &mut ViewContext<Self>) {
         self.close_active_code_review_view(ctx);
-
-        #[cfg(feature = "local_fs")]
-        {
-            self.ssh_selection = None;
-            self.ssh_review = None;
-            self.ssh_error = None;
-        }
 
         // Views are cached in WorkingDirectoriesModel, so we just update the UI state
         if let Some(code_review_state) = &mut self.code_review_state {
@@ -767,10 +685,6 @@ impl RightPanelView {
     }
 
     fn render_repo_dropdown(&self) -> Option<Box<dyn Element>> {
-        #[cfg(feature = "local_fs")]
-        if self.code_review_session_env.as_ref().is_some_and(|env| env.is_remote) {
-            return None;
-        }
         let Some(state) = &self.code_review_state else {
             return None;
         };
@@ -862,8 +776,7 @@ impl RightPanelView {
             .as_ref()
             .filter(|repo_path| state.available_repos.contains(repo_path));
 
-        let current_code_review_view = self.get_active_code_review_view(app);
-        if selected_repo_path.is_none() && current_code_review_view.is_none() {
+        let Some(selected_repo_path) = selected_repo_path else {
             let simple_header = self.render_simple_header(close_button);
 
             #[cfg(feature = "local_fs")]
@@ -871,20 +784,7 @@ impl RightPanelView {
                 let button = Some(ChildView::new(&self.open_repository_button).finish());
                 if let Some(env) = &self.code_review_session_env {
                     if env.is_remote {
-                        if let Some(error) = &self.ssh_error {
-                            warpui::elements::EventHandler::new(
-                                appearance.ui_builder()
-                                    .span(format!("{error} Click to reconnect."))
-                                    .with_soft_wrap().build().finish(),
-                            ).on_left_mouse_up(|ctx, _, _| {
-                                ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
-                                warpui::elements::DispatchEventResult::StopPropagation
-                            }).finish()
-                        } else if self.ssh_selection.is_some() {
-                            CodeReviewView::render_loading_state(appearance)
-                        } else {
-                            CodeReviewView::render_remote_state(appearance, button)
-                        }
+                        CodeReviewView::render_remote_state(appearance, button)
                     } else if env.is_wsl {
                         CodeReviewView::render_wsl_state(appearance, button)
                     } else {
@@ -902,7 +802,14 @@ impl RightPanelView {
                 .with_child(simple_header)
                 .with_child(Shrinkable::new(1.0, no_repo_body).finish())
                 .finish();
-        }
+        };
+
+        let current_code_review_view = self.active_pane_group.as_ref().and_then(|pane_group| {
+            let pane_group_id = pane_group.id();
+            self.working_directories_model
+                .as_ref(app)
+                .get_code_review_view(pane_group_id, selected_repo_path)
+        });
 
         if let Some(code_review_view) = current_code_review_view {
             let header = if FeatureFlag::GitOperationsInCodeReview.is_enabled() {
@@ -946,11 +853,7 @@ impl RightPanelView {
         let sub_text_color = theme.sub_text_color(theme.background());
 
         let crv = code_review_view.as_ref(app);
-        let repo_path = crv.repo_path().cloned();
-        #[cfg(feature = "local_fs")]
-        let repo_path = crv.diff_state_model().as_ref(app).ssh_files()
-            .map(|files| PathBuf::from(&files.canonical_root))
-            .or(repo_path);
+        let repo_path = crv.repo_path();
         let branch_name = crv
             .diff_state_model()
             .read(app, |model, _| model.get_current_branch_name());
@@ -1033,7 +936,18 @@ impl RightPanelView {
     /// Legacy header layout: "Code review" title + file nav button.
     fn render_header_legacy(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
         let file_navigation_button = {
-            let current_code_review_view = self.get_active_code_review_view(app);
+            let current_code_review_view = self
+                .code_review_state
+                .as_ref()
+                .and_then(|state| state.selected_repo_path.as_ref())
+                .and_then(|repo_path| {
+                    self.active_pane_group.as_ref().and_then(|pane_group| {
+                        let pane_group_id = pane_group.id();
+                        self.working_directories_model
+                            .as_ref(app)
+                            .get_code_review_view(pane_group_id, repo_path)
+                    })
+                });
 
             let has_files = current_code_review_view
                 .as_ref()
@@ -1165,14 +1079,6 @@ impl RightPanelView {
     }
 
     fn get_active_code_review_view(&self, ctx: &AppContext) -> Option<ViewHandle<CodeReviewView>> {
-        #[cfg(feature = "local_fs")]
-        if self
-            .code_review_session_env
-            .as_ref()
-            .is_some_and(|env| env.is_remote)
-        {
-            return self.ssh_review.clone();
-        }
         let state = self.code_review_state.as_ref()?;
         let selected_repo_path = state.selected_repo_path.as_ref()?;
         let active_pane_group = self.active_pane_group.as_ref()?;
@@ -1238,60 +1144,51 @@ impl RightPanelView {
         });
 
         ctx.subscribe_to_view(&code_review_view, |me, code_review, event, ctx| {
-            me.handle_code_review_event(&code_review, event, ctx);
+            match event {
+                CodeReviewViewEvent::ReviewSubmitted => {
+                    if me.is_maximized(ctx) {
+                        me.handle_action(&RightPanelAction::ToggleMaximize, ctx);
+                    }
+                }
+                CodeReviewViewEvent::SubmitReviewComments {
+                    comments,
+                    repo_path,
+                } => {
+                    Self::route_review_comments(me, &code_review, comments.clone(), repo_path, ctx);
+                }
+                #[cfg(feature = "local_fs")]
+                CodeReviewViewEvent::OpenFileWithTarget {
+                    path,
+                    target,
+                    line_col,
+                } => {
+                    ctx.emit(RightPanelEvent::OpenFileWithTarget {
+                        path: path.clone(),
+                        target: target.clone(),
+                        line_col: *line_col,
+                    });
+                }
+                CodeReviewViewEvent::OpenFileInNewTab {
+                    path,
+                    line_and_column,
+                } => {
+                    ctx.emit(RightPanelEvent::OpenFileInNewTab {
+                        path: path.clone(),
+                        line_and_column: *line_and_column,
+                    });
+                }
+                #[cfg(not(target_family = "wasm"))]
+                CodeReviewViewEvent::OpenLspLogs { log_path } => {
+                    ctx.emit(RightPanelEvent::OpenLspLogs {
+                        log_path: log_path.clone(),
+                    });
+                }
+                _ => {}
+            }
+            ctx.notify();
         });
 
         Some(code_review_view)
-    }
-
-    fn handle_code_review_event(
-        &mut self,
-        code_review: &ViewHandle<CodeReviewView>,
-        event: &CodeReviewViewEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            CodeReviewViewEvent::ReviewSubmitted => {
-                if self.is_maximized(ctx) {
-                    self.handle_action(&RightPanelAction::ToggleMaximize, ctx);
-                }
-            }
-            CodeReviewViewEvent::SubmitReviewComments {
-                comments,
-                repo_path,
-            } => {
-                Self::route_review_comments(self, code_review, comments.clone(), repo_path, ctx);
-            }
-            #[cfg(feature = "local_fs")]
-            CodeReviewViewEvent::OpenFileWithTarget {
-                path,
-                target,
-                line_col,
-            } => {
-                ctx.emit(RightPanelEvent::OpenFileWithTarget {
-                    path: path.clone(),
-                    target: target.clone(),
-                    line_col: *line_col,
-                });
-            }
-            CodeReviewViewEvent::OpenFileInNewTab {
-                path,
-                line_and_column,
-            } => {
-                ctx.emit(RightPanelEvent::OpenFileInNewTab {
-                    path: path.clone(),
-                    line_and_column: *line_and_column,
-                });
-            }
-            #[cfg(not(target_family = "wasm"))]
-            CodeReviewViewEvent::OpenLspLogs { log_path } => {
-                ctx.emit(RightPanelEvent::OpenLspLogs {
-                    log_path: log_path.clone(),
-                });
-            }
-            _ => {}
-        }
-        ctx.notify();
     }
 
     /// Routes review comments to the best available terminal.
@@ -1300,7 +1197,7 @@ impl RightPanelView {
     fn route_review_comments(
         &mut self,
         code_review_view: &ViewHandle<CodeReviewView>,
-        mut comments: AgentReviewCommentBatch,
+        comments: AgentReviewCommentBatch,
         repo_path: &Path,
         ctx: &mut ViewContext<Self>,
     ) {
@@ -1312,81 +1209,7 @@ impl RightPanelView {
         };
 
         let ai_enabled = AISettings::as_ref(ctx).is_any_ai_enabled(ctx);
-        let chosen = if code_review_view
-            .as_ref(ctx)
-            .diff_state_model()
-            .as_ref(ctx)
-            .is_ssh()
-        {
-            #[cfg(feature = "local_fs")]
-            {
-                use crate::remote_server::selected_session::{selected_ssh, selection_key};
-                let current =
-                    selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
-                if current != self.ssh_selection {
-                    None
-                } else {
-                    for comment in &mut comments.comments {
-                        use crate::code_review::comments::AttachedReviewCommentTarget;
-                        match &mut comment.target {
-                            AttachedReviewCommentTarget::Line {
-                                absolute_file_path, ..
-                            }
-                            | AttachedReviewCommentTarget::File { absolute_file_path } => {
-                                *absolute_file_path = warp_files::FileModel::as_ref(ctx)
-                                    .display_path(absolute_file_path);
-                            }
-                            AttachedReviewCommentTarget::General => {}
-                        }
-                    }
-                    comments.diff_set = comments
-                        .diff_set
-                        .into_iter()
-                        .map(|(path, hunks)| {
-                            (
-                                warp_files::FileModel::as_ref(ctx)
-                                    .display_path(Path::new(&path))
-                                    .to_string_lossy()
-                                    .into_owned(),
-                                hunks,
-                            )
-                        })
-                        .collect();
-                    code_review_view
-                        .as_ref(ctx)
-                        .diff_state_model()
-                        .as_ref(ctx)
-                        .ssh_files()
-                        .filter(|files| files.connected())
-                        .and_then(|files| {
-                            ctx.views_of_type::<crate::workspace::Workspace>(ctx.window_id())
-                                .unwrap_or_default()
-                                .iter()
-                                .flat_map(|workspace| workspace.as_ref(ctx).tab_views())
-                                .flat_map(|group| group.as_ref(ctx).terminal_views(ctx))
-                                .find(|terminal| terminal.read(ctx, |terminal, ctx| {
-                                    if terminal.has_pending_ssh_command()
-                                        || terminal.pwd().is_none_or(|cwd| files.relative(&cwd).is_err())
-                                    {
-                                        return false;
-                                    }
-                                    terminal.active_block_session_id()
-                                        .and_then(|id| terminal.sessions_model().as_ref(ctx).get(id))
-                                        .is_some_and(|session| {
-                                            crate::remote_server::selected_session::session_connection(&session)
-                                                .as_ref() == Some(&files.connection)
-                                        })
-                                }))
-                        })
-                }
-            }
-            #[cfg(not(feature = "local_fs"))]
-            {
-                None
-            }
-        } else {
-            self.find_review_terminal(pane_group, repo_path, ai_enabled, ctx)
-        };
+        let chosen = self.find_review_terminal(pane_group, repo_path, ai_enabled, ctx);
 
         let Some(terminal_view) = chosen else {
             log::warn!("No available terminal found for submitting review comments");
@@ -1822,11 +1645,6 @@ impl TypedActionView for RightPanelView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
-            RightPanelAction::ReconnectRemote => {
-                self.ssh_selection = None;
-                self.refresh_ssh_review(ctx);
-                ctx.notify();
-            }
             RightPanelAction::ToggleFileSidebar => {
                 if let Some(state) = &self.code_review_state {
                     if let Some(repo_path) = &state.selected_repo_path {

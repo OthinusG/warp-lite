@@ -317,7 +317,7 @@ const CODE_REVIEW_EDITOR_LINE_HEIGHT_RATIO: f32 = 1.4;
 const COMMENT_EDITOR_SCROLL_BUFFER: f32 = 200.0;
 
 pub const CODE_REVIEW_TOOLTIP_TEXT: &str = "View changes";
-const REMOTE_TEXT: &str = "No remote repository is available for review.";
+const REMOTE_TEXT: &str = "Diffs only work for local workspaces.";
 const DISABLED_TEXT: &str = "Diffs only work for git repositories.";
 const WSL_TEXT: &str = "Diffs don't currently work in WSL.";
 
@@ -834,11 +834,7 @@ impl CodeReviewView {
         ctx.notify();
 
         // Create global LSP footer for the code review panel
-        if let Some(repo_path) = self
-            .repo_path()
-            .cloned()
-            .filter(|_| !self.diff_state_model.as_ref(ctx).is_ssh())
-        {
+        if let Some(repo_path) = self.repo_path().cloned() {
             let footer =
                 ctx.add_typed_action_view(|ctx| CodeFooterView::new_for_workspace(repo_path, ctx));
             ctx.subscribe_to_view(&footer, Self::handle_footer_event);
@@ -1571,40 +1567,6 @@ impl CodeReviewView {
     }
 
     fn fetch_branches_and_setup_dropdown(&mut self, ctx: &mut ViewContext<Self>) {
-        #[cfg(feature = "local_fs")]
-        if let Some(files) = self.diff_state_model.as_ref(ctx).ssh_files() {
-            ctx.spawn(
-                async move {
-                    files
-                        .control(remote_server::proto::ProjectFilesRequest {
-                            action: remote_server::proto::ProjectFileAction::ProjectGitBranches
-                                as i32,
-                            ..Default::default()
-                        })
-                        .await
-                },
-                |view, result, ctx| {
-                    if let Ok(result) = result {
-                        if let Some(repo) = &mut view.active_repo {
-                            let names: Vec<_> = result
-                                .git_output
-                                .lines()
-                                .filter(|name| !name.ends_with("/HEAD"))
-                                .collect();
-                            let main = ["main", "master", "origin/main", "origin/master"]
-                                .into_iter()
-                                .find(|candidate| names.contains(candidate));
-                            repo.available_branches = names
-                                .into_iter()
-                                .map(|name| (name.into(), Some(name) == main))
-                                .collect();
-                        }
-                        view.update_diff_selector_selection(ctx);
-                    }
-                },
-            );
-            return;
-        }
         let Some(repo_path) = self.repo_path().cloned() else {
             return;
         };
@@ -2914,14 +2876,11 @@ impl CodeReviewView {
         files: &[FileDiffAndContent],
         ctx: &mut ViewContext<Self>,
     ) -> Vec<FileState> {
-        let git_operation_blocked = self.diff_state_model.as_ref(ctx).is_ssh()
-            || self
-                .diff_state_model
-                .as_ref(ctx)
-                .is_git_operation_blocked(ctx);
-        let discard_tooltip_text = if self.diff_state_model.as_ref(ctx).is_ssh() {
-            "Discard changes in the remote terminal".to_owned()
-        } else if git_operation_blocked {
+        let git_operation_blocked = self
+            .diff_state_model
+            .as_ref(ctx)
+            .is_git_operation_blocked(ctx);
+        let discard_tooltip_text = if git_operation_blocked {
             get_discard_button_disabled_tooltip(git_operation_blocked)
         } else {
             "Discard changes".to_string()
@@ -4845,9 +4804,8 @@ impl CodeReviewView {
 
         // When the flag is off, sidebar goes on the left (legacy).
         if !sidebar_on_right && self.file_sidebar_expanded && !state.file_states.is_empty() {
-            sidebar_and_diffs_row.add_child(
-                Container::new(self.render_file_sidebar(state, appearance, app)).finish(),
-            );
+            sidebar_and_diffs_row
+                .add_child(Container::new(self.render_file_sidebar(state, appearance)).finish());
 
             let vertical_separator = ConstrainedBox::new(
                 Rect::new()
@@ -4903,9 +4861,8 @@ impl CodeReviewView {
             .finish();
 
             sidebar_and_diffs_row.add_child(vertical_separator);
-            sidebar_and_diffs_row.add_child(
-                Container::new(self.render_file_sidebar(state, appearance, app)).finish(),
-            );
+            sidebar_and_diffs_row
+                .add_child(Container::new(self.render_file_sidebar(state, appearance)).finish());
         }
 
         Shrinkable::new(1., sidebar_and_diffs_row.finish()).finish()
@@ -4915,14 +4872,13 @@ impl CodeReviewView {
         &self,
         state: &LoadedState,
         appearance: &Appearance,
-        app: &AppContext,
     ) -> Box<dyn Element> {
         let mut column = Flex::column()
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Start);
 
         for (file_index, file_state) in state.file_states.values().enumerate() {
-            let file_row = self.render_file_sidebar_row(file_state, appearance, app);
+            let file_row = self.render_file_sidebar_row(file_state, appearance);
             column.add_child(
                 Hoverable::new(file_state.sidebar_mouse_state.clone(), |mouse_state| {
                     let mut container = Container::new(Shrinkable::new(1., file_row).finish())
@@ -4992,14 +4948,16 @@ impl CodeReviewView {
         &self,
         file_state: &FileState,
         appearance: &Appearance,
-        app: &AppContext,
     ) -> Box<dyn Element> {
-        let path = warp_files::FileModel::as_ref(app).display_path(&file_state.file_diff.file_path);
-        let file_name = path
+        let file_name = file_state
+            .file_diff
+            .file_path
             .file_name()
-            .and_then(|name| name.to_str())
+            .and_then(|file_name| file_name.to_str())
             .unwrap_or_default();
-        let dir_path = path
+        let dir_path = file_state
+            .file_diff
+            .file_path
             .parent()
             .and_then(|parent| parent.to_str())
             .unwrap_or_default();
@@ -5234,10 +5192,7 @@ impl CodeReviewView {
     ) -> Box<dyn Element> {
         let theme = appearance.theme();
 
-        let file_name = warp_files::FileModel::as_ref(app)
-            .display_path(&file.file_diff.file_path)
-            .display()
-            .to_string();
+        let file_name = file.file_diff.file_path.display().to_string();
 
         let mut left_section = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
@@ -6730,17 +6685,6 @@ impl CodeReviewView {
     /// Updates the primary git operations button, chevron visibility, and
     /// related state to match the current [`PrimaryGitActionMode`].
     fn update_git_operations_ui(&mut self, ctx: &mut ViewContext<Self>) {
-        if self.diff_state_model.as_ref(ctx).is_ssh() {
-            self.git_primary_action_button.update(ctx, |button, ctx| {
-                button.set_label("Use remote terminal for Git actions", ctx);
-                button.set_disabled(true, ctx);
-                button.set_tooltip(
-                    Some("Commit, push and discard changes in the remote terminal"),
-                    ctx,
-                );
-            });
-            return;
-        }
         let mode = self.primary_git_action_mode(ctx);
 
         match mode {
@@ -7279,24 +7223,6 @@ impl TypedActionView for CodeReviewView {
     type Action = CodeReviewAction;
 
     fn handle_action(&mut self, action: &CodeReviewAction, ctx: &mut ViewContext<Self>) {
-        if self.diff_state_model.as_ref(ctx).is_ssh()
-            && matches!(
-                action,
-                CodeReviewAction::UndoRevert
-                    | CodeReviewAction::ShowDiscardConfirmDialog(_)
-                    | CodeReviewAction::ConfirmDiscardFile
-                    | CodeReviewAction::ToggleStashChanges
-                    | CodeReviewAction::InitProjectForCurrentDirectory
-                    | CodeReviewAction::OpenRepository
-                    | CodeReviewAction::OpenCommitDialog
-                    | CodeReviewAction::ToggleGitOperationsMenu
-                    | CodeReviewAction::OpenPushDialog
-                    | CodeReviewAction::OpenCreatePrDialog
-                    | CodeReviewAction::PublishBranch
-            )
-        {
-            return;
-        }
         match action {
             CodeReviewAction::OpenInNewTab {
                 path,
@@ -7586,8 +7512,7 @@ impl TypedActionView for CodeReviewView {
             }
             CodeReviewAction::CopyFilePath(path) => {
                 if let Some(repo_path) = self.repo_path() {
-                    let absolute_path =
-                        warp_files::FileModel::as_ref(ctx).display_path(&repo_path.join(path));
+                    let absolute_path = repo_path.join(path);
                     if let Some(path_str) = absolute_path.to_str() {
                         ctx.clipboard()
                             .write(ClipboardContent::plain_text(path_str.to_string()));

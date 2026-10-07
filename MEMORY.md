@@ -1,5 +1,32 @@
 # Project Memory
 
+## 1.2.2 release authorization — 2026-10-07
+
+- Owner requests push and v1.2.2 release triggering only, with no subsequent
+  monitoring. This supersedes manual package inspection for this release.
+- Release-macos has an opt-in auto_publish input, default false. Its release
+  target artifact carries the choice to the automatic Windows workflow; public
+  publication occurs only after macOS/Companion success and Windows verification
+  and upload. Dispatch v1.2.2 with auto_publish=true. Companion stays 2.0.0.
+- Bilingual README download links and v1.2.2 notes target the new release.
+  Triggering is not a claim that native builds or publication have completed.
+
+## Code Review scope correction — 2026-10-07
+
+- Owner explicitly does not want a Code Review panel. The SSH requirement is
+  existing Explorer file management and clicking files into the existing editor
+  and Markdown preview. Earlier notes treating SSH Review as required are
+  superseded; do not re-enable Review to implement file tools.
+- Restore Review source, right panel and toolbar to v1.0.1, which retains backing
+  code but hides the toolbar entry. Remove added SSH Review wiring while keeping
+  remote file backends, original save identity and shared protocol compatibility.
+  Agent task acceptance in the collaboration panel remains a separate workflow.
+- Current correction and audit are in
+  specs/agent-communication-v2/REVIEW-BASELINE.md. Focused file/Companion/SFTP
+  checks passed (23 tests); both default and warp_platform desktop checks are
+  blocked by the missing local Metal compiler. Native GUI acceptance for this
+  revision remains unverified; published 1.2.1 installers were not changed.
+
 ## Existing file tools over SSH — 2026-10-06
 
 - Owner clarified the next feature: after ordinary SSH connection and `cd`, the
