@@ -2179,6 +2179,24 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .canonicalize()?
         .join(format!("capture-{}", std::process::id()));
     std::fs::create_dir(&directory)?;
+    let panic_directory = directory.clone();
+    let previous_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(location) = info.location() {
+            let file = location.file().replace('\\', "/");
+            if let Some(source) = ["app/src/", "crates/"]
+                .iter()
+                .find_map(|prefix| file.find(prefix).map(|offset| &file[offset..]))
+            {
+                // Persist the source location only, never the panic's runtime payload.
+                let _ = std::fs::write(
+                    panic_directory.join("checkpoint-panic.txt"),
+                    format!("{source}:{}:{}", location.line(), location.column()),
+                );
+            }
+        }
+        previous_panic_hook(info);
+    }));
     let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(
         "../../../specs/agent-communication-v2/panel-fixtures.json"
     ))?;
@@ -4128,7 +4146,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             TestStep::new("remote Explorer uses native file rows")
                 .add_named_assertion("owned remote tree populated", |app, window| {
                     let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
-                    warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx).is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready())))
+                    warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx).is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window))))
                 })
                 .with_take_screenshot("live-ssh-file-explorer.png"),
         )
@@ -4487,7 +4505,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
-                        std::fs::write(directory.join("checkpoint-assertion.txt"), name).unwrap();
+                        let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), name);
                     }
                 }
             }

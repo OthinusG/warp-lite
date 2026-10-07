@@ -29,6 +29,9 @@ def main() -> None:
     log = "\n".join(log.read_text(errors="replace") for log in args.log)
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
+    for name in ["checkpoint-panic.txt", "checkpoint-tree.txt"]:
+        for checkpoint in args.output.parent.rglob(name):
+            log += "\n" + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", log.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
@@ -36,6 +39,7 @@ def main() -> None:
         "failed_steps": failed_steps(source.read_text(), log),
         "failed_assertions": failed_assertions(source.read_text(), log),
         "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),
+        "remote_trees": [dict(zip(["active", "current", "selected", "attached", "error", "roots", "entries"], [value == "true" for value in values[:5]] + [int(value) for value in values[5:]])) for values in re.findall(r"Native SSH tree: active=(true|false), current=(true|false), selected=(true|false), attached=(true|false), error=(true|false), roots=(\d{1,6}), entries=(\d{1,6})\b", log)],
         "panic_locations": locations,
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }

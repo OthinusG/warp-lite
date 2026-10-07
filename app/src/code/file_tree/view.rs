@@ -337,7 +337,18 @@ impl FileTreeView {
     }
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
-    pub(crate) fn ssh_checkpoint_ready(&self) -> bool {
+    pub(crate) fn ssh_checkpoint_ready(&self, app: &AppContext, window: warpui::WindowId) -> bool {
+        if let Some(directory) = std::env::var_os(warpui::integration::ARTIFACTS_DIR_ENV_VAR) {
+            let current = crate::remote_server::selected_session::selected_ssh(app, window)
+                .is_some_and(|(profile, _)| {
+                    Some(profile.remote_root) == std::env::var("WARP_TEST_REMOTE_ROOT").ok()
+                });
+            let state = format!("Native SSH tree: active={}, current={}, selected={}, attached={}, error={}, roots={}, entries={}", self.is_active, current, self.ssh_selection.is_some(), self.ssh_files.is_some(), self.ssh_error.is_some(), self.root_directories.len(), self.root_directories.values().map(|root| root.items.len()).sum::<usize>());
+            let _ = std::fs::write(
+                std::path::PathBuf::from(directory).join("checkpoint-tree.txt"),
+                state,
+            );
+        }
         self.is_active
             && self.ssh_files.is_some()
             && self.displayed_directories.iter().all(|root| {

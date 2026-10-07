@@ -30,9 +30,27 @@ use crate::{
     GlobalResourceHandles, GlobalResourceHandlesProvider,
 };
 
-use super::{FileNotebookView, FileState, MarkdownDisplayMode};
+use super::{FileLocation, FileNotebookView, FileState, MarkdownDisplayMode};
 use crate::notebooks::context_menu::MenuSource;
 use warp_editor::render::model::BlockItem;
+
+#[test]
+fn file_location_respects_remote_path_flavor() {
+    for (path, parent, name) in [
+        (r"C:\remote\preview.md", r"C:\remote", "preview.md"),
+        (
+            r"\\server\share\preview.md",
+            r"\\server\share\",
+            "preview.md",
+        ),
+        (r"/remote/literal\name.md", "/remote", r"literal\name.md"),
+        ("/remote/多语言/preview.md", "/remote/多语言", "preview.md"),
+    ] {
+        let location = FileLocation::new(Path::new(path), None);
+        assert_eq!(location.name, name);
+        assert_eq!(location.breadcrumbs, parent);
+    }
+}
 
 fn init_app(app: &mut App) {
     initialize_settings_for_tests(app);

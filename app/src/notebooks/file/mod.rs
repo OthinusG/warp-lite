@@ -1234,16 +1234,16 @@ struct FileLocation {
 
 impl FileLocation {
     fn new(path: &Path, home_directory: Option<&str>) -> Self {
+        // Remote separators follow the remote OS, rather than the desktop OS.
+        let display_path = path.to_string_lossy();
+        let path = typed_path::Utf8TypedPath::derive(&display_path);
         let breadcrumbs = match path.parent() {
-            Some(directory) => {
-                user_friendly_path(directory.to_string_lossy().as_ref(), home_directory)
-                    .into_owned()
-            }
+            Some(directory) => user_friendly_path(directory.as_str(), home_directory).into_owned(),
             None => String::new(),
         };
         let name = path
             .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
+            .map(str::to_owned)
             .unwrap_or_else(|| "Unnamed".to_string());
 
         Self { breadcrumbs, name }

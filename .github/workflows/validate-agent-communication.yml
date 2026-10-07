@@ -81,6 +81,7 @@ jobs:
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
+          cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
       - name: Build Windows native review executable
         if: ${{ inputs.capture_ui }}
         shell: pwsh
@@ -205,6 +206,7 @@ jobs:
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpui_extras --lib --features secure_storage keychain_access_errors_do_not_prove_missing_credentials --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
+          cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
           cargo test -p warpai --lib every_managed_alias_has_native_setup_and_vibe_keeps_bindings_in_memory --locked
           cargo test -p warpai --lib native_cli_setup_checks_ownership_and_is_reversible --locked
           cargo test -p warpai --lib opaque_approval_and_question_notifications_never_announce_idle --locked

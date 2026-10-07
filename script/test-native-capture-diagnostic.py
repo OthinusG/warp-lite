@@ -27,10 +27,14 @@ with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     (root / "capture").mkdir()
     (root / "capture/checkpoint-assertion.txt").write_text("owned remote tree populated")
+    (root / "capture/checkpoint-tree.txt").write_text("Native SSH tree: active=true, current=false, selected=true, attached=false, error=false, roots=0, entries=0\nunrelated runtime payload")
+    (root / "capture/checkpoint-panic.txt").write_text("app/src/agent_communication/panel.rs:4485:1\nunrelated runtime payload")
     (root / "log").write_text("Native SSH file failure: ConnectionLost\nNative SSH file failure: runtime payload\n")
     subprocess.run([sys.executable, str(Path(__file__).with_name("native-capture-diagnostic.py")), "--log", str(root / "log"), "--output", str(root / "diagnostic.json"), "--exit-code", "1"], check=True, stdout=subprocess.DEVNULL)
     diagnostic = json.loads((root / "diagnostic.json").read_text())
     assert diagnostic["failed_assertions"] == ["owned remote tree populated"]
     assert diagnostic["connection_errors"] == ["ConnectionLost"]
+    assert diagnostic["remote_trees"] == [dict(active=True, current=False, selected=True, attached=False, error=False, roots=0, entries=0)]
+    assert diagnostic["panic_locations"] == ["app/src/agent_communication/panel.rs:4485:1"]
     assert "runtime payload" not in json.dumps(diagnostic)
 print("Native capture diagnostic redaction passed")
