@@ -2170,7 +2170,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             WorkspaceAction,
         },
     };
-    #[cfg(target_os = "macos")]
     use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
 
