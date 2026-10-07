@@ -1,6 +1,29 @@
 # Warpai releases
 
-## Current delivery: 1.2.2
+## Current delivery: 1.3.0 with Companion 3.0.0
+
+The owner authorizes packaging and public release of App 1.3.0 and Companion
+3.0.0. Summarize the net changes from the v1.2.0 source baseline in
+docs/releases/v1.3.0.md. Preserve all earlier tags, drafts and release assets.
+
+1. Integrate the accepted self-contained remote tools into main, update the
+   component version and bilingual download links, and tag committed source
+   as v1.3.0. Desktop bundle/PE versions derive from this tag; protocol major
+   remains 1. No local Rust compilation or personal-machine installation.
+2. Dispatch release-macos.yml with release_tag=v1.3.0 and auto_publish=true.
+   Reuse native packaging, checksums, three-platform install/reinstall and
+   private Git checks. Windows follows automatically from the same tag and
+   publishes only after its package identity checks and uploads pass.
+3. Verify completed jobs, the public five-installer inventory, matching versions,
+   source provenance and checksum files. Record delivery in MEMORY.md. Fix any
+   packaging failure before publishing; do not bypass existing release gates.
+
+Existing desktop builds/tests and native SSH Review/Code View assertions passed
+on macOS/Windows. The corrected 170-image count passes against actual captures.
+Three-platform self-contained Companion acceptance passed before this version
+bump. Tagged release checks verify the new component version and formal packages.
+
+## Historical delivery: 1.2.2
 
 The owner authorizes pushing the Review baseline correction and triggering
 v1.2.2, without monitoring afterward. Retain Companion 2.0.0 and protocol major

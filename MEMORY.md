@@ -1,5 +1,15 @@
 # Project Memory
 
+## 1.3.0 release authorization — 2026-10-07
+
+- Owner authorizes packaging and public release of App 1.3.0 with Companion
+  3.0.0, with release notes covering the net changes from v1.2.0 through v1.3.0.
+  Desktop package versions derive from v1.3.0; component version is independent
+  and protocol major stays 1. Supersedes the 1.2.2 trigger-only delivery scope.
+- Reuse the existing macOS/three-platform Companion workflow and automatic
+  Windows workflow with auto_publish=true. Preserve historical tags and assets;
+  verify complete public delivery. No local Rust build or personal installation.
+
 ## Self-contained SSH project tools — 2026-10-07
 
 - Owner authorizes original remote Review with the existing Explorer/Code View

@@ -2,7 +2,7 @@
 
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
-Warpai 1.1.0 使用安装在远端 SSH 账号下的组件。每台远端主机安装一次，之后在 Warpai 终端中正常连接：
+Warpai 1.3.0 使用安装在远端 SSH 账号下的组件。每台远端主机安装一次，之后在 Warpai 终端中正常连接：
 
 ```sh
 ssh user@host
@@ -20,9 +20,9 @@ Warpai 根据已确认的远端 shell 会话识别目录；仅安装组件不会
 
 | 远端系统 | 下载 | 安装方式 |
 | --- | --- | --- |
-| Linux x64 | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-linux-x64.run) | 运行 `sh WarpaiCompanion-linux-x64.run`。 |
-| macOS Apple 芯片 | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-macos-arm64.dmg) | 打开镜像，双击 **Install Warpai Companion.command**。 |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.1.0/WarpaiCompanion-windows-x64-setup.exe) | 使用远端 SSH 账号运行安装器。 |
+| Linux x64 | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) | 运行 `sh WarpaiCompanion-3.0.0-linux-x64.run`。 |
+| macOS Apple 芯片 | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) | 打开镜像，双击 **Install Warpai Companion.command**。 |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) | 使用远端 SSH 账号运行安装器。 |
 
 安装包包含对应的运行组件、校验和、版本与源码清单及许可说明，无需手动解压或填写执行路径。
 Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。默认位置固定为：
@@ -34,11 +34,18 @@ Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。�
 
 ## 连接与排错
 
+Companion 3.0.0 自带私有 Git。文件操作、Agent 协作和 MCP 桥接由编译后的组件处理，
+代码、文本和 Markdown 预览由桌面端渲染。Warpai 基础功能无需在远端另装 Git、Python、
+Node、tmux 或 socat；第三方 Agent CLI 仍使用自己的运行环境和认证。
+SSH/SFTP 和会话级 shell 集成仍是连接前提。私有 Git 不修改账号 PATH，也不替换系统 Git。
+可使用已安装组件的绝对路径执行 `--check-runtime` 检查内置运行环境。
+
 选中 SSH 终端，通过 `cd` 进入项目。面板根据已确认的远端用户目录、系统和工作目录寻找并检查组件。
 组件缺失、无法执行或协议不兼容时，使用对应安装包安装或升级，再点击 **Reconnect**。
 切换主机、账号、终端或项目时，旧响应不能污染当前项目；断开后的缓存状态不可写入。
 
-companion 保留现有的按需私有服务启动方式。安装器不新增系统常驻服务，不修改 shell 启动文件或 PATH，
+Companion 按需启动；所有连接和活动 Agent 结束后，空闲 60 秒自动退出。
+安装器不新增系统常驻服务，不修改 shell 启动文件或 PATH，
 不复制凭据、不修改 SSH 配置，也不替换第三方 Agent 命令。远端 CLI Agent 仍通过自己的工具安装和认证。
 
 ## 启动远端 Agent

@@ -14,11 +14,11 @@
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.2.2](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.3.0](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/badge/release-1.2.2-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)
+[![版本](https://img.shields.io/badge/release-1.3.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
@@ -78,6 +78,8 @@ Warpai 把 Agent 管理、项目文件和日常开发工具放在同一应用中
 - **右侧项目面板：**浏览、创建、重命名和删除项目文件，点击代码或文本即可在内置编辑器中打开，
   使用 Vim 模式，并预览 Markdown 和支持的文件格式。本地与 SSH 项目都跟随当前焦点终端的工作目录。
 - **审阅 Agent 结果：**查看提交的文件和报告，在协作面板中验收任务或要求修改。
+- **Code Review：**在原有面板中查看本地或 SSH 仓库的 Git 差异，并在现有编辑器中打开
+  变更文件。远程 Git 写操作继续在 SSH 终端中完成。
 
 Warpai 既能承担 Agent 工作台，也能作为轻量级开发环境；简单编辑、文件预览和任务验收不必再切到
 另一个应用。需要深入语言导航、调试器或扩展生态时，仍可与完整 IDE 配合使用。
@@ -164,13 +166,13 @@ SSH 项目由匹配版本的 Warpai companion 提供远端支持。
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.2.2](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)** 将 Agent 协作、文件管理、
+**[Warpai 1.3.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)** 将 Agent 协作、文件管理、
 应用内编辑和预览整合进本地与 SSH 项目的完整工作流。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.2/Warpai-1.2.2-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiSetup-1.2.2-windows-x64.exe) | 运行安装器。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/Warpai-1.3.0-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiSetup-1.3.0-windows-x64.exe) | 运行安装器。 |
 
 macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
 **System Settings > Privacy & Security > Open Anyway** 中批准打开。Windows 可能要求确认
@@ -178,14 +180,16 @@ macOS 应用采用临时签名，尚未进行公证。若首次启动被系统�
 
 ### 远程 companion
 
-**Warpai Companion 2.0.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
-按你要连接的远程主机选择安装包。
+**Warpai Companion 3.0.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
+组件自带私有 Git；Warpai 的文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
+Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Companion 按需启动，
+空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-linux-x64.run) |
-| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) |
+| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) |
 
 ## 本地优先
 

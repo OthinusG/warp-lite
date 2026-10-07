@@ -16,11 +16,11 @@ Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.2.2](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.3.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.2.2-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)
+[![Release](https://img.shields.io/badge/release-1.3.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -94,6 +94,9 @@ review tool.
   directory in local and SSH projects.
 - **Review Agent results:** inspect submitted files and reports, then accept
   Agent tasks or request revisions through the collaboration panel.
+- **Code Review:** inspect local or SSH Git changes in the original Review panel
+  and open changed files in the existing editor. Remote Git writes stay in the
+  SSH terminal.
 
 The lightweight editor and file tools make Warpai a useful agent-first workbench
 without requiring a full IDE for every task. Use a dedicated IDE when you need
@@ -198,14 +201,14 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.2.2](https://github.com/OthinusG/warpai/releases/tag/v1.2.2)** brings
+**[Warpai 1.3.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)** brings
 Agent coordination, file management, in-app editing and previews to
 your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.2/Warpai-1.2.2-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiSetup-1.2.2-windows-x64.exe) | Run the installer. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/Warpai-1.3.0-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiSetup-1.3.0-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -214,14 +217,18 @@ Checksums are included on the release page.
 
 ### Remote companion
 
-**Warpai Companion 2.0.0** provides the remote workspace on your Linux, macOS or
-Windows machine. Choose the installer for the machine you connect to.
+**Warpai Companion 3.0.0** provides the remote workspace on your Linux, macOS or
+Windows machine, including its private Git runtime. Warpai's file, Review and
+Agent communication infrastructure requires no separate Git, Python, Node, tmux
+or socat installation. Vendor Agents retain their own requirements. Companion
+starts on demand and exits after 60 idle seconds. Choose the installer for the
+machine you connect to.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.2.2/WarpaiCompanion-2.0.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) |
 
 ## Local by design
 

@@ -19,7 +19,7 @@ def main():
         marker = account / ".profile"
         marker.write_text("# preserved\n")
         binary = payload / "warpai-companion"
-        binary.write_text('#!/bin/sh\ncase "$1" in --version) echo "warpai-companion 2.0.0 protocol 1";; --check-runtime) exit 0;; *) exit 1;; esac\n')
+        binary.write_text('#!/bin/sh\ncase "$1" in --version) echo "warpai-companion 3.0.0 protocol 1";; --check-runtime) exit 0;; *) exit 1;; esac\n')
         binary.chmod(0o700)
         runtime_name = "companion-runtime-" + "a" * 64
         runtime = payload / runtime_name
