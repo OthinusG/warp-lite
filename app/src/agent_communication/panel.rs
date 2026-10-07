@@ -4400,6 +4400,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         // A banner belongs to a running block; no SSH process is executed.
                         let mut model = terminal.model.lock();
                         model.block_list_mut().active_block_mut().start();
+                        // A fresh Windows prompt expects its shell's Reset Grid OSC before input.
+                        model.on_reset_grid();
                         for character in "ssh user@host".chars() {
                             model.block_list_mut().input(character);
                         }
