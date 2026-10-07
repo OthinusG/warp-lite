@@ -417,8 +417,8 @@ impl FileTreeView {
         self.ssh_in_flight = true;
         let generation = self.ssh_generation;
         ctx.spawn(async move {
-            let cwd = profile.remote_root.clone();
             let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
+            let cwd = files.canonical_root.clone();
             let files = match files.repository().await {
                 Ok(repository) => repository,
                 Err(_) if files.connected() => files,

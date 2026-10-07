@@ -4072,6 +4072,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     let (parent, cwd) = terminal.read(app, |terminal, _| (terminal.active_block_session_id().unwrap(), terminal.pwd().unwrap()));
                     data.insert("owned_parent_session", parent);
                     data.insert("owned_parent_cwd", cwd);
+                    app.update(|ctx| {
+                        // Shell hooks are simulated on a local PTY; remote generators must not write into it.
+                        crate::settings::DebugSettings::handle(ctx).update(ctx, |settings, ctx| {
+                            settings.force_disable_in_band_generators.set_value(true, ctx)
+                                .expect("Disable generators for the owned SSH hook fixture");
+                        });
+                    });
                     terminal.update(app, |terminal, _| {
                         use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue, SSHValue};
                         let config = std::env::var("WARP_TEST_SSH_CONFIG").unwrap();
