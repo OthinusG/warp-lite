@@ -1418,3 +1418,26 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
   and SHA-256 mappings in isolated temporary fixtures. These are packaging smoke
   checks, not native installer/runtime acceptance; tagged cloud gates remain
   required. All existing screenshots remain byte-identical.
+
+## 2026-10-07 — Warpai 1.2.1 public delivery
+
+- Published v1.2.1 as latest with Companion 2.0.0 after all formal gates pass.
+  Immutable source: 4788cbde9a74987b53a3bd032b340cc38bd09fb7. Preserve v1.2.0 at
+  210ebb4a; it remains unpublished. No historical tag or public asset was replaced.
+- Formal macOS/three-platform Companion run 37577830960 and Windows desktop run
+  37581995715 pass. Native installers verify component 2.0.0, desktop 1.2.1,
+  repeated installation, source/hash and Windows optimized binary protocol.
+- Downloaded all five versioned installers and both checksum files; all GitHub
+  digests and checksum entries match. Windows desktop bytes match the accepted
+  native artifact and tag-source receipt. Both mounted read-only DMGs pass
+  identity, version, artwork and Finder flags; desktop deep signing and bundled
+  Agent bridge pass. Actual macOS Companion reports 2.0.0 protocol 1; Linux
+  manifest/binary/license/artwork checks pass. SHA-256 parsing must handle the
+  standard Windows binary-mode `*` marker.
+- Release notes describe 1.1-to-1.2 changes. README feature sections now describe
+  outcomes and remote/local workflow parity, with static 1.2.1 and remote-platform
+  badges and an explicit assignment/report/review flow. Old screenshots are
+  unchanged. Desktop downloads carry 1.2.1; all three Companion downloads carry
+  2.0.0. No local application or personal Agent/SSH configuration was installed
+  or changed during release verification. All five unauthenticated public
+  download HEAD requests return HTTP 200 after publication.

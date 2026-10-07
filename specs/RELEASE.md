@@ -61,6 +61,44 @@ local/remote workflow parity, without upgrade history or transport internals.
    public asset inventory and README download links, and record the immutable
    tag, jobs and delivery receipt in MEMORY.md. Preserve older releases.
 
+## 1.2.1 public delivery receipt
+
+Published [Warpai 1.2.1 with Companion 2.0.0](https://github.com/OthinusG/warpai/releases/tag/v1.2.1)
+as latest on 2026-10-07. Immutable tagged source:
+`4788cbde9a74987b53a3bd032b340cc38bd09fb7`.
+The unpublished v1.2.0 tag remains at 210ebb4a as requested.
+
+- [Formal macOS and three-platform Companion release](https://github.com/OthinusG/warpai/actions/runs/37577830960):
+  all four jobs pass, including component-version probes, native installation/
+  reinstallation, Windows Companion installer ProductVersion 2.0.0 and installed
+  optimized Windows binary stdio. macOS desktop default/platform checks and the
+  tagged release build pass.
+- [Formal Windows desktop release](https://github.com/OthinusG/warpai/actions/runs/37581995715):
+  native PE numeric/string versions, installer ProductVersion 1.2.1, icon, Agent
+  bridge and archive contents pass. The downloaded public installer is byte-for-byte
+  identical to its CI artifact; the source receipt matches the immutable tag.
+- All five installers and both checksum files match GitHub SHA-256 digests.
+  Both checksum files cover exactly the public installer inventory. Parse standard
+  SHA-256 text/binary mode markers, including Windows's `*` marker.
+- Both DMGs pass verification and read-only inspection. Desktop bundle identity,
+  1.2.1 version, strict deep code signature, Agent bridge, canonical icon,
+  Applications shortcut and Finder volume icon flag pass. macOS Companion's
+  executable reports 2.0.0 protocol 1; its manifest, source/target/hash, launcher
+  resource fork and artwork pass. Linux payload source/target/version, binary
+  checksum, license notices and artwork pass.
+- Release notes describe changes from 1.1 to 1.2. Bilingual READMEs update existing
+  feature sections, identify local/remote platform support, explain remote file
+  workflow parity and retain the original screenshots. All five download links
+  match the public versioned installer names. No raw ZIP is a public asset.
+
+| Public installer | SHA-256 |
+| --- | --- |
+| `Warpai-1.2.1-macos-arm64.dmg` | `84838a232ada10551ca24568be684f5b517f6e26772e9865ce0ab2605ed9afc9` |
+| `WarpaiCompanion-2.0.0-linux-x64.run` | `460ae0c1a9f8fddf28179c4a339cbd7f08a1819a1e85c86e7483e672d9658fe0` |
+| `WarpaiCompanion-2.0.0-macos-arm64.dmg` | `831a44fc5f1247c3a9e7a7e69978af8af53ec8b1a9b6de8828fcda07ad9fac8b` |
+| `WarpaiCompanion-2.0.0-windows-x64-setup.exe` | `7099a0f2846a520e755e8f143b48ff993089ec5781c51bebd41c09f550743d36` |
+| `WarpaiSetup-1.2.1-windows-x64.exe` | `bcf911bf21222995d74a50da7920434f91441a7b70ccb2dfa2ac89f06dc2f78c` |
+
 ## Historical releases
 
 ## Historical 1.0.1 preparation (not published)

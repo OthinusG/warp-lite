@@ -1,6 +1,6 @@
 # Existing File Tools over SSH
 
-Date: 2026-10-07. Status: implemented and accepted; packaging for the 1.2.1 release.
+Date: 2026-10-07. Status: released in Warpai 1.2.1 with Companion 2.0.0.
 
 ## Outcome and scope
 
