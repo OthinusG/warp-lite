@@ -1,6 +1,6 @@
 # Existing File Tools over SSH
 
-Date: 2026-10-06. Status: implementation in progress; full feature acceptance pending.
+Date: 2026-10-07. Status: implemented and accepted in source; published 1.1.5 binaries predate this feature.
 
 ## Outcome and scope
 
@@ -141,6 +141,9 @@ explicit refresh and successful operations plus a bounded refresh while visible;
 reuse incremental-update handling when the Companion can supply changes. Do not
 require a new watcher service or recursive full-project synchronization.
 
+Use the admitted canonical cwd when expanding the tree inside its repository
+root, including when the shell's cwd is a directory alias or symbolic link.
+
 ### 3. Route the existing file/editor/preview pipeline
 
 Carry a remote location through the current open events and `CodeSource` rather
@@ -194,6 +197,11 @@ retain its original intent and reconcile remote state before offering retry.
 Never automatically repeat a possibly completed rename/delete/save.
 
 ### 5. Feed the current Git Review model
+
+Preserve the existing entrypoints and presentation: an Explorer file click opens
+the existing CodeView/document viewer, and an existing Git Review action opens
+the existing RightPanelView/CodeReviewView. SSH changes backend selection only;
+do not add an SSH-only Review presentation or open Review automatically on cd.
 
 Extend the current diff-state loading boundary to select local or remote Git
 execution. Remote commands run in the Companion's admitted repository with typed
@@ -283,6 +291,13 @@ platform checks. It records executed receipts separately from remaining gates.
 
 ## Completion
 
+On a supported, provisioned remote target, ordinary SSH and `cd` are sufficient
+to use the existing file-management, in-app viewing/editing and Review surfaces.
+The user does not select a second connection or configure another panel. Every
+operation retains its remote identity; failures are visible and never trigger a
+desktop-path fallback. Backend, native transport and existing-UI receipts are
+recorded in COMPANION-CHECKS.md.
+
 ## Collaboration panel delivery
 
 The daily view shows project, agent availability, task descriptions, assignees,
@@ -290,13 +305,6 @@ messages, results and review actions. Protocol identifiers, revision counters,
 readiness provenance and lease bookkeeping stay out of the daily view. History
 and workspace maintenance retain their existing explicit navigation. Empty
 maintenance sections are hidden; failures and interrupted execution remain visible.
-
-
-On a supported, provisioned remote target, ordinary SSH and `cd` are sufficient
-to use the existing file-management, in-app viewing/editing and Review surfaces.
-The user does not select a second connection or configure another panel. Every
-operation retains its remote identity; failures are visible and never trigger a
-desktop-path fallback. This is a planned feature until those receipts exist.
 
 ## Implemented behavior and delivery checks
 
@@ -326,3 +334,10 @@ fixture keys. It exercises existing Explorer file selection, in-app code and
 Markdown, a relative image, dirty buffer/save and existing remote Review. Native
 captures supplement backend and actual transport tests; exact cloud receipts are
 recorded in COMPANION-CHECKS.md after the corresponding jobs complete.
+
+Final desktop acceptance: [run 37569663988](https://github.com/OthinusG/warpai/actions/runs/37569663988),
+source `60ea2810`, passes default/warp_platform builds, focused application tests
+and complete native captures on macOS and Windows. The walkthrough uses original
+Explorer clicks, remote editing/save, Markdown with a relative image, original
+Review rendering and SSH exit/local restoration. Published installers remain
+1.1.5; use matching source builds for the app and Companion.

@@ -122,8 +122,22 @@ companions support Linux, macOS and Windows; file transfer uses SFTP.
 
 This makes the Agent team useful on a workstation, a development server or a
 remote research machine without moving the project into a hosted Warpai service.
-The current companion-based SSH workflow covers Agent coordination; Project
-Explorer and the Git Code Review panel remain local-workspace tools.
+In the current source build, the same workspace also follows your remote `cd`:
+browse and manage remote files in Project Explorer, click code or text to edit
+inside Warpai, preview Markdown with its remote images and links, and save back
+to the original remote file. Keep Git Review beside the remote Agent team to
+inspect changes and send feedback without switching applications. Open tabs stay
+bound to their original remote project when you change terminals or directories.
+
+For example, connect to a research server, enter an analysis project, and ask
+Agents to process datasets and draft a report. Open the generated scripts and
+Markdown report in the same app, inspect plots embedded in the report, make a
+correction, and save it on the server. The data and execution stay remote while
+you retain the same review and coordination workflow.
+
+Remote file tools require a matching Companion build with file and Git Review
+capabilities. These source changes are newer than the published 1.1.5 binaries.
+Git Review is read-only; commits and other Git mutations use the remote terminal.
 
 ## Beyond software development
 

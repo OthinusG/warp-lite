@@ -1293,3 +1293,100 @@ R2.6 fresh remote MCP and R2.7 local pending-intent projections remain pending.
 - Owned native SSH/SFTP acceptance now has a reproducible repository script and
   existing-panel capture steps. Pinned three-platform/cloud receipts remain
   separate from local Homebrew Rust checks and are recorded after job completion.
+- Pinned cloud default and `warp_platform` application checks pass on both macOS
+  and Windows at b73f6a57. Native UI acceptance remains a separate gate: the
+  capture finish callback must preserve an earlier failing step instead of
+  replacing it with a missing-later-screenshot assertion.
+- Windows canonical paths may carry a verbatim prefix. Normalize the public
+  remote file root before joining cwd children; Windows verbatim paths reject
+  mixed separators. Keep native identity comparison on the original HostClient.
+- Owned Windows SSH acceptance uses the system OpenSSH server as a disposable
+  SYSTEM service, SYSTEM-owned generated host keys, separate icacls owner/remove
+  commands, and the native sftp-server subsystem. Never change personal or
+  default service configuration for this fixture.
+- A read-only Markdown refresh must not advance a dirty editor's original save
+  hash. Preserve explicit in-app editor targets and fence delayed preview loads
+  against the current document/generation.
+- Pinned Linux/macOS/Windows Companion acceptance passes at 4717e61f (run
+  37485335027), including actual native Windows SSH/SFTP. Close local staging
+  writer handles before SFTP opens those paths on Windows; keep TempPath cleanup
+  ownership. Unix-to-Windows SFTP needs `/C:/...` remote drive syntax.
+- Native UI diagnosis at 474c3c7f confirmed that the capture's streaming append
+  was a system edit, not a user edit. Use the existing user-origin `apply_edits`
+  path and await dirty state before saving; do not alter production dirty-state
+  logic merely to satisfy a capture.
+- User correction (2026-10-07): Explorer and Review retain terminal-driven cwd
+  selection after SSH and `cd`. Opening a file must not switch project context.
+  Removed file-source overrides from ActiveSession; remote file load/save still
+  uses the existing FileModel association. Exclude SSH caches from local roots.
+  Hide desktop roots for pending and confirmed remote terminals even when
+  remote metadata is incomplete; show an actionable SSH/Companion/SFTP state.
+  Native UI acceptance must establish confirmed SSH shell metadata before
+  opening files, rather than injecting a remote tree into a local terminal.
+- Remote Review feedback from a file-only tab searches open workspace terminals
+  by the exact original SSH connection/session and admitted cwd. Exclude hidden
+  closed panes, pending SSH transitions, disconnected attachments and terminals
+  that left the reviewed root; retain feedback and report failure if no match.
+- Real macOS/Windows ProxyJump read/save/conflict/reconnect acceptance passes at
+  2ca71cc4 (run 37496901971), alongside all three Companion platform jobs. Reuse
+  the isolated native fixture and its generated host settings for both hops.
+- Final Companion regression at 60d54422 passes on Linux/macOS/Windows (run
+  37498107083), including exact feedback route identity and direct/ProxyJump
+  native macOS/Windows file operations. Local agent-bus tests: 134 passed,
+  11 opt-in ignored; explicit history-budget and 16 protocol tests also pass.
+
+- Native Windows file capture at 9c4e7f56 verifies Explorer opens, user edits,
+  confirmed remote saves and Markdown resources, but is not a completed runtime
+  receipt. Screenshots exposed the legacy toolbar support gate hiding Review;
+  enable the existing CodeReview item under local_fs while leaving bundled AI
+  and notification items disabled. Native assertions must check visibility as
+  well as model statistics. Reset fixture panel width and exit the owned SSH
+  session before the separate local SSH-banner walkthrough.
+- Native captures must focus the owned terminal and use LeftPanelView's current
+  file-tree handle, never the first cached FileTreeView across tabs. Open the
+  existing tools panel through its normal visibility action before asserting
+  rows. Verify the copied Companion discovery installation over SSH before GUI
+  launch; only fixed ConnectionError variants may enter capture diagnostics.
+- Native application checks at a176dd9f pass in both desktop configurations on
+  macOS and Windows (run 37514277064). Windows renders the actual remote Review
+  panel after Explorer editing/saving and Markdown image preview; this remains
+  a partial receipt because later lifecycle assertions fail. macOS Explorer
+  failure reproduces using that cloud-built app against an owned local SSH server.
+  Simulated remote shell metadata on a local PTY triggers PtyController's
+  InitShell subscription, which writes a real bootstrap into the local shell and
+  replaces the simulated SSH selection with local hooks. The isolated capture
+  intercepts only its simulated InitShell event while retaining model session
+  metadata and forwarding other events; production bootstrap remains unchanged.
+  Use the owned SSH master and disable generators in the isolated capture. Do not change production selection to
+  ignore legitimate terminal events to make the fixture pass.
+- Capture setup clears WARP_COLLABORATION_CAPTURE for normal worker startup;
+  debug diagnostics must use the retained preview flag. Windows GUI stderr can
+  be absent even on failure, so persist only allowlisted assertion names under
+  the owned capture artifact directory and filter them again before publication.
+- Remote preview filename/breadcrumb parsing uses the existing typed-path
+  dependency so Windows drive/UNC paths render correctly on macOS and POSIX
+  literal backslashes remain part of the filename. Explorer uses the Companion's
+  admitted canonical cwd before widening to a Git root; an SSH cwd alias must
+  not fail a relative-path check against its canonical directory.
+- User correction (2026-10-07): keep Warp's original file-click and Review
+  interactions. Explorer file clicks open CodeView/document viewers; Git Review
+  already uses RightPanelView/CodeReviewView. The SSH backend must reuse the same
+  rendering and actions, without a separate SSH Review presentation or automatic
+  Review opening on cwd changes.
+- Remote Review now shares the original header, file navigation, maximize/close
+  actions and visible-only lifecycle. Closing or changing SSH selection calls
+  CodeReviewView::on_close; pending SSH never exposes a local repository. Native
+  captures require the current confirmed SSH cwd, not just cached remote rows.
+- Cloud run 37563576965 at c455e4a6 passes the complete macOS native walkthrough
+  and both desktop build/application suites. Windows passes remote Explorer,
+  editing/save, Markdown image and original Review assertions, then its local
+  SSH-banner fixture panics because simulated input omitted Reset Grid OSC on
+  a fresh Windows grid. Supply the real reset hook in that fixture; do not
+  disable production grid checks. Full Windows capture remains pending.
+- Final source acceptance (2026-10-07): run 37569663988 at 60ea2810 succeeds
+  on macOS and Windows, including default/warp_platform builds, application tests,
+  complete native file/editor/save/Markdown-image/original-Review walkthroughs,
+  local restoration and retained Agent panel captures. The prior Windows grid
+  failure was confined to simulated banner input and is fixed by its real reset
+  hook. Source acceptance is distinct from published 1.1.5 installers; no release
+  or local installation was requested for this delivery.
