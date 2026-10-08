@@ -953,6 +953,9 @@ impl CollaborationPanel {
                     _ => {}
                 }
             }
+            if self.worktree_mode {
+                kinds.retain(|kind| !matches!(kind, Kind::Cancel | Kind::ForceCancel | Kind::Reassign | Kind::ReassignOverride | Kind::Retry | Kind::RetryOverride));
+            }
             body.add_child(heading(appearance, "Actions"));
             let mut buttons = Vec::new();
             for (index, kind) in kinds.into_iter().enumerate() {
@@ -976,7 +979,9 @@ impl CollaborationPanel {
             if let Some(buttons) = button_row(buttons) {
                 body.add_child(buttons);
             }
-            body.add_child(note(appearance, "Task cancellation leaves the terminal running. Agent approvals stay in the terminal."));
+            body.add_child(note(appearance, if self.worktree_mode {
+                "The Coordinator controls task allocation, cancellation and integration. Agent approvals stay in the terminal."
+            } else { "Task cancellation leaves the terminal running. Agent approvals stay in the terminal." }));
         }
         body.finish()
     }
