@@ -55,7 +55,8 @@ async fn controlled_ssh_uses_project_communication_fences() {
         warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable
     );
     controlled_agent_terminal(&profile).await;
-    controlled_two_agents(&profile).await;
+    controlled_two_agents(&profile, &profile, false).await;
+    controlled_worktree_team(&profile).await;
     // The alias resolves through a controlled config, not local project canonicalization.
     let mut missing = profile.clone();
     missing.remote_root.push_str("/missing-root");
@@ -169,12 +170,47 @@ async fn terminal_output(
     }
 }
 
-async fn controlled_two_agents(profile: &SshProfile) {
+async fn controlled_worktree_team(profile: &SshProfile) {
+    use warp_agent_bus::{companion::TaskCommand, ControllerOperation};
+    // The provisioned loopback fixture deliberately shares this runner's filesystem.
+    let owned = tempfile::tempdir_in(&profile.remote_root).unwrap();
+    let main = owned.path().join("main checkout");
+    let linked = owned.path().join("feature checkout");
+    let unjoined = owned.path().join("unjoined");
+    std::fs::create_dir(&main).unwrap();
+    let git = |arguments: &[&str]| {
+        let result = std::process::Command::new(warp_agent_bus::installation::git_executable().unwrap())
+            .args(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath="])
+            .args(arguments).current_dir(&main).output().unwrap();
+        assert!(result.status.success(), "Controlled SSH Git fixture command succeeds");
+    };
+    git(&["init", "--initial-branch=main"]);
+    std::fs::write(main.join("source.txt"), "base").unwrap();
+    git(&["add", "source.txt"]);
+    git(&["commit", "-m", "SSH worktree fixture"]);
+    git(&["worktree", "add", "-b", "feature", linked.to_str().unwrap()]);
+    git(&["worktree", "add", "-b", "unjoined", unjoined.to_str().unwrap()]);
+    let mut first = profile.clone();
+    first.remote_root = main.to_str().unwrap().into();
+    let mut second = profile.clone();
+    second.remote_root = linked.to_str().unwrap().into();
+    for selected in [&first, &second] {
+        let mut client = HostClient::connect(selected).await.unwrap();
+        let joined = client.project_tasks(&TaskCommand::Controller(ControllerOperation::WorktreeJoin {
+            root: client.canonical_root.clone(), request_id: Uuid::new_v4().to_string(),
+        }), 1).await.unwrap();
+        assert!(joined.get("value").is_some());
+        client.disconnect();
+    }
+    controlled_two_agents(&first, &second, true).await;
+}
+
+async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfile, worktree_team: bool) {
     use warp_agent_bus::Operation;
     let fixture =
         std::env::var("WARP_TEST_AGENT_FIXTURE").expect("Owned native Agent fixture executable");
     let mut one = HostClient::connect(profile).await.unwrap();
-    let mut two = HostClient::connect(profile).await.unwrap();
+    let mut two = HostClient::connect(receiver_profile).await.unwrap();
     async fn launch(client: &mut HostClient, executable: &str) -> TerminalState {
         let state = client
             .terminal_launch(TerminalLaunch {
@@ -292,8 +328,18 @@ async fn controlled_two_agents(profile: &SshProfile) {
         .unwrap()
         .iter()
         .any(|entry| entry["id"] == task && entry["state"] == "accepted"));
+    if worktree_team {
+        let receiver_panel = two.project_tasks(&query, 10).await.unwrap();
+        assert_eq!(panel["value"]["collaboration_scope"], receiver_panel["value"]["collaboration_scope"]);
+        assert_ne!(one.fence().unwrap().project_id, two.fence().unwrap().project_id);
+        assert_eq!(panel["value"]["worktree_branch"], "main");
+        assert_eq!(receiver_panel["value"]["worktree_branch"], "feature");
+        assert_eq!(receiver_panel["value"]["worktree_root"], two.canonical_root);
+    }
     let mut other_profile = profile.clone();
-    other_profile.remote_root.push_str("/isolated");
+    if worktree_team {
+        other_profile.remote_root = std::path::Path::new(&profile.remote_root).parent().unwrap().join("unjoined").to_str().unwrap().into();
+    } else { other_profile.remote_root.push_str("/isolated"); }
     std::fs::create_dir_all(&other_profile.remote_root).unwrap();
     let mut other = HostClient::connect(&other_profile).await.unwrap();
     let panel = other.project_tasks(&query, 11).await.unwrap();
