@@ -2210,6 +2210,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .canonicalize()?
         .join(format!("capture-{}", std::process::id()));
     std::fs::create_dir(&directory)?;
+    let worktree_fixture = directory.join("owned-worktree-checkout");
+    std::fs::create_dir(&worktree_fixture)?;
+    let initialized = std::process::Command::new(warp_agent_bus::installation::git_executable()?)
+        .args(["-c", "core.hooksPath=", "init", "--initial-branch=main"])
+        .current_dir(&worktree_fixture).output()?;
+    anyhow::ensure!(initialized.status.success(), "Owned capture Git fixture initializes");
+    let worktree_root = warp_agent_bus::project_root(&worktree_fixture)?;
+    let expected_worktree_root = worktree_root.clone();
     let panic_directory = directory.clone();
     let previous_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -2260,6 +2268,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 }))
             },
         ))
+        .with_step(TestStep::new("open owned worktree fixture tab").with_action(move |app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| workspace.add_tab_with_pane_layout(
+                crate::pane_group::PanesLayout::SingleTerminal(Box::new(crate::pane_group::NewTerminalOptions {
+                    initial_directory: Some(std::path::PathBuf::from(&worktree_root)),
+                    hide_homepage: true,
+                    ..Default::default()
+                })),
+                std::sync::Arc::new(std::collections::HashMap::new()), None, ctx,
+            ));
+        }))
+        .with_step(TestStep::new("owned worktree fixture becomes active")
+            .set_timeout(std::time::Duration::from_secs(45))
+            .add_named_assertion("owned checkout is the native directory", move |app, window| {
+                warpui::async_assert!(app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
+                    .path_if_local(window).and_then(|path| warp_agent_bus::project_root(path).ok())
+                    .as_deref() == Some(expected_worktree_root.as_str())))
+            }))
         .with_step(
             TestStep::new("open tools panel").with_action(|app, window, _| {
                 app.update(|ctx| {
@@ -2525,11 +2552,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("worktree join confirmation uses existing native controls")
                 .with_action(|app, window, _| {
-                    let owned_root = app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx).path_if_local(window).unwrap().to_owned());
-                    let initialized = std::process::Command::new(warp_agent_bus::installation::git_executable().unwrap())
-                        .args(["-c", "core.hooksPath=", "init", "--initial-branch=main"])
-                        .current_dir(&owned_root).output().unwrap();
-                    assert!(initialized.status.success(), "Owned capture Git fixture initializes");
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     panel.update(app, |panel, ctx| panel.open_control(controls::Kind::JoinWorktree, ctx));
                 })
@@ -2944,7 +2966,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .unwrap()
                             .spaces
                             .iter()
-                            .flat_map(|space| &space.workspaces)
+                            .find(|space| space.name == "Native reviewed collaboration")
+                            .unwrap()
+                            .workspaces
+                            .iter()
                             .next()
                             .unwrap()
                             .id
