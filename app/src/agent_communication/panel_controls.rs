@@ -429,7 +429,8 @@ impl CollaborationPanel {
         for checkout in &snapshot.worktrees {
             if coordinator.is_some_and(|role| role.root == checkout.root) { continue; }
             let worker = snapshot.roles.iter().find(|role| role.role == "worker" && role.root == checkout.root);
-            let name = worker.map(|role| snapshot.participant_label(&role.agent)).unwrap_or_else(|| "Unassigned".into());
+            let active = worker.is_some_and(|role| snapshot.agents.iter().any(|row| row.agent.id == role.agent && row.online && role.run.as_ref() == row.run.as_ref()));
+            let name = worker.map(|role| format!("{} · {}", snapshot.participant_label(&role.agent), if active { "active" } else { "unavailable" })).unwrap_or_else(|| "Unassigned".into());
             let branch = checkout.branch.as_deref().unwrap_or("detached HEAD");
             let mut summary: String = branch.chars().take(48).collect();
             if branch.chars().count() > 48 { summary.push('…'); }
@@ -441,9 +442,8 @@ impl CollaborationPanel {
                     .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::ExpandWorker(root.clone()))).finish());
             }
             if expanded {
-                body.add_child(note(appearance, format!("Branch: {branch}\nCheckout: {}", checkout.root)));
+                body.add_child(detail(appearance, format!("Branch: {branch}\nCheckout: {}", checkout.root)));
                 if let Some(role) = worker {
-                    let active = snapshot.agents.iter().any(|row| row.agent.id == role.agent && row.online && role.run.as_ref() == row.run.as_ref());
                     body.add_child(note(appearance, if active { "Agent active" } else { "Agent unavailable · select its active run again" }));
                     for task in snapshot.tasks.iter().filter(|task| task.assignee == role.agent) {
                         body.add_child(note(appearance, format!("{} · {}", task.state, task.description)));
