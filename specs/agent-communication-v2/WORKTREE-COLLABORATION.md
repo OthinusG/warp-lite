@@ -71,8 +71,8 @@ Git writes over the file protocol or cross-host federation.
   from worktree creation and Agent launch. Validate actual checkout and active run
   before binding; failure leaves the worktree unassigned and preserves user files.
   Coordinator-authorized task/review assignments reference these explicit bindings.
-- Worker restart preserves its role, task and checkout, and revokes the previous
-  run. Coordinator exit disables its coordination authority and does not elect
+- Worker restart preserves its role, task and checkout records, revokes the
+  previous run and requires explicit panel reselection before team enrollment. Coordinator exit disables its coordination authority and does not elect
   a replacement. Explicit restart/reselection validates the active run and fences
   the old authority before granting it to the selected Coordinator.
 - Enforce team-management and assignment authority in Warpai's backend APIs,
@@ -94,27 +94,28 @@ Git writes over the file protocol or cross-host federation.
   authorization revalidates the admitted checkout/repository identity. Explicit
   project-space remapping replaces worktree admission and revokes its captured
   actors while preserving ordinary workspace access.
-- Local activation captures an explicitly joined worktree binding. Never remap
-  an already registered run. Panel routing follows the captured run when one is
-  present; new panes show the joined team's projection.
-- Remote physical project fences remain unchanged. A separate repository-owned
-  Broker/Store serves joined worktrees; unjoined roots retain the original
-  per-project Store. Reuse the account-owned service, never desktop-path identity.
-  Remote launch and operator projection resolve the same admission. Scope-bound
+- Ordinary local and remote Agent launches retain their private Project broker
+  until the trusted panel enrolls the exact active run. Preserve the process,
+  native input state, physical checkout and previous private history.
+- Remote physical project fences remain unchanged. A repository-owned
+  Broker/Store serves explicitly enrolled runs; original private endpoints forward
+  native lifecycle and communication without restarting a process. Scope-bound
   requests reject forms captured before a team change.
-- The implemented foundation uses the existing wrapping text-button row and
-  confirmation form, with
-  `Join worktree team` / `Leave worktree team`. Show fresh-run guidance and each
-  participant's actual checkout. Preserve drafts and fence late responses.
+- Project and Worktree projections are independent. An unconfigured Worktree
+  view shows eligible active Agents and registered checkouts, never private tasks.
+  Non-Git projects show an empty Worktree view with guidance to switch to Project.
+- Reuse native wrapping buttons, explicit selection forms and vertical scrolling.
+  Worker details expand on demand. Internal Join/Leave operations remain private
+  infrastructure; the ordinary panel uses Coordinator and worker selection.
 
-## Orchestration acceptance still pending
+## Orchestration implementation and acceptance
 
-- [ ] Top-level modes; Project behavior/history regression and retained drafts.
-- [ ] Active-Agent Coordinator selection, empty-project disabled actions and
+- [x] Top-level modes; Project behavior/history regression and retained drafts.
+- [x] Active-Agent Coordinator selection, empty-project disabled actions and
       explicit reselection after exit; no implicit launch or election.
-- [ ] Independent worktree creation and panel-selected worker bindings; reject
+- [x] Independent worktree creation and panel-selected worker bindings; reject
       wrong-root, duplicate, stale-run and cross-environment assignments.
-- [ ] Coordinator-only task/context/review orchestration; worker A reviews worker
+- [x] Coordinator-only task/context/review orchestration; worker A reviews worker
       B; Coordinator chooses integration and performs the final commit.
 - [ ] Local and SSH backend enforcement, persistence and native panel acceptance.
 
@@ -144,7 +145,8 @@ Git writes over the file protocol or cross-host federation.
 
 - [x] Git identity resolver and opt-in workspace admission/revocation.
 - [x] Local run, panel, reservations and producing-root evidence routing.
-- [x] Remote shared authority, fresh launches and scope-bound operator requests.
+- [x] Remote shared authority, explicit active-run enrollment and scope-bound
+      operator requests.
 - [x] Existing native panel actions and compatibility documentation.
 - [x] Real Git main/linked-worktree IPC tests: messaging, task start/submit/review,
       separate same-path reservations and evidence, unjoined checkout/clone
@@ -157,3 +159,14 @@ Git writes over the file protocol or cross-host federation.
 Rust compilation stays on GitHub per the project's existing preference. Local
 checks cover parsing, focused source review and diff hygiene. Native vendor/model
 execution is distinct from deterministic native IPC/Companion acceptance.
+
+## Focused cloud debugging
+
+Use `native_windows_only=true` on `validate-agent-communication.yml` to debug
+Windows native failures without repeating macOS, protocol/history suites or the
+default/platform check variants. It still builds the native application and
+Companion/bridge, runs the owned SSH/SFTP fixture and all native capture assertions.
+Restore the pinned-toolchain/lockfile Rust outputs before compilation and save
+them before capture so a failing UI assertion does not discard the build cache.
+The first cache fill still requires compilation; later source changes rebuild
+through Cargo. Run the complete desktop/remote gates once after the fix.

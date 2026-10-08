@@ -10,6 +10,10 @@ on:
         description: 'Include both desktop builds and application tests in protocol-only runs'
         type: boolean
         default: false
+      native_windows_only:
+        description: 'Run only the Windows native capture, reusing compiled Rust outputs'
+        type: boolean
+        default: false
       capture_ui:
         description: 'Build debug apps and run isolated native static and live UI captures'
         type: boolean
@@ -19,7 +23,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}
+  group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}-${{ inputs.native_windows_only }}
   cancel-in-progress: true
 jobs:
   protocol:
@@ -41,12 +45,28 @@ jobs:
       - name: Prepare Windows protobuf compiler
         run: choco install protoc -y
       - name: Prepare native Windows SSH acceptance server
-        if: ${{ inputs.capture_ui }}
+        if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         shell: pwsh
         run: Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
+      - name: Restore Windows native Rust outputs
+        if: ${{ inputs.capture_ui || inputs.native_windows_only }}
+        id: native-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+      - name: Build native capture companion and bridge
+        if: ${{ inputs.native_windows_only }}
+        run: cargo build -p warp-agent-bus --bins --locked
       - name: Test protocol, persistence, native sockets, and MCP
+        if: ${{ !inputs.native_windows_only }}
         run: cargo test -p warp-agent-bus --locked
       - name: Verify representative history and indexed query budget
+        if: ${{ !inputs.native_windows_only }}
         run: cargo test -p warp-agent-bus --lib representative_history_pages_within_budget_and_preserves_live_work --locked -- --ignored --nocapture
       - name: Upload tested native bridge
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -56,6 +76,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Upload Windows readiness acceptance executable
+        if: ${{ !inputs.native_windows_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-readiness-Windows
@@ -63,13 +84,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Check Windows default and platform application
-        if: ${{ !inputs.protocol_only || inputs.capture_ui || inputs.check_app }}
+        if: ${{ !inputs.native_windows_only && (!inputs.protocol_only || inputs.capture_ui || inputs.check_app) }}
         run: |
           cargo test -p remote_server --locked
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
       - name: Verify Windows legacy metadata and credential cleanup
-        if: ${{ !inputs.protocol_only || inputs.check_app }}
+        if: ${{ !inputs.native_windows_only && (!inputs.protocol_only || inputs.check_app) }}
         run: |
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
@@ -83,7 +104,7 @@ jobs:
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
           cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
       - name: Build Windows native review executable
-        if: ${{ inputs.capture_ui }}
+        if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         shell: pwsh
         env:
           CARGO_FULL_PROFILE: debug
@@ -99,8 +120,17 @@ jobs:
           Copy-Item 'app/assets/bundled/bootstrap/pwsh.ps1' 'target/debug/pwsh.ps1' -Force
           New-Item -ItemType Directory -Path 'target/debug/x64' -Force | Out-Null
           Copy-Item 'app/assets/windows/x64/OpenConsole.exe' 'target/debug/x64/OpenConsole.exe' -Force
+      - name: Save Windows native Rust outputs
+        if: ${{ (inputs.capture_ui || inputs.native_windows_only) && steps.native-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Capture Windows static collaboration UI
-        if: ${{ inputs.capture_ui }}
+        if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         timeout-minutes: 7
         shell: pwsh
         env:
@@ -126,7 +156,7 @@ jobs:
           $expectedImages = $fixtureCount * 8 + 87
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
-        if: ${{ always() && inputs.capture_ui }}
+        if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-collaboration-native-captures-Windows
@@ -136,6 +166,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   macos:
+    if: ${{ !inputs.native_windows_only }}
     runs-on: macos-15
     timeout-minutes: 180
     steps:

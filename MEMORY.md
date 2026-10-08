@@ -2,6 +2,12 @@
 
 ## Cross-worktree collaboration — 2026-10-08
 
+- Owner requests focused cloud checks while debugging (2026-10-08): avoid
+  repeating hour-long full builds. `native_windows_only` skips macOS and redundant
+  protocol/history/default/platform checks while retaining native Windows and
+  owned SSH/SFTP acceptance. Cache pinned-toolchain/lockfile Cargo outputs before
+  builds and save before UI capture; finish with a complete verification run.
+
 - Owner authorizes completing cross-worktree Agent collaboration locally and
   over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;
   do not duplicate the communication stack. Active contract:
@@ -24,9 +30,31 @@
   records; unresolved Project work blocks enrollment. Remote original endpoints
   forward enrolled runs to the repository Broker and retain native lifecycle
   fencing. Worktree creation never launches a process. Compilation, regression
-  tests passed on macOS/Windows/Linux in run 37753218588 (d34eb538). Desktop
-  builds and native visual acceptance remain pending; final lifecycle fixes need
-  current-source regression. Local enrolled exits clear transient team binding;
+  tests, SSH/SFTP and native Companion packaging passed on macOS/Windows/Linux
+  in run 37765513619 (19cb66d5), including exit, remote forwarding cleanup,
+  disabled-program recovery, backward-compatible Project query serialization and
+  retention of the native run's original captured checkout handle.
+  Desktop default/platform builds and focused application tests passed before
+  final panel-only refinements. Native macOS capture passed all 191 screenshots in run 37762499422
+  (5c6848c9), and again in run 37774398871 (7ba8703f). Windows passes protocol
+  and both application build variants but fails the native team-projection
+  checkpoint; waiting for the real mode projection did not resolve it. Its
+  screenshot reports invalid_input during Worktree reads. Cause remains
+  unconfirmed. Diagnostics now export only source-owned state categories and
+  Git exit codes, never paths, terminal payloads or credentials. Run 37782260820
+  (f91cb6cb) failed both app builds because diagnostic code accessed a private
+  Form field; corrected using its existing public submission state. Run
+  37785380593 (926bc1dc) passes macOS and both Windows application checks.
+  Windows diagnostics show a closed form but no admission, with successful Git
+  reads and a connected panel. Normalize local native context paths to prevent
+  Windows shell path-spelling updates from discarding a form; also assert the
+  Join intent actually reaches submission. Run 37790608415 (37f60667) passes
+  macOS but Windows shows the Join request was not submitted: panel.connected
+  was false while the failure-time single query and Git commands succeeded.
+  Path normalization alone is insufficient. Run 37796269498 (e5fdf6b3) retains
+  the failing periodic-read category and private Git error/stage/exit codes;
+  earlier single-query diagnostics did not retain the transient failure.
+  Windows native acceptance remains pending. Local enrolled exits clear transient team binding;
   remote observed exits remove endpoint forwarding. Relaunch requires selection.
 - Native Agents stay in Project on ordinary launch; panel enrollment explicitly
   assigns the live run to a repository team. Private history stays private. Git common-directory
