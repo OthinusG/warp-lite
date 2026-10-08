@@ -124,7 +124,8 @@ mod tests {
         let head = crate::worktrees::tests::git(&fixture.linked, &["rev-parse", "HEAD"]);
         let evidence = call(&worker_binding.broker, &worker, Operation::EvidenceAdd {
             task_id: task.clone(), kind: "commit".into(), attempt_id: None,
-            commit: Some(head.trim().into()), path: None, hash: None, repository: None,
+            commit: Some(head.trim().into()), path: None, hash: None,
+            repository: Some(crate::worktrees::Worktree::discover(&fixture.linked).unwrap().repository),
             branch: Some("feature".into()), base: None, head: None, command: None,
             outcome: None, exit_code: None, summary: None, request_id: id(),
         }).unwrap()["evidence_id"].as_str().unwrap().to_owned();
