@@ -2287,6 +2287,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     .path_if_local(window).and_then(|path| warp_agent_bus::project_root(path).ok())
                     .as_deref() == Some(expected_worktree_root.as_str())))
             }))
+        .with_step(TestStep::new("retain only the owned capture terminal").with_action(|app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::CloseTab(0), ctx));
+        }).add_named_assertion("original fixture terminal is unambiguous", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::terminal::TerminalView>(window)
+                .is_some_and(|terminals| terminals.len() == 1))
+        }))
         .with_step(
             TestStep::new("open tools panel").with_action(|app, window, _| {
                 app.update(|ctx| {
