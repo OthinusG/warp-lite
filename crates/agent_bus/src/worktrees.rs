@@ -33,7 +33,9 @@ pub(crate) fn create(root: &str, name: &str, base: &str) -> Result<String> {
     let checkout = Worktree::discover(Path::new(root))?;
     let commit = crate::companion::files::git_metadata(Path::new(&checkout.root),
         &["rev-parse", "--verify", "--end-of-options", &format!("{base}^{{commit}}")]).map_err(|_| invalid_input("Base commit unavailable"))?;
-    let parent = Path::new(&checkout.root).parent().ok_or_else(|| invalid_input("Checkout parent unavailable"))?;
+    let registry = list(&checkout.root)?;
+    let main = registry.first().and_then(|row| row["root"].as_str()).ok_or_else(|| invalid_input("Main checkout unavailable"))?;
+    let parent = Path::new(main).parent().ok_or_else(|| invalid_input("Checkout parent unavailable"))?;
     let directory = parent.join(".warpai-worktrees").join(&checkout.repository);
     std::fs::create_dir_all(&directory)?;
     let path = directory.join(name);

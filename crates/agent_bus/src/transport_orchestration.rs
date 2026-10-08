@@ -259,6 +259,134 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn explicit_reselection_fences_old_coordinator_and_receipt_replay_cannot_restore_it() {
+        let fixture = Fixture::new();
+        let owner =
+            RunningBroker::start(&fixture.directory.path().join("reselection.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let first = client(broker, &fixture.main, "first");
+        let replacement = client(broker, &fixture.main, "replacement");
+        let selection = |request: &Request| {
+            let actor = call(
+                broker,
+                request,
+                Operation::AgentRegister {
+                    name: String::new(),
+                },
+            )
+            .unwrap();
+            ControllerOperation::WorktreeCoordinator {
+                root: fixture.main.to_str().unwrap().into(),
+                agent: actor["agent"]["id"].as_str().unwrap().into(),
+                run: request.run.clone().unwrap(),
+                request_id: id(),
+            }
+        };
+        let first_selection = selection(&first);
+        broker
+            .control(fixture.main.to_str().unwrap(), &first_selection)
+            .unwrap();
+        broker
+            .control(fixture.main.to_str().unwrap(), &selection(&replacement))
+            .unwrap();
+        assert!(call(broker, &first, assign("replacement")).is_err());
+        assert!(call(
+            broker,
+            &first,
+            Operation::AgentInbox {
+                cursor: None,
+                limit: None
+            }
+        )
+        .is_err());
+        let replay = broker
+            .control(fixture.main.to_str().unwrap(), &first_selection)
+            .unwrap();
+        let panel = broker
+            .operator_panel(&PanelQuery {
+                project: fixture.main.to_str().unwrap().into(),
+                worktree: true,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_ne!(panel["roles"][0]["agent"], replay["agent"]["id"]);
+        assert_eq!(panel["coordinator_online"], true);
+        assert!(broker
+            .pending_work()
+            .iter()
+            .filter(|wake| broker.claim_wake(wake))
+            .all(|wake| wake.terminal != first.terminal));
+        broker.end(&replacement.terminal);
+        assert!(!broker
+            .operator_panel(&PanelQuery {
+                project: fixture.main.to_str().unwrap().into(),
+                worktree: true,
+                ..Default::default()
+            })
+            .unwrap()["coordinator_online"]
+            .as_bool()
+            .unwrap());
+    }
+
+    #[test]
+    fn worktree_projection_does_not_adopt_private_tasks_before_coordinator_selection() {
+        let fixture = Fixture::new();
+        let owner =
+            RunningBroker::start(&fixture.directory.path().join("project-mode.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &fixture.main, "issuer");
+        let worker = client(broker, &fixture.main, "worker");
+        call(broker, &issuer, assign("worker")).unwrap();
+        let project = PanelQuery {
+            project: fixture.main.to_str().unwrap().into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            broker.operator_panel(&project).unwrap()["tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        let team = broker
+            .operator_panel(&PanelQuery {
+                worktree: true,
+                ..project
+            })
+            .unwrap();
+        assert!(team["tasks"].as_array().unwrap().is_empty());
+        assert_eq!(team["candidates"].as_array().unwrap().len(), 2);
+        let actor = call(
+            broker,
+            &worker,
+            Operation::AgentRegister {
+                name: String::new(),
+            },
+        )
+        .unwrap();
+        assert!(broker
+            .control(
+                fixture.main.to_str().unwrap(),
+                &ControllerOperation::WorktreeCoordinator {
+                    root: fixture.main.to_str().unwrap().into(),
+                    agent: actor["agent"]["id"].as_str().unwrap().into(),
+                    run: worker.run.unwrap(),
+                    request_id: id(),
+                }
+            )
+            .is_err());
+        let non_git = broker
+            .operator_panel(&PanelQuery {
+                project: fixture.directory.path().to_str().unwrap().into(),
+                worktree: true,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(non_git["worktree_available"], false);
+        assert!(non_git["tasks"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
     fn explicit_coordinator_workers_peer_review_and_integration_preserve_project_history() {
         let fixture = Fixture::new();
         let owner = RunningBroker::start(&fixture.directory.path().join("roles.sqlite")).unwrap();

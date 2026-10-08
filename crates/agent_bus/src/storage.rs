@@ -658,6 +658,7 @@ impl Store {
         ensure!(matches!(phase, "claimed" | "submitted" | "cancelled"), invalid_input("Invalid native delivery phase"));
         self.transaction(|| {
             self.authorize(actor)?;
+            self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
             self.budget_available()?;
             self.record(&actor.project, "native_delivery_observed", &actor.id, task.or(Some(message)), None,
                 json!({"message_id":message, "revision":revision, "run":run, "phase":phase,
@@ -1079,6 +1080,7 @@ impl Store {
     }
 
     pub fn next_work(&self, actor: &Agent, run: &str) -> Result<Option<Message>> {
+        self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
         let executing = self.execution_in_run(&actor.id, run)?;
         self.first_pending(actor, executing)
     }

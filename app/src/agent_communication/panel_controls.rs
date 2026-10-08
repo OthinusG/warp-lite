@@ -400,6 +400,10 @@ impl CollaborationPanel {
         let builder = appearance.ui_builder();
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let Some(snapshot) = &self.snapshot else { return body.finish(); };
+        if !snapshot.worktree_available {
+            body.add_child(note(appearance, "Worktree mode requires a Git checkout. Open a repository or switch to Project mode."));
+            return body.finish();
+        }
         body.add_child(heading(appearance, "Coordinator"));
         let coordinator = snapshot.roles.iter().find(|role| role.role == "coordinator");
         body.add_child(detail(appearance, match coordinator {
@@ -409,7 +413,7 @@ impl CollaborationPanel {
         let mut buttons = Vec::new();
         for (index, kind) in [Kind::SelectCoordinator, Kind::CreateWorktree, Kind::BindWorker].into_iter().enumerate() {
             let enabled = self.connected && if kind == Kind::SelectCoordinator {
-                snapshot.candidates.iter().any(|candidate| candidate.root == snapshot.worktree_root)
+                snapshot.candidates.iter().any(|candidate| candidate.root == coordinator.map(|role| role.root.as_str()).unwrap_or(&snapshot.worktree_root))
             } else { snapshot.coordinator_online };
             let button = builder.button(ButtonVariant::Text, self.team_buttons[index].clone()).with_text_label(kind.label().into());
             let button = if enabled { button } else { button.disabled() };
@@ -570,7 +574,7 @@ impl CollaborationPanel {
         self.form = Some(Form {
             kind,
             candidates: snapshot.map(|snapshot| snapshot.candidates.iter().filter(|candidate| match kind {
-                Kind::SelectCoordinator => candidate.root == snapshot.worktree_root,
+                Kind::SelectCoordinator => candidate.root == snapshot.roles.iter().find(|role| role.role == "coordinator").map(|role| role.root.as_str()).unwrap_or(&snapshot.worktree_root),
                 Kind::BindWorker => !snapshot.roles.iter().any(|role| role.root == candidate.root && role.role == "coordinator"),
                 _ => false,
             }).cloned().collect()).unwrap_or_default(),
@@ -903,6 +907,9 @@ impl CollaborationPanel {
                 body.add_child(buttons);
             }
         } else {
+            if self.worktree_mode && self.snapshot.as_ref().is_none_or(|snapshot| snapshot.roles.is_empty() || !snapshot.worktree_available) {
+                return body.finish();
+            }
             let mut kinds = if self.query.history {
                 vec![Kind::ArchiveAged, Kind::Purge]
             } else if self.show_spaces {

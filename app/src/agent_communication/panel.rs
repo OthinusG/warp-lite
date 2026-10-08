@@ -2362,6 +2362,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .args(["-c", "core.hooksPath=", "init", "--initial-branch=main"])
         .current_dir(&worktree_fixture).output()?;
     anyhow::ensure!(initialized.status.success(), "Owned capture Git fixture initializes");
+    std::fs::write(worktree_fixture.join("fixture.txt"), "Owned native Worktree capture\n")?;
+    for arguments in [vec!["add", "fixture.txt"], vec!["commit", "-m", "Seed owned Worktree capture"]] {
+        let output = std::process::Command::new(warp_agent_bus::installation::git_executable()?)
+            .args(["-c", "core.hooksPath=", "-c", "user.name=Capture Fixture", "-c", "user.email=capture@example.invalid", "-c", "commit.gpgsign=false"])
+            .args(arguments).current_dir(&worktree_fixture).output()?;
+        anyhow::ensure!(output.status.success(), "Owned capture Git fixture has a base commit");
+    }
     let worktree_root = warp_agent_bus::project_root(&worktree_fixture)?;
     let expected_worktree_root = worktree_root.clone();
     let panic_directory = directory.clone();
@@ -2775,6 +2782,83 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     !snapshot.worktree_joined && !snapshot.project.starts_with("space:") && snapshot.worktree_branch.as_deref() == Some("main")))
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }).with_take_screenshot("worktree-panel-isolated.png"))
+        .with_step(TestStep::new("select Worktree mode with an existing native IPC Agent").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktree_root.clone());
+            register_capture_participant("ui-coordinator-terminal", "ui-coordinator", &root, None).unwrap();
+            panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(true), ctx));
+        }))
+        .with_step(TestStep::new("existing Agent is eligible for Coordinator selection").add_named_assertion("candidate observed", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.candidates.iter().any(|candidate| candidate.agent.name == "ui-coordinator"))))
+        }))
+        .with_step(TestStep::new("open native Coordinator selector").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.open_control(controls::Kind::SelectCoordinator, ctx));
+        }).with_take_screenshot("worktree-coordinator-selector.png"))
+        .with_step(TestStep::new("confirm existing Coordinator without restarting").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let id = panel.form.as_ref().unwrap().candidates.iter().find(|candidate| candidate.agent.name == "ui-coordinator").unwrap().agent.id.clone();
+                panel.handle_action(&Action::SelectParticipant(id), ctx);
+                panel.confirm_control(ctx);
+            });
+        }))
+        .with_step(TestStep::new("native Coordinator role is active").add_named_assertion("Coordinator owns its original run", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.coordinator_online))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }))
+        .with_step(TestStep::new("create worktree without launching an Agent").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                panel.open_control(controls::Kind::CreateWorktree, ctx);
+                panel.fill_control_checkpoint(&["ui-worker", "main"], ctx);
+            });
+        }).with_take_screenshot("worktree-create-form.png"))
+        .with_step(TestStep::new("confirm isolated worktree creation").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+        }))
+        .with_step(TestStep::new("new worktree remains unassigned").add_named_assertion("no implicit Agent launch", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
+                snapshot.worktrees.iter().any(|checkout| checkout.branch.as_deref() == Some("warpai/ui-worker"))
+                    && snapshot.roles.len() == 1 && snapshot.candidates.len() == 1)))
+        }).with_take_screenshot("worktree-created.png"))
+        .with_step(TestStep::new("prepare separate native IPC worker").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktrees.iter().find(|checkout| checkout.branch.as_deref() == Some("warpai/ui-worker")).unwrap().root.clone());
+            register_capture_participant("ui-worker-terminal", "ui-worker", &root, None).unwrap();
+        }))
+        .with_step(TestStep::new("worker selection observes its actual checkout").add_named_assertion("worker candidate observed", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.candidates.iter().any(|candidate| candidate.agent.name == "ui-worker"))))
+        }))
+        .with_step(TestStep::new("open native worker selector").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.open_control(controls::Kind::BindWorker, ctx));
+        }).with_take_screenshot("worktree-worker-selector.png"))
+        .with_step(TestStep::new("bind worker to its actual worktree").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let id = panel.form.as_ref().unwrap().candidates.iter().find(|candidate| candidate.agent.name == "ui-worker").unwrap().agent.id.clone();
+                panel.handle_action(&Action::SelectParticipant(id), ctx);
+                panel.confirm_control(ctx);
+            });
+        }))
+        .with_step(TestStep::new("native Worktree team has explicit ownership").add_named_assertion("two roles and preserved terminal draft", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
+                snapshot.roles.len() == 2 && snapshot.roles.iter().any(|role| role.role == "worker")))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }).with_take_screenshot("worktree-bound-team.png"))
+        .with_step(TestStep::new("restore Project mode and finish owned IPC team runs").with_action(|app, window, _| {
+            super::BROKER.get().unwrap().end("ui-coordinator-terminal");
+            super::BROKER.get().unwrap().end("ui-worker-terminal");
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(false), ctx));
+        }))
         .with_step(
             TestStep::new("seed deterministic live IPC work").with_action(|app, window, _| {
                 let root = app.read(|ctx| {
@@ -2804,6 +2888,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             },
         ));
     filenames.push("live-empty.png".into());
+    filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png"].map(str::to_owned));
     filenames.extend(["worktree-join-confirmation.png", "worktree-leave-confirmation.png", "worktree-panel-team.png", "worktree-panel-isolated.png"].map(str::to_owned));
     for detail in [false, true] {
         if detail {

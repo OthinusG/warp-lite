@@ -656,7 +656,7 @@ impl Projects {
             | ControllerOperation::WorktreeWorker { root: selected, .. })) = &command {
             let (team, checkout) = self.worktree_broker(root_path)?;
             let worker = crate::worktrees::Worktree::discover(Path::new(selected)).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
-            if checkout.repository != worker.repository || (matches!(operation, ControllerOperation::WorktreeCoordinator { .. }) && checkout.root != worker.root) {
+            if checkout.repository != worker.repository {
                 return Err(ManagedErrorCode::ManagedInvalidInput);
             }
             let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
@@ -687,7 +687,7 @@ impl Projects {
         let (broker, domain) = if membership {
             let (broker, _) = self.worktree_broker(root_path)?;
             (broker, root.to_owned())
-        } else if matches!(&command, Command::Panel(query) if query.worktree) {
+        } else if matches!(&command, Command::Panel(query) if query.worktree) && root_path.join(".git").exists() {
             let (broker, checkout) = self.worktree_broker(root_path)?;
             let domain = broker.worktree_domain(&checkout.root).map_err(|_| ManagedErrorCode::ManagedStaleAttachment)?
                 .unwrap_or(checkout.root);
