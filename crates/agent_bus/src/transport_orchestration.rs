@@ -620,6 +620,29 @@ mod tests {
             .unwrap()
             .iter()
             .all(|role| role["run"].is_null()));
+        broker.set_programs(None);
+        broker
+            .activate(
+                &worker.terminal,
+                "codex",
+                fixture.linked.to_str().unwrap(),
+                false,
+            )
+            .unwrap();
+        let restarted_worker = Request {
+            run: broker.run(&worker.terminal),
+            ..worker.clone()
+        };
+        let private_worker = call(
+            broker,
+            &restarted_worker,
+            Operation::AgentRegister { name: "".into() },
+        )
+        .unwrap();
+        assert_eq!(
+            private_worker["agent"]["project"],
+            fixture.linked.to_str().unwrap()
+        );
     }
 
     #[test]

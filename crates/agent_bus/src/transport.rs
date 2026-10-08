@@ -294,6 +294,7 @@ impl Broker {
                 }) {
                     if let Some(live) = &binding.live {
                         if let Some(actor) = &live.agent { let _ = store.worktree_offline(&actor.id, &live.run); }
+                        if live.origin_agent.is_some() { binding.workspace = None; }
                     }
                     binding.live = None;
                 }
