@@ -3689,6 +3689,9 @@ impl Store {
         let workspace = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE root = ?")
             .bind::<Text, _>(&root)
             .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())?;
+        // Explicit project-space remapping replaces worktree opt-in; worktree_join re-admits it.
+        diesel::sql_query("UPDATE worktree_admissions SET active=0 WHERE workspace_id=?")
+            .bind::<Text, _>(&workspace.id).execute(&mut *self.connection.borrow_mut())?;
         self.record(
             project,
             "workspace_mapped",

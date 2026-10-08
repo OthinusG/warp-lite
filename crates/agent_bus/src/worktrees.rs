@@ -412,6 +412,34 @@ pub(crate) mod tests {
             .unwrap()["state"],
             "accepted"
         );
+        let root = fixture.main.to_str().unwrap();
+        let research = reopened
+            .broker
+            .control(
+                root,
+                &ControllerOperation::SpaceCreate {
+                    name: "Research projects".into(),
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        reopened
+            .broker
+            .control(
+                root,
+                &ControllerOperation::WorkspaceMap {
+                    space_id: research["space_id"].as_str().unwrap().into(),
+                    root: root.into(),
+                    repository_id: None,
+                    model: "independent_worktrees".into(),
+                    branch: None,
+                    base_commit: None,
+                    request_id: id(),
+                },
+            )
+            .unwrap();
+        assert!(reopened.broker.worktree_binding(root).unwrap().is_none());
+        assert!(call(&reopened.broker, &fresh, Operation::AgentList).is_err());
     }
 
     #[test]
