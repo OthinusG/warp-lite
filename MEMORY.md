@@ -15,6 +15,11 @@
   stdout collection timing out (stage 1, unavailable), causing Join to remain
   unsubmitted. Use CREATE_NO_WINDOW for Windows background Git; verify through
   the existing failing native capture. The first 4.2 GB Rust cache was saved.
+  Run 37811301758 (bfe81384) passes Windows Worktree enrollment, Coordinator,
+  creation and binding; no Git read timeout recurs. It reaches 169 screenshots
+  then the native remote fixture cannot start: focused mode omitted compilation
+  of the managed_agent test executable. Build that fixture with --no-run while
+  keeping the full protocol suite skipped.
 
 - Owner authorizes completing cross-worktree Agent collaboration locally and
   over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;

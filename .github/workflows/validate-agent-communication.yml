@@ -61,7 +61,9 @@ jobs:
           restore-keys: windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
       - name: Build native capture companion and bridge
         if: ${{ inputs.native_windows_only }}
-        run: cargo build -p warp-agent-bus --bins --locked
+        run: |
+          cargo build -p warp-agent-bus --bins --locked
+          cargo test -p warp-agent-bus --test managed_agent --no-run --locked
       - name: Test protocol, persistence, native sockets, and MCP
         if: ${{ !inputs.native_windows_only }}
         run: cargo test -p warp-agent-bus --locked
