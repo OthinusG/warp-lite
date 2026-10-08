@@ -6,13 +6,40 @@
   over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;
   do not duplicate the communication stack. Active contract:
   specs/agent-communication-v2/WORKTREE-COLLABORATION.md.
+- Owner correction: panel has Project / Worktree modes; Project preserves the
+  previous behavior. In Worktree mode select a Coordinator from the project's
+  active Agents. No active Agent means no Coordinator or coordination actions.
+  Worktree creation never starts an Agent; users explicitly bind eligible active
+  Agents in the panel to their actual worktrees. Coordinator assigns tasks,
+  supplies context, collects results, requests peer review, chooses main-branch
+  integration and makes the final commit. This supersedes automatic lead/worker
+  launching; implemented cross-worktree messaging is only the foundation.
+- Owner requires an uncluttered collaboration panel contained within GUI bounds.
+  Use existing native components/themes; keep mode and Coordinator controls
+  separate, show compact worker summaries, expand details on demand and verify
+  narrow layouts, long labels, many workers and native macOS/Windows screenshots.
+- Coordinator iteration adds schema v8 with an additive v7 backup, explicit
+  run-bound roles, peer-review task reuse and Coordinator-only integration choices.
+  Enrollment preserves native processes/checkout authority and prior Project
+  records; unresolved Project work blocks enrollment. Remote original endpoints
+  forward enrolled runs to the repository Broker and retain native lifecycle
+  fencing. Worktree creation never launches a process. Compilation, regression
+  tests and native visual acceptance for this iteration are still pending.
 - Each checkout explicitly joins a repository team; fresh panes/runs capture that
   admission. Existing private runs/history stay private. Git common-directory
   native identity separates independent clones; remote authority remains within
   one service/account/host, separate from local authority. File/Review roots stay
   physical and task acceptance does not automatically merge commits.
-- Implementation and verification are in progress. Follow the existing GitHub-only
-  Rust compilation preference; no release or personal installation is implied.
+- Explicit project-space remapping replaces worktree admission and fences its
+  captured actors; ordinary workspace admission remains usable. Commit evidence
+  verification reuses the fenced private Git runner, including packaged SSH hosts.
+- Three-platform remote protocol, worktree, persistence, private-runtime and Linux
+  real-SSH acceptance pass in GitHub run 37723479969 (a20ead3e). Desktop build and
+  native screenshot acceptance failed its capture fixture in run 37723483322;
+  rechecked run 37740536908 also passes builds/tests but fails a stale workspace
+  projection assumption at panel.rs:2982. The new iteration strengthens the
+  capture assertion to wait for the named space's mapped checkout.
+  Rust compilation stays on GitHub; no release or personal installation is implied.
 
 ## Repository cover — 2026-10-07
 

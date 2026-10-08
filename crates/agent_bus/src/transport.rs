@@ -29,6 +29,8 @@ use uuid::Uuid;
 use subtle::ConstantTimeEq;
 
 use crate::readiness::{Activity, Draft};
+#[path = "transport_orchestration.rs"]
+mod orchestration;
 
 pub const ENDPOINT: &str = "WARP_AGENT_ENDPOINT";
 pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
@@ -69,6 +71,7 @@ struct Terminal {
     live: Option<Live>,
 }
 struct Live {
+    origin_agent: Option<Agent>,
     program: String,
     project: String,
     run: String,
@@ -110,6 +113,7 @@ struct State {
 }
 struct Shared {
     state: Mutex<State>,
+    forwarded: Mutex<HashMap<String, Broker>>,
     changed: Condvar,
     stopped: AtomicBool,
     connections: AtomicUsize,
@@ -137,6 +141,7 @@ pub struct RunningBroker {
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PanelQuery {
+    pub worktree: bool,
     pub project: String,
     pub scope: Option<String>,
     pub terminal: Option<String>,
@@ -164,6 +169,7 @@ impl RunningBroker {
                 .to_str()
                 .ok_or_else(|| anyhow!("Database path must be UTF-8"))?,
         )?;
+        store.clear_worktree_runs()?;
         #[cfg(unix)]
         let runtime_root = std::path::PathBuf::from("/tmp");
         #[cfg(windows)]
@@ -198,6 +204,7 @@ impl RunningBroker {
             std::fs::set_permissions(&endpoint, std::fs::Permissions::from_mode(0o600))?;
         }
         let shared = Arc::new(Shared {
+            forwarded: Mutex::new(HashMap::new()),
             state: Mutex::new(State {
                 store,
                 terminals: HashMap::new(),
@@ -290,6 +297,7 @@ impl Broker {
         self.shared.changed.notify_all();
     }
     pub fn peers(&self, terminal: &str) -> Vec<Peer> {
+        if let Some(broker) = self.forwarded(terminal) { return broker.peers(terminal); }
         let Ok(state) = self.shared.state.lock() else {
             return vec![];
         };
@@ -318,6 +326,7 @@ impl Broker {
     }
 
     pub fn run(&self, terminal: &str) -> Option<String> {
+        if let Some(broker) = self.forwarded(terminal) { return broker.run(terminal); }
         self.shared
             .state
             .lock()
@@ -385,6 +394,7 @@ impl Broker {
         project: &str,
         initial_prompt: bool,
     ) -> Result<()> {
+        if let Some(broker) = self.forwarded(terminal) { return broker.activate(terminal, program, project, initial_prompt); }
         let mut state = self
             .shared
             .state
@@ -399,10 +409,6 @@ impl Broker {
         );
         let binding = state.terminals.get(terminal).ok_or_else(|| unauthorized("Terminal is not bound"))?;
         ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
-        if binding.workspace.is_none() {
-            let workspace = state.store.worktree_binding(project)?;
-            state.terminals.get_mut(terminal).unwrap().workspace = workspace;
-        }
         let binding = state.terminals.get(terminal).unwrap();
         let project = if let Some(workspace) = &binding.workspace {
             state.store.authorize_workspace(workspace)?;
@@ -420,6 +426,7 @@ impl Broker {
         let binding = state.terminals.get_mut(terminal).unwrap();
         if physical_root.is_some() { binding.physical_root = physical_root; }
         binding.live = Some(Live {
+            origin_agent: None,
             program: program.into(),
             project,
             run: Uuid::new_v4().to_string(),
@@ -466,7 +473,12 @@ impl Broker {
         Ok(capability)
     }
     pub(crate) fn revoke_remote_run(&self, terminal: &str, run: Option<&str>) {
+        if let Some(broker) = self.forwarded(terminal) { broker.revoke_remote_run(terminal, run); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref())
+                .filter(|live| run.is_none() || run == Some(live.run.as_str())) {
+                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
+            }
             if state.terminals.get(terminal).is_some_and(|binding|
                 run.is_none() || binding.live.as_ref().is_some_and(|live|
                     Some(live.run.as_str()) == run)) {
@@ -476,7 +488,11 @@ impl Broker {
         self.shared.changed.notify_all();
     }
     pub fn end(&self, terminal: &str) {
+        if let Some(broker) = self.forwarded(terminal) { broker.end(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref()) {
+                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
+            }
             if let Some(binding) = state.terminals.get_mut(terminal) {
                 binding.live = None;
             }
@@ -486,6 +502,7 @@ impl Broker {
     /// Fences every pending request of this terminal's current run without ending the session.
     #[doc(hidden)]
     pub fn expire_epoch(&self, terminal: &str) {
+        if let Some(broker) = self.forwarded(terminal) { broker.expire_epoch(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state
                 .terminals
@@ -502,6 +519,7 @@ impl Broker {
         self.activity(terminal, if ready { Activity::Idle } else { Activity::Working });
     }
     pub fn activity(&self, terminal: &str, activity: Activity) {
+        if let Some(broker) = self.forwarded(terminal) { broker.activity(terminal, activity); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state
                 .terminals
@@ -523,6 +541,7 @@ impl Broker {
     }
     /// User input always wins over automatic submission, including an Enter timer already scheduled.
     pub fn user_input(&self, terminal: &str, submitted_or_cancelled: bool) {
+        if let Some(broker) = self.forwarded(terminal) { broker.user_input(terminal, submitted_or_cancelled); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state
                 .terminals
@@ -548,6 +567,7 @@ impl Broker {
     }
     /// Track actual native edits while retaining the lifecycle's idle evidence.
     pub fn input_bytes(&self, terminal: &str, bytes: &[u8]) {
+        if let Some(broker) = self.forwarded(terminal) { broker.input_bytes(terminal, bytes); return; }
         if bytes.is_empty() { return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
@@ -566,6 +586,7 @@ impl Broker {
     }
     /// App-owned rich drafts/attachments and permission overlays affect delivery, not idle evidence.
     pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
+        if let Some(broker) = self.forwarded(terminal) { broker.input_guard(terminal, rich_draft, blocked); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 if live.rich_draft != rich_draft || live.blocked != blocked {
@@ -579,6 +600,7 @@ impl Broker {
         }
     }
     pub fn output(&self, terminal: &str) {
+        if let Some(broker) = self.forwarded(terminal) { broker.output(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state
                 .terminals
@@ -635,16 +657,19 @@ impl Broker {
         candidates.sort_by(|left, right| (&left.0, left.1, &left.3.terminal)
             .cmp(&(&right.0, right.1, &right.3.terminal)));
         let mut pools = HashSet::new();
-        candidates.into_iter().filter_map(|(_, _, pool, wake)| {
+        let mut wakes: Vec<_> = candidates.into_iter().filter_map(|(_, _, pool, wake)| {
             if pool.is_some_and(|task| !pools.insert(task)) { None } else { Some(wake) }
-        }).collect()
+        }).collect();
+        drop(state);
+        wakes.extend(self.forwarded_wakes(false));
+        wakes
     }
     /// Surface queued work even when the receiver is busy or has not announced readiness.
     pub fn pending_work(&self) -> Vec<Wake> {
         let Ok(state) = self.shared.state.lock() else {
             return vec![];
         };
-        state
+        let mut wakes: Vec<_> = state
             .terminals
             .iter()
             .filter_map(|(terminal, binding)| {
@@ -662,9 +687,13 @@ impl Broker {
                     revision: message.revision,
                 })
             })
-            .collect()
+            .collect();
+        drop(state);
+        wakes.extend(self.forwarded_wakes(true));
+        wakes
     }
     pub fn claim_wake(&self, wake: &Wake) -> bool {
+        if let Some(broker) = self.forwarded(&wake.terminal) { return broker.claim_wake(wake); }
         let Ok(mut state) = self.shared.state.lock() else {
             return false;
         };
@@ -719,6 +748,7 @@ impl Broker {
         true
     }
     pub fn wake_valid(&self, wake: &Wake) -> bool {
+        if let Some(broker) = self.forwarded(&wake.terminal) { return broker.wake_valid(wake); }
         self.shared.state.lock().ok().is_some_and(|state| {
             state
                 .terminals
@@ -730,6 +760,7 @@ impl Broker {
         })
     }
     pub fn finish_wake(&self, wake: &Wake, submitted: bool) {
+        if let Some(broker) = self.forwarded(&wake.terminal) { broker.finish_wake(wake, submitted); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             let actor = state.terminals.get(&wake.terminal).and_then(|binding| binding.live.as_ref())
                 .filter(|live| live.wake.as_ref() == Some(wake)).and_then(|live| live.agent.clone());
@@ -758,6 +789,7 @@ impl Broker {
         }
     }
     fn execute(&self, request: &Request) -> Result<Value> {
+        if let Some(broker) = self.forwarded(&request.terminal) { return broker.execute(request); }
         ensure!(
             !self.shared.stopped.load(Ordering::Acquire),
             coordinator_unavailable("Broker stopped")
@@ -905,6 +937,7 @@ impl Broker {
             .agent
             .clone()
             .ok_or_else(|| invalid_state("Register before using communication tools"))?;
+        state.store.authorize_orchestration(&actor, &run, &request.operation)?;
         let recipients: Vec<&str> = match &request.operation {
             Operation::AgentSend { to, .. } => vec![to.as_str()],
             Operation::TaskAssign { to, reviewer, .. } => {
@@ -1083,6 +1116,8 @@ impl Broker {
                             .is_some_and(|a| Some(a.id.as_str()) == agent["id"].as_str())
                     });
                 agent["online"] = json!(online.is_some());
+                let roles = state.store.worktree_roles(&actor.project)?;
+                agent["worktree_role"] = json!(roles.iter().find(|role| Some(role.agent.as_str()) == agent["id"].as_str()).map(|role| &role.role));
                 agent["workspace"] = json!(online.and_then(|live| live.agent.as_ref()).and_then(|peer| state.store.physical_root(peer).ok()));
                 agent["waiting"] = json!(online.is_some_and(|live| live.waiting));
                 if let Some(live) = online {
@@ -1159,12 +1194,23 @@ impl Broker {
 
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
+        if matches!(operation, ControllerOperation::WorktreeCoordinator { .. } | ControllerOperation::WorktreeWorker { .. }) {
+            return self.enroll_worktree(self, operation);
+        }
         ensure!(!matches!(operation,
             ControllerOperation::InvitationCreate { .. } | ControllerOperation::DeviceList
             | ControllerOperation::DeviceRevoke { .. } | ControllerOperation::DeviceGrantUpdate { .. }
             | ControllerOperation::RemoteWorkspaceMap { .. }),
             crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None));
         let mut state = self.store()?;
+        if matches!(operation, ControllerOperation::WorktreeCreate { .. }) {
+            let roles = state.store.worktree_roles(project)?;
+            ensure!(roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run|
+                state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
+                    !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.run == *run
+                        && live.agent.as_ref().is_some_and(|actor| actor.id == role.agent))))),
+                invalid_state("Select an active Coordinator first"));
+        }
         let result = state.store.execute_controller(project, operation)?;
         // Removing an admission is permanent for this capability, even if metadata is later restored.
         let revoked: Vec<_> = state.terminals.iter().filter_map(|(terminal, binding)| {
@@ -1240,6 +1286,11 @@ impl Broker {
             .or_else(|| joined.as_ref().filter(|_| binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
                 .map(|workspace| workspace.domain()))
             .unwrap_or_else(|| query.project.clone());
+        let project = if query.worktree {
+            state.store.worktree_domain(&query.project)?.unwrap_or(project)
+        } else if joined.is_some() || binding.and_then(|binding| binding.live.as_ref()).is_some_and(|live| live.origin_agent.is_some()) {
+            query.project.clone()
+        } else { project };
         let same_scope = query.scope.as_deref() == Some(project.as_str());
         let after = same_scope.then_some(query.event_after).flatten();
         let mut events = state.store.events(&project, after, Some(50))?;
@@ -1318,7 +1369,16 @@ impl Broker {
             Some(json!({"capacity": state.store.capacity(&project)?, "preview": preview,
                 "records": page["records"], "cursor": page["cursor"]}))
         } else { None };
+        let roles = state.store.worktree_roles(&project)?;
+        let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run|
+            state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
+                !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.run == *run
+                    && live.agent.as_ref().is_some_and(|actor| actor.id == role.agent)))));
+        drop(state);
+        let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
+        let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
         Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
+            "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,
             "worktree_available": Path::new(&query.project).join(".git").exists(),

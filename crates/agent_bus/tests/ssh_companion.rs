@@ -231,6 +231,23 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     }
     let mut first = launch(&mut one, &fixture).await;
     let mut second = launch(&mut two, &fixture).await;
+    if worktree_team {
+        use warp_agent_bus::{ControllerOperation, companion::TaskCommand, transport::PanelQuery};
+        let query = TaskCommand::Panel(PanelQuery { worktree:true, ..Default::default() });
+        let panel = one.project_tasks(&query, 8).await.unwrap();
+        let find = |name: &str| panel["value"]["candidates"].as_array().unwrap().iter()
+            .find(|candidate| candidate["agent"]["name"].as_str() == Some(name)).unwrap().clone();
+        let lead = find(&format!("fixture-{}", first.session_id));
+        let worker = find(&format!("fixture-{}", second.session_id));
+        assert!(one.project_tasks(&TaskCommand::Controller(ControllerOperation::WorktreeCoordinator {
+            root:lead["root"].as_str().unwrap().into(), agent:lead["agent"]["id"].as_str().unwrap().into(),
+            run:lead["run"].as_str().unwrap().into(), request_id:Uuid::new_v4().to_string(),
+        }), 9).await.unwrap().get("value").is_some());
+        assert!(one.project_tasks(&TaskCommand::Controller(ControllerOperation::WorktreeWorker {
+            root:worker["root"].as_str().unwrap().into(), agent:worker["agent"]["id"].as_str().unwrap().into(),
+            run:worker["run"].as_str().unwrap().into(), request_id:Uuid::new_v4().to_string(),
+        }), 9).await.unwrap().get("value").is_some());
+    }
     let receiver = format!("fixture-{}", second.session_id);
     ssh_fixture_operation(
         &mut one,
@@ -320,7 +337,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         "accepted"
     );
     let query = warp_agent_bus::companion::TaskCommand::Panel(
-        warp_agent_bus::transport::PanelQuery::default(),
+        warp_agent_bus::transport::PanelQuery { worktree:worktree_team, ..Default::default() },
     );
     let panel = one.project_tasks(&query, 10).await.unwrap();
     assert!(panel["value"]["tasks"]
@@ -342,7 +359,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     } else { other_profile.remote_root.push_str("/isolated"); }
     std::fs::create_dir_all(&other_profile.remote_root).unwrap();
     let mut other = HostClient::connect(&other_profile).await.unwrap();
-    let panel = other.project_tasks(&query, 11).await.unwrap();
+    let panel = other.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 11).await.unwrap();
     assert!(panel["value"]["tasks"].as_array().unwrap().is_empty());
     assert!(other
         .terminal_control(terminal_command(

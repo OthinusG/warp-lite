@@ -1,5 +1,34 @@
 # SSH Agent Communication API
 
+## Worktree orchestration contract (2026-10-08)
+
+`PanelQuery.worktree` selects the Worktree projection; false preserves the Project
+projection. Worktree projection includes bounded active `candidates`, durable
+`roles`, registered `worktrees` and `coordinator_online`. Candidates identify the
+native Agent, exact run and physical checkout; panel selection never supplies an
+arbitrary process identity or changes a process working directory.
+
+Private controller intents `worktree_coordinator` and `worktree_worker` carry
+`root`, `agent`, `run`, `request_id`. The owning local Broker or SSH Companion
+validates the active run, native repository/root and exclusive checkout ownership.
+Explicit enrollment creates a separate team identity while preserving prior
+Project history. An occupied Agent with unresolved Project work cannot enroll.
+Selection does not spawn or restart a process. Stale selection must fail.
+
+`worktree_create` carries `root`, a bounded branch `name`, local `base` ref and
+`request_id`. It creates a registered checkout through trusted private Git only;
+it never starts an Agent or writes through the file protocol. Existing files or
+branches are never reset or deleted. Coordinator authority is required before
+workers can receive team assignments. Role changes are trusted panel operations;
+ordinary Agent tools cannot nominate a Coordinator or claim another checkout.
+
+`task_integrate` is a Coordinator-only Agent operation carrying an accepted
+`task_id`, optional final integration `commit`, and `request_id`. It records the
+Coordinator's integration choice; it does not execute Git. If a commit is supplied,
+verify it in the Coordinator checkout. Existing task assignment, messages, evidence
+and designated peer reviewer transitions remain the task/context/review engine.
+Project mode does not impose these role restrictions.
+
 > Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
 
 The active scope is PLAN S0–S5. The former manager contract is archived in

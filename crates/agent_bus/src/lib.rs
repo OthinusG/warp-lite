@@ -193,6 +193,12 @@ pub fn project_root(path: &Path) -> Result<String> {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Operation {
+    TaskIntegrate {
+        task_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        commit: Option<String>,
+        request_id: String,
+    },
     AgentRegister {
         name: String,
     },
@@ -469,7 +475,8 @@ pub enum Operation {
 impl Operation {
     pub(crate) fn request_id(&self) -> Option<&str> {
         match self {
-            Self::AgentSend { request_id, .. }
+            Self::TaskIntegrate { request_id, .. }
+            | Self::AgentSend { request_id, .. }
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }
@@ -496,6 +503,9 @@ impl Operation {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControllerOperation {
+    WorktreeCoordinator { root: String, agent: String, run: String, request_id: String },
+    WorktreeWorker { root: String, agent: String, run: String, request_id: String },
+    WorktreeCreate { root: String, name: String, base: String, request_id: String },
     WorktreeJoin {
         root: String,
         request_id: String,
@@ -617,6 +627,9 @@ pub enum ControllerOperation {
 impl ControllerOperation {
     pub(crate) fn request_id(&self) -> Option<&str> {
         match self {
+            Self::WorktreeCoordinator { request_id, .. }
+            | Self::WorktreeWorker { request_id, .. }
+            | Self::WorktreeCreate { request_id, .. } => Some(request_id),
             Self::SpaceCreate { request_id, .. }
             | Self::SpaceJoin { request_id, .. }
             | Self::SpaceLeave { request_id, .. }

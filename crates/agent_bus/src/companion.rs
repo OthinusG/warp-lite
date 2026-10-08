@@ -119,6 +119,7 @@ impl Companion {
                         "project_files".into(),
                         "project_git_review".into(),
                         "worktree_collaboration".into(),
+                        "worktree_orchestration".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))

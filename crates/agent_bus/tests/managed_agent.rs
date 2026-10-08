@@ -42,7 +42,7 @@ fn managed_agent_child() {
             assert_eq!(response["id"], id);
             assert!(response.get("error").is_none());
             if id == 2 {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 30);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 31);
             }
         }
         drop(input);

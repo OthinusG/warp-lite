@@ -197,6 +197,14 @@ struct HistoryPage {
 
 #[derive(Deserialize)]
 struct Snapshot {
+    #[serde(default)]
+    candidates: Vec<WorktreeCandidate>,
+    #[serde(default)]
+    roles: Vec<WorktreeRole>,
+    #[serde(default)]
+    worktrees: Vec<WorktreeCheckout>,
+    #[serde(default)]
+    coordinator_online: bool,
     project: String,
     #[serde(default)]
     worktree_joined: bool,
@@ -224,6 +232,26 @@ struct Snapshot {
     history: Option<HistoryPage>,
 }
 
+#[derive(Clone, Deserialize)]
+struct WorktreeCandidate {
+    agent: Agent,
+    run: String,
+    root: String,
+    branch: Option<String>,
+}
+#[derive(Deserialize)]
+struct WorktreeRole {
+    agent: String,
+    role: String,
+    root: String,
+    run: Option<String>,
+}
+#[derive(Deserialize)]
+struct WorktreeCheckout {
+    root: String,
+    branch: Option<String>,
+}
+
 impl Snapshot {
     fn participant_label(&self, id: &str) -> String {
         if id.is_empty() {
@@ -244,6 +272,11 @@ impl Snapshot {
 }
 
 pub(crate) struct CollaborationPanel {
+    worktree_mode: bool,
+    mode_buttons: [MouseStateHandle; 2],
+    expanded_worker: Option<String>,
+    team_buttons: [MouseStateHandle; 3],
+    checkout_buttons: HashMap<String, MouseStateHandle>,
     fixtures: Vec<Fixture>,
     selected: usize,
     next: MouseStateHandle,
@@ -283,6 +316,9 @@ pub(crate) struct CollaborationPanel {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
+    Mode(bool),
+    SelectParticipant(String),
+    ExpandWorker(String),
     NextFixture,
     ReconnectSsh,
     RemoteSetup,
@@ -327,6 +363,11 @@ impl CollaborationPanel {
             Self::schedule(ctx);
         }
         Self {
+            worktree_mode: false,
+            mode_buttons: Default::default(),
+            expanded_worker: None,
+            team_buttons: Default::default(),
+            checkout_buttons: Default::default(),
             fixtures: serde_json::from_str(include_str!(
                 "../../../specs/agent-communication-v2/panel-fixtures.json"
             ))
@@ -487,6 +528,7 @@ impl CollaborationPanel {
             }
             return;
         };
+        self.query.worktree = self.worktree_mode;
         if self.in_flight {
             return;
         }
@@ -517,6 +559,9 @@ impl CollaborationPanel {
                     }.map_err(anyhow::Error::new)?);
                 }
                 query.project.clear();
+                if query.worktree && !client.as_ref().unwrap().capabilities().iter().any(|capability| capability == "worktree_orchestration") {
+                    return Err(warp_agent_bus::DomainError { code:"feature_unavailable".into(), message:"Update the remote Companion for Worktree mode".into(), retryable:false, version:None }.into());
+                }
                 query.terminal = None;
                 query.spaces = false;
                 Self::remote_command(client.as_mut().unwrap(), &TaskCommand::Panel(query), generation).await?
@@ -540,6 +585,7 @@ impl CollaborationPanel {
                     if panel.query.scope.as_deref() != Some(snapshot.project.as_str()) {
                         panel.events.clear();
                         panel.query = Default::default();
+                        panel.query.worktree = panel.worktree_mode;
                         panel.query.spaces = panel.show_spaces;
                     }
                     panel.query.scope = Some(snapshot.project.clone());
@@ -554,6 +600,8 @@ impl CollaborationPanel {
                     panel.query.event_after = snapshot.event_cursor.or(panel.query.event_after);
                     panel.query.wait = true;
                     panel.task_buttons.retain(|id, _| snapshot.tasks.iter().any(|task| &task.id == id));
+                    panel.checkout_buttons.retain(|root, _| snapshot.worktrees.iter().any(|checkout| &checkout.root == root));
+                    for checkout in &snapshot.worktrees { panel.checkout_buttons.entry(checkout.root.clone()).or_default(); }
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
@@ -1026,6 +1074,32 @@ impl TypedActionView for CollaborationPanel {
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         if !self.preview {
             match action {
+                Action::Mode(worktree) => {
+                    if self.form.is_some() { return; }
+                    self.worktree_mode = *worktree;
+                    self.query = PanelQuery { worktree: *worktree, ..Default::default() };
+                    self.snapshot = None;
+                    self.events.clear();
+                    self.show_spaces = false;
+                    self.show_messages = false;
+                    self.expanded_worker = None;
+                    self.generation += 1;
+                    self.scroll = Default::default();
+                }
+                Action::SelectParticipant(id) => {
+                    if let Some(form) = self.form.as_mut().filter(|form| !form.submitting && form.submitted_fields.is_none()) {
+                        if form.candidates.iter().any(|candidate| candidate.agent.id == *id) {
+                            form.selected_candidate = Some(id.clone());
+                        }
+                    }
+                    ctx.notify();
+                    return;
+                }
+                Action::ExpandWorker(root) => {
+                    self.expanded_worker = if self.expanded_worker.as_ref() == Some(root) { None } else { Some(root.clone()) };
+                    ctx.notify();
+                    return;
+                }
                 Action::History => {
                     self.query.task_state = None;
                     self.query.task_assignee = None;
@@ -1402,6 +1476,16 @@ impl View for CollaborationPanel {
             .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
         header.add_child(panel_title(appearance, "Agent collaboration"));
+        if !self.preview {
+            let mut modes = Wrap::row().with_spacing(GAP_ROW).with_run_spacing(GAP_TIGHT);
+            for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
+                let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Secondary } else { ButtonVariant::Text }, self.mode_buttons[index].clone())
+                    .with_text_label(label.into());
+                let button = if self.form.is_some() { button.disabled() } else { button };
+                modes.add_child(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Mode(worktree))).finish());
+            }
+            header.add_child(modes.finish());
+        }
         let state = if self.preview {
             format!("Design preview — sample data · {}", fixture.state)
         } else {
@@ -1487,7 +1571,10 @@ impl View for CollaborationPanel {
             }
             column.finish()
         };
-        let leading_status = !self.preview && self.remote.is_some() && self.form.is_none();
+        if self.worktree_mode && !self.preview && self.form.is_none() {
+            body.add_child(self.render_worktree_team(app));
+        }
+        let leading_status = !self.worktree_mode && !self.preview && self.remote.is_some() && self.form.is_none();
         if leading_status {
             for section in fixture.sections.iter().filter(|section| {
                 matches!(
@@ -1506,7 +1593,7 @@ impl View for CollaborationPanel {
                 let mut navigation = Wrap::row()
                     .with_spacing(GAP_SECTION)
                     .with_run_spacing(GAP_TIGHT);
-                if self.remote.is_none() && !hide_navigation {
+                if !self.worktree_mode && self.remote.is_none() && !hide_navigation {
                     navigation.add_child(
                         builder
                             .button(ButtonVariant::Text, self.scope_buttons[0].clone())
@@ -1629,6 +1716,11 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
+            if self.worktree_mode && !self.preview && !self.query.history && !self.show_messages &&
+                (matches!(section.title.as_str(), "Worktree collaboration" | "Agents" | "No participating agents")
+                    || section.title.starts_with("File reservations") || section.title.starts_with("Activity")) {
+                continue;
+            }
             if !self.preview
                 && !self.query.history
                 && !self.show_spaces
@@ -2957,7 +3049,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 && snapshot
                                     .spaces
                                     .iter()
-                                    .any(|space| !space.workspaces.is_empty())))
+                                    .any(|space| space.name == "Native reviewed collaboration" && !space.workspaces.is_empty())))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 })

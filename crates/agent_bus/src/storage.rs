@@ -24,9 +24,13 @@ use std::{
 };
 use uuid::Uuid;
 
-pub(crate) const SCHEMA_VERSION: &str = "7";
+#[path = "storage_orchestration.rs"]
+mod orchestration;
+
+pub(crate) const SCHEMA_VERSION: &str = "8";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":7}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":8}"#;
+pub(crate) const SENTINEL_V7: &str = r#"{"warp_lite_schema_version":7}"#;
 pub(crate) const SENTINEL_V6: &str = r#"{"warp_lite_schema_version":6}"#;
 pub(crate) const SENTINEL_V5: &str = r#"{"warp_lite_schema_version":5}"#;
 pub(crate) const SENTINEL_V4: &str = r#"{"warp_lite_schema_version":4}"#;
@@ -87,6 +91,9 @@ CREATE INDEX IF NOT EXISTS workspaces_repository ON workspaces(space_id, reposit
 CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
 CREATE TABLE IF NOT EXISTS agent_workspace_bindings (agent TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS worktree_admissions (workspace_id TEXT PRIMARY KEY, repository TEXT NOT NULL, checkout TEXT NOT NULL, active INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS worktree_roles (project TEXT NOT NULL, agent TEXT NOT NULL, role TEXT NOT NULL, root TEXT NOT NULL, run TEXT, PRIMARY KEY(project,agent), UNIQUE(project,root));
+CREATE UNIQUE INDEX IF NOT EXISTS worktree_coordinator ON worktree_roles(project) WHERE role='coordinator';
+CREATE TABLE IF NOT EXISTS worktree_integrations (task TEXT PRIMARY KEY, project TEXT NOT NULL, coordinator TEXT NOT NULL, commit_id TEXT);
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
 CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT NULL, space_ids TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL);
@@ -150,6 +157,7 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "7" => self.upgrade_additive(path, SENTINEL_V7),
             Some(version) if version == "6" => self.upgrade_additive(path, SENTINEL_V6),
             Some(version) if version == "5" => self.upgrade_additive(path, SENTINEL_V5),
             Some(version) if version == "4" => self.upgrade_additive(path, SENTINEL_V4),
@@ -243,7 +251,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 || payload == SENTINEL_V6 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 || payload == SENTINEL_V6 || payload == SENTINEL_V7 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -258,6 +266,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V7) {
+            format!("{path}.pre-upgrade-v7")
         } else if expected == Some(SENTINEL_V6) {
             format!("{path}.pre-upgrade-v6")
         } else if expected == Some(SENTINEL_V5) {
@@ -1427,6 +1437,7 @@ impl Store {
 
     fn execute_inner(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         self.authorize(actor)?;
+        self.authorize_orchestration(actor, run, operation)?;
         self.sweep(&actor.project)?;
         match operation {
             Operation::AgentList => return Ok(json!(self.agents(&actor.project)?)),
@@ -1687,6 +1698,7 @@ impl Store {
 
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         match operation {
+            Operation::TaskIntegrate { task_id, commit, .. } => self.integrate_task(actor, task_id, commit.as_deref()),
             Operation::AgentSend {
                 to,
                 body,
@@ -3387,6 +3399,15 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::WorktreeCreate { root, name, base, .. } => {
+                ensure!(self.worktree_binding(root)?.is_some_and(|binding| binding.domain() == project),
+                    scope_denied("Worktree creation requires the selected team checkout"));
+                let created = crate::worktrees::create(root, name, base)?;
+                self.record(project, "worktree_created", &actor.id, None, None, json!({"root":created}))?;
+                Ok(json!({"root":created,"agent_started":false}))
+            }
+            ControllerOperation::WorktreeCoordinator { .. } | ControllerOperation::WorktreeWorker { .. }
+                => Err(invalid_state("Worktree orchestration requires a live native binding")),
             ControllerOperation::WorktreeJoin { root, .. } => self.worktree_join(project, actor, root),
             ControllerOperation::WorktreeLeave { root, .. } => {
                 let root = crate::project_root(std::path::Path::new(root))?;

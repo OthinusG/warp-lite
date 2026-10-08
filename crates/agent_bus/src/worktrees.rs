@@ -11,6 +11,54 @@ pub(crate) struct Worktree {
     pub checkout: String,
 }
 
+pub(crate) fn list(root: &str) -> Result<Vec<serde_json::Value>> {
+    let repository = Worktree::discover(Path::new(root))?.repository;
+    let metadata = crate::companion::files::git_metadata(Path::new(root), &["worktree", "list", "--porcelain", "-z"])?;
+    let mut rows = Vec::new();
+    for field in metadata.split('\0') {
+        if let Some(path) = field.strip_prefix("worktree ") {
+            if rows.len() == 50 { break; }
+            if let Ok(checkout) = Worktree::discover(Path::new(path)) {
+                if checkout.repository == repository {
+                    rows.push(serde_json::json!({"root":checkout.root,"branch":branch(&checkout.root)}));
+                }
+            }
+        }
+    }
+    Ok(rows)
+}
+
+pub(crate) fn create(root: &str, name: &str, base: &str) -> Result<String> {
+    ensure!(!name.is_empty() && name.len() <= 64 && name.bytes().all(|byte|
+        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')),
+        invalid_input("Worktree name must contain 1-64 letters, digits, hyphens or underscores"));
+    ensure!(!base.is_empty() && base.len() <= 128 && !base.chars().any(char::is_control), invalid_input("Invalid base ref"));
+    let checkout = Worktree::discover(Path::new(root))?;
+    let commit = crate::companion::files::git_metadata(Path::new(&checkout.root),
+        &["rev-parse", "--verify", "--end-of-options", &format!("{base}^{{commit}}")])?;
+    let parent = Path::new(&checkout.root).parent().ok_or_else(|| invalid_input("Checkout parent unavailable"))?;
+    let directory = parent.join(".warpai-worktrees").join(&checkout.repository);
+    std::fs::create_dir_all(&directory)?;
+    let path = directory.join(name);
+    if path.exists() {
+        let existing = Worktree::discover(&path)?;
+        ensure!(existing.repository == checkout.repository && branch(&existing.root).as_deref() == Some(&format!("warpai/{name}")),
+            invalid_input("Worktree path is occupied; existing files were preserved"));
+        crate::companion::files::git_metadata(Path::new(&existing.root), &["merge-base", "--is-ancestor", commit.trim(), "HEAD"])?;
+        return Ok(existing.root);
+    }
+    let path = path.to_str().ok_or_else(|| invalid_input("Worktree path must be UTF-8"))?;
+    #[cfg(windows)]
+    let native_path = if let Some(unc) = path.strip_prefix(r"\\?\UNC\") { format!(r"\\{unc}") } else { path.strip_prefix(r"\\?\").unwrap_or(path).to_owned() };
+    #[cfg(windows)]
+    let path = native_path.as_str();
+    crate::companion::files::git_metadata(Path::new(&checkout.root),
+        &["worktree", "add", "-b", &format!("warpai/{name}"), "--", path, commit.trim()])?;
+    let created = Worktree::discover(Path::new(path))?;
+    ensure!(created.repository == checkout.repository, scope_denied("Created checkout has another repository"));
+    Ok(created.root)
+}
+
 pub(crate) fn branch(root: &str) -> Option<String> {
     if !Path::new(root).join(".git").exists() {
         return None;
@@ -178,7 +226,10 @@ pub(crate) mod tests {
     }
     pub(crate) fn client(broker: &Broker, root: &Path, name: &str) -> Request {
         let terminal = id();
-        let capability = broker.prepare(&terminal).unwrap();
+        let capability = match broker.worktree_binding(root.to_str().unwrap()).unwrap() {
+            Some(binding) => broker.prepare_bound_workspace(&terminal, &binding).unwrap(),
+            None => broker.prepare(&terminal).unwrap(),
+        };
         broker
             .activate(&terminal, "fixture", root.to_str().unwrap(), true)
             .unwrap();
