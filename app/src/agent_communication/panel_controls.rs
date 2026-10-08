@@ -118,7 +118,7 @@ impl Kind {
 pub(super) struct Form {
     pub(super) kind: Kind,
     project: String,
-    worktree_root: String,
+    pub(super) worktree_root: String,
     task: Option<Task>,
     purge_preview: Option<super::PurgePreview>,
     reservations: Vec<warp_agent_bus::Reservation>,

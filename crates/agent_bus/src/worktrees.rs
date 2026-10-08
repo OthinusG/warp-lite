@@ -11,6 +11,21 @@ pub(crate) struct Worktree {
     pub checkout: String,
 }
 
+pub(crate) fn branch(root: &str) -> Option<String> {
+    if !Path::new(root).join(".git").exists() {
+        return None;
+    }
+    crate::companion::files::git_metadata(Path::new(root), &["branch", "--show-current"])
+        .ok()
+        .map(|branch| {
+            if branch.trim().is_empty() {
+                "detached HEAD".into()
+            } else {
+                branch.trim().to_owned()
+            }
+        })
+}
+
 pub(crate) fn directory_identity(path: &Path) -> Result<String> {
     let handle = crate::companion::open_root(path)?;
     let mut digest = Sha256::new();
@@ -410,6 +425,11 @@ pub(crate) mod tests {
         assert!(broker
             .activate(&terminal, "fixture", fixture.linked.to_str().unwrap(), true)
             .is_err());
+        join(broker, &fixture.linked);
+        assert!(
+            call(broker, &worker, Operation::AgentList).is_err(),
+            "explicit rejoin must not restore a replaced root's capability"
+        );
         let forged = fixture.directory.path().join("forged checkout");
         std::fs::create_dir(&forged).unwrap();
         std::fs::copy(old.join(".git"), forged.join(".git")).unwrap();

@@ -653,6 +653,7 @@ impl Projects {
                     let checkout_root = crate::project_root(root_path).unwrap_or_else(|_| root.into());
                     value["worktree_available"] = serde_json::json!(Path::new(&checkout_root).join(".git").exists());
                     value["worktree_root"] = serde_json::json!(checkout_root);
+                    value["worktree_branch"] = serde_json::json!(crate::worktrees::branch(&checkout_root));
                     if let Some(agents) = value["agents"].as_array_mut() {
                         for row in agents {
                             row["device"] =

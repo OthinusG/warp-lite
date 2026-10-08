@@ -192,7 +192,8 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "project_tasks",
             "project_mcp",
             "project_files",
-            "project_git_review"
+            "project_git_review",
+            "worktree_collaboration"
         ]
     );
     let mut fence = initialized.fence.unwrap();

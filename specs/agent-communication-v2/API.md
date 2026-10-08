@@ -112,3 +112,26 @@ the bounded transfer; obsolete observations never replace the selected mode.
 Remote cache sources stay referenced while Review or an editor uses them.
 Explicit reconnect verifies the original account, canonical root and root identity;
 it cannot replay an uncertain write or silently adopt a replaced project.
+# Cross-worktree extension — 2026-10-08
+
+Optional Companion capability `worktree_collaboration` adds private controller
+operations `worktree_join` and `worktree_leave`, each with a canonical checkout
+`root` and UUID `request_id`. Remote roots are derived from the current native
+attachment; a payload cannot select another checkout. Agent MCP tools are unchanged.
+
+Task commands may use `{ "kind": "scoped", "operation": { "scope": "...",
+"command": { "kind": "operator", "operation": { "op": "..." } } } }`.
+Only one wrapper is accepted. Team task writes require the scope returned by the
+last panel projection; mismatches fail with `scope_denied`. Membership operations
+pin the physical project and reconcile their original receipt in the repository
+Store even after joining/leaving changes task routing. Private old clients retain
+their unwrapped command contract. Desktop wraps commands only when the Companion
+advertises this capability.
+
+Panel responses keep `project` equal to the physical attachment's project ID for
+existing client fence checks. Additive fields `collaboration_scope`,
+`worktree_available`, `worktree_joined`, `worktree_root`, and `worktree_branch`
+describe the selected team/checkout. Each participant row may carry its own
+`worktree_branch` alongside existing `workspace`. Scope changes discard task
+selection and pagination cursors. File requests, SFTP roots and ManagedFence are
+unchanged. See [the acceptance contract](WORKTREE-COLLABORATION.md).

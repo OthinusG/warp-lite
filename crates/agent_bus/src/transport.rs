@@ -64,7 +64,7 @@ pub struct Response {
 struct Terminal {
     capability: String,
     workspace: Option<crate::storage::WorkspaceBinding>,
-    remote_root: Option<(std::path::PathBuf, std::fs::File)>,
+    physical_root: Option<(std::path::PathBuf, std::fs::File)>,
     revoked: bool,
     live: Option<Live>,
 }
@@ -371,7 +371,7 @@ impl Broker {
             Terminal {
                 capability: capability.clone(),
                 workspace,
-                remote_root: None,
+                physical_root: None,
                 revoked: false,
                 live: None,
             },
@@ -410,7 +410,15 @@ impl Broker {
                 scope_denied("Native directory does not match the selected workspace"));
             workspace.domain()
         } else { project.to_owned() };
+        let physical_root = state.terminals.get(terminal).unwrap().workspace.as_ref()
+            .filter(|workspace| state.store.worktree_binding(&workspace.root).ok().flatten().is_some())
+            .map(|workspace| {
+                let root = std::path::PathBuf::from(&workspace.root);
+                let handle = crate::companion::open_root(&root)?;
+                Ok::<_, anyhow::Error>((root, handle))
+            }).transpose()?;
         let binding = state.terminals.get_mut(terminal).unwrap();
+        if physical_root.is_some() { binding.physical_root = physical_root; }
         binding.live = Some(Live {
             program: program.into(),
             project,
@@ -453,7 +461,7 @@ impl Broker {
         }
         let mut state = self.store()?;
         let binding = state.terminals.get_mut(terminal).unwrap();
-        binding.remote_root = Some((root.to_owned(), handle));
+        binding.physical_root = Some((root.to_owned(), handle));
         binding.live.as_mut().unwrap().run = run.into();
         Ok(capability)
     }
@@ -770,7 +778,7 @@ impl Broker {
                 invalid_input("Native workspace must be absolute")
             );
             let binding = state.terminals.get(&request.terminal).unwrap();
-            let project = if let Some((root, _)) = &binding.remote_root {
+            let project = if let Some((root, _)) = &binding.physical_root {
                 ensure!(Path::new(directory).canonicalize()?.starts_with(root),
                     scope_denied("Native directory does not match the selected project"));
                 if binding.workspace.is_some() { crate::project_root(Path::new(directory))? }
@@ -1162,7 +1170,8 @@ impl Broker {
         let revoked: Vec<_> = state.terminals.iter().filter_map(|(terminal, binding)| {
             let invalid_workspace = binding.workspace.as_ref().is_some_and(|workspace| state.store.authorize_workspace(workspace).is_err());
             let invalid_actor = binding.live.as_ref().and_then(|live| live.agent.as_ref()).is_some_and(|actor| state.store.authorize(actor).is_err());
-            (invalid_workspace || invalid_actor).then(|| terminal.clone())
+            let replaced_root = binding.physical_root.as_ref().is_some_and(|(root, handle)| !crate::companion::root_matches(handle, root).unwrap_or(false));
+            (invalid_workspace || invalid_actor || replaced_root).then(|| terminal.clone())
         }).collect();
         for terminal in revoked {
             let binding = state.terminals.get_mut(&terminal).unwrap();
@@ -1246,6 +1255,9 @@ impl Broker {
             .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
             .collect();
         let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());
+        let mut branches = HashMap::new();
+        branches.insert(query.project.clone(), crate::worktrees::branch(&query.project));
+        let worktree_branch = branches[&query.project].clone();
         let agents: Vec<_> = remaining.into_iter().take(50).map(|agent| {
             let live = state.terminals.values().filter(|binding| !binding.revoked)
                 .filter_map(|binding| binding.live.as_ref())
@@ -1255,9 +1267,11 @@ impl Broker {
                 .and_then(|qualified| qualified.split_once(':')).map(|(device, _)| device.to_owned())
                 .unwrap_or_else(|| "local".into());
             let workspace = state.store.physical_root(&agent).ok();
+            let branch = workspace.as_ref().and_then(|root| branches.entry(root.clone())
+                .or_insert_with(|| crate::worktrees::branch(root)).clone());
             let observed = live.map(|live| live.observed.elapsed().as_millis() as u64);
             json!({"agent": agent, "online": live.is_some(), "run": live.map(|live| &live.run),
-                "device": device, "workspace": workspace, "last_observed_ms": observed,
+                "device": device, "workspace": workspace, "worktree_branch": branch, "last_observed_ms": observed,
                 "observation_source": if live.is_some() { Some("local observation") } else { None },
                 "delivery_phase": live.and_then(|live| live.delivery.as_ref()).map(|(_, phase, _)| *phase),
                 "delivery_retained": live.and_then(|live| live.delivery.as_ref()).map(|(_, _, retained)| *retained),
@@ -1306,6 +1320,7 @@ impl Broker {
         } else { None };
         Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
+            "worktree_branch": worktree_branch,
             "worktree_available": Path::new(&query.project).join(".git").exists(),
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
@@ -1353,7 +1368,7 @@ fn authenticate<'a>(state: &'a State, request: &Request, registration: bool) -> 
         .ok_or_else(|| unauthorized("Invalid terminal binding"))?;
     ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
     if let Some(workspace) = &binding.workspace { state.store.authorize_workspace(workspace)?; }
-    if let Some((root, handle)) = &binding.remote_root {
+    if let Some((root, handle)) = &binding.physical_root {
         ensure!(crate::companion::root_matches(handle, root).unwrap_or(false),
             scope_denied("Selected remote project was replaced or is unavailable"));
     }
