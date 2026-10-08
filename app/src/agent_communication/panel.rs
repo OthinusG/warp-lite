@@ -4931,6 +4931,30 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     }
                 }
             }
+            if data.get("failed_assertion_name").is_some_and(|name| name == "team projection is active") {
+                for panel in app.views_of_type::<CollaborationPanel>(window).unwrap_or_default() {
+                    panel.read(app, |panel, _| {
+                        let snapshot = panel.snapshot.as_ref();
+                        let query = PanelQuery { project: warp_agent_bus::project_root(&worktree_fixture).unwrap_or_default(), worktree: true, ..Default::default() };
+                        let query_error = super::BROKER.get().unwrap().operator_panel(&query).err()
+                            .and_then(|error| error.downcast::<warp_agent_bus::DomainError>().ok())
+                            .map(|error| ["Project path is unavailable", "Project must be a directory", "A registered Git worktree is required", "Worktree registry unavailable", "Git checkout unavailable", "Git repository unavailable", "Invalid Git metadata"].iter().position(|message| *message == error.message).map(|index| index + 1).unwrap_or(99)).unwrap_or(0);
+                        let mut exits = Vec::new();
+                        for arguments in [vec!["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], vec!["worktree", "list", "--porcelain", "-z"]] {
+                            let status = warp_agent_bus::installation::git_executable().ok().and_then(|git|
+                                std::process::Command::new(git).args(arguments).current_dir(&worktree_fixture)
+                                    .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().ok());
+                            exits.push(status.and_then(|status| status.code()).unwrap_or(-1));
+                        }
+                        // Only fixture booleans, source-owned categories and exit codes leave the runner.
+                        let diagnostic = format!("Native Worktree: connected={}, form={}, joined={}, team={}, main={}, scope_changed={}, query_error={}, git_rev_parse={}, git_registry={}",
+                            panel.connected, panel.form.is_some(), snapshot.is_some_and(|snapshot| snapshot.worktree_joined),
+                            snapshot.is_some_and(|snapshot| snapshot.project.starts_with("space:")), snapshot.is_some_and(|snapshot| snapshot.worktree_branch.as_deref() == Some("main")),
+                            panel.form.as_ref().is_some_and(|form| form.error.starts_with("Scope changed.")), query_error, exits[0], exits[1]);
+                        let _ = std::fs::write(directory.join("checkpoint-worktree.txt"), diagnostic);
+                    });
+                }
+            }
             for editor in app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap_or_default() {
                 editor.update(app, |editor, ctx| {
                     if let Some(path) = editor.file_path().filter(|path| path.parent().and_then(|parent| parent.file_name()).is_some_and(|name| name.to_string_lossy().starts_with("warpai-ssh-"))) {
