@@ -423,7 +423,7 @@ pub(crate) mod tests {
                 },
             )
             .unwrap();
-        reopened
+        let mapped = reopened
             .broker
             .control(
                 root,
@@ -437,6 +437,14 @@ pub(crate) mod tests {
                     request_id: id(),
                 },
             )
+            .unwrap();
+        reopened
+            .broker
+            .validate_workspace(&crate::WorkspaceBinding {
+                id: mapped["workspace_id"].as_str().unwrap().into(),
+                space: research["space_id"].as_str().unwrap().into(),
+                root: root.into(),
+            })
             .unwrap();
         assert!(reopened.broker.worktree_binding(root).unwrap().is_none());
         assert!(call(&reopened.broker, &fresh, Operation::AgentList).is_err());

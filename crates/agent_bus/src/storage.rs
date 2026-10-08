@@ -3449,16 +3449,17 @@ impl Store {
                 branch,
                 base_commit,
                 ..
-            } => self.workspace_map(
-                project,
-                actor,
-                space_id,
-                root,
-                repository_id.as_deref(),
-                model,
-                branch.as_deref(),
-                base_commit.as_deref(),
-            ),
+            } => {
+                let mapped = self.workspace_map(project, actor, space_id, root,
+                    repository_id.as_deref(), model, branch.as_deref(), base_commit.as_deref())?;
+                let workspace = mapped["workspace_id"].as_str().unwrap();
+                // Explicit project-space remapping replaces worktree opt-in and its captured actors.
+                diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE workspace_id=? AND EXISTS(SELECT 1 FROM worktree_admissions WHERE workspace_id=?)")
+                    .bind::<Text, _>(workspace).bind::<Text, _>(workspace).execute(&mut *self.connection.borrow_mut())?;
+                diesel::sql_query("DELETE FROM worktree_admissions WHERE workspace_id=?")
+                    .bind::<Text, _>(workspace).execute(&mut *self.connection.borrow_mut())?;
+                Ok(mapped)
+            },
             ControllerOperation::EvidenceVerify {
                 evidence_id,
                 verified,
@@ -3689,9 +3690,6 @@ impl Store {
         let workspace = diesel::sql_query("SELECT id, space_id, root, repository_id, model, branch, base_commit FROM workspaces WHERE root = ?")
             .bind::<Text, _>(&root)
             .get_result::<WorkspaceRow>(&mut *self.connection.borrow_mut())?;
-        // Explicit project-space remapping replaces worktree opt-in; worktree_join re-admits it.
-        diesel::sql_query("UPDATE worktree_admissions SET active=0 WHERE workspace_id=?")
-            .bind::<Text, _>(&workspace.id).execute(&mut *self.connection.borrow_mut())?;
         self.record(
             project,
             "workspace_mapped",
