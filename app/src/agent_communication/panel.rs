@@ -146,6 +146,8 @@ struct PanelAgent {
 }
 #[derive(Deserialize)]
 struct PanelTask {
+    #[serde(default)]
+    integration: Option<WorktreeIntegration>,
     id: String,
     #[serde(default)]
     description: String,
@@ -154,6 +156,9 @@ struct PanelTask {
     version: u64,
     assignee: String,
 }
+
+#[derive(Deserialize)]
+struct WorktreeIntegration { commit: Option<String> }
 #[derive(Deserialize)]
 struct TaskRuntime {
     online: bool,
@@ -195,7 +200,7 @@ struct HistoryPage {
     cursor: Option<u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 struct Snapshot {
     #[serde(default)]
     candidates: Vec<WorktreeCandidate>,
@@ -1501,7 +1506,9 @@ impl View for CollaborationPanel {
         };
         header.add_child(note(
             appearance,
-            if fixture.guidance.is_empty() {
+            if self.worktree_mode && !self.preview {
+                format!("{} · {}", if self.remote.is_some() { "SSH" } else { "Local" }, if self.connected { "Connected" } else { self.status.as_str() })
+            } else if fixture.guidance.is_empty() {
                 state
             } else {
                 format!("{state} — {}", fixture.guidance)
@@ -1666,6 +1673,15 @@ impl View for CollaborationPanel {
                                 .build()
                                 .finish(),
                         );
+                        if self.worktree_mode && task.state == "accepted" {
+                            body.add_child(note(appearance, match &task.integration {
+                                Some(integration) => match &integration.commit {
+                                    Some(commit) => format!("Integration commit recorded · {}", commit.chars().take(8).collect::<String>()),
+                                    None => "Selected for integration".into(),
+                                },
+                                None => "Reviewed · awaiting Coordinator integration choice".into(),
+                            }));
+                        }
                     }
                     let mut buttons = Vec::new();
                     for (label, action, index) in [
@@ -2089,6 +2105,44 @@ fn checkpoint_draft(app: &warpui::App, window: warpui::WindowId) -> String {
             .input()
             .read(ctx, |input, ctx| input.buffer_text(ctx))
     })
+}
+
+#[cfg(debug_assertions)]
+impl CollaborationPanel {
+    fn worktree_layout_checkpoint(&mut self, state: &str, ctx: &mut ViewContext<Self>) {
+        self.preview = false;
+        self.worktree_mode = true;
+        self.in_flight = true;
+        self.context = self.current_context(ctx);
+        self.connected = true;
+        self.form = None;
+        self.show_spaces = false;
+        self.show_messages = false;
+        self.query = PanelQuery { worktree:true, ..Default::default() };
+        self.events.clear();
+        self.scroll = Default::default();
+        let root = "/sample/repository/integration";
+        let mut snapshot = Snapshot { project:"space:sample-team".into(), admission:"private".into(), worktree_root:root.into(),
+            worktree_available:true, worktree_joined:true, coordinator_online:state != "empty", ..Default::default() };
+        if state != "empty" {
+            for index in 0..16 {
+                let id = format!("sample-{index}");
+                let checkout = if index == 0 { root.into() } else { format!("/sample/repository/worktrees/long-directory-name-with-many-components/worker-{index}") };
+                let name = if index == 0 { "coordinator".into() } else { format!("worker-{index}") };
+                let branch = if index == 0 { "main".into() } else { format!("feature/long-branch-name-to-exercise-narrow-panel-wrapping-and-overflow-{index}") };
+                snapshot.agents.push(serde_json::from_value(serde_json::json!({"agent":{"id":id,"terminal":format!("sample-terminal-{index}"),"name":name,"program":"fixture","project":"space:sample-team"},
+                    "run":"sample-run","online":true,"activity":"idle","draft":"empty","blocked":false,"paused":false,"ready":true,"readiness_source":"native"})).unwrap());
+                snapshot.candidates.push(WorktreeCandidate { agent:snapshot.agents.last().unwrap().agent.clone(), run:"sample-run".into(), root:checkout.clone(), branch:Some(branch.clone()) });
+                snapshot.roles.push(WorktreeRole { agent:id, role:if index == 0 { "coordinator" } else { "worker" }.into(), root:checkout.clone(), run:Some("sample-run".into()) });
+                self.checkout_buttons.entry(checkout.clone()).or_default();
+                snapshot.worktrees.push(WorktreeCheckout { root:checkout, branch:Some(branch) });
+            }
+            self.expanded_worker = Some(snapshot.worktrees[1].root.clone());
+        } else { self.expanded_worker = None; }
+        self.snapshot = Some(snapshot);
+        if state == "selector" { self.open_control(controls::Kind::SelectCoordinator, ctx); }
+        ctx.notify();
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -2607,6 +2661,28 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         "detail-scrolled.png".to_owned(),
         "detail-restored.png".to_owned(),
     ]);
+    for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
+        for width in [320, 600] {
+            for state in ["empty", "team", "selector"] {
+                let filename = format!("worktree-mode-{theme_name}-{width}-{state}.png");
+                filenames.push(filename.clone());
+                let theme = theme.clone();
+                driver = driver.with_step(TestStep::new(&format!("Worktree layout {theme_name} {width} {state}"))
+                    .with_action(move |app, window, _| {
+                        app.update(|ctx| {
+                            let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                            Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                            ctx.set_zoom_factor(1.0);
+                            ResizableData::as_ref(ctx).get_all_handles(window).unwrap().left_panel_width.lock().unwrap().set_size(width as f32);
+                        });
+                        let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        panel.update(app, |panel, ctx| panel.worktree_layout_checkpoint(state, ctx));
+                    }).add_named_assertion("Worktree layout keeps terminal draft", |app, window| {
+                        warpui::async_assert!(checkpoint_draft(app, window) == "unsent collaboration draft")
+                    }).with_take_screenshot(&filename));
+            }
+        }
+    }
     driver = driver
         .with_step(
             TestStep::new("wait for local live context").add_named_assertion(
@@ -2631,6 +2707,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| {
                     panel.preview = false;
+                    panel.worktree_mode = false;
+                    panel.form = None;
+                    panel.in_flight = false;
                     panel.refresh(ctx);
                     CollaborationPanel::schedule(ctx);
                     ctx.notify();

@@ -504,6 +504,9 @@ impl Broker {
     pub fn expire_epoch(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.expire_epoch(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref()) {
+                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
+            }
             if let Some(live) = state
                 .terminals
                 .get_mut(terminal)
@@ -1205,10 +1208,7 @@ impl Broker {
         let mut state = self.store()?;
         if matches!(operation, ControllerOperation::WorktreeCreate { .. }) {
             let roles = state.store.worktree_roles(project)?;
-            ensure!(roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run|
-                state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
-                    !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.run == *run
-                        && live.agent.as_ref().is_some_and(|actor| actor.id == role.agent))))),
+            ensure!(roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run))),
                 invalid_state("Select an active Coordinator first"));
         }
         let result = state.store.execute_controller(project, operation)?;
@@ -1333,7 +1333,12 @@ impl Broker {
                 "ready": live.is_some_and(|live| live.ready.is_some()),
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
-        let tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
+        let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
+        if query.worktree {
+            if let Some(rows) = tasks["tasks"].as_array_mut() {
+                for row in rows { row["integration"] = json!(state.store.worktree_integration(&project, row["id"].as_str().unwrap())?); }
+            }
+        }
         let task = query.selected_task.as_ref().filter(|_| same_scope).map(|id| state.store.operator_task(&project, id))
             .transpose()?;
         let runtime = task.as_ref().map(|task| {
@@ -1370,10 +1375,7 @@ impl Broker {
                 "records": page["records"], "cursor": page["cursor"]}))
         } else { None };
         let roles = state.store.worktree_roles(&project)?;
-        let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run|
-            state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
-                !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.run == *run
-                    && live.agent.as_ref().is_some_and(|actor| actor.id == role.agent)))));
+        let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
         drop(state);
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };

@@ -12,18 +12,15 @@ pub(crate) struct Worktree {
 }
 
 pub(crate) fn list(root: &str) -> Result<Vec<serde_json::Value>> {
-    let repository = Worktree::discover(Path::new(root))?.repository;
+    Worktree::discover(Path::new(root))?;
     let metadata = crate::companion::files::git_metadata(Path::new(root), &["worktree", "list", "--porcelain", "-z"]).map_err(|_| invalid_input("Worktree registry unavailable"))?;
     let mut rows = Vec::new();
-    for field in metadata.split('\0') {
-        if let Some(path) = field.strip_prefix("worktree ") {
-            if rows.len() == 50 { break; }
-            if let Ok(checkout) = Worktree::discover(Path::new(path)) {
-                if checkout.repository == repository {
-                    rows.push(serde_json::json!({"root":checkout.root,"branch":branch(&checkout.root)}));
-                }
-            }
-        }
+    for record in metadata.split("\0\0").take(50) {
+        let fields: Vec<_> = record.split('\0').collect();
+        let Some(path) = fields.iter().find_map(|field| field.strip_prefix("worktree ")) else { continue; };
+        let Ok(root) = crate::project_root(Path::new(path)) else { continue; };
+        let branch = fields.iter().find_map(|field| field.strip_prefix("branch refs/heads/")).unwrap_or("detached HEAD");
+        rows.push(serde_json::json!({"root":root,"branch":branch}));
     }
     Ok(rows)
 }
@@ -508,16 +505,14 @@ pub(crate) mod tests {
         let broker = &server.broker;
         join(broker, &fixture.linked);
         let worker = client(broker, &fixture.linked, "worker");
+        let stale_binding = broker.worktree_binding(fixture.linked.to_str().unwrap()).unwrap().unwrap();
         let old = fixture.directory.path().join("old checkout");
         std::fs::rename(&fixture.linked, &old).unwrap();
         std::fs::create_dir(&fixture.linked).unwrap();
         std::fs::copy(old.join(".git"), fixture.linked.join(".git")).unwrap();
         assert!(call(broker, &worker, Operation::AgentList).is_err());
         let terminal = id();
-        broker.prepare(&terminal).unwrap();
-        assert!(broker
-            .activate(&terminal, "fixture", fixture.linked.to_str().unwrap(), true)
-            .is_err());
+        assert!(broker.prepare_bound_workspace(&terminal, &stale_binding).is_err());
         join(broker, &fixture.linked);
         assert!(
             call(broker, &worker, Operation::AgentList).is_err(),

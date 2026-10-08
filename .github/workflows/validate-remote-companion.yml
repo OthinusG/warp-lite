@@ -62,6 +62,7 @@ jobs:
       - name: Verify local communication and retained history migrations
         run: |
           cargo test -p warp-agent-bus --lib worktrees::tests --locked
+          cargo test -p warp-agent-bus --lib orchestration --locked
           cargo test -p warp-agent-bus --lib session::tests --locked
           cargo test -p warp-agent-bus --test readiness --locked
           cargo test -p warp-agent-bus --test native_setup --locked

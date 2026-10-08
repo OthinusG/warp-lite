@@ -662,7 +662,10 @@ impl Projects {
             let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
                 .values().map(|(_, owner)| owner.broker.clone()).collect();
             let mut result = Err(crate::scope_denied("Selected Agent run is no longer active"));
+            let receipt = team.worktree_role_receipt(&worker.root, operation).map_err(|_| ManagedErrorCode::ManagedConflict)?;
+            if let Some(receipt) = receipt { result = Ok(receipt); }
             for source in sources {
+                if result.is_ok() { break; }
                 let candidates = source.worktree_candidates(&checkout.root).unwrap_or_default();
                 let (agent, run) = match operation {
                     ControllerOperation::WorktreeCoordinator { agent, run, .. } | ControllerOperation::WorktreeWorker { agent, run, .. } => (agent,run),

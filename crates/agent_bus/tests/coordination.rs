@@ -397,7 +397,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     };
     assert!(transport::call(&server.broker.endpoint, &worker).is_err());
     let schema = warp_agent_bus::mcp::tools();
-    assert_eq!(schema.len(), 30);
+    assert_eq!(schema.len(), 31);
     for tool in schema {
         assert_eq!(
             tool.input_schema.get("additionalProperties"),

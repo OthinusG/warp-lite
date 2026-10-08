@@ -1173,7 +1173,7 @@ impl Store {
 
     /// Mutation visibility: agents stay scoped; the operator principal reaches every project task.
     fn actor_task(&self, actor: &Agent, id: &str) -> Result<Task> {
-        if actor.program == OPERATOR_PROGRAM {
+        if actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? {
             self.operator_task(&actor.project, id)
         } else {
             self.task(actor, id)
@@ -1449,7 +1449,7 @@ impl Store {
                 limit,
                 include_archived,
             } => {
-                if actor.program == OPERATOR_PROGRAM {
+                if actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? {
                     return self.operator_tasks(
                         &actor.project,
                         state.as_deref(),
@@ -2340,7 +2340,7 @@ impl Store {
                 text(reason)?;
                 let task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
                     unauthorized("Only the issuer or operator can cancel a task")
                 );
                 if let Some(expected) = expected_version {
@@ -2512,7 +2512,7 @@ impl Store {
                 self.budget_available()?;
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
                     unauthorized("Only the issuer or operator can retry a task")
                 );
                 ensure!(
@@ -2595,7 +2595,7 @@ impl Store {
                 self.budget_available()?;
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
                     unauthorized("Only the issuer or operator can reassign a task")
                 );
                 ensure!(
@@ -2685,7 +2685,7 @@ impl Store {
             } => {
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
                     unauthorized("Only the issuer or operator can change prerequisites")
                 );
                 ensure!(
@@ -4087,7 +4087,7 @@ impl Store {
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
-            .bind::<Integer, _>(i32::from(actor.program == OPERATOR_PROGRAM))
+            .bind::<Integer, _>(i32::from(actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?))
             .bind::<Text, _>(&pattern)
             .bind::<Text, _>(&pattern)
             .bind::<Text, _>(task_id.unwrap_or(""))
