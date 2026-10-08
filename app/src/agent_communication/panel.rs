@@ -631,6 +631,14 @@ impl CollaborationPanel {
                     panel.snapshot = Some(snapshot);
                 }
                 Err(error) => {
+                    #[cfg(debug_assertions)]
+                    if panel.worktree_mode {
+                        if let Some(directory) = std::env::var_os(warpui::integration::ARTIFACTS_DIR_ENV_VAR) {
+                            let category = error.downcast_ref::<warp_agent_bus::DomainError>()
+                                .and_then(|error| ["Project path is unavailable", "Project must be a directory", "A registered Git worktree is required", "Worktree registry unavailable", "Git checkout unavailable", "Git repository unavailable", "Invalid Git metadata"].iter().position(|message| *message == error.message)).map(|index| index + 1).unwrap_or(99);
+                            let _ = std::fs::write(std::path::Path::new(&directory).join("checkpoint-worktree-error.txt"), format!("Native Worktree read error: category={category}"));
+                        }
+                    }
                     panel.connected = false;
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");

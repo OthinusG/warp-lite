@@ -440,7 +440,14 @@ fn git_output(project: &Project, arguments: &[&str]) -> Result<String> {
 /// Share the bounded private Git runner with worktree identity discovery.
 pub(crate) fn git_metadata(root: &Path, arguments: &[&str]) -> Result<String> {
     let project = Project { root: root.to_owned(), handle: super::open_root(root).map_err(path_error)? };
-    git_output(&project, arguments)
+    let result = git_output(&project, arguments);
+    #[cfg(debug_assertions)]
+    if let Err(error) = result {
+        if let Some(directory) = std::env::var_os("WARP_INTEGRATION_TEST_ARTIFACTS_DIR") {
+            let _ = std::fs::write(Path::new(&directory).join("checkpoint-private-git.txt"), format!("Native private Git error: code={}", error as i32));
+        }
+    }
+    result
 }
 
 fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<u8>> {
@@ -484,6 +491,8 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
         let _ = sender.send(result.map(|_| output));
     });
     let deadline = Instant::now() + Duration::from_secs(10);
+    #[cfg(debug_assertions)]
+    let (mut diagnostic_stage, mut diagnostic_exit) = (1, -1);
     let result = (|| {
         let output = receiver
             .recv_timeout(Duration::from_secs(10))
@@ -492,8 +501,12 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
         if output.len() > limit {
             return Err(ManagedErrorCode::ManagedCapacityExceeded);
         }
+        #[cfg(debug_assertions)]
+        { diagnostic_stage = 2; }
         loop {
             if let Some(status) = child.try_wait().map_err(path_error)? {
+                #[cfg(debug_assertions)]
+                { diagnostic_exit = status.code().unwrap_or(-1); }
                 if !status.success() {
                     return Err(ManagedErrorCode::ManagedUnavailable);
                 }
@@ -504,12 +517,18 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
             }
             std::thread::sleep(Duration::from_millis(10));
         }
+        #[cfg(debug_assertions)]
+        { diagnostic_stage = 3; }
         if !super::root_matches(&project.handle, &project.root).map_err(path_error)? {
             return Err(ManagedErrorCode::ManagedStaleAttachment);
         }
         Ok(output)
     })();
     if result.is_err() {
+        #[cfg(debug_assertions)]
+        if let Some(directory) = std::env::var_os("WARP_INTEGRATION_TEST_ARTIFACTS_DIR") {
+            let _ = std::fs::write(Path::new(&directory).join("checkpoint-private-git-runner.txt"), format!("Native private Git runner: stage={diagnostic_stage}, exit={diagnostic_exit}"));
+        }
         let _ = child.kill();
         let _ = child.wait();
     }
