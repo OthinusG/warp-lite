@@ -349,6 +349,10 @@ impl Broker {
         self.store()?.store.authorize_workspace(binding)
     }
 
+    pub(crate) fn worktree_binding(&self, root: &str) -> Result<Option<crate::WorkspaceBinding>> {
+        self.store()?.store.worktree_binding(root)
+    }
+
     fn prepare_binding(&self, terminal: &str, workspace: Option<crate::storage::WorkspaceBinding>) -> Result<String> {
         let capability = format!("{}{}", Uuid::new_v4(), Uuid::new_v4());
         let mut state = self
@@ -395,6 +399,11 @@ impl Broker {
         );
         let binding = state.terminals.get(terminal).ok_or_else(|| unauthorized("Terminal is not bound"))?;
         ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
+        if binding.workspace.is_none() {
+            let workspace = state.store.worktree_binding(project)?;
+            state.terminals.get_mut(terminal).unwrap().workspace = workspace;
+        }
+        let binding = state.terminals.get(terminal).unwrap();
         let project = if let Some(workspace) = &binding.workspace {
             state.store.authorize_workspace(workspace)?;
             ensure!(crate::project_root(Path::new(project))? == workspace.root,
@@ -436,7 +445,8 @@ impl Broker {
     ) -> Result<String> {
         let project = root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?;
         let handle = crate::companion::open_root(root)?;
-        let capability = self.prepare(terminal)?;
+        let workspace = self.worktree_binding(&crate::project_root(root)?)?;
+        let capability = self.prepare_binding(terminal, workspace)?;
         if let Err(error) = self.activate(terminal, program, project, false) {
             self.revoke_remote_run(terminal, None);
             return Err(error);
@@ -763,7 +773,8 @@ impl Broker {
             let project = if let Some((root, _)) = &binding.remote_root {
                 ensure!(Path::new(directory).canonicalize()?.starts_with(root),
                     scope_denied("Native directory does not match the selected project"));
-                root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?.to_owned()
+                if binding.workspace.is_some() { crate::project_root(Path::new(directory))? }
+                else { root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?.to_owned() }
             } else { crate::project_root(Path::new(directory))? };
             let workspace = binding.workspace.clone();
             if let Some(workspace) = &workspace {
@@ -1064,6 +1075,7 @@ impl Broker {
                             .is_some_and(|a| Some(a.id.as_str()) == agent["id"].as_str())
                     });
                 agent["online"] = json!(online.is_some());
+                agent["workspace"] = json!(online.and_then(|live| live.agent.as_ref()).and_then(|peer| state.store.physical_root(peer).ok()));
                 agent["waiting"] = json!(online.is_some_and(|live| live.waiting));
                 if let Some(live) = online {
                     agent["ready"] = json!(live.ready.is_some());
@@ -1205,6 +1217,7 @@ impl Broker {
             Some(binding) if binding.workspace.is_some() => "shared",
             _ => "private",
         };
+        let joined = state.store.worktree_binding(&query.project).ok().flatten();
         let project = binding.and_then(|binding| binding.workspace.as_ref())
             .filter(|workspace| workspace.root == query.project)
             .map(crate::WorkspaceBinding::domain)
@@ -1215,6 +1228,8 @@ impl Broker {
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
+            .or_else(|| joined.as_ref().filter(|_| binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
+                .map(|workspace| workspace.domain()))
             .unwrap_or_else(|| query.project.clone());
         let same_scope = query.scope.as_deref() == Some(project.as_str());
         let after = same_scope.then_some(query.event_after).flatten();
@@ -1290,6 +1305,8 @@ impl Broker {
                 "records": page["records"], "cursor": page["cursor"]}))
         } else { None };
         Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
+            "worktree_joined": joined.is_some(), "worktree_root": query.project,
+            "worktree_available": Path::new(&query.project).join(".git").exists(),
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
             "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))

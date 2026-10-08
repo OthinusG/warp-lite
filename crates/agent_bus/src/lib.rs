@@ -10,6 +10,7 @@ pub mod companion;
 pub mod ssh_remote;
 pub mod ssh_files;
 pub mod native_pty;
+pub(crate) mod worktrees;
 
 pub use storage::{Store, WorkspaceBinding};
 
@@ -495,6 +496,14 @@ impl Operation {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControllerOperation {
+    WorktreeJoin {
+        root: String,
+        request_id: String,
+    },
+    WorktreeLeave {
+        root: String,
+        request_id: String,
+    },
     SpaceList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<String>,
@@ -612,6 +621,8 @@ impl ControllerOperation {
             | Self::SpaceJoin { request_id, .. }
             | Self::SpaceLeave { request_id, .. }
             | Self::WorkspaceMap { request_id, .. }
+            | Self::WorktreeJoin { request_id, .. }
+            | Self::WorktreeLeave { request_id, .. }
             | Self::EvidenceVerify { request_id, .. }
             | Self::TaskForceCancel { request_id, .. }
             | Self::TaskArchive { request_id, .. }

@@ -86,6 +86,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS workspaces_root ON workspaces(root);
 CREATE INDEX IF NOT EXISTS workspaces_repository ON workspaces(space_id, repository_id);
 CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
 CREATE TABLE IF NOT EXISTS agent_workspace_bindings (agent TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS worktree_admissions (workspace_id TEXT PRIMARY KEY, repository TEXT NOT NULL, checkout TEXT NOT NULL, active INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS device_spaces (device_id TEXT NOT NULL, space_id TEXT NOT NULL, mode TEXT NOT NULL, PRIMARY KEY(device_id, space_id));
 CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, verifier TEXT NOT NULL, space_ids TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed INTEGER NOT NULL);
@@ -103,6 +104,16 @@ pub struct WorkspaceBinding {
     pub id: String,
     pub space: String,
     pub root: String,
+}
+
+#[derive(QueryableByName)]
+struct WorktreeAdmissionRow {
+    #[diesel(sql_type = Text)]
+    repository: String,
+    #[diesel(sql_type = Text)]
+    checkout: String,
+    #[diesel(sql_type = Integer)]
+    active: i32,
 }
 impl WorkspaceBinding {
     pub fn domain(&self) -> String { format!("space:{}", self.space) }
@@ -805,7 +816,26 @@ impl Store {
             current.space == binding.space && current.root == binding.root,
             scope_denied("Workspace mapping changed; open a new shared pane")
         );
+        let admission = diesel::sql_query("SELECT repository, checkout, active FROM worktree_admissions WHERE workspace_id=?")
+            .bind::<Text, _>(&binding.id).get_result::<WorktreeAdmissionRow>(&mut *self.connection.borrow_mut()).optional()?;
+        if let Some(admission) = admission {
+            ensure!(admission.active != 0, scope_denied("Worktree participation was removed"));
+            // ponytail: revalidate Git metadata on authorization; use native metadata checks if measured launch overhead matters.
+            let current = crate::worktrees::Worktree::discover(std::path::Path::new(&binding.root))?;
+            ensure!(current.repository == admission.repository && current.checkout == admission.checkout,
+                scope_denied("Worktree identity changed; join the replacement explicitly"));
+        }
         Ok(())
+    }
+
+    pub(crate) fn worktree_binding(&self, root: &str) -> Result<Option<WorkspaceBinding>> {
+        let id = diesel::sql_query("SELECT w.id AS value FROM workspaces AS w JOIN worktree_admissions AS a ON a.workspace_id=w.id WHERE w.root=? AND a.active=1")
+            .bind::<Text, _>(root).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
+        id.map(|id| {
+            let binding = self.workspace_binding(&id.value)?;
+            self.authorize_workspace(&binding)?;
+            Ok(binding)
+        }).transpose()
     }
 
     /// Membership is checked before reads, dedup replay and delivery, rather than only at registration.
@@ -817,6 +847,9 @@ impl Store {
             scope_denied("Legacy remote participation was revoked"));
         ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings AS b JOIN workspaces AS w ON w.id=b.workspace_id AND w.space_id=b.space_id JOIN space_members AS m ON m.space_id=b.space_id AND m.agent=b.agent WHERE b.agent=? AND b.revoked=0 AND ?='space:' || b.space_id", &[&actor.id, &actor.project])? == 1,
             scope_denied("Shared participation was revoked; open a new shared pane"));
+        let binding = diesel::sql_query("SELECT workspace_id AS value FROM agent_workspace_bindings WHERE agent=?")
+            .bind::<Text, _>(&actor.id).get_result::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        self.authorize_workspace(&self.workspace_binding(&binding.value)?)?;
         Ok(())
     }
 
@@ -3354,6 +3387,19 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::WorktreeJoin { root, .. } => self.worktree_join(project, actor, root),
+            ControllerOperation::WorktreeLeave { root, .. } => {
+                let root = crate::project_root(std::path::Path::new(root))?;
+                let id = diesel::sql_query("SELECT w.id AS value FROM workspaces AS w JOIN worktree_admissions AS a ON a.workspace_id=w.id WHERE w.root=?")
+                    .bind::<Text, _>(&root).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?
+                    .ok_or_else(|| invalid_state("Checkout has not joined a worktree team"))?;
+                diesel::sql_query("UPDATE worktree_admissions SET active=0 WHERE workspace_id=?")
+                    .bind::<Text, _>(&id.value).execute(&mut *self.connection.borrow_mut())?;
+                diesel::sql_query("UPDATE agent_workspace_bindings SET revoked=1 WHERE workspace_id=?")
+                    .bind::<Text, _>(&id.value).execute(&mut *self.connection.borrow_mut())?;
+                self.record(project, "worktree_left", &actor.id, Some(&id.value), None, json!({"root": root}))?;
+                Ok(json!({"root": root, "joined": false, "execution_stopped": false}))
+            }
             ControllerOperation::DeviceList | ControllerOperation::InvitationCreate { .. }
             | ControllerOperation::DeviceGrantUpdate { .. } | ControllerOperation::DeviceRevoke { .. }
             | ControllerOperation::RemoteWorkspaceMap { .. } => Err(crate::domain(
@@ -3478,6 +3524,24 @@ impl Store {
             "private": false,
             "members": Vec::<String>::new(),
         }))
+    }
+
+    fn worktree_join(&self, project: &str, actor: &Agent, root: &str) -> Result<Value> {
+        let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
+        let name = format!("Worktrees {}", checkout.repository);
+        let space = diesel::sql_query("SELECT id AS value FROM spaces WHERE name=?")
+            .bind::<Text, _>(&name).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
+        let space = match space {
+            Some(space) => space.value,
+            None => self.space_create(project, actor, &name)?["space_id"].as_str().unwrap().to_owned(),
+        };
+        // Worktrees own separate files; repository-wide reservation overlap is intentionally absent.
+        let mapped = self.workspace_map(project, actor, &space, &checkout.root, None, "git_worktree", None, None)?;
+        let workspace = mapped["workspace_id"].as_str().unwrap();
+        diesel::sql_query("INSERT INTO worktree_admissions(workspace_id, repository, checkout, active) VALUES (?,?,?,1) ON CONFLICT(workspace_id) DO UPDATE SET repository=excluded.repository,checkout=excluded.checkout,active=1")
+            .bind::<Text, _>(workspace).bind::<Text, _>(&checkout.repository).bind::<Text, _>(&checkout.checkout)
+            .execute(&mut *self.connection.borrow_mut())?;
+        Ok(mapped)
     }
 
     fn space_join(&self, project: &str, actor: &Agent, space_id: &str, agent: &str) -> Result<Value> {

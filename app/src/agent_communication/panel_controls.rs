@@ -35,6 +35,8 @@ pub(crate) enum Kind {
     CreateSpace,
     MapWorkspace,
     LeaveSpace,
+    JoinWorktree,
+    LeaveWorktree,
 }
 impl Kind {
     pub(super) fn label(self) -> &'static str {
@@ -59,6 +61,8 @@ impl Kind {
             Self::CreateSpace => "Create space",
             Self::MapWorkspace => "Map checkout",
             Self::LeaveSpace => "Leave participation",
+            Self::JoinWorktree => "Join worktree team",
+            Self::LeaveWorktree => "Leave worktree team",
         }
     }
     fn labels(self) -> &'static [&'static str] {
@@ -79,6 +83,7 @@ impl Kind {
             Self::ForceCancel | Self::RetryOverride => &["Reason", "Type ALLOW OVERLAP"],
             Self::Accept | Self::Revise => &["Review feedback"],
             Self::Archive => &[],
+            Self::JoinWorktree | Self::LeaveWorktree => &[],
             Self::ArchiveAged => &["Completed work older than days (1–3650)"],
             Self::Purge => &["Type DELETE HISTORY"],
             Self::RenewReservation => &[
@@ -113,6 +118,7 @@ impl Kind {
 pub(super) struct Form {
     pub(super) kind: Kind,
     project: String,
+    worktree_root: String,
     task: Option<Task>,
     purge_preview: Option<super::PurgePreview>,
     reservations: Vec<warp_agent_bus::Reservation>,
@@ -366,7 +372,9 @@ fn command(
         | Kind::Search
         | Kind::CreateSpace
         | Kind::MapWorkspace
-        | Kind::LeaveSpace => {
+        | Kind::LeaveSpace
+        | Kind::JoinWorktree
+        | Kind::LeaveWorktree => {
             unreachable!()
         }
     })
@@ -406,6 +414,8 @@ impl CollaborationPanel {
                 | Kind::CreateSpace
                 | Kind::MapWorkspace
                 | Kind::LeaveSpace
+                | Kind::JoinWorktree
+                | Kind::LeaveWorktree
         ) && snapshot
             .and_then(|snapshot| snapshot.task.as_ref())
             .is_none_or(|task| self.query.selected_task.as_ref() != Some(&task.id))
@@ -485,6 +495,7 @@ impl CollaborationPanel {
         self.form = Some(Form {
             kind,
             project,
+            worktree_root: snapshot.map(|snapshot| snapshot.worktree_root.clone()).unwrap_or_default(),
             task,
             purge_preview,
             reservations,
@@ -548,7 +559,13 @@ impl CollaborationPanel {
             ctx.notify();
             return;
         }
-        let mut operation = match command(
+        let mut operation = if matches!(form.kind, Kind::JoinWorktree | Kind::LeaveWorktree) {
+            let root = form.worktree_root.clone();
+            let request_id = form.request_id.clone();
+            Command::Controller(if form.kind == Kind::JoinWorktree {
+                ControllerOperation::WorktreeJoin { root, request_id }
+            } else { ControllerOperation::WorktreeLeave { root, request_id } })
+        } else { match command(
             form.kind,
             &form.project,
             form.task.as_ref(),
@@ -561,7 +578,7 @@ impl CollaborationPanel {
                 ctx.notify();
                 return;
             }
-        };
+        } };
         if let Command::Reservation { id, ttl, reason } = &operation {
             let Some(reservation) = form
                 .reservations
@@ -630,6 +647,9 @@ impl CollaborationPanel {
                 };
                 let mut client = client.lock().await;
                 let client = client.as_mut().ok_or_else(|| anyhow::anyhow!("ssh_connection_lost"))?;
+                let command = if client.capabilities().iter().any(|capability| capability == "worktree_collaboration") {
+                    warp_agent_bus::companion::TaskCommand::Scoped { scope: project, command: Box::new(command) }
+                } else { command };
                 Self::remote_command(client, &command, generation).await
             } else {
                 let broker = broker.unwrap();
@@ -722,6 +742,14 @@ impl CollaborationPanel {
             if form.kind == Kind::LeaveSpace {
                 body.add_child(builder.span("Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.").with_soft_wrap().build().finish());
             }
+            if matches!(form.kind, Kind::JoinWorktree | Kind::LeaveWorktree) {
+                body.add_child(detail(appearance, form.worktree_root.clone()));
+                body.add_child(note(appearance, if form.kind == Kind::JoinWorktree {
+                    "Fresh Agent runs in this checkout will share messages and tasks with other explicitly joined worktrees of this repository. Existing private runs and history keep their scope. Start an Agent in a fresh pane after joining."
+                } else {
+                    "Revoke this checkout's shared communication and queued delivery. Existing processes may still be writing. Start a private Agent in a fresh pane after leaving; task acceptance does not merge branches."
+                }));
+            }
             for (label, field) in form.kind.labels().iter().zip(&form.fields) {
                 let value = if form.submitting {
                     detail(appearance, field.as_ref(app).buffer_text(app))
@@ -775,6 +803,9 @@ impl CollaborationPanel {
             } else {
                 vec![Kind::Assign, Kind::Pool, Kind::Search, Kind::Send]
             };
+            if !self.query.history && !self.show_spaces && self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_available) {
+                kinds.push(if self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_joined) { Kind::LeaveWorktree } else { Kind::JoinWorktree });
+            }
             if self.show_spaces
                 && self
                     .snapshot

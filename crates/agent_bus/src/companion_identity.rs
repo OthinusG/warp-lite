@@ -127,7 +127,7 @@ pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
 }
 
 #[cfg(unix)]
-fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
+pub(crate) fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
     use std::os::unix::fs::MetadataExt;
     let m = file.metadata()?;
     Ok([m.dev().to_be_bytes(), m.ino().to_be_bytes()].concat())
@@ -151,7 +151,7 @@ pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
 }
 
 #[cfg(windows)]
-fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
+pub(crate) fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
     use std::os::windows::io::AsRawHandle;
     use windows::Win32::{
         Foundation::HANDLE,

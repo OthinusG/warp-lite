@@ -116,6 +116,16 @@ submit evidence and participate in review. Separate projects remain isolated.
 Queued work waits for the receiving Agent to be ready, and Warpai does not answer
 permission requests on an Agent's behalf.
 
+For parallel development, use **Join worktree team** in the collaboration panel
+for each Git checkout you want to include, then start Agents in fresh panes.
+Joined worktrees of the same repository share messages, tasks and review while
+keeping separate working files and producing-checkout evidence. This works
+locally and within one SSH host/account with a compatible Companion. Unjoined
+worktrees and independent clones stay isolated. **Leave worktree team** revokes
+that checkout's shared participation; existing processes may still be running.
+The lead integrates accepted commits through Git and verifies the combined result;
+accepting a task does not automatically merge branches.
+
 Settings reports useful setup errors when an Agent cannot join. A single cleanup
 action clears Warpai communication settings from supported installed Agents while
 preserving their other integrations, so you can reset participation and choose

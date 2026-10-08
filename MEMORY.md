@@ -1,5 +1,19 @@
 # Project Memory
 
+## Cross-worktree collaboration — 2026-10-08
+
+- Owner authorizes completing cross-worktree Agent collaboration locally and
+  over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;
+  do not duplicate the communication stack. Active contract:
+  specs/agent-communication-v2/WORKTREE-COLLABORATION.md.
+- Each checkout explicitly joins a repository team; fresh panes/runs capture that
+  admission. Existing private runs/history stay private. Git common-directory
+  native identity separates independent clones; remote authority remains within
+  one service/account/host, separate from local authority. File/Review roots stay
+  physical and task acceptance does not automatically merge commits.
+- Implementation and verification are in progress. Follow the existing GitHub-only
+  Rust compilation preference; no release or personal installation is implied.
+
 ## Repository cover — 2026-10-07
 
 - Owner correction: cover copy must emphasize Agent management and communication

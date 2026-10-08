@@ -1,5 +1,9 @@
 # SSH Agent Communication Extension Plan
 
+> Approved 2026-10-08: [cross-worktree collaboration](WORKTREE-COLLABORATION.md)
+> extends local and same-host/account SSH communication to explicitly joined Git
+> worktrees while preserving physical project/file fences and private history.
+
 > Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
 
 > Approved 2026-10-07 follow-up: [self-contained remote tools](SELF-CONTAINED-TOOLS.md)

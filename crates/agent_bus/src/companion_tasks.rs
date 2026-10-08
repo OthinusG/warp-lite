@@ -22,6 +22,7 @@ pub enum Command {
     Panel(PanelQuery),
     Operator(Operation),
     Controller(ControllerOperation),
+    Scoped { scope: String, command: Box<Command> },
 }
 
 /// Credentials stay in native child environment and disappear with its owner.
@@ -46,10 +47,7 @@ impl Projects {
         run: &str,
         program: &str,
     ) -> Result<RunBinding, ManagedErrorCode> {
-        let broker = self.broker(
-            &fence.project_id,
-            root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?,
-        )?;
+        let (broker, _) = self.selected_broker(fence, root)?;
         let executable = std::env::current_exe().map_err(path_error)?;
         let executable = executable
             .to_str()
@@ -82,6 +80,73 @@ mod tests {
             connection_id: Uuid::new_v4().to_string(),
             project_id: Uuid::new_v4().to_string(),
         }
+    }
+
+    #[test]
+    fn worktree_team_spans_remote_project_fences_without_moving_private_history() {
+        use crate::worktrees::tests::{Fixture, call, assign, id};
+        use crate::transport::{Request, CAPABILITY, ENDPOINT, TERMINAL, PROTOCOL_MAJOR};
+        let fixture = Fixture::new();
+        let data = tempfile::tempdir().unwrap();
+        let other_data = tempfile::tempdir().unwrap();
+        let projects = Projects::new(data.path());
+        let first = fence();
+        let mut second = first.clone();
+        second.connection_id = id();
+        second.project_id = id();
+        let register = |fence: &ManagedFence, root: &Path, name: &str| {
+            let binding = projects.bind_run(fence, root, &id(), &id(), "fixture").unwrap();
+            let env = |key| binding.environment.iter().find(|(name, _)| name == key).unwrap().1.clone();
+            let mut request = Request { protocol_major: PROTOCOL_MAJOR, terminal: env(TERMINAL), capability: env(CAPABILITY), run: None,
+                directory: Some(root.to_str().unwrap().into()), defer_initial_ready: false, native_activity: None,
+                operation: Operation::AgentRegister { name: name.into() } };
+            let endpoint = env(ENDPOINT);
+            request.run = crate::transport::call(&endpoint, &request).unwrap()["run"].as_str().map(str::to_owned);
+            (binding, request)
+        };
+        let (private_binding, private) = register(&first, &fixture.main, "private");
+        let private_task = execute(&projects, &first, &fixture.main, &Command::Operator(Operation::TaskCreatePool {
+            eligible: vec!["private".into()], description: "Retain private history".into(), acceptance: "Private only".into(),
+            reviewer: None, dependencies: vec![], start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None, request_id: id()
+        }))["value"]["id"].as_str().unwrap().to_owned();
+        let join_main = Command::Controller(ControllerOperation::WorktreeJoin { root: fixture.main.to_str().unwrap().into(), request_id: id() });
+        assert!(execute(&projects, &first, &fixture.main, &join_main).get("value").is_some());
+        let join_linked = Command::Controller(ControllerOperation::WorktreeJoin { root: fixture.linked.to_str().unwrap().into(), request_id: id() });
+        assert!(execute(&projects, &second, &fixture.linked, &join_linked).get("value").is_some());
+        let (lead_binding, lead) = register(&first, &fixture.main, "lead");
+        let (worker_binding, worker) = register(&second, &fixture.linked, "worker");
+        assert_eq!(lead_binding.broker.endpoint, worker_binding.broker.endpoint);
+        assert_ne!(private_binding.broker.endpoint, lead_binding.broker.endpoint);
+        assert!(call(&lead_binding.broker, &lead, Operation::TaskGet { task_id: private_task.clone() }).is_err());
+        assert!(call(&private_binding.broker, &private, Operation::AgentList).unwrap().as_array().unwrap().is_empty());
+        let task = call(&lead_binding.broker, &lead, assign("worker")).unwrap()["id"].as_str().unwrap().to_owned();
+        call(&worker_binding.broker, &worker, Operation::TaskStart { task_id: task.clone(), revision: 1, expected_version: None, request_id: id() }).unwrap();
+        call(&worker_binding.broker, &worker, Operation::TaskSubmit { task_id: task.clone(), revision: 1, result: "Feature ready".into(), evidence: "Owned fixture check passed".into(), evidence_ids: vec![], attempt_id: None, expected_version: None, request_id: id() }).unwrap();
+        let panel = Command::Panel(PanelQuery::default());
+        let first_panel = execute(&projects, &first, &fixture.main, &panel);
+        let second_panel = execute(&projects, &second, &fixture.linked, &panel);
+        assert_eq!(first_panel["value"]["collaboration_scope"], second_panel["value"]["collaboration_scope"]);
+        assert_ne!(first_panel["value"]["project"], second_panel["value"]["project"]);
+        let scope = first_panel["value"]["collaboration_scope"].as_str().unwrap().to_owned();
+        let review = Operation::TaskReview { task_id: task.clone(), revision: 1, accepted: true, feedback: "Ready to integrate".into(), expected_version: Some(3), request_id: id() };
+        assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: first.project_id.clone(), command: Box::new(Command::Operator(review.clone())) })["error"]["code"], "scope_denied");
+        assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: scope.clone(), command: Box::new(Command::Operator(review)) })["value"]["state"], "accepted");
+        let unjoined = execute(&projects, &fence(), &fixture.unjoined, &panel);
+        assert!(unjoined["value"]["tasks"].as_array().unwrap().is_empty());
+        let independent = Projects::new(other_data.path());
+        assert!(execute(&independent, &first, &fixture.main, &panel)["value"]["tasks"].as_array().unwrap().is_empty());
+        let leave = Command::Controller(ControllerOperation::WorktreeLeave { root: fixture.linked.to_str().unwrap().into(), request_id: id() });
+        assert!(execute(&projects, &second, &fixture.linked, &leave).get("value").is_some());
+        assert!(call(&worker_binding.broker, &worker, Operation::AgentList).is_err());
+        // Lost membership responses reconcile in the same repository Store after routing changes.
+        assert!(execute(&projects, &second, &fixture.linked, &leave).get("value").is_some());
+        assert!(execute(&projects, &second, &fixture.linked, &join_linked).get("value").is_some());
+        assert_eq!(execute(&projects, &second, &fixture.linked, &panel)["value"]["worktree_joined"], false,
+            "replaying an old join must not undo a later leave");
+        let private_return = Command::Controller(ControllerOperation::WorktreeLeave { root: fixture.main.to_str().unwrap().into(), request_id: id() });
+        execute(&projects, &first, &fixture.main, &private_return);
+        let history = execute(&projects, &first, &fixture.main, &panel);
+        assert_eq!(history["value"]["tasks"][0]["id"], private_task);
     }
     fn execute(
         projects: &Projects,
@@ -398,7 +463,7 @@ impl Projects {
             }
             return Ok(owner.broker.clone());
         }
-        if owners.len() >= 32 {
+        if owners.len() >= 64 {
             return Err(ManagedErrorCode::ManagedCapacityExceeded);
         }
         identity::private_directory(&self.directory).map_err(path_error)?;
@@ -423,13 +488,34 @@ impl Projects {
         }
         let database = directory.join("tasks.sqlite");
         drop(identity::private_file(&database).map_err(path_error)?);
-        // ponytail: reuse one native broker per admitted project (32 maximum);
+        // ponytail: reuse one native broker per project/team (64 maximum);
         // share runtimes only if this measured ceiling becomes too costly.
         let owner =
             RunningBroker::start(&database).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         let broker = owner.broker.clone();
         owners.insert(project_id.into(), (root.into(), owner));
         Ok(broker)
+    }
+
+    fn worktree_broker(&self, root: &Path) -> Result<(Broker, crate::worktrees::Worktree), ManagedErrorCode> {
+        let checkout = crate::worktrees::Worktree::discover(root)
+            .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
+        let broker = self.broker(&checkout.repository, checkout.common.to_str().ok_or(ManagedErrorCode::ManagedInvalidInput)?)?;
+        Ok((broker, checkout))
+    }
+
+    fn selected_broker(&self, fence: &ManagedFence, root: &Path) -> Result<(Broker, String), ManagedErrorCode> {
+        if let Ok(checkout) = crate::worktrees::Worktree::discover(root) {
+            if self.directory.join(&checkout.repository).join("tasks.sqlite").exists() {
+                let broker = self.broker(&checkout.repository, checkout.common.to_str().ok_or(ManagedErrorCode::ManagedInvalidInput)?)?;
+                if let Some(binding) = broker.worktree_binding(&checkout.root)
+                    .map_err(|_| ManagedErrorCode::ManagedStaleAttachment)? {
+                    return Ok((broker, binding.domain()));
+                }
+            }
+        }
+        Ok((self.broker(&fence.project_id, root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?)?,
+            root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?.into()))
     }
     pub(super) fn execute(
         &self,
@@ -442,6 +528,14 @@ impl Projects {
         }
         let command: Command = serde_json::from_slice(&request.command_json)
             .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
+        let (expected_scope, command) = match command {
+            Command::Scoped { scope, command } => (Some(scope), *command),
+            command => (None, command),
+        };
+        if matches!(&command, Command::Scoped { .. }) {
+            return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        let root_path = root;
         let root = root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?;
         // Reject forbidden authority/lifecycle fields before opening a Store.
         match &command {
@@ -506,7 +600,9 @@ impl Projects {
             Command::Controller(operation)
                 if !matches!(
                     operation,
-                    ControllerOperation::EvidenceVerify { .. }
+                    ControllerOperation::WorktreeJoin { .. }
+                        | ControllerOperation::WorktreeLeave { .. }
+                        | ControllerOperation::EvidenceVerify { .. }
                         | ControllerOperation::TaskForceCancel { .. }
                         | ControllerOperation::TaskArchive { .. }
                         | ControllerOperation::ArchiveAged { .. }
@@ -523,16 +619,40 @@ impl Projects {
             {
                 return Err(ManagedErrorCode::ManagedInvalidInput)
             }
+            Command::Controller(ControllerOperation::WorktreeJoin { root: selected, .. }
+                | ControllerOperation::WorktreeLeave { root: selected, .. })
+                if crate::project_root(root_path).ok().as_deref() != Some(selected.as_str()) =>
+            {
+                return Err(ManagedErrorCode::ManagedInvalidInput)
+            }
             _ => (),
         }
-        let broker = self.broker(&fence.project_id, root)?;
+        let membership = matches!(&command, Command::Controller(ControllerOperation::WorktreeJoin { .. } | ControllerOperation::WorktreeLeave { .. }));
+        let (broker, domain) = if membership {
+            let (broker, _) = self.worktree_broker(root_path)?;
+            (broker, root.to_owned())
+        } else { self.selected_broker(fence, root_path)? };
+        let scope = if domain.starts_with("space:") { domain.clone() } else { fence.project_id.clone() };
+        if !membership && !matches!(&command, Command::Panel(_)) &&
+            (expected_scope.as_ref().is_some_and(|expected| expected != &scope)
+                || (domain.starts_with("space:") && expected_scope.is_none())) {
+            return Ok(ProjectTasksResult { fence: Some(fence.clone()), query_generation: request.query_generation,
+                result_json: serde_json::to_vec(&serde_json::json!({"error": {"code": "scope_denied", "message": "Remote project operation failed", "retryable": false}})).unwrap() });
+        }
         let result = match command {
             Command::Panel(mut query) => {
-                query.project = root.into();
+                query.project = if domain.starts_with("space:") {
+                    crate::project_root(root_path).map_err(|_| ManagedErrorCode::ManagedStaleAttachment)?
+                } else { root.into() };
                 query.scope =
-                    (query.scope.as_deref() == Some(&fence.project_id)).then(|| root.to_owned());
+                    (query.scope.as_deref() == Some(scope.as_str())).then(|| domain.clone());
                 broker.operator_panel(&query).map(|mut value| {
                     value["project"] = serde_json::json!(fence.project_id);
+                    value["collaboration_scope"] = serde_json::json!(scope);
+                    value["worktree_joined"] = serde_json::json!(domain.starts_with("space:"));
+                    let checkout_root = crate::project_root(root_path).unwrap_or_else(|_| root.into());
+                    value["worktree_available"] = serde_json::json!(Path::new(&checkout_root).join(".git").exists());
+                    value["worktree_root"] = serde_json::json!(checkout_root);
                     if let Some(agents) = value["agents"].as_array_mut() {
                         for row in agents {
                             row["device"] =
@@ -545,8 +665,9 @@ impl Projects {
                     value
                 })
             }
-            Command::Operator(operation) => broker.operator(root, &operation),
-            Command::Controller(operation) => broker.control(root, &operation),
+            Command::Operator(operation) => broker.operator(&domain, &operation),
+            Command::Controller(operation) => broker.control(&domain, &operation),
+            Command::Scoped { .. } => unreachable!(),
         };
         let value = match result {
             Ok(value) => serde_json::json!({"value": value}),

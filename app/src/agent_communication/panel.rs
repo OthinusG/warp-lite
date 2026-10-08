@@ -196,6 +196,12 @@ struct HistoryPage {
 #[derive(Deserialize)]
 struct Snapshot {
     project: String,
+    #[serde(default)]
+    worktree_joined: bool,
+    #[serde(default)]
+    worktree_available: bool,
+    #[serde(default)]
+    worktree_root: String,
     agents: Vec<PanelAgent>,
     agent_cursor: Option<String>,
     tasks: Vec<PanelTask>,
@@ -251,7 +257,7 @@ pub(crate) struct CollaborationPanel {
     generation: u64,
     connected: bool,
     form: Option<controls::Form>,
-    control_buttons: [MouseStateHandle; 9],
+    control_buttons: [MouseStateHandle; 10],
     focus_buttons: HashMap<String, MouseStateHandle>,
     show_spaces: bool,
     workspace_preview: Option<WorkspacePreview>,
@@ -514,6 +520,10 @@ impl CollaborationPanel {
                 query.project = warp_agent_bus::project_root(std::path::Path::new(&directory))?;
                 broker.unwrap().operator_panel(&query)?
             };
+            let mut value = value;
+            if let Some(scope) = value.get("collaboration_scope").cloned() {
+                value["project"] = scope;
+            }
             serde_json::from_value::<Snapshot>(value).map_err(anyhow::Error::from)
         }, move |panel, result: anyhow::Result<Snapshot>, ctx| {
             panel.in_flight = false;

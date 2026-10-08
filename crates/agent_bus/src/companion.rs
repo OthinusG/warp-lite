@@ -19,7 +19,7 @@ mod file_tests;
 #[path = "companion_files.rs"]
 pub(crate) mod files;
 #[path = "companion_identity.rs"]
-mod identity;
+pub(crate) mod identity;
 #[path = "companion_service.rs"]
 mod service;
 #[path = "companion_tasks.rs"]
@@ -118,6 +118,7 @@ impl Companion {
                         "project_mcp".into(),
                         "project_files".into(),
                         "project_git_review".into(),
+                        "worktree_collaboration".into(),
                     ],
                     account_id: self.identity.account_id.clone(),
                 }))

@@ -437,6 +437,12 @@ fn git_output(project: &Project, arguments: &[&str]) -> Result<String> {
         .map_err(|_| ManagedErrorCode::ManagedInvalidInput)
 }
 
+/// Share the bounded private Git runner with worktree identity discovery.
+pub(crate) fn git_metadata(root: &Path, arguments: &[&str]) -> Result<String> {
+    let project = Project { root: root.to_owned(), handle: super::open_root(root).map_err(path_error)? };
+    git_output(&project, arguments)
+}
+
 fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<u8>> {
     use std::{
         process::{Command, Stdio},
@@ -447,6 +453,10 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
     }
     let git = crate::installation::git_executable().map_err(path_error)?;
     let mut command = Command::new(&git);
+    // Inherited Git overrides must not select a different repository than the admitted cwd.
+    for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"] {
+        command.env_remove(name);
+    }
     if git.is_absolute() {
         // Git may re-exec itself for submodules; keep the private runtime on this child's PATH only.
         let mut paths = vec![git.parent().unwrap().to_path_buf()];
