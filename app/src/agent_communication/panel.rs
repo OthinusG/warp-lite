@@ -2737,11 +2737,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("live-empty.png"),
         )
+        .with_step(TestStep::new("load Worktree projection before opening its native form")
+            .with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(true), ctx));
+            })
+            .add_named_assertion("unjoined Worktree projection is loaded", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
+                    snapshot.project.starts_with("worktree:") && !snapshot.worktree_joined)))
+            }))
         .with_step(
             TestStep::new("worktree join confirmation uses existing native controls")
                 .with_action(|app, window, _| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| { panel.worktree_mode = true; panel.open_control(controls::Kind::JoinWorktree, ctx); });
+                    panel.update(app, |panel, ctx| { panel.open_control(controls::Kind::JoinWorktree, ctx); });
                 })
                 .add_named_assertion("join form retains checkout and terminal draft", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
@@ -4913,7 +4923,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
