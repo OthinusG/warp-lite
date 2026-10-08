@@ -1806,7 +1806,7 @@ impl View for CollaborationPanel {
             if let Some(buttons) = button_row(buttons) {
                 body.add_child(buttons);
             }
-            if let Some(snapshot) = &self.snapshot {
+            if let Some(snapshot) = self.snapshot.as_ref().filter(|_| !self.worktree_mode) {
                 for row in &snapshot.agents {
                     let id = row.agent.id.clone();
                     body.add_child(
@@ -2134,6 +2134,7 @@ impl CollaborationPanel {
                 snapshot.agents.push(serde_json::from_value(serde_json::json!({"agent":{"id":id,"terminal":format!("sample-terminal-{index}"),"name":name,"program":"fixture","project":"space:sample-team"},
                     "run":"sample-run","online":true,"activity":"idle","draft":"empty","blocked":false,"paused":false,"ready":true,"readiness_source":"native"})).unwrap());
                 snapshot.candidates.push(WorktreeCandidate { agent:snapshot.agents.last().unwrap().agent.clone(), run:"sample-run".into(), root:checkout.clone(), branch:Some(branch.clone()) });
+                self.agent_task_buttons.entry(id.clone()).or_default();
                 snapshot.roles.push(WorktreeRole { agent:id, role:if index == 0 { "coordinator" } else { "worker" }.into(), root:checkout.clone(), run:Some("sample-run".into()) });
                 self.checkout_buttons.entry(checkout.clone()).or_default();
                 snapshot.worktrees.push(WorktreeCheckout { root:checkout, branch:Some(branch) });
