@@ -34,7 +34,7 @@ All CLI agent sessions managed by Warpai running in Warpai can exchange messages
 - Configuration runs off the UI thread, reports success/failure per agent, preserves unrelated settings, rejects conflicting ownership, and never writes live capability values.
 - Enable/disable operations are serialized. Only successfully configured agents are authorized. Disabling revokes active runs before cleanup; failed cleanup remains visible and retryable after restart.
 - Same-project registered agents automatically discover, message, and delegate to each other. There is no peer picker, pair permission, or connection step.
-- Canonical repository root scopes projects; subdirectories share the root. Separate repositories and unjoined worktrees remain isolated. Explicit same-repository worktree teams follow [the cross-worktree contract](../agent-communication-v2/WORKTREE-COLLABORATION.md). Offline/unloaded/disallowed clients cannot participate.
+- Canonical repository root scopes projects; subdirectories share the root. Separate repositories and unjoined worktrees remain isolated. Project mode preserves project messaging; Worktree mode requires an explicitly selected active Coordinator and worker bindings. Same-repository teams follow [the cross-worktree contract](../agent-communication-v2/WORKTREE-COLLABORATION.md). Offline/unloaded/disallowed clients cannot participate.
 - Test configuration add/remove/idempotency/conflicts, project isolation, disable/re-enable and stale runs, existing task lifecycle, and dormant wake protection.
 - GitHub checks default/platform builds and packages review artifacts. No local compilation; live vendor and screenshot validation limitations must be reported honestly.
 

@@ -117,7 +117,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Native review compilation failed" }
           # The debug executable needs the same native runtime files as the portable package.
           foreach ($dll in @('conpty.dll', 'dxcompiler.dll', 'dxil.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
-            Copy-Item "app/assets/windows/x64/$dll" "target/debug/$dll" -Force
+            $source = "app/assets/windows/x64/$dll"
+            $destination = "target/debug/$dll"
+            # Earlier native tests may still hold an identical runtime DLL open.
+            if ((Test-Path -LiteralPath $destination) -and
+                ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -eq
+                 (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash)) { continue }
+            Copy-Item -LiteralPath $source -Destination $destination -Force
           }
           Copy-Item 'app/assets/bundled/bootstrap/pwsh.ps1' 'target/debug/pwsh.ps1' -Force
           New-Item -ItemType Directory -Path 'target/debug/x64' -Force | Out-Null

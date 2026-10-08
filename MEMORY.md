@@ -20,6 +20,17 @@
   then the native remote fixture cannot start: focused mode omitted compilation
   of the managed_agent test executable. Build that fixture with --no-run while
   keeping the full protocol suite skipped.
+  Focused run 37824647901 (06f0ab15) passes all Windows native capture assertions
+  and owned SSH/SFTP acceptance: 191 PNGs, no failed steps, assertions or private
+  Git errors. Reviewed narrow light/dark layouts and actual creation/selection/
+  binding frames. Full desktop run 37830653334 and three-platform Companion run
+  37830659603 were started for final verification. The Companion run passes
+  on all three platforms; macOS passes the full desktop run. Windows protocol,
+  default/platform checks and application regressions pass, but capture runtime
+  preparation cannot overwrite vcruntime140.dll held by a prior test process.
+  Reuse runtime DLLs only when SHA-256 matches the tracked source, preserving
+  stale-file detection. Retry only focused Windows native acceptance; source
+  application/Companion code is unchanged.
 
 - Owner authorizes completing cross-worktree Agent collaboration locally and
   over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;
