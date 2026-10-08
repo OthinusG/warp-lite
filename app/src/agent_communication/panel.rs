@@ -458,7 +458,8 @@ impl CollaborationPanel {
         {
             return None;
         }
-        let root = active.path_if_local(ctx.window_id())?.to_str()?.to_owned();
+        // Shell integration may change Windows path spelling without changing the checkout.
+        let root = active.path_if_local(ctx.window_id())?.canonicalize().ok()?.to_str()?.to_owned();
         let terminal = active
             .terminal_view_id(ctx.window_id())
             .and_then(|id| super::terminal_for_view(id));
@@ -2761,10 +2762,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("worktree-join-confirmation.png"),
         )
-        .with_step(TestStep::new("join worktree team through native form").with_action(|app, window, _| {
+        .with_step(TestStep::new("join worktree team through native form").with_action(|app, window, data| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+            let submitted = panel.update(app, |panel, ctx| {
+                panel.confirm_control(ctx);
+                panel.form.as_ref().is_some_and(|form| form.submitting)
+            });
+            data.insert("worktree_join_submitted", submitted);
         }))
+        .with_step(TestStep::new("worktree join intent reaches the controller")
+            .add_named_assertion_with_data_from_prior_step("join request was submitted", |_, _, data| {
+                warpui::async_assert!(data.get::<_, bool>("worktree_join_submitted") == Some(&true))
+            }))
         .with_step(TestStep::new("native worktree team status reports checkout and branch")
             .add_named_assertion("team projection is active", |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
@@ -4923,7 +4932,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
@@ -4931,7 +4940,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     }
                 }
             }
-            if data.get("failed_assertion_name").is_some_and(|name| name == "team projection is active") {
+            if data.get("failed_assertion_name").is_some_and(|name| name == "team projection is active" || name == "join request was submitted") {
                 for panel in app.views_of_type::<CollaborationPanel>(window).unwrap_or_default() {
                     panel.read(app, |panel, _| {
                         let snapshot = panel.snapshot.as_ref();
