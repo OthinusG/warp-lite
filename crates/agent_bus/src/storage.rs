@@ -4316,30 +4316,14 @@ fn verify_file(project: &str, path: &str, hash: Option<&str>) -> Result<()> {
 }
 
 fn verify_commit(project: &str, commit: Option<&str>) -> Result<()> {
-    use std::{process::{Command, Stdio}, time::Instant};
     let commit = commit.ok_or_else(|| invalid_state("Commit verification requires a Git object ID"))?;
     ensure!(matches!(commit.len(), 40 | 64) && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
         invalid_input("Commit verification requires a full hexadecimal Git object ID"));
-    let mut child = Command::new("git").args(["--no-lazy-fetch", "--no-optional-locks", "-C", project, "cat-file", "-e"])
-        .arg(format!("{commit}^{{commit}}"))
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
-        .spawn().map_err(|_| invalid_state("Git is unavailable for local object verification"))?;
-    let deadline = Instant::now() + Duration::from_secs(3);
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                ensure!(status.success(), invalid_state("Commit is unavailable locally or Git lacks no-fetch support"));
-                return Ok(());
-            }
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
-            _ => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(invalid_state("Local Git object verification did not finish"));
-            }
-        }
-    }
+    // Use the same fenced private Git runtime as worktree discovery on packaged companions.
+    crate::companion::files::git_metadata(std::path::Path::new(project),
+        &["--no-lazy-fetch", "--no-optional-locks", "cat-file", "-e", &format!("{commit}^{{commit}}")])
+        .map(|_| ())
+        .map_err(|_| invalid_state("Commit is unavailable locally or Git lacks no-fetch support"))
 }
 
 /// Reserve space for the outer MCP string envelope as well as the local IPC envelope.

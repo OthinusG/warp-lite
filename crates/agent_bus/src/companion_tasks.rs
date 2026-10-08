@@ -121,13 +121,25 @@ mod tests {
         assert!(call(&private_binding.broker, &private, Operation::AgentList).unwrap().as_array().unwrap().is_empty());
         let task = call(&lead_binding.broker, &lead, assign("worker")).unwrap()["id"].as_str().unwrap().to_owned();
         call(&worker_binding.broker, &worker, Operation::TaskStart { task_id: task.clone(), revision: 1, expected_version: None, request_id: id() }).unwrap();
-        call(&worker_binding.broker, &worker, Operation::TaskSubmit { task_id: task.clone(), revision: 1, result: "Feature ready".into(), evidence: "Owned fixture check passed".into(), evidence_ids: vec![], attempt_id: None, expected_version: None, request_id: id() }).unwrap();
+        let head = crate::worktrees::tests::git(&fixture.linked, &["rev-parse", "HEAD"]);
+        let evidence = call(&worker_binding.broker, &worker, Operation::EvidenceAdd {
+            task_id: task.clone(), kind: "commit".into(), attempt_id: None,
+            commit: Some(head.trim().into()), path: None, hash: None, repository: None,
+            branch: Some("feature".into()), base: None, head: None, command: None,
+            outcome: None, exit_code: None, summary: None, request_id: id(),
+        }).unwrap()["evidence_id"].as_str().unwrap().to_owned();
+        call(&worker_binding.broker, &worker, Operation::TaskSubmit { task_id: task.clone(), revision: 1, result: "Feature ready".into(), evidence: "Owned fixture check passed".into(), evidence_ids: vec![evidence.clone()], attempt_id: None, expected_version: None, request_id: id() }).unwrap();
         let panel = Command::Panel(PanelQuery::default());
         let first_panel = execute(&projects, &first, &fixture.main, &panel);
         let second_panel = execute(&projects, &second, &fixture.linked, &panel);
         assert_eq!(first_panel["value"]["collaboration_scope"], second_panel["value"]["collaboration_scope"]);
         assert_ne!(first_panel["value"]["project"], second_panel["value"]["project"]);
         let scope = first_panel["value"]["collaboration_scope"].as_str().unwrap().to_owned();
+        assert!(execute(&projects, &first, &fixture.main, &Command::Scoped {
+            scope: scope.clone(), command: Box::new(Command::Controller(ControllerOperation::EvidenceVerify {
+                evidence_id: evidence, verified: true, request_id: id(),
+            })),
+        }).get("value").is_some());
         let review = Operation::TaskReview { task_id: task.clone(), revision: 1, accepted: true, feedback: "Ready to integrate".into(), expected_version: Some(3), request_id: id() };
         assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: first.project_id.clone(), command: Box::new(Command::Operator(review.clone())) })["error"]["code"], "scope_denied");
         assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: scope.clone(), command: Box::new(Command::Operator(review)) })["value"]["state"], "accepted");
