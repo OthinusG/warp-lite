@@ -128,7 +128,11 @@ pub(crate) mod tests {
             .current_dir(root)
             .output()
             .unwrap();
-        assert!(output.status.success(), "Git fixture command failed");
+        assert!(
+            output.status.success(),
+            "Git fixture command {:?} failed",
+            arguments
+        );
         String::from_utf8(output.stdout).unwrap()
     }
     impl Fixture {
@@ -350,12 +354,14 @@ pub(crate) mod tests {
         wrong.directory = Some(fixture.main.to_str().unwrap().into());
         assert!(call(broker, &wrong, Operation::AgentList).is_err());
         let clone = fixture.directory.path().join("independent clone");
+        // Git clone interprets verbatim Windows source paths as transport URLs.
+        let source = fixture.directory.path().join("main checkout");
         git(
             &fixture.main,
             &[
                 "clone",
                 "--local",
-                fixture.main.to_str().unwrap(),
+                source.to_str().unwrap(),
                 clone.to_str().unwrap(),
             ],
         );
