@@ -127,12 +127,11 @@ impl Broker {
         );
         let physical = source_state.terminals[&terminal].physical_root.as_ref();
         ensure!(
-            physical.is_none_or(
+            physical.is_some_and(
                 |(path, handle)| crate::companion::root_matches(handle, path).unwrap_or(false)
             ),
             scope_denied("Selected physical checkout was replaced")
         );
-        let handle = crate::companion::open_root(Path::new(&root))?;
         let enroll = |state: &State| -> Result<(crate::WorkspaceBinding, Agent, Value)> {
             let binding = match state.store.worktree_binding(&root)? {
                 Some(binding) => binding,
@@ -218,7 +217,6 @@ impl Broker {
         };
         let native = target.terminals.get_mut(&terminal).unwrap();
         native.workspace = Some(binding);
-        native.physical_root = Some((Path::new(&root).to_owned(), handle));
         let live = native.live.as_mut().unwrap();
         if live.origin_agent.is_none() {
             live.origin_agent = Some(original);
@@ -254,6 +252,45 @@ impl Broker {
 mod tests {
     use super::*;
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
+
+    #[test]
+    fn enrollment_requires_the_native_runs_captured_checkout_authority() {
+        let fixture = Fixture::new();
+        let owner =
+            RunningBroker::start(&fixture.directory.path().join("uncaptured.sqlite")).unwrap();
+        let request = client(&owner.broker, &fixture.main, "uncaptured");
+        let actor = call(
+            &owner.broker,
+            &request,
+            Operation::AgentRegister { name: "".into() },
+        )
+        .unwrap();
+        owner
+            .broker
+            .store()
+            .unwrap()
+            .terminals
+            .get_mut(&request.terminal)
+            .unwrap()
+            .physical_root = None;
+        assert!(owner
+            .broker
+            .control(
+                fixture.main.to_str().unwrap(),
+                &ControllerOperation::WorktreeCoordinator {
+                    root: fixture.main.to_str().unwrap().into(),
+                    agent: actor["agent"]["id"].as_str().unwrap().into(),
+                    run: request.run.unwrap(),
+                    request_id: id(),
+                }
+            )
+            .is_err());
+        assert!(owner
+            .broker
+            .worktree_domain(fixture.main.to_str().unwrap())
+            .unwrap()
+            .is_none());
+    }
 
     #[test]
     fn project_queries_omit_the_new_mode_field_for_older_companions() {
