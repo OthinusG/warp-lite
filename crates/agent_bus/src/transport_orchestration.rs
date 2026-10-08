@@ -286,6 +286,14 @@ mod tests {
         broker
             .control(fixture.main.to_str().unwrap(), &first_selection)
             .unwrap();
+        broker.readiness(&first.terminal, true);
+        std::thread::sleep(Duration::from_millis(800));
+        let stale_wake = broker
+            .wakeups()
+            .into_iter()
+            .find(|wake| wake.terminal == first.terminal)
+            .unwrap();
+        assert!(broker.claim_wake(&stale_wake));
         broker
             .control(fixture.main.to_str().unwrap(), &selection(&replacement))
             .unwrap();
@@ -311,11 +319,7 @@ mod tests {
             .unwrap();
         assert_ne!(panel["roles"][0]["agent"], replay["agent"]["id"]);
         assert_eq!(panel["coordinator_online"], true);
-        assert!(broker
-            .pending_work()
-            .iter()
-            .filter(|wake| broker.claim_wake(wake))
-            .all(|wake| wake.terminal != first.terminal));
+        assert!(!broker.wake_valid(&stale_wake));
         broker.end(&replacement.terminal);
         assert!(!broker
             .operator_panel(&PanelQuery {
@@ -564,6 +568,20 @@ mod tests {
             3
         );
         broker.end(&coordinator.terminal);
+        broker
+            .activate(&coordinator.terminal, "codex", private_project, false)
+            .unwrap();
+        let restarted = Request {
+            run: broker.run(&coordinator.terminal),
+            ..coordinator.clone()
+        };
+        let private_agent = call(
+            broker,
+            &restarted,
+            Operation::AgentRegister { name: "".into() },
+        )
+        .unwrap();
+        assert_eq!(private_agent["agent"]["project"], private_project);
         assert_eq!(
             broker
                 .operator_panel(&PanelQuery {
@@ -621,6 +639,34 @@ mod tests {
         )
         .unwrap();
         source.broker.end(&request.terminal);
+        source
+            .broker
+            .revoke_remote_run(&request.terminal, request.run.as_deref());
+        assert!(source.broker.forwarded(&request.terminal).is_none());
+        let next_run = id();
+        let capability = source
+            .broker
+            .prepare_remote_run(&request.terminal, "codex", &fixture.main, &next_run)
+            .unwrap();
+        let restarted = Request {
+            capability,
+            run: Some(next_run.clone()),
+            ..request.clone()
+        };
+        let private_agent = call(
+            &source.broker,
+            &restarted,
+            Operation::AgentRegister { name: "".into() },
+        )
+        .unwrap();
+        assert_eq!(
+            private_agent["agent"]["project"],
+            fixture.main.to_str().unwrap()
+        );
+        source
+            .broker
+            .revoke_remote_run(&request.terminal, request.run.as_deref());
+        assert_eq!(source.broker.run(&request.terminal), Some(next_run));
         assert!(call(
             &source.broker,
             &request,

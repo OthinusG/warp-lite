@@ -476,7 +476,13 @@ impl Broker {
         Ok(capability)
     }
     pub(crate) fn revoke_remote_run(&self, terminal: &str, run: Option<&str>) {
-        if let Some(broker) = self.forwarded(terminal) { broker.revoke_remote_run(terminal, run); return; }
+        if let Some(broker) = self.forwarded(terminal) {
+            let owns = broker.store().ok().is_some_and(|state| state.terminals.get(terminal)
+                .is_none_or(|binding| binding.live.as_ref().is_none_or(|live| run.is_none() || Some(live.run.as_str()) == run)));
+            broker.revoke_remote_run(terminal, run);
+            if owns { if let Ok(mut routes) = self.shared.forwarded.lock() { routes.remove(terminal); } }
+            return;
+        }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref())
                 .filter(|live| run.is_none() || run == Some(live.run.as_str())) {
@@ -497,6 +503,9 @@ impl Broker {
                 if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
             }
             if let Some(binding) = state.terminals.get_mut(terminal) {
+                if binding.live.as_ref().is_some_and(|live| live.origin_agent.is_some()) {
+                    binding.workspace = None;
+                }
                 binding.live = None;
             }
         }

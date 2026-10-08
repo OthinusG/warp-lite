@@ -24,9 +24,12 @@
   records; unresolved Project work blocks enrollment. Remote original endpoints
   forward enrolled runs to the repository Broker and retain native lifecycle
   fencing. Worktree creation never launches a process. Compilation, regression
-  tests and native visual acceptance for this iteration are still pending.
-- Each checkout explicitly joins a repository team; fresh panes/runs capture that
-  admission. Existing private runs/history stay private. Git common-directory
+  tests passed on macOS/Windows/Linux in run 37753218588 (d34eb538). Desktop
+  builds and native visual acceptance remain pending; final lifecycle fixes need
+  current-source regression. Local enrolled exits clear transient team binding;
+  remote observed exits remove endpoint forwarding. Relaunch requires selection.
+- Native Agents stay in Project on ordinary launch; panel enrollment explicitly
+  assigns the live run to a repository team. Private history stays private. Git common-directory
   native identity separates independent clones; remote authority remains within
   one service/account/host, separate from local authority. File/Review roots stay
   physical and task acceptance does not automatically merge commits.

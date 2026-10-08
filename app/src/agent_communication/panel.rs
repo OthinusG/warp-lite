@@ -1586,7 +1586,7 @@ impl View for CollaborationPanel {
             for section in fixture.sections.iter().filter(|section| {
                 matches!(
                     section.title.as_str(),
-                    "SSH project" | "Worktree collaboration" | "Agents" | "No participating agents"
+                    "SSH project" | "Agents" | "No participating agents"
                 )
             }) {
                 body.add_child(render_section(section));
@@ -1732,6 +1732,7 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
+            if !self.preview && section.title == "Worktree collaboration" { continue; }
             if self.worktree_mode && !self.preview && !self.query.history && !self.show_messages &&
                 (matches!(section.title.as_str(), "Worktree collaboration" | "Agents" | "No participating agents")
                     || section.title.starts_with("File reservations") || section.title.starts_with("Activity")) {

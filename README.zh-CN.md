@@ -94,12 +94,15 @@ Agent 及版本；当前支持范围见[兼容性指南](docs/AGENTS.zh-CN.md)�
 可以互发消息、接收委派任务、提交验证材料并参与审阅；不同项目相互隔离。排队任务会等到接收方
 Agent 就绪，Warpai 不会代替你处理权限请求。
 
-并行开发时，在每个要参与的 Git checkout 的协作面板中选择 **Join worktree team**，
-然后在新终端窗格中启动 Agent。同一仓库中明确加入的 worktree 共享消息、任务和审阅，
-工作文件和验证材料仍归属各自目录。本地与同一 SSH 主机、账号内均支持此流程，远程需要
-兼容的 Companion；未加入的 worktree 和独立 clone 保持隔离。**Leave worktree team**
-撤销该目录的共享协作权限，但不会停止已有进程。主 Agent 通过 Git 顺序集成已接受的提交，
-并验证合并结果；接受任务不会自动合并分支。
+协作面板提供 **Project** 和 **Worktree** 两种模式。Project 保留项目通信与历史；
+Worktree 模式先从活动 Agent 中选择 Coordinator，再创建隔离的 worktree，并明确分配
+已经在对应目录运行的 Agent。创建 worktree 不会启动 Agent。Coordinator 负责分工、
+传递上下文、安排交叉审阅、选择集成结果，并通过 Git 验证合并结果、完成最终提交；
+接受任务不会自动合并分支。
+
+本地与同一 SSH 主机、账号内均支持此流程，远程需要兼容的 Companion。独立 clone
+以及本地、远程环境保持隔离。模式切换只改变面板视图，Agent 加入团队必须明确选择。
+这些改动正在 `feat/worktree-collaboration` 分支开发，尚未包含在已发布的桌面安装包中。
 
 Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
 Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。

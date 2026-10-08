@@ -1,7 +1,7 @@
 # Cross-worktree collaboration
 
-Date: 2026-10-08. Status: communication foundation implemented; explicit modes
-and Coordinator orchestration specified, pending implementation.
+Date: 2026-10-08. Status: explicit modes and Coordinator orchestration implemented;
+three-platform remote protocol verified, desktop and native visual acceptance pending.
 
 ## Product and acceptance
 
@@ -40,10 +40,13 @@ combined checks, and creates the final integration commit. Task acceptance alone
 never merges branches. Publishing, pushing and creating PRs require separate
 authorization; branch commits used to hand off worker results are allowed.
 
-The existing explicit checkout admission is the communication foundation, not
-the final Worktree-mode workflow. Fresh runs capture admission; existing runs
-retain their original scope. Leaving fences shared access, including queued wake
-delivery, without claiming that native processes stopped.
+Explicit checkout admission is an internal communication foundation. Ordinary
+Agent launches stay in Project mode until selected through the trusted panel.
+Enrollment changes communication authority while preserving the native process,
+physical checkout and private history. Exiting an enrolled run leaves its durable
+role offline; a replacement run requires explicit selection. Stale run events
+cannot revoke a newer run or restore an old Coordinator. Leaving fences shared
+access, including queued wake delivery, without claiming native processes stopped.
 
 Git's actual common directory identifies a repository. Matching remote URLs,
 repository names or branches never join separate clones. Only checkouts with the

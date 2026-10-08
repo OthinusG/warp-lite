@@ -116,15 +116,19 @@ submit evidence and participate in review. Separate projects remain isolated.
 Queued work waits for the receiving Agent to be ready, and Warpai does not answer
 permission requests on an Agent's behalf.
 
-For parallel development, use **Join worktree team** in the collaboration panel
-for each Git checkout you want to include, then start Agents in fresh panes.
-Joined worktrees of the same repository share messages, tasks and review while
-keeping separate working files and producing-checkout evidence. This works
-locally and within one SSH host/account with a compatible Companion. Unjoined
-worktrees and independent clones stay isolated. **Leave worktree team** revokes
-that checkout's shared participation; existing processes may still be running.
-The lead integrates accepted commits through Git and verifies the combined result;
-accepting a task does not automatically merge branches.
+The collaboration panel offers **Project** and **Worktree** modes. Project keeps
+project messaging and history. In Worktree mode, select a Coordinator from active
+Agents, create isolated worktrees, then explicitly assign Agents already running
+in those checkouts. Creating a worktree does not start an Agent. The Coordinator
+assigns work and context, requests peer review, chooses accepted results for
+integration, verifies the combined result and makes the final commit through Git.
+Accepting a task does not automatically merge branches.
+
+This workflow works locally and within one SSH host/account with a compatible
+Companion. Separate clones and local/remote environments remain isolated. Mode
+switches change the panel view; enrolling an Agent requires explicit selection.
+These changes are under development on `feat/worktree-collaboration` and are not
+included in the published desktop installers.
 
 Settings reports useful setup errors when an Agent cannot join. A single cleanup
 action clears Warpai communication settings from supported installed Agents while
