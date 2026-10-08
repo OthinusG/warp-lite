@@ -607,6 +607,19 @@ mod tests {
                 .unwrap()["coordinator_online"],
             false
         );
+        broker.set_programs(Some(HashSet::new()));
+        let disabled = broker
+            .operator_panel(&PanelQuery {
+                project: private_project.into(),
+                worktree: true,
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(disabled["roles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|role| role["run"].is_null()));
     }
 
     #[test]

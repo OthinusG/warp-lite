@@ -285,12 +285,16 @@ impl Broker {
         if let Ok(mut state) = self.shared.state.lock() {
             state.programs = programs;
             let allowed = state.programs.clone();
-            for binding in state.terminals.values_mut() {
+            let State { store, terminals, .. } = &mut *state;
+            for binding in terminals.values_mut() {
                 if binding.live.as_ref().is_some_and(|live| {
                     allowed
                         .as_ref()
                         .is_some_and(|programs| !programs.contains(&live.program))
                 }) {
+                    if let Some(live) = &binding.live {
+                        if let Some(actor) = &live.agent { let _ = store.worktree_offline(&actor.id, &live.run); }
+                    }
                     binding.live = None;
                 }
             }
