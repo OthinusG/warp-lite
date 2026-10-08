@@ -460,6 +460,12 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
     }
     let git = crate::installation::git_executable().map_err(path_error)?;
     let mut command = Command::new(&git);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // Background metadata reads must not allocate a GUI process's console.
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+    }
     // Inherited Git overrides must not select a different repository than the admitted cwd.
     for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"] {
         command.env_remove(name);
@@ -525,6 +531,8 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
         Ok(output)
     })();
     if result.is_err() {
+        #[cfg(debug_assertions)]
+        { diagnostic_exit = child.try_wait().ok().flatten().and_then(|status| status.code()).unwrap_or(diagnostic_exit); }
         #[cfg(debug_assertions)]
         if let Some(directory) = std::env::var_os("WARP_INTEGRATION_TEST_ARTIFACTS_DIR") {
             let _ = std::fs::write(Path::new(&directory).join("checkpoint-private-git-runner.txt"), format!("Native private Git runner: stage={diagnostic_stage}, exit={diagnostic_exit}"));

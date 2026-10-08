@@ -7,6 +7,14 @@
   protocol/history/default/platform checks while retaining native Windows and
   owned SSH/SFTP acceptance. Cache pinned-toolchain/lockfile Cargo outputs before
   builds and save before UI capture; finish with a complete verification run.
+- Owner requests checking cloud runs once every 30 minutes, without frequent
+  polling or progress messages. Focused run 37798319072 (49632d2a) fails after
+  about 35 minutes; its native diagnostic artifact is not yet inspected because
+  the local command tool cannot spawn processes (OS resource exhaustion).
+  Command execution later recovered; downloaded diagnostics identify private Git
+  stdout collection timing out (stage 1, unavailable), causing Join to remain
+  unsubmitted. Use CREATE_NO_WINDOW for Windows background Git; verify through
+  the existing failing native capture. The first 4.2 GB Rust cache was saved.
 
 - Owner authorizes completing cross-worktree Agent collaboration locally and
   over SSH. Reuse existing worktree creation, messages, tasks, review and evidence;
