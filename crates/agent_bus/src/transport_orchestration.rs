@@ -256,6 +256,24 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn project_queries_omit_the_new_mode_field_for_older_companions() {
+        let private = serde_json::to_value(PanelQuery::default()).unwrap();
+        assert!(private.get("worktree").is_none());
+        let team = serde_json::to_value(PanelQuery {
+            worktree: true,
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(team["worktree"], true);
+        assert!(
+            !serde_json::from_value::<PanelQuery>(private)
+                .unwrap()
+                .worktree
+        );
+        assert!(serde_json::from_value::<PanelQuery>(team).unwrap().worktree);
+    }
+
+    #[test]
     fn explicit_reselection_fences_old_coordinator_and_receipt_replay_cannot_restore_it() {
         let fixture = Fixture::new();
         let owner =

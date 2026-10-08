@@ -141,6 +141,7 @@ pub struct RunningBroker {
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PanelQuery {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub worktree: bool,
     pub project: String,
     pub scope: Option<String>,
