@@ -4947,10 +4947,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             exits.push(status.and_then(|status| status.code()).unwrap_or(-1));
                         }
                         // Only fixture booleans, source-owned categories and exit codes leave the runner.
-                        let diagnostic = format!("Native Worktree: connected={}, form={}, joined={}, team={}, main={}, scope_changed={}, query_error={}, git_rev_parse={}, git_registry={}",
+                        let diagnostic = format!("Native Worktree: connected={}, form={}, joined={}, team={}, main={}, submitting={}, query_error={}, git_rev_parse={}, git_registry={}",
                             panel.connected, panel.form.is_some(), snapshot.is_some_and(|snapshot| snapshot.worktree_joined),
                             snapshot.is_some_and(|snapshot| snapshot.project.starts_with("space:")), snapshot.is_some_and(|snapshot| snapshot.worktree_branch.as_deref() == Some("main")),
-                            panel.form.as_ref().is_some_and(|form| snapshot.is_none_or(|snapshot| snapshot.project != form.project)), query_error, exits[0], exits[1]);
+                            panel.form.as_ref().is_some_and(|form| form.submitting), query_error, exits[0], exits[1]);
                         let _ = std::fs::write(directory.join("checkpoint-worktree.txt"), diagnostic);
                     });
                 }
