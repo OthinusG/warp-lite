@@ -132,6 +132,7 @@ impl Broker {
             ),
             scope_denied("Selected physical checkout was replaced")
         );
+        let handle = crate::companion::open_root(Path::new(&root))?;
         let enroll = |state: &State| -> Result<(crate::WorkspaceBinding, Agent, Value)> {
             let binding = match state.store.worktree_binding(&root)? {
                 Some(binding) => binding,
@@ -186,7 +187,7 @@ impl Broker {
                 .worktree_role_intent(&root, operation, &actor, run, role)?;
             Ok((binding, actor, result))
         };
-        let (binding, actor, result) = if same {
+        let (mut target, binding, actor, result) = if same {
             if source_state.store.worktree_domain(&root)?.as_deref()
                 != Some(original.project.as_str())
             {
@@ -195,7 +196,8 @@ impl Broker {
                     invalid_state("Resolve existing Project work before enrolling this Agent")
                 );
             }
-            enroll(&source_state)?
+            let (binding, actor, result) = enroll(&source_state)?;
+            (source_state, binding, actor, result)
         } else {
             ensure!(
                 !source_state.store.unresolved_project_work(&original)?,
@@ -211,17 +213,12 @@ impl Broker {
                 .lock()
                 .map_err(|_| coordinator_unavailable("Broker unavailable"))?
                 .insert(terminal.clone(), self.clone());
-            drop(target);
-            (binding, actor, result)
+            drop(source_state);
+            (target, binding, actor, result)
         };
-        drop(source_state);
-        let mut target = self.store()?;
         let native = target.terminals.get_mut(&terminal).unwrap();
         native.workspace = Some(binding);
-        native.physical_root = Some((
-            Path::new(&root).to_owned(),
-            crate::companion::open_root(Path::new(&root))?,
-        ));
+        native.physical_root = Some((Path::new(&root).to_owned(), handle));
         let live = native.live.as_mut().unwrap();
         if live.origin_agent.is_none() {
             live.origin_agent = Some(original);
