@@ -37,6 +37,7 @@ impl Broker {
             ControllerOperation::WorktreeWorker { root, agent, run, .. } => (root, agent, run, "worker"),
             _ => return Err(invalid_input("Not an enrollment intent")),
         };
+        ensure!(operation.request_id().is_some_and(|request| Uuid::parse_str(request).is_ok()), invalid_input("request_id must be a UUID"));
         let root = crate::project_root(Path::new(root))?;
         let same = Arc::ptr_eq(&self.shared, &source.shared);
         let mut source_state = source.store()?;
@@ -82,7 +83,7 @@ impl Broker {
             Ok((binding, actor, result))
         };
         let (binding, actor, result) = if same {
-            if !original.project.starts_with("space:") {
+            if source_state.store.worktree_domain(&root)?.as_deref() != Some(original.project.as_str()) {
                 ensure!(!source_state.store.unresolved_project_work(&original)?,
                     invalid_state("Resolve existing Project work before enrolling this Agent"));
             }

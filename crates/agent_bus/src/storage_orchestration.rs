@@ -113,7 +113,7 @@ impl Store {
         Ok(())
     }
 
-    fn integrate_task(&self, actor: &Agent, task_id: &str, commit: Option<&str>) -> Result<Value> {
+    pub(super) fn integrate_task(&self, actor: &Agent, task_id: &str, commit: Option<&str>) -> Result<Value> {
         let task = self.operator_task(&actor.project, task_id)?;
         ensure!(task.state == "accepted", invalid_state("Result must pass its designated review before integration"));
         if let Some(commit) = commit {
@@ -121,10 +121,10 @@ impl Store {
                 invalid_input("A full integration commit ID is required"));
             let root = self.physical_root(actor)?;
             let resolved = crate::companion::files::git_metadata(std::path::Path::new(&root),
-                &["rev-parse", "--verify", "--end-of-options", &format!("{commit}^{{commit}}")])?;
+                &["rev-parse", "--verify", "--end-of-options", &format!("{commit}^{{commit}}")]).map_err(|_| invalid_input("Integration commit unavailable"))?;
             ensure!(resolved.trim().eq_ignore_ascii_case(commit), invalid_input("Integration commit is unavailable"));
             crate::companion::files::git_metadata(std::path::Path::new(&root),
-                &["merge-base", "--is-ancestor", commit, "HEAD"])?;
+                &["merge-base", "--is-ancestor", commit, "HEAD"]).map_err(|_| invalid_input("Integration commit is not in this checkout history"))?;
         }
         diesel::sql_query("INSERT INTO worktree_integrations(task,project,coordinator,commit_id) VALUES (?,?,?,?) ON CONFLICT(task) DO UPDATE SET coordinator=excluded.coordinator,commit_id=excluded.commit_id")
             .bind::<Text, _>(&task.id).bind::<Text, _>(&actor.project).bind::<Text, _>(&actor.id)

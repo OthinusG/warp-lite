@@ -915,9 +915,6 @@ impl CollaborationPanel {
             } else {
                 if self.worktree_mode { vec![Kind::Search, Kind::Send] } else { vec![Kind::Assign, Kind::Pool, Kind::Search, Kind::Send] }
             };
-            if !self.worktree_mode && !self.query.history && !self.show_spaces && self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_available) {
-                kinds.push(if self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_joined) { Kind::LeaveWorktree } else { Kind::JoinWorktree });
-            }
             if self.show_spaces
                 && self
                     .snapshot

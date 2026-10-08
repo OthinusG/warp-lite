@@ -2653,7 +2653,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             TestStep::new("worktree join confirmation uses existing native controls")
                 .with_action(|app, window, _| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| panel.open_control(controls::Kind::JoinWorktree, ctx));
+                    panel.update(app, |panel, ctx| { panel.worktree_mode = true; panel.open_control(controls::Kind::JoinWorktree, ctx); });
                 })
                 .add_named_assertion("join form retains checkout and terminal draft", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
@@ -2686,7 +2686,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("leave worktree team through native form").with_action(|app, window, _| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+                panel.update(app, |panel, ctx| { panel.worktree_mode = false; panel.confirm_control(ctx); });
             }),
         )
         .with_step(TestStep::new("native worktree checkout returns to private collaboration")

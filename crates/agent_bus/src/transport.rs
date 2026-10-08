@@ -416,10 +416,10 @@ impl Broker {
                 scope_denied("Native directory does not match the selected workspace"));
             workspace.domain()
         } else { project.to_owned() };
-        let physical_root = state.terminals.get(terminal).unwrap().workspace.as_ref()
-            .filter(|workspace| state.store.worktree_binding(&workspace.root).ok().flatten().is_some())
-            .map(|workspace| {
-                let root = std::path::PathBuf::from(&workspace.root);
+        let physical = state.terminals.get(terminal).unwrap().workspace.as_ref()
+            .map(|workspace| workspace.root.clone()).unwrap_or_else(|| project.clone());
+        let physical_root = Path::new(&physical).join(".git").exists().then(|| {
+                let root = std::path::PathBuf::from(&physical);
                 let handle = crate::companion::open_root(&root)?;
                 Ok::<_, anyhow::Error>((root, handle))
             }).transpose()?;
