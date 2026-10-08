@@ -676,7 +676,8 @@ impl CollaborationPanel {
         }
         if snapshot.worktree_available && !self.query.history && self.form.is_none() {
             let active_team = snapshot.worktree_joined && snapshot.project.starts_with("space:");
-            let mode = if active_team { "Worktree team · messages and tasks shared" }
+            let mode = if matches!(snapshot.admission.as_str(), "revoked" | "directory_mismatch") { "Participation unavailable · open a fresh pane" }
+                else if active_team { "Worktree team · messages and tasks shared" }
                 else if snapshot.worktree_joined { "Team joined · this existing session keeps its private scope" }
                 else { "Shared-directory collaboration · this checkout only" };
             let mut rows = vec![mode.into(), format!("Checkout: {}", snapshot.worktree_root),

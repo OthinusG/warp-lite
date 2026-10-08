@@ -300,7 +300,7 @@ pub(crate) mod tests {
             .control(
                 &domain,
                 &ControllerOperation::EvidenceVerify {
-                    evidence_id: evidence["id"].as_str().unwrap().into(),
+                    evidence_id: evidence["evidence_id"].as_str().unwrap().into(),
                     verified: true,
                     request_id: id(),
                 },
@@ -318,7 +318,7 @@ pub(crate) mod tests {
                 revision: 1,
                 result: "Owned fixture verified".into(),
                 evidence: "File hash verified".into(),
-                evidence_ids: vec![evidence["id"].as_str().unwrap().into()],
+                evidence_ids: vec![evidence["evidence_id"].as_str().unwrap().into()],
                 attempt_id: None,
                 expected_version: None,
                 request_id: id(),
