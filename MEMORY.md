@@ -34,6 +34,11 @@
 - Native visual review found raw attempt-owner UUIDs in task details. Reuse the
   existing participant label lookup, including offline historical names, instead
   of displaying protocol identity in that user-facing row.
+- Native 2009d9cd passes the corrected narrow scrolling and mode edge assertions,
+  then panics in a retired participant filter fixture that searches the online
+  list for the ended capture-worker. Resolve its ID from historical participant
+  names, keeping online-only product behavior. Non-Git probe Git exit128 is
+  incidental diagnostic context, not that panic cause.
 
 ## Worktree behavior correction — 2026-10-09
 

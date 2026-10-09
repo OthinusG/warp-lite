@@ -3643,12 +3643,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .snapshot
                             .as_ref()
                             .unwrap()
-                            .agents
+                            .participant_names
                             .iter()
-                            .find(|row| row.agent.name == "capture-worker")
+                            .find(|(_, name)| name.as_str() == "capture-worker")
                             .unwrap()
-                            .agent
-                            .id
+                            .0
                             .clone();
                         panel.handle_action(&Action::FilterTaskState, ctx);
                         panel.handle_action(&Action::FilterTaskAssignee(Some(worker)), ctx);
