@@ -1,5 +1,25 @@
 # Project Memory
 
+## Worktree behavior correction — 2026-10-09
+
+- Owner supersedes manual worker binding and exclusive checkout ownership: reuse
+  Warp native worktree creation/tab configurations; one project spans the Git
+  common-directory identity and all registered checkouts/subdirectories. Same
+  checkout Agents communicate directly; cross-checkout messages go through the
+  selected Coordinator. Keep separate clones and SSH authorities isolated.
+- Any online Agent in any project checkout can become Coordinator at any time.
+  Switching demotes the prior Coordinator without ending its process or tasks.
+  Selection belongs to the project/native run and survives pane/tab/project
+  focus changes; only process termination/revocation or app shutdown clears it.
+- Project participant lists exclude offline Agents before pagination. Preserve
+  history and original native checkout/file authority during enrollment.
+- Owner requires prominent Project/Worktree controls, removal of nonessential
+  option buttons and consistent row/section spacing. Reuse native theme/widgets
+  and fixed narrow/light/dark capture fixtures; no second worktree manager.
+- Schema v9 removes checkout uniqueness after a consistent pre-upgrade-v8 backup.
+  Source parsing and diff checks are local; Rust/native verification stays on
+  GitHub. Current implementation verification is pending.
+
 ## Website deployment — 2026-10-09
 
 - https://othinusg.github.io/warpai/ is live on GitHub Pages from the orphan

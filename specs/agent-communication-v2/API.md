@@ -10,10 +10,18 @@ arbitrary process identity or changes a process working directory.
 
 Private controller intents `worktree_coordinator` and `worktree_worker` carry
 `root`, `agent`, `run`, `request_id`. The owning local Broker or SSH Companion
-validates the active run, native repository/root and exclusive checkout ownership.
+validates the active run, native repository/root. Multiple Agents may share the same checkout.
 Explicit enrollment creates a separate team identity while preserving prior
 Project history. An occupied Agent with unresolved Project work cannot enroll.
-Selection does not spawn or restart a process. Stale selection must fail.
+Selection does not spawn or restart a process. Any active Agent in any registered
+checkout can become Coordinator; a new selection demotes the old Coordinator
+without ending its run. Stale selection must fail. Coordinator state belongs to
+the repository and run, independent of the panel's focused terminal. Schema v9
+removes the checkout uniqueness constraint after a consistent v8 backup.
+Active participants automatically join an enabled repository team. Messages and
+Agent discovery are scoped to the same checkout or the selected Coordinator;
+other workers in different checkouts are excluded. Project panel pagination
+filters offline participants before applying its page limit.
 
 `worktree_create` carries `root`, a bounded branch `name`, local `base` ref and
 `request_id`. It creates a registered checkout through trusted private Git only;

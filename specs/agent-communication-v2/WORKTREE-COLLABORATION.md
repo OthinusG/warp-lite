@@ -5,6 +5,47 @@ local/SSH backend, desktop regression and native visual acceptance verified.
 Accepted source is integrated into main and published in App 1.3.1 / Companion 3.1.0.
 Formal tagged-package receipts are tracked in [the release contract](../RELEASE.md).
 
+## 2026-10-09 correction — native worktrees and project lifetime
+
+This revision supersedes the explicit worker binding and one-Agent-per-checkout
+rules below. Reuse Warp's existing worktree modal, tab configurations and new-tab
+flow; collaboration does not own a second worktree creation form. Git common-directory identity defines the parent project, including checkout subdirectories.
+Any active Agent in any checkout can become Coordinator. Switching the selection
+at any time demotes the previous Coordinator to an ordinary participant without
+ending its run or losing its tasks. Selecting one active Coordinator enables participation for active Agents in all
+registered checkouts of that repository, without restarting their processes.
+Agents in the same checkout may communicate; across checkouts only messages to
+or from the selected Coordinator are allowed. Separate clones and SSH authorities
+remain isolated. Preserve private Project history and reject enrollment when
+unfinished private work cannot safely change scope.
+
+Coordinator selection belongs to the project and exact native run, independent
+of focused pane, tab, directory or panel visibility. Clear active selection only
+on run termination/revocation or application shutdown; never elect a replacement.
+Project participant lists contain online Agents, with pagination applied after
+filtering. Offline history remains available through tasks/history.
+
+Visual source: existing native panel components, Appearance theme and the fixed
+Worktree layout fixtures. Use prominent equal-width Project/Worktree controls,
+short action labels, a compact Coordinator row and checkout Agent summaries.
+Remove nonessential option buttons; use one consistent row/section spacing.
+Keep full paths and task details behind expansion. Static narrow/light/dark
+fixture screenshots precede runtime capture acceptance.
+
+Acceptance tasks:
+- [ ] Native worktree action creates/opens a new tab without starting an Agent.
+- [ ] Automatic repository participation includes multiple Agents per checkout.
+- [ ] Same-checkout and Coordinator messages pass; cross-worker messages fail.
+- [ ] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
+- [ ] Online filtering precedes pagination and preserves offline task/history data.
+- [ ] Schema upgrade preserves roles and produces a pre-upgrade backup.
+- [ ] Focused protocol tests, desktop checks and native narrow/light/dark captures.
+
+Risks: preserve immutable checkout authority and private work during admission;
+repository identity must never be inferred from a URL/name. Remote native
+worktree creation must retain the SSH terminal's existing command/tab path rather
+than invoking local filesystem creation.
+
 ## Product and acceptance
 
 The collaboration panel has a top-level `Project` / `Worktree` switch. `Project`
@@ -21,13 +62,12 @@ through the existing Agent workflow. Selecting a Coordinator does not launch or
 restart a process. Persist the explicit selection; never infer it from tab focus,
 display name, launch order or an Agent's self-declaration.
 
-Worktrees are worker isolation boundaries. Creating a worktree never launches an
-Agent. In the panel, the user explicitly binds an eligible active Agent to a
-worktree in the same repository and execution environment. A binding must match
-the Agent's actual checkout; it cannot relocate a running process or silently
-change its captured file authority. If no eligible Agent exists, leave the
-worktree unassigned and guide the user to start an Agent there using the existing
-workflow. The panel shows the Coordinator and each worker's task, checkout,
+Worktrees are communication isolation boundaries. Creating a worktree through
+Warp's existing modal opens a new terminal tab and never launches an Agent.
+Active Agents automatically participate using their actual checkout; participation
+cannot relocate a process or change its captured file authority. Multiple Agents
+may share one checkout. The Coordinator can be selected from any checkout and
+changed while both the previous and new Coordinator processes keep running. The panel shows the Coordinator and each worker's task, checkout,
 branch and state; unassigned worktrees remain visible.
 
 The Coordinator assigns tasks, passes context, collects results, asks one worker
@@ -64,14 +104,14 @@ Git writes over the file protocol or cross-host federation.
 
 - Persist the team, stable participant identity, explicit `coordinator` / `worker`
   role, native checkout identity and task ownership in the existing authority.
-  Bind each active run to this record using its revocable run identity.
+  Bind each active run to this record using its revocable run identity. Switching
+  Coordinator demotes the previous selection to worker within one transaction.
 - An operational team has exactly one explicitly selected active Coordinator.
-  Without one, disable coordination actions. A worker has exactly one owned
-  worktree; two active workers cannot own the same worktree. The Coordinator's integration
-  checkout cannot also be assigned to an active worker.
-- Panel-selected worker binding records participant/checkout ownership separately
-  from worktree creation and Agent launch. Validate actual checkout and active run
-  before binding; failure leaves the worktree unassigned and preserves user files.
+  Without one, disable coordination actions. Each Agent retains its native
+  checkout; several Agents may occupy it, including the Coordinator and workers.
+- Automatic participation records native checkout/run identity separately from
+  worktree creation and Agent launch. Validate both before admission; failure
+  preserves the native process, private work and user files.
   Coordinator-authorized task/review assignments reference these explicit bindings.
 - Worker restart preserves its role, task and checkout records, revokes the
   previous run and requires explicit panel reselection before team enrollment. Coordinator exit disables its coordination authority and does not elect

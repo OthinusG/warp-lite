@@ -319,7 +319,11 @@ impl Broker {
             .filter_map(|(id, binding)| {
                 let live = binding.live.as_ref()?;
                 let agent = live.agent.as_ref()?;
-                (id != terminal && live.project == source.project && state.store.authorize(agent).is_ok()).then(|| Peer {
+                (id != terminal && !binding.revoked && !live.expired
+                    && live.started.elapsed() < MUTATION_EPOCH && live.project == source.project
+                    && state.store.authorize(agent).is_ok()
+                    && source.agent.as_ref().is_some_and(|actor|
+                        state.store.can_communicate(actor, agent).unwrap_or(false))).then(|| Peer {
                     terminal: id.clone(),
                     run: live.run.clone(),
                     name: agent.name.clone(),
@@ -952,6 +956,18 @@ impl Broker {
             self.shared.changed.notify_all();
             let mut result = registration_result(&agent, &run);
             result["capacity"] = state.store.capacity(&project)?;
+            let root = state.store.physical_root(&agent)?;
+            if state.terminals[&request.terminal].workspace.is_some()
+                && !state.store.worktree_roles(&project)?.is_empty() {
+                state.store.set_worktree_role(&agent, &run, "worker")?;
+            }
+            drop(state);
+            if Path::new(&root).join(".git").exists() {
+                self.enroll_worktree_agents(self, &root)?;
+                let state = self.store()?;
+                let live = state.terminals[&request.terminal].live.as_ref().unwrap();
+                result["agent"] = json!(live.agent);
+            }
             return Ok(result);
         }
         let actor = live
@@ -1119,7 +1135,9 @@ impl Broker {
                 state
                     .terminals
                     .values()
+                    .filter(|binding| !binding.revoked)
                     .filter_map(|t| t.live.as_ref())
+                    .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
                     .any(|live| {
                         live.agent
                             .as_ref()
@@ -1216,7 +1234,11 @@ impl Broker {
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
         if matches!(operation, ControllerOperation::WorktreeCoordinator { .. } | ControllerOperation::WorktreeWorker { .. }) {
-            return self.enroll_worktree(self, operation);
+            let result = self.enroll_worktree(self, operation)?;
+            if let ControllerOperation::WorktreeCoordinator { root, .. } = operation {
+                self.enroll_worktree_agents(self, root)?;
+            }
+            return Ok(result);
         }
         ensure!(!matches!(operation,
             ControllerOperation::InvitationCreate { .. } | ControllerOperation::DeviceList
@@ -1281,6 +1303,9 @@ impl Broker {
     /// Bounded read projection and resumable events, off the UI thread. A timeout also
     /// refreshes volatile readiness, which deliberately does not enter durable history.
     pub fn operator_panel(&self, query: &PanelQuery) -> Result<Value> {
+        if query.worktree && Path::new(&query.project).join(".git").exists() {
+            self.enroll_worktree_agents(self, &query.project)?;
+        }
         if query.worktree && !Path::new(&query.project).join(".git").exists() {
             return Ok(json!({"project":query.project,"admission":"private","worktree_available":false,
                 "worktree_joined":false,"worktree_root":query.project,"worktree_branch":null,
@@ -1317,8 +1342,6 @@ impl Broker {
                 Some(domain) => domain,
                 None => format!("worktree:{}", crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository),
             }
-        } else if joined.is_some() || binding.and_then(|binding| binding.live.as_ref()).is_some_and(|live| live.origin_agent.is_some()) {
-            query.project.clone()
         } else { project };
         let same_scope = query.scope.as_deref() == Some(project.as_str());
         let after = same_scope.then_some(query.event_after).flatten();
@@ -1332,6 +1355,10 @@ impl Broker {
         ensure!(!self.shared.stopped.load(Ordering::SeqCst), coordinator_unavailable("Broker unavailable"));
         let agents = state.store.agents(&project)?;
         let remaining: Vec<_> = agents.into_iter()
+            .filter(|agent| orchestration::active_agent(&state, &agent.id,
+                state.terminals.get(&agent.terminal).and_then(|binding| binding.live.as_ref())
+                    .map(|live| live.run.as_str()).unwrap_or("")))
+            .filter(|agent| query.worktree || state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
             .collect();
         let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());

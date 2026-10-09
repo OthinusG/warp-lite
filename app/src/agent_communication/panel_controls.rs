@@ -36,18 +36,16 @@ pub(crate) enum Kind {
     MapWorkspace,
     LeaveSpace,
     SelectCoordinator,
-    BindWorker,
-    CreateWorktree,
     JoinWorktree,
     LeaveWorktree,
 }
 impl Kind {
     pub(super) fn label(self) -> &'static str {
         match self {
-            Self::Send => "Send message",
-            Self::Assign => "Assign task",
+            Self::Send => "Message",
+            Self::Assign => "Assign",
             Self::Pool => "Create pool task",
-            Self::Search => "Search messages",
+            Self::Search => "Search",
             Self::Cancel => "Request cancellation",
             Self::Accept => "Accept result",
             Self::Revise => "Request revision",
@@ -65,16 +63,13 @@ impl Kind {
             Self::MapWorkspace => "Map checkout",
             Self::LeaveSpace => "Leave participation",
             Self::SelectCoordinator => "Select Coordinator",
-            Self::BindWorker => "Assign Agent to worktree",
-            Self::CreateWorktree => "Create worktree",
             Self::JoinWorktree => "Join worktree team",
             Self::LeaveWorktree => "Leave worktree team",
         }
     }
     fn labels(self) -> &'static [&'static str] {
         match self {
-            Self::SelectCoordinator | Self::BindWorker => &[],
-            Self::CreateWorktree => &["Worktree name", "Base branch or commit"],
+            Self::SelectCoordinator => &[],
             Self::Send => &["Recipient agent name", "Message", "Subject (optional)"],
             Self::Assign | Self::Pool => &[
                 "Recipient or eligible names (comma-separated for pool)",
@@ -385,8 +380,6 @@ fn command(
         | Kind::MapWorkspace
         | Kind::LeaveSpace
         | Kind::SelectCoordinator
-        | Kind::BindWorker
-        | Kind::CreateWorktree
         | Kind::JoinWorktree
         | Kind::LeaveWorktree => {
             unreachable!()
@@ -401,54 +394,53 @@ impl CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let Some(snapshot) = &self.snapshot else { return body.finish(); };
         if !snapshot.worktree_available {
-            body.add_child(note(appearance, "Worktree mode requires a Git checkout. Open a repository or switch to Project mode."));
+            body.add_child(note(appearance, "Open a Git repository to use Worktree mode."));
             return body.finish();
         }
+        let coordinator = snapshot.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some());
         body.add_child(heading(appearance, "Coordinator"));
-        let coordinator = snapshot.roles.iter().find(|role| role.role == "coordinator");
-        body.add_child(detail(appearance, match coordinator {
-            Some(role) => format!("{} · {}", snapshot.participant_label(&role.agent), if snapshot.coordinator_online { "active" } else { "unavailable" }),
-            None => "No Coordinator selected".into(),
-        }));
-        let mut buttons = Vec::new();
-        for (index, kind) in [Kind::SelectCoordinator, Kind::CreateWorktree, Kind::BindWorker].into_iter().enumerate() {
-            let enabled = self.connected && if kind == Kind::SelectCoordinator {
-                snapshot.candidates.iter().any(|candidate| candidate.root == coordinator.map(|role| role.root.as_str()).unwrap_or(&snapshot.worktree_root))
-            } else { snapshot.coordinator_online };
-            let button = builder.button(ButtonVariant::Text, self.team_buttons[index].clone()).with_text_label(kind.label().into());
-            let button = if enabled { button } else { button.disabled() };
-            buttons.push(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::OpenControl(kind))).finish());
+        body.add_child(detail(appearance, coordinator.map(|role| snapshot.participant_label(&role.agent))
+            .unwrap_or_else(|| "Not selected".into())));
+        let button = builder.button(ButtonVariant::Accent, self.team_buttons[0].clone())
+            .with_text_label(if coordinator.is_some() { "Change Coordinator" } else { "Select Coordinator" }.into());
+        let button = if self.connected && !snapshot.candidates.is_empty() { button } else { button.disabled() };
+        body.add_child(button.build().on_click(|ctx, _, _|
+            ctx.dispatch_typed_action(Action::OpenControl(Kind::SelectCoordinator))).finish());
+        if self.remote.is_none() {
+            body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[1].clone())
+                .with_text_label("New worktree".into()).build().on_click(|ctx, _, _|
+                    ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::OpenNewWorktreeModal)).finish());
         }
-        if let Some(buttons) = button_row(buttons) { body.add_child(buttons); }
-        if !snapshot.coordinator_online {
-            body.add_child(note(appearance, if snapshot.candidates.is_empty() {
-                "Start an Agent in this project, then select it as Coordinator. Worktrees do not start Agents."
-            } else { "Select an active Agent in this project as Coordinator to coordinate work." }));
+        if snapshot.candidates.is_empty() {
+            body.add_child(note(appearance, "Start an Agent in this project."));
         }
         body.add_child(heading(appearance, "Worktrees"));
         for checkout in &snapshot.worktrees {
-            if coordinator.is_some_and(|role| role.root == checkout.root) { continue; }
-            let worker = snapshot.roles.iter().find(|role| role.role == "worker" && role.root == checkout.root);
-            let active = worker.is_some_and(|role| snapshot.agents.iter().any(|row| row.agent.id == role.agent && row.online && role.run.as_ref() == row.run.as_ref()));
-            let name = worker.map(|role| format!("{} · {}", snapshot.participant_label(&role.agent), if active { "active" } else { "unavailable" })).unwrap_or_else(|| "Unassigned".into());
             let branch = checkout.branch.as_deref().unwrap_or("detached HEAD");
             let mut summary: String = branch.chars().take(48).collect();
             if branch.chars().count() > 48 { summary.push('…'); }
-            body.add_child(detail(appearance, format!("{name} · {summary}")));
             let root = checkout.root.clone();
             let expanded = self.expanded_worker.as_ref() == Some(&root);
             if let Some(state) = self.checkout_buttons.get(&root) {
-                body.add_child(builder.button(ButtonVariant::Text, state.clone()).with_text_label(if expanded { "Hide details" } else { "Details" }.into())
-                    .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::ExpandWorker(root.clone()))).finish());
+                body.add_child(builder.button(ButtonVariant::Secondary, state.clone())
+                    .with_text_label(format!("{} {summary}", if expanded { "▾" } else { "▸" }))
+                    .build().on_click(move |ctx, _, _|
+                        ctx.dispatch_typed_action(Action::ExpandWorker(root.clone()))).finish());
             }
-            if expanded {
-                body.add_child(detail(appearance, format!("Branch: {branch}\nCheckout: {}", checkout.root)));
-                if let Some(role) = worker {
-                    body.add_child(note(appearance, if active { "Agent active" } else { "Agent unavailable · select its active run again" }));
-                    for task in snapshot.tasks.iter().filter(|task| task.assignee == role.agent) {
+            let agents: Vec<_> = snapshot.candidates.iter().filter(|candidate| candidate.root == checkout.root).collect();
+            if agents.is_empty() { body.add_child(note(appearance, "No online Agents")); }
+            for candidate in agents {
+                let selected = coordinator.is_some_and(|role| role.agent == candidate.agent.id);
+                body.add_child(detail(appearance, format!("{}{}", candidate.agent.name,
+                    if selected { " · Coordinator" } else { "" })));
+                if expanded {
+                    for task in snapshot.tasks.iter().filter(|task| task.assignee == candidate.agent.id) {
                         body.add_child(note(appearance, format!("{} · {}", task.state, task.description)));
                     }
-                } else { body.add_child(note(appearance, "Start an Agent in this checkout, then assign it from the panel.")); }
+                }
+            }
+            if expanded {
+                body.add_child(detail(appearance, format!("{branch}\n{}", checkout.root)));
             }
         }
         body.finish()
@@ -460,9 +452,6 @@ impl CollaborationPanel {
         }
         let snapshot = self.snapshot.as_ref();
         if snapshot.is_none() {
-            return;
-        }
-        if matches!(kind, Kind::BindWorker | Kind::CreateWorktree) && snapshot.is_none_or(|snapshot| !snapshot.coordinator_online) {
             return;
         }
         if self.remote.is_some()
@@ -491,9 +480,7 @@ impl CollaborationPanel {
                 | Kind::MapWorkspace
                 | Kind::LeaveSpace
                 | Kind::SelectCoordinator
-        | Kind::BindWorker
-        | Kind::CreateWorktree
-        | Kind::JoinWorktree
+                | Kind::JoinWorktree
                 | Kind::LeaveWorktree
         ) && snapshot
             .and_then(|snapshot| snapshot.task.as_ref())
@@ -574,8 +561,7 @@ impl CollaborationPanel {
         self.form = Some(Form {
             kind,
             candidates: snapshot.map(|snapshot| snapshot.candidates.iter().filter(|candidate| match kind {
-                Kind::SelectCoordinator => candidate.root == snapshot.roles.iter().find(|role| role.role == "coordinator").map(|role| role.root.as_str()).unwrap_or(&snapshot.worktree_root),
-                Kind::BindWorker => !snapshot.roles.iter().any(|role| role.root == candidate.root && role.role == "coordinator"),
+                Kind::SelectCoordinator => true,
                 _ => false,
             }).cloned().collect()).unwrap_or_default(),
             selected_candidate: None,
@@ -645,16 +631,12 @@ impl CollaborationPanel {
             ctx.notify();
             return;
         }
-        let mut operation = if matches!(form.kind, Kind::SelectCoordinator | Kind::BindWorker) {
+        let mut operation = if matches!(form.kind, Kind::SelectCoordinator) {
             let Some(candidate) = form.candidates.iter().find(|candidate| form.selected_candidate.as_ref() == Some(&candidate.agent.id)) else {
                 form.error = "Select an active Agent.".into(); ctx.notify(); return;
             };
             let root = candidate.root.clone(); let agent = candidate.agent.id.clone(); let run = candidate.run.clone(); let request_id = form.request_id.clone();
-            Command::Controller(if form.kind == Kind::SelectCoordinator {
-                ControllerOperation::WorktreeCoordinator { root, agent, run, request_id }
-            } else { ControllerOperation::WorktreeWorker { root, agent, run, request_id } })
-        } else if form.kind == Kind::CreateWorktree {
-            Command::Controller(ControllerOperation::WorktreeCreate { root:form.worktree_root.clone(), name:fields[0].trim().into(), base:fields[1].trim().into(), request_id:form.request_id.clone() })
+            Command::Controller(ControllerOperation::WorktreeCoordinator { root, agent, run, request_id })
         } else if matches!(form.kind, Kind::JoinWorktree | Kind::LeaveWorktree) {
             let root = form.worktree_root.clone();
             let request_id = form.request_id.clone();
@@ -846,24 +828,21 @@ impl CollaborationPanel {
                     "Revoke this checkout's shared communication and queued delivery. Existing processes may still be writing. Start a private Agent in a fresh pane after leaving; task acceptance does not merge branches."
                 }));
             }
-            if matches!(form.kind, Kind::SelectCoordinator | Kind::BindWorker) {
+            if matches!(form.kind, Kind::SelectCoordinator) {
                 if form.candidates.is_empty() {
                     body.add_child(note(appearance, "No eligible active Agents. Start an Agent in the intended checkout using Agent management, then reopen this selector."));
                 }
                 for candidate in &form.candidates {
-                    body.add_child(detail(appearance, format!("{} · {}", candidate.agent.name, candidate.branch.as_deref().unwrap_or("detached"))));
                     let selected = form.selected_candidate.as_ref() == Some(&candidate.agent.id);
                     let id = candidate.agent.id.clone();
-                    let button = builder.button(if selected { ButtonVariant::Secondary } else { ButtonVariant::Text }, form.candidate_buttons[&id].clone())
-                        .with_text_label(if selected { "Selected" } else { "Select" }.into());
+                    let button = builder.button(if selected { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.candidate_buttons[&id].clone())
+                        .with_custom_label(builder.span(format!("{} · {}", candidate.agent.name,
+                            candidate.branch.as_deref().unwrap_or("detached"))).with_soft_wrap().build().finish());
                     let button = if form.submitting || form.submitted_fields.is_some() { button.disabled() } else { button };
                     body.add_child(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::SelectParticipant(id.clone()))).finish());
                     if selected { body.add_child(note(appearance, candidate.root.clone())); }
                 }
-                body.add_child(note(appearance, "Selection preserves the process and checkout. Resolve unfinished Project work before joining."));
-            }
-            if form.kind == Kind::CreateWorktree {
-                body.add_child(note(appearance, "Creates an isolated checkout beside this repository. Agents start separately; assign an active Agent here after starting it in that checkout."));
+
             }
             for (label, field) in form.kind.labels().iter().zip(&form.fields) {
                 let value = if form.submitting {
@@ -884,14 +863,14 @@ impl CollaborationPanel {
             }
             let mut buttons = Vec::new();
             for (index, label, action) in [
-                (0, "Confirm operation", Action::ConfirmControl),
-                (1, "Close form", Action::CancelControl),
+                (0, "Confirm", Action::ConfirmControl),
+                (1, "Cancel", Action::CancelControl),
             ] {
                 let button = builder
-                    .button(ButtonVariant::Text, form.buttons[index].clone())
+                    .button(if index == 0 { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.buttons[index].clone())
                     .with_text_label(label.into());
                 let button = if form.submitting || (index == 0 && (!self.connected ||
-                    (matches!(form.kind, Kind::SelectCoordinator | Kind::BindWorker) && form.selected_candidate.is_none()))) {
+                    (matches!(form.kind, Kind::SelectCoordinator) && form.selected_candidate.is_none()))) {
                     button.disabled()
                 } else {
                     button
@@ -911,7 +890,7 @@ impl CollaborationPanel {
                 return body.finish();
             }
             let mut kinds = if self.query.history {
-                vec![Kind::ArchiveAged, Kind::Purge]
+                vec![]
             } else if self.show_spaces {
                 vec![
                     Kind::CreateSpace,
@@ -920,7 +899,7 @@ impl CollaborationPanel {
                     Kind::ReleaseReservation,
                 ]
             } else {
-                if self.worktree_mode { vec![Kind::Search, Kind::Send] } else { vec![Kind::Assign, Kind::Pool, Kind::Search, Kind::Send] }
+                if self.worktree_mode { vec![Kind::Send] } else { vec![Kind::Assign, Kind::Send] }
             };
             if self.show_spaces
                 && self
@@ -956,11 +935,11 @@ impl CollaborationPanel {
             if self.worktree_mode {
                 kinds.retain(|kind| !matches!(kind, Kind::Cancel | Kind::ForceCancel | Kind::Reassign | Kind::ReassignOverride | Kind::Retry | Kind::RetryOverride));
             }
-            body.add_child(heading(appearance, "Actions"));
+
             let mut buttons = Vec::new();
             for (index, kind) in kinds.into_iter().enumerate() {
                 let button = builder
-                    .button(ButtonVariant::Text, self.control_buttons[index].clone())
+                    .button(ButtonVariant::Secondary, self.control_buttons[index].clone())
                     .with_text_label(kind.label().into());
                 let button = if self.connected {
                     button
@@ -979,9 +958,7 @@ impl CollaborationPanel {
             if let Some(buttons) = button_row(buttons) {
                 body.add_child(buttons);
             }
-            body.add_child(note(appearance, if self.worktree_mode {
-                "The Coordinator controls task allocation, cancellation and integration. Agent approvals stay in the terminal."
-            } else { "Task cancellation leaves the terminal running. Agent approvals stay in the terminal." }));
+
         }
         body.finish()
     }

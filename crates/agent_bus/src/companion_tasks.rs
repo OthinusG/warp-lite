@@ -47,7 +47,15 @@ impl Projects {
         run: &str,
         program: &str,
     ) -> Result<RunBinding, ManagedErrorCode> {
-        let broker = self.broker(&fence.project_id, root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?)?;
+        let (broker, domain) = self.selected_broker(fence, root)?;
+        if domain.starts_with("space:") && broker.worktree_binding(&crate::project_root(root)
+            .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?.is_none() {
+            let checkout = crate::project_root(root).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
+            broker.control(&checkout, &ControllerOperation::WorktreeJoin {
+                root: checkout.clone(), request_id: Uuid::new_v4().to_string(),
+            }).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        }
         let executable = std::env::current_exe().map_err(path_error)?;
         let executable = executable
             .to_str()
@@ -529,9 +537,11 @@ impl Projects {
         if let Ok(checkout) = crate::worktrees::Worktree::discover(root) {
             if self.directory.join(&checkout.repository).join("tasks.sqlite").exists() {
                 let broker = self.broker(&checkout.repository, checkout.common.to_str().ok_or(ManagedErrorCode::ManagedInvalidInput)?)?;
-                if let Some(binding) = broker.worktree_binding(&checkout.root)
-                    .map_err(|_| ManagedErrorCode::ManagedStaleAttachment)? {
-                    return Ok((broker, binding.domain()));
+                if broker.worktree_enabled(&checkout.root).map_err(|_| ManagedErrorCode::ManagedStaleAttachment)? {
+                    if let Some(domain) = broker.worktree_domain(&checkout.root)
+                        .map_err(|_| ManagedErrorCode::ManagedStaleAttachment)? {
+                        return Ok((broker, domain));
+                    }
                 }
             }
         }
@@ -676,6 +686,14 @@ impl Projects {
                     break;
                 }
             }
+            if result.is_ok() && matches!(operation, ControllerOperation::WorktreeCoordinator { .. }) {
+                let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+                    .values().map(|(_, owner)| owner.broker.clone()).collect();
+                for source in sources {
+                    team.enroll_worktree_agents(&source, &checkout.root)
+                        .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+                }
+            }
             let value = match result { Ok(value) => serde_json::json!({"value":value}), Err(error) => {
                 let error = DomainError::from_error(error);
                 serde_json::json!({"error":{"code":error.code,"message":"Remote enrollment failed","retryable":error.retryable}})
@@ -689,6 +707,12 @@ impl Projects {
             (broker, root.to_owned())
         } else if matches!(&command, Command::Panel(query) if query.worktree) && root_path.join(".git").exists() {
             let (broker, checkout) = self.worktree_broker(root_path)?;
+            let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+                .values().map(|(_, owner)| owner.broker.clone()).collect();
+            for source in sources {
+                broker.enroll_worktree_agents(&source, &checkout.root)
+                    .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            }
             let domain = broker.worktree_domain(&checkout.root).map_err(|_| ManagedErrorCode::ManagedStaleAttachment)?
                 .unwrap_or(checkout.root);
             (broker,domain)

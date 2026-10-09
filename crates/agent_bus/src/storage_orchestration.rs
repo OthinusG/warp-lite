@@ -37,6 +37,19 @@ impl Store {
         Ok(self.count("SELECT COUNT(*) AS count FROM worktree_roles WHERE project=? AND agent=? AND role='coordinator' AND run IS NOT NULL", &[&actor.project, &actor.id])? == 1)
     }
 
+    pub(crate) fn can_communicate(&self, actor: &Agent, peer: &Agent) -> Result<bool> {
+        if actor.program == OPERATOR_PROGRAM || peer.program == OPERATOR_PROGRAM {
+            return Ok(true);
+        }
+        let roles = self.worktree_roles(&actor.project)?;
+        if roles.is_empty() {
+            return Ok(true);
+        }
+        Ok(roles.iter().any(|role| role.role == "coordinator" && role.run.is_some()
+            && (role.agent == actor.id || role.agent == peer.id))
+            || self.physical_root(actor)? == self.physical_root(peer)?)
+    }
+
     pub(crate) fn worktree_role_receipt(
         &self,
         root: &str,
@@ -96,24 +109,9 @@ impl Store {
             self.authorize(actor)?;
             let root = self.physical_root(actor)?;
             let roles = self.worktree_roles(&actor.project)?;
-            ensure!(
-                roles.iter().all(|entry| entry.root != root
-                    || entry.agent == actor.id
-                    || (role == "coordinator" && entry.role == "coordinator")
-                    || (role == "worker" && entry.role == "worker" && entry.run.is_none())),
-                scope_denied("Checkout is already owned by another team participant")
-            );
-            diesel::sql_query("DELETE FROM worktree_roles WHERE project=? AND root=? AND agent!=? AND role='worker' AND run IS NULL")
-                .bind::<Text, _>(&actor.project).bind::<Text, _>(&root).bind::<Text, _>(&actor.id).execute(&mut *self.connection.borrow_mut())?;
             if role == "coordinator" {
-                ensure!(
-                    roles
-                        .iter()
-                        .all(|entry| entry.agent != actor.id || entry.role == "coordinator"),
-                    invalid_state("A worker cannot also own the integration checkout")
-                );
                 diesel::sql_query(
-                    "DELETE FROM worktree_roles WHERE project=? AND role='coordinator'",
+                    "UPDATE worktree_roles SET role='worker' WHERE project=? AND role='coordinator'",
                 )
                 .bind::<Text, _>(&actor.project)
                 .execute(&mut *self.connection.borrow_mut())?;
@@ -122,7 +120,7 @@ impl Store {
                     role == "worker"
                         && roles
                             .iter()
-                            .any(|entry| entry.role == "coordinator" && entry.run.is_some()),
+                            .any(|entry| entry.role == "coordinator"),
                     invalid_state("Select an active Coordinator first")
                 );
                 ensure!(
@@ -132,7 +130,7 @@ impl Store {
                     scope_denied("Coordinator cannot also be a worker")
                 );
             }
-            diesel::sql_query("INSERT INTO worktree_roles(project,agent,role,root,run) VALUES (?,?,?,?,?) ON CONFLICT(project,agent) DO UPDATE SET run=excluded.run")
+            diesel::sql_query("INSERT INTO worktree_roles(project,agent,role,root,run) VALUES (?,?,?,?,?) ON CONFLICT(project,agent) DO UPDATE SET role=excluded.role,root=excluded.root,run=excluded.run")
                 .bind::<Text, _>(&actor.project).bind::<Text, _>(&actor.id).bind::<Text, _>(role)
                 .bind::<Text, _>(&root).bind::<Text, _>(run).execute(&mut *self.connection.borrow_mut())?;
             self.record(

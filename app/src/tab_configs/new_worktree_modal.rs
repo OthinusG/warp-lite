@@ -252,6 +252,16 @@ impl NewWorktreeModal {
         ctx.notify();
     }
 
+    #[cfg(debug_assertions)]
+    pub(crate) fn fill_checkpoint(&mut self, repo: String, ctx: &mut ViewContext<Self>) {
+        self.selected_repo = Some(repo);
+        self.selected_branch = Some("main".into());
+        self.autogenerate_branch_name = false;
+        self.worktree_name_editor.update(ctx, |editor, ctx|
+            editor.set_buffer_text("ui-worker", ctx));
+        ctx.notify();
+    }
+
     fn try_submit(&mut self, ctx: &mut ViewContext<Self>) {
         let repo = self
             .selected_repo

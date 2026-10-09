@@ -393,7 +393,7 @@ impl LeftPanelView {
                 active_icon: None,
                 tooltip_text: "Agent collaboration".to_owned(),
                 action: LeftPanelAction::Collaboration,
-                render_with_active_state: false,
+                render_with_active_state: true,
                 tooltip_keybinding_names: vec![],
                 tooltip_keybinding: None,
             },
