@@ -1,8 +1,8 @@
 # Cross-worktree collaboration
 
-Date: 2026-10-09. Status: explicit modes and Coordinator orchestration implemented;
-local/SSH backend, desktop regression and native visual acceptance verified.
-Accepted source is integrated into main and published in App 1.3.1 / Companion 3.1.0.
+Date: 2026-10-09. Status: behavior correction implemented; local/SSH backend
+verified, final desktop regression and native visual acceptance pending.
+App 1.3.1 / Companion 3.1.0 is the earlier released baseline, not this correction.
 Formal tagged-package receipts are tracked in [the release contract](../RELEASE.md).
 
 ## 2026-10-09 correction — native worktrees and project lifetime
@@ -47,17 +47,21 @@ fixture screenshots precede runtime capture acceptance.
 
 Acceptance tasks:
 - [ ] Native worktree action creates/opens a new tab without starting an Agent.
-- [ ] Automatic repository participation includes multiple Agents per checkout.
-- [ ] Same-checkout and Coordinator messages pass; cross-worker messages fail.
-- [ ] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
-- [ ] Online filtering precedes pagination and preserves offline task/history data.
-- [ ] Schema upgrade preserves roles and produces a pre-upgrade backup.
-- [ ] Initial repository identity and task ownership survive both mode changes.
-- [ ] Non-Git directories remain independent Projects without inherited Worktree mode or Coordinator; returning to the repository retains its selection.
-- [ ] Same-name Coordinator restart remains a worker until explicit selection.
-- [ ] New Coordinator receives unfinished-task handoff and future task updates.
+- [x] Automatic repository participation includes multiple Agents per checkout.
+- [x] Same-checkout and Coordinator messages pass; cross-worker messages fail.
+- [x] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
+- [x] Online filtering precedes pagination and preserves offline task/history data.
+- [x] Schema upgrade preserves roles and produces a pre-upgrade backup.
+- [x] Initial repository identity and task ownership survive both mode changes.
+- [x] Non-Git directories remain independent Projects without inherited Worktree mode or Coordinator; returning to the repository retains its selection.
+- [x] Same-name Coordinator restart remains a worker until explicit selection.
+- [x] New Coordinator receives unfinished-task handoff and future task updates.
 - [ ] Collaboration entry remains prominent after toolbelt state refresh.
 - [ ] Focused protocol tests, desktop checks and native narrow/light/dark captures.
+
+Backend receipts: macOS/Windows protocol suites in run 37921826849 and three-OS
+remote run 37920112411. Desktop-only follow-ups do not change backend source.
+Native creation, toolbar appearance and final source acceptance remain open.
 
 Risks: preserve immutable checkout authority and private work during admission;
 repository identity must never be inferred from a URL/name. Remote native
