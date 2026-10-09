@@ -1,6 +1,6 @@
 # About release updates
 
-Date: 2026-10-09. Status: implementation and verification pending.
+Date: 2026-10-09. Status: implementation and native verification accepted.
 
 ## Behavior and scope
 
@@ -43,3 +43,16 @@ the update/settings models.
 - At 800px/1.25 zoom, the startup label shrinks/wraps beside its native switch;
   attribution wraps within the page. Clicks on the label or switch toggle the
   same saved preference. Screenshot QA must verify both controls remain visible.
+
+## Acceptance receipts
+
+- Both desktop application unit suites, including version and installer selection,
+  pass at 27a9f992 in run 37939850502. Its Windows capture fails only the old
+  detail-scrolling viewport; subsequent changes affect that native fixture only.
+- Source 46248e08/[run 37943970413](https://github.com/OthinusG/warpai/actions/runs/37943970413)
+  passes both default/platform builds and both complete native walkthroughs, with
+  214 valid PNGs and successful source-matched diagnostics per OS.
+- Reviewed all six About states at both widths/themes on macOS and Windows;
+  current-source narrow/wide checks confirm the same accepted production layout.
+  Startup preference enable/disable assertions pass. Fixtures avoid real update
+  downloads and public release changes. No release or personal installation.

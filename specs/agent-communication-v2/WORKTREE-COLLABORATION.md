@@ -1,7 +1,7 @@
 # Cross-worktree collaboration
 
-Date: 2026-10-09. Status: behavior correction implemented; local/SSH backend
-verified, final desktop regression and native visual acceptance pending.
+Date: 2026-10-09. Status: behavior correction implemented; local/SSH backend,
+desktop regressions and native visual acceptance verified.
 App 1.3.1 / Companion 3.1.0 is the earlier released baseline, not this correction.
 Formal tagged-package receipts are tracked in [the release contract](../RELEASE.md).
 
@@ -46,7 +46,7 @@ Keep full paths and task details behind expansion. Static narrow/light/dark
 fixture screenshots precede runtime capture acceptance.
 
 Acceptance tasks:
-- [ ] Native worktree action creates/opens a new tab without starting an Agent.
+- [x] Native worktree action creates/opens a new tab without starting an Agent.
 - [x] Automatic repository participation includes multiple Agents per checkout.
 - [x] Same-checkout and Coordinator messages pass; cross-worker messages fail.
 - [x] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
@@ -56,12 +56,21 @@ Acceptance tasks:
 - [x] Non-Git directories remain independent Projects without inherited Worktree mode or Coordinator; returning to the repository retains its selection.
 - [x] Same-name Coordinator restart remains a worker until explicit selection.
 - [x] New Coordinator receives unfinished-task handoff and future task updates.
-- [ ] Collaboration entry remains prominent after toolbelt state refresh.
-- [ ] Focused protocol tests, desktop checks and native narrow/light/dark captures.
+- [x] Collaboration entry remains prominent after toolbelt state refresh.
+- [x] Focused protocol tests, desktop checks and native narrow/light/dark captures.
 
 Backend receipts: macOS/Windows protocol suites in run 37921826849 and three-OS
 remote run 37920112411. Desktop-only follow-ups do not change backend source.
-Native creation, toolbar appearance and final source acceptance remain open.
+Source 46248e08 passes both desktop jobs in
+[run 37943970413](https://github.com/OthinusG/warpai/actions/runs/37943970413):
+protocol suites, default/platform builds and complete native walkthroughs.
+Both source-matched capture diagnostics report exit_code 0, no failed assertions
+or panics, and 214 valid PNGs. Reviewed native creation, cross-checkout Coordinator
+switch/return persistence, narrow selectors, readable historical names and detail
+scrolling with the original terminal draft retained. Application unit suites pass
+in run 37939850502 at 27a9f992; the only subsequent source change is the native
+capture viewport fixture. The former run's Windows capture failure is superseded
+by the successful source-matched walkthrough above. No merge/release/install.
 
 Risks: preserve immutable checkout authority and private work during admission;
 repository identity must never be inferred from a URL/name. Remote native

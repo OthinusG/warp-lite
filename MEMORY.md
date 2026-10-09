@@ -1,5 +1,24 @@
 # Project Memory
 
+## Worktree and About source acceptance — 2026-10-09
+
+- Accepted source 46248e08: run 37943970413 succeeds on macOS and Windows,
+  including protocol/native IPC/MCP/history suites, default/platform builds and
+  complete native collaboration/SSH/file/review/About walkthroughs. Each artifact
+  has 214 CRC-validated PNGs, 24 About states, matching source and exit_code 0,
+  with no failed assertions or panics. Non-Git Git exit128 remains expected probe
+  context. Earlier Windows creation and overflow fixture failures are resolved.
+- Reviewed both platforms' native modal/new-tab/Coordinator switch-and-return,
+  narrow controls/selectors, historical labels and real detail scrolling with
+  the terminal draft retained. About light/dark at 800/1200px and 1.25 zoom keeps
+  Update/Download/startup switch/fallback visible; narrow clipping is corrected.
+- Application unit suites pass at 27a9f992 in run 37939850502; only capture
+  viewport/diagnostic fixtures changed afterward. Remote backend is byte-identical
+  to 15927aa3, accepted on Linux/macOS/Windows in run 37920112411. Reuse these
+  receipts rather than repeating unchanged tests. Changes stay on
+  fix/native-worktree-collaboration; no merge, release, local Rust build or
+  personal application installation was requested/performed.
+
 ## About update checks — 2026-10-09
 
 - Owner requests an Update button and Check for updates on startup in About.

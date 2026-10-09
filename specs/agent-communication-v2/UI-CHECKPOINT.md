@@ -5,7 +5,7 @@ panel, native editors/text buttons and theme/soft-wrapping rules are the visual
 source. Earlier local and superseded manager evidence is
 [archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/UI-CHECKPOINT.md).
 
-## 2026-10-09 Worktree correction — verification pending
+## 2026-10-09 Worktree correction — accepted
 
 Visual source remains the existing native Appearance theme, Button/Flex components
 and fixed Worktree fixtures. Desktop canvas checks use 320/600px panel widths,
@@ -24,8 +24,27 @@ The native walkthrough also switches Coordinator to another checkout and returns
 to the original tab, asserting retained selection and the original unsent draft.
 The empty-project capture checks automatic repository membership before Agent
 registration; obsolete manual join/leave captures are retired.
-Current screenshots and source-matched receipts are pending; the baseline receipts
-below do not validate this correction.
+Source 46248e08/[run 37943970413](https://github.com/OthinusG/warpai/actions/runs/37943970413)
+passes macOS and Windows. Each source-matched diagnostic reports exit_code 0,
+no failed assertions or panics, and 214 valid PNGs. The non-Git probe's Git
+exit 128 is expected negative-path context, not a capture failure.
+
+Rendered review confirms all six areas above: native selected-state colors and
+equal button widths, 8px spacing, wrapped/scrollable Coordinator choices, the
+original repository/branch modal with a real new tab, compact contextual actions,
+and historical participant labels. Collapsed long branch names intentionally fade;
+expanded paths wrap. The detail-scrolling fixture uses a 600px-high window to
+produce real overflow with both platforms' font metrics and restores its bounds.
+Coordinator switch/return captures retain the original unsent terminal draft.
+
+About adds 24 frames per platform: light/dark, 800/1200px windows at 1.25 zoom,
+and idle/checking/current/available/unavailable/error states. Reviewed all Windows
+states and all macOS states at production-equivalent source 27a9f992, then checked
+current-source narrow Download/error and wide checking captures. The earlier
+narrow switch/attribution clipping is corrected with the existing shrinking-label
+row and wrapped attribution; Update/Download/Releases remain visible. Startup
+preference enable/disable assertions pass. These receipts supersede the earlier
+capture failures; the baseline receipts below remain historical only.
 
 ## Static gate accepted
 
