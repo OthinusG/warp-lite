@@ -2661,71 +2661,17 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("live-empty.png"),
         )
-        .with_step(TestStep::new("load Worktree projection before opening its native form")
+        .with_step(TestStep::new("select Worktree mode for an empty native project")
             .with_action(|app, window, _| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(true), ctx));
             })
-            .add_named_assertion("unjoined Worktree projection is loaded", |app, window| {
+            .add_named_assertion("project identity exists before Agent registration", |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
-                    snapshot.project.starts_with("worktree:") && !snapshot.worktree_joined)))
-            }))
-        .with_step(
-            TestStep::new("worktree join confirmation uses existing native controls")
-                .with_action(|app, window, _| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| { panel.open_control(controls::Kind::JoinWorktree, ctx); });
-                })
-                .add_named_assertion("join form retains checkout and terminal draft", |app, window| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    warpui::async_assert!(panel.read(app, |panel, _| panel.form.as_ref().is_some_and(|form|
-                        form.kind == controls::Kind::JoinWorktree && !form.worktree_root.is_empty()))
-                        && checkpoint_draft(app, window) == "unsent collaboration draft")
-                })
-                .with_take_screenshot("worktree-join-confirmation.png"),
-        )
-        .with_step(TestStep::new("join worktree team through native form").with_action(|app, window, data| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            let submitted = panel.update(app, |panel, ctx| {
-                panel.confirm_control(ctx);
-                panel.form.as_ref().is_some_and(|form| form.submitting)
-            });
-            data.insert("worktree_join_submitted", submitted);
-        }))
-        .with_step(TestStep::new("worktree join intent reaches the controller")
-            .add_named_assertion_with_data_from_prior_step("join request was submitted", |_, _, data| {
-                warpui::async_assert!(data.get::<_, bool>("worktree_join_submitted") == Some(&true))
-            }))
-        .with_step(TestStep::new("native worktree team status reports checkout and branch")
-            .add_named_assertion("team projection is active", |app, window| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
-                    snapshot.worktree_joined && snapshot.project.starts_with("space:") && snapshot.worktree_branch.as_deref() == Some("main"))))
-            }).with_take_screenshot("worktree-panel-team.png"))
-        .with_step(
-            TestStep::new("worktree leave confirmation preserves process-stop boundary")
-                .with_action(|app, window, _| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| {
-                        panel.open_control(controls::Kind::LeaveWorktree, ctx);
-                    });
-                })
-                .with_take_screenshot("worktree-leave-confirmation.png"),
-        )
-        .with_step(
-            TestStep::new("leave worktree team through native form").with_action(|app, window, _| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                panel.update(app, |panel, ctx| { panel.worktree_mode = false; panel.confirm_control(ctx); });
-            }),
-        )
-        .with_step(TestStep::new("native worktree checkout returns to private collaboration")
-            .add_named_assertion("private checkout and draft retained", |app, window| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
-                    !snapshot.worktree_joined && !snapshot.project.starts_with("space:") && snapshot.worktree_branch.as_deref() == Some("main")))
-                    && checkpoint_draft(app, window) == "unsent collaboration draft")
-            }).with_take_screenshot("worktree-panel-isolated.png"))
+                warpui::async_assert!(panel.read(app, |panel, _| !panel.mode_pending && panel.worktree_mode
+                    && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.project.starts_with("space:")
+                        && snapshot.worktree_joined && snapshot.agents.is_empty() && !snapshot.coordinator_online)))
+            }).with_take_screenshot("worktree-empty-project.png"))
         .with_step(TestStep::new("select Worktree mode with an existing native IPC Agent").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktree_root.clone());
@@ -2869,7 +2815,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     filenames.push("live-empty.png".into());
     filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png"].map(str::to_owned));
     filenames.extend(["worktree-switched-coordinator.png", "worktree-coordinator-after-tab-switch.png"].map(str::to_owned));
-    filenames.extend(["worktree-join-confirmation.png", "worktree-leave-confirmation.png", "worktree-panel-team.png", "worktree-panel-isolated.png"].map(str::to_owned));
+    filenames.push("worktree-empty-project.png".into());
     for detail in [false, true] {
         if detail {
             driver = driver

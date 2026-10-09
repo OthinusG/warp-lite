@@ -22,6 +22,8 @@ light/dark themes and 1.0/1.25 zoom. Intentional changes:
 
 The native walkthrough also switches Coordinator to another checkout and returns
 to the original tab, asserting retained selection and the original unsent draft.
+The empty-project capture checks automatic repository membership before Agent
+registration; obsolete manual join/leave captures are retired.
 Current screenshots and source-matched receipts are pending; the baseline receipts
 below do not validate this correction.
 

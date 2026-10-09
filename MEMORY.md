@@ -14,6 +14,10 @@
 - First source a5ed10d3 fails two protocol regressions (remote origin-ID matching
   after automatic enrollment, and noncanonical macOS fixture path). Corrections
   and the expanded identity/mode/handoff coverage await source-matched cloud runs.
+- Source bed129ce passed the expanded identity/mode/handoff and online pagination
+  tests on macOS/Windows. One legacy remote restart assertion still expected a
+  private directory scope; align it with automatic membership and assert that
+  restart grants only Worker authority. Application/UI checks remain pending.
 
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git

@@ -50,13 +50,6 @@ impl Broker {
     pub(crate) fn worktree_opted_out(&self, root: &str) -> Result<bool> {
         self.store()?.store.worktree_opted_out(root)
     }
-    pub(crate) fn worktree_enabled(&self, root: &str) -> Result<bool> {
-        let Some(domain) = self.worktree_domain(root)? else { return Ok(false); };
-        let state = self.store()?;
-        if state.store.worktree_opted_out(root)? { return Ok(false); }
-        Ok(state.store.worktree_roles(&domain)?.iter().any(|role|
-            role.run.as_ref().is_some_and(|run| active_agent(&state, &role.agent, run))))
-    }
     pub(crate) fn worktree_role_receipt(
         &self,
         root: &str,
@@ -895,7 +888,7 @@ mod tests {
             run: broker.run(&coordinator.terminal),
             ..coordinator.clone()
         };
-        let private_agent = call(
+        let restarted_agent = call(
             broker,
             &restarted,
             Operation::AgentRegister { name: "".into() },
@@ -1015,10 +1008,14 @@ mod tests {
             Operation::AgentRegister { name: "".into() },
         )
         .unwrap();
-        assert_eq!(
-            private_agent["agent"]["project"],
-            fixture.main.to_str().unwrap()
-        );
+        assert!(restarted_agent["agent"]["project"].as_str().unwrap().starts_with("space:"));
+        let restarted_panel = source.broker.operator_panel(&PanelQuery {
+            project:fixture.main.to_str().unwrap().into(), worktree:true,
+            terminal:Some(request.terminal.clone()), ..Default::default()
+        }).unwrap();
+        assert_eq!(restarted_panel["coordinator_online"], false);
+        assert!(restarted_panel["roles"].as_array().unwrap().iter().any(|role|
+            role["agent"] == restarted_agent["agent"]["id"] && role["role"] == "worker"));
         source
             .broker
             .revoke_remote_run(&request.terminal, request.run.as_deref());
