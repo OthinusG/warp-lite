@@ -53,6 +53,7 @@ Acceptance tasks:
 - [ ] Online filtering precedes pagination and preserves offline task/history data.
 - [ ] Schema upgrade preserves roles and produces a pre-upgrade backup.
 - [ ] Initial repository identity and task ownership survive both mode changes.
+- [ ] Non-Git directories remain independent Projects without inherited Worktree mode or Coordinator; returning to the repository retains its selection.
 - [ ] Same-name Coordinator restart remains a worker until explicit selection.
 - [ ] New Coordinator receives unfinished-task handoff and future task updates.
 - [ ] Collaboration entry remains prominent after toolbelt state refresh.

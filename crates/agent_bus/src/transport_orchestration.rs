@@ -372,6 +372,26 @@ mod tests {
         assert_eq!(empty_panel()["worktree_mode"], true);
         assert_eq!(empty_panel()["coordinator_online"], true);
         assert!(broker.store().unwrap().store.worktree_binding(&empty_root).unwrap().is_none());
+        let plain = fixture.directory.path().join("plain project");
+        std::fs::create_dir(&plain).unwrap();
+        let (plain_request, plain_agent) = register(&plain, "plain");
+        let plain_root = crate::project_root(&plain).unwrap();
+        assert_eq!(plain_agent["project"], plain_root);
+        let plain_panel = broker.operator_panel(&PanelQuery { project:plain_root.clone(),
+            terminal:Some(plain_request.terminal.clone()), ..Default::default() }).unwrap();
+        assert_eq!(plain_panel["project"], plain_root);
+        assert_eq!(plain_panel["worktree_mode"], false);
+        assert_eq!(plain_panel["worktree_available"], false);
+        assert_eq!(plain_panel["coordinator_online"], false);
+        assert_eq!(plain_panel["agents"].as_array().unwrap().len(), 1);
+        assert!(call(broker, &plain_request, Operation::AgentSend { to:"lead".into(),
+            body:"Separate project".into(), subject:None, thread_id:None, reply_to:None,
+            task_id:None, request_id:id() }).is_err());
+        let unavailable = broker.operator_panel(&PanelQuery { project:plain_root,
+            worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(unavailable["worktree_mode"], false);
+        assert_eq!(unavailable["worktree_available"], false);
+        assert_eq!(empty_panel()["coordinator_online"], true);
         assert_eq!(call(broker, &worker, Operation::AgentRegister { name:String::new() }).unwrap()["agent"], worker_agent);
         let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
         assert!(inbox["messages"].as_array().unwrap().iter().any(|message|

@@ -24,6 +24,10 @@
 - Empty native worktree tabs resolve the existing repository project even when
   queried in Project mode before their first Agent starts. Keep legacy opted-out
   or active private sessions isolated; a read does not create checkout admission.
+- Non-Git directories remain independent canonical-root Projects. Worktree reads
+  report unavailable and restore Project mode; they neither inherit nor clear a
+  repository's Coordinator. Include cross-project denial and return-to-repository
+  regression coverage (owner reminder on 2026-10-09).
 
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git
