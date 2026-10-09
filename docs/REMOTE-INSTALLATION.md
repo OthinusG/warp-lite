@@ -2,7 +2,7 @@
 
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
-Warpai 1.3.0 uses the remote component installed for the SSH account. Install it
+Warpai 1.3.1 uses the remote component installed for the SSH account. Install it
 once on each remote machine, then connect from an ordinary Warpai terminal:
 
 ```sh
@@ -24,9 +24,9 @@ Choose the installer for the **remote** operating system and architecture.
 
 | Remote system | Package | Installation |
 | --- | --- | --- |
-| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) | Run `sh WarpaiCompanion-3.0.0-linux-x64.run`. |
-| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
+| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) | Run `sh WarpaiCompanion-3.1.0-linux-x64.run`. |
+| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
 
 The packages contain the correct executable, checksum, version/source manifest and
 license notices. No manual extraction or executable-path entry is required. Unix
@@ -42,7 +42,7 @@ from the same release; protocol compatibility is checked before project binding.
 
 ## Connect and troubleshoot
 
-Companion 3.0.0 bundles a private Git runtime. Explorer/file operations,
+Companion 3.1.0 bundles a private Git runtime. Explorer/file operations,
 Agent coordination and the MCP bridge run
 inside Companion; code/text and Markdown preview render in the desktop app.
 These features do not require a separate Git, Python, Node, tmux or socat
@@ -83,6 +83,14 @@ vendor executable; optional arguments follow it. On Windows PowerShell, invoke
 same argument sequence and native absolute paths. The owned agent keeps interactive
 terminal IO and uses the existing remote MCP adapter. This does not add an alias,
 change PATH or replace the vendor installation.
+
+Use Project mode for communication in the current project. For parallel changes
+in one repository, switch the panel to Worktree, select an active Coordinator,
+create worktrees and start worker Agents in those directories with the same
+entry above. Bind the active workers in the panel; creating a worktree does not
+start an Agent. All participants must use the same SSH host/account and actual
+Git repository. The Coordinator assigns tasks, requests peer review and performs
+integration and final commits through the SSH terminal.
 
 ## Linux
 

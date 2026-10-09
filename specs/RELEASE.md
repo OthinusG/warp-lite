@@ -1,6 +1,34 @@
 # Warpai releases
 
-## Current delivery: 1.3.0 with Companion 3.0.0
+## Current delivery: 1.3.1 with Companion 3.1.0
+
+Owner authorization 2026-10-09: merge accepted Worktree collaboration into main,
+remove completed branches and obsolete diagnostic workflow history, integrate
+the feature into existing bilingual README sections, update repository About,
+and publish App 1.3.1 with Companion 3.1.0. Preserve historical tags/assets.
+
+1. Fast-forward main to the accepted feature source and release preparation.
+   Keep the two release and two validation workflows; remove the retired Codex
+   diagnostic workflow's runs. Delete completed branch refs only after main
+   contains their commits. No history rewrite, local Rust build or installation.
+2. Set the independent Companion component version to 3.1.0; protocol major
+   remains 1. Update existing download/install guidance and add release notes
+   describing changes from 1.3.0. Tag immutable main source as v1.3.1.
+3. Dispatch release-macos.yml with release_tag=v1.3.1 and auto_publish=true.
+   Reuse all native installer/source/version/runtime checks. Windows follows
+   automatically and publishes only after its package checks and upload pass.
+4. Check cloud runs every 30 minutes. Verify five versioned public installers,
+   both checksum lists, tagged source provenance and About/download links.
+   Record completed delivery in MEMORY.md; fix failed gates without bypassing them.
+
+Source acceptance before version bump: Companion run 37830659603 passes all
+three remote platforms. Desktop run 37830653334 passes macOS and Windows
+protocol/default/platform/application regressions; Windows runtime preparation
+fails on an occupied identical DLL. Workflow-only fix 48f1ca4a passes focused
+Windows native run 37841105097. Each desktop has 191 verified captures; the
+overall full-run failure is retained in the Worktree contract.
+
+## Historical delivery: 1.3.0 with Companion 3.0.0
 
 The owner authorizes packaging and public release of App 1.3.0 and Companion
 3.0.0. Summarize the net changes from the v1.2.0 source baseline in

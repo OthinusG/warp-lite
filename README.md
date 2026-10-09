@@ -8,19 +8,19 @@
 
 ### The terminal built around agents.
 
-Make an Agent session the unit of work. Run a team in the same project, give one
-Agent the lead, and let it delegate, collect results and bring the work together.
+Make an Agent session the unit of work. Collaborate in a shared project, or select
+a Coordinator to lead parallel development across isolated Git worktrees.
 Warpai combines that workflow with a full-featured native terminal for macOS and
 Windows. Keep the same Agent, file and review workflow on remote Linux, macOS and
 Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.3.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.3.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.3.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)
+[![Release](https://img.shields.io/badge/release-1.3.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -41,38 +41,42 @@ piece of work, report progress, ask another Agent for help and return a result
 for review. Warpai gives those Agent sessions a shared project context and a
 place to coordinate.
 
-You can keep several Agents working in parallel, each with a clear assignment.
-One Agent can act as the lead: break down your request, give different Agents
-their tasks, follow up on results and integrate their contributions. Reviewers
-can request changes; the assigned Agent can continue and submit again. You stay
-in control of the goal, scope and final result.
+Choose **Project** mode for shared project communication, research and writing,
+or **Worktree** mode for parallel changes in one Git repository. Project keeps
+the team's messages, tasks and history together. In Worktree mode, explicitly
+select an active Agent as Coordinator and bind other active Agents to their own
+checkouts. The Coordinator assigns tasks and context, collects results, requests
+peer review and chooses what to integrate. Reviewers can request changes; the
+assigned Agent can continue and submit again. You stay in control of the goal,
+scope and final result.
 
 ### Example: ship a feature with an Agent team
 
-Ask a lead Agent to add an export feature. It can assign the API change, command
-line interface and test plan to separate Agents, then ask a reviewer to check
-the combined result. Each Agent works in its own terminal session in the same
-project. Warpai keeps their messages, assignments, progress, evidence and review
-decisions together, so you can see what is underway and what still needs work.
+To add an export feature, switch to Worktree mode and select your Coordinator.
+Create separate worktrees for the API, command line interface and tests. Start
+Agents in those checkouts through your normal Agent workflow, then bind them in
+the panel. Creating a worktree never starts an Agent. The Coordinator delegates
+the work, asks Agents to review one another, integrates accepted results, checks
+the combined changes and makes the final Git commit. Warpai keeps messages,
+assignments, evidence and review decisions together throughout the process.
 
 ```mermaid
 flowchart TB
-    Goal["You define the goal"] --> Lead["Lead Agent splits and assigns work"]
+    Goal["You select an active Coordinator"] --> Lead["Coordinator splits and assigns work"]
     Lead -->|Assign tasks| Team
     subgraph Team["Agents work in parallel and share progress"]
         direction LR
-        Build["Agent A<br/>Implement the feature"]
-        Test["Agent B<br/>Test the behavior"]
-        Docs["Agent C<br/>Write the documentation"]
+        Build["Agent A · Worktree A<br/>Implement the feature"]
+        Test["Agent B · Worktree B<br/>Test the behavior"]
+        Docs["Agent C · Worktree C<br/>Write the documentation"]
     end
-    Team -->|Report results| Review["Lead Agent and reviewer check results"]
+    Team -->|Report results| Review["Coordinator requests peer review"]
     Review -->|Needs changes| Team
-    Review -->|Accepted| Delivery["Lead Agent integrates and delivers"]
+    Review -->|Accepted| Delivery["Coordinator integrates, verifies and commits"]
 ```
 
-The same pattern works when the work is not code: assign research, analysis,
-drafting and fact-checking to different Agents, then have the lead combine their
-results into one deliverable.
+For research, analysis, drafting and fact-checking, use Project mode to divide
+work and combine the results into one deliverable without worktree setup.
 
 ## One workspace for the whole loop
 
@@ -81,9 +85,10 @@ the trips between a terminal, a separate Agent dashboard, a file browser and a
 review tool.
 
 - **Left Agent panel:** manage and switch between project Agent sessions, follow
-  readiness and task status, send messages, assign work and review results. The
-  daily collaboration view keeps assignments, progress and results in focus,
-  with history and maintenance available when you need them.
+  readiness and task status, send messages and review results. Switch between
+  Project and Worktree at the top of the collaboration panel. Select the
+  Coordinator, create worktrees and bind workers; compact summaries expand to
+  show checkout details. History and maintenance remain available when needed.
 - **Full-featured terminal:** run your normal shells, Git, build tools, scripts,
   development servers and long-running commands. GPU rendering, command blocks,
   vertical tabs, split panes, command completion, command search, themes and
@@ -116,19 +121,11 @@ submit evidence and participate in review. Separate projects remain isolated.
 Queued work waits for the receiving Agent to be ready, and Warpai does not answer
 permission requests on an Agent's behalf.
 
-The collaboration panel offers **Project** and **Worktree** modes. Project keeps
-project messaging and history. In Worktree mode, select a Coordinator from active
-Agents, create isolated worktrees, then explicitly assign Agents already running
-in those checkouts. Creating a worktree does not start an Agent. The Coordinator
-assigns work and context, requests peer review, chooses accepted results for
-integration, verifies the combined result and makes the final commit through Git.
-Accepting a task does not automatically merge branches.
-
-This workflow works locally and within one SSH host/account with a compatible
-Companion. Separate clones and local/remote environments remain isolated. Mode
-switches change the panel view; enrolling an Agent requires explicit selection.
-These changes are implemented and verified on `feat/worktree-collaboration` and are not
-included in the published desktop installers.
+Start Agents through their normal workflow before selecting a Coordinator or
+binding workers. With no active Agent, Worktree coordination remains unavailable.
+A worker binding must match the Agent's actual checkout; it does not move or
+restart a running process. Switching modes changes the panel view and preserves
+Project history. Accepting a task does not automatically merge branches.
 
 Settings reports useful setup errors when an Agent cannot join. A single cleanup
 action clears Warpai communication settings from supported installed Agents while
@@ -143,9 +140,11 @@ previews. Connect to a Linux, macOS or Windows machine in the
 terminal and enter your project directory; the workspace follows that terminal's
 remote `cd`.
 
-The remote collaboration view shows the project's Agents, conversations,
-assignments and results. A lead Agent can delegate work to teammates, follow
-progress, request review and integrate the outcome just as it does locally.
+The remote collaboration view supports both Project and Worktree modes, showing
+Agents, conversations, assignments and results. On one SSH host/account, select
+a Coordinator and bind workers in isolated checkouts just as you do locally.
+Each worktree retains its own file, editor and Review root. Separate clones,
+hosts/accounts and local/remote environments remain isolated.
 
 ![Warpai SSH project with a connected remote agent and task](docs/images/warpai-ssh-project.png)
 
@@ -165,10 +164,10 @@ report. While they work, open the generated scripts, preview the illustrated
 report, review their changes and make corrections in Warpai. The lead Agent can
 bring those results together while the data and computation stay on the server.
 
-The same workflow suits a remote development machine: divide implementation,
-testing and documentation among Agents, inspect the files and changes, then
-integrate the accepted result without moving between a terminal, file browser,
-editor and Agent dashboard.
+On a remote development machine, use Worktree mode to divide implementation,
+testing and documentation across isolated checkouts. Inspect files and changes,
+then let the Coordinator integrate and commit the accepted result. Research teams
+can keep using Project mode with no worktree setup.
 
 ## Beyond software development
 
@@ -181,7 +180,7 @@ Agent team more than from a full programming IDE.
 | **Research and data analysis** | A lead Agent organizes a literature review; one Agent extracts methods, another analyzes separate datasets, and a reviewer checks calculations and source links. The lead combines the results into a research note or report. |
 | **Writing and knowledge work** | Ask one Agent to outline a report, another to gather supporting material, and a third to edit for clarity and consistency. The lead resolves differences and prepares the final draft. |
 | **Business and operations** | Delegate market or policy research, data cleanup, process documentation and a separate fact-check. Review the evidence and consolidate a decision brief in the project. |
-| **Software development** | Split implementation, tests, documentation and code review across Agents, then have the lead integrate the accepted work. |
+| **Software development** | Use Worktree mode to split implementation, tests and documentation across isolated checkouts. The selected Coordinator arranges peer review, integrates accepted changes and makes the final commit. |
 
 Use the terminal's existing ecosystem—Python, R, shell tools, Git and command-line
 utilities—alongside the Agents you already use. Warpai does not make an IDE or a
@@ -215,14 +214,14 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.3.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)** brings
+**[Warpai 1.3.1](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)** brings
 Agent coordination, file management, in-app editing and previews to
 your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/Warpai-1.3.0-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiSetup-1.3.0-windows-x64.exe) | Run the installer. |
+| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiSetup-1.3.1-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -231,7 +230,7 @@ Checksums are included on the release page.
 
 ### Remote companion
 
-**Warpai Companion 3.0.0** provides the remote workspace on your Linux, macOS or
+**Warpai Companion 3.1.0** provides the remote workspace on your Linux, macOS or
 Windows machine, including its private Git runtime. Warpai's file, Review and
 Agent communication infrastructure requires no separate Git, Python, Node, tmux
 or socat installation. Vendor Agents retain their own requirements. Companion
@@ -240,9 +239,9 @@ machine you connect to.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) |
+| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) |
 
 ## Local by design
 

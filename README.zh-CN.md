@@ -8,17 +8,17 @@
 
 ### 为 Agent 协作而生的终端工作空间。
 
-把一次 Agent 会话当作工作的基本单元。在同一个项目中组织多个 Agent，指定一位主 Agent
-拆解任务、分派工作、收集结果并整合交付。Warpai 以全功能原生终端为基础，桌面支持 macOS 和 Windows，
+把一次 Agent 会话当作工作的基本单元。在项目中共享协作，或选择一位 Coordinator，
+让多个 Agent 在独立 Git worktree 中并行开发。Warpai 以全功能原生终端为基础，桌面支持 macOS 和 Windows，
 在远程 Linux、macOS 和 Windows 上也能保持同样的 Agent、文件和审阅工作流。
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.3.0](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.3.1](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/badge/release-1.3.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)
+[![版本](https://img.shields.io/badge/release-1.3.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
@@ -37,34 +37,35 @@
 Agent 不只是代码旁边的聊天窗口。它可以接手一项具体工作、汇报进展、向其他 Agent 求助，
 并把结果交给同伴审阅。Warpai 让多个 Agent 会话共享同一个项目上下文，也给它们一个协同工作的地方。
 
-你可以让多个 Agent 并行处理各自的任务，再指定其中一个作为主 Agent：拆解你的目标、向其他
-Agent 下达任务、跟进进度、收回结果并整合交付。审阅者可以要求修改，执行任务的 Agent 修改后
-再次提交。你始终决定目标、范围和最终结果。
+科研、写作和共享项目通信可以使用 **Project** 模式，消息、任务和历史集中在项目中。
+同一 Git 仓库的并行开发可以使用 **Worktree** 模式：从活动 Agent 中明确选择 Coordinator，
+再将其他活动 Agent 绑定到各自的 checkout。Coordinator 负责拆解任务、传递上下文、收集结果、
+安排交叉审阅并决定集成哪些成果。审阅者可以要求修改，执行任务的 Agent 修改后再次提交。
+你始终决定目标、范围和最终结果。
 
 ### 示例：让一支 Agent 团队交付一个功能
 
-例如，你要增加数据导出功能。你可以让主 Agent 规划 API、命令行入口和测试，再把这几项任务
-分别交给不同 Agent，最后请另一个 Agent 审阅结果。各 Agent 在同一项目的独立终端会话中工作；
-消息、任务分派、进度、验证材料与审阅决定集中呈现。你能看到哪些工作正在进行、哪些已经完成、
-哪些还需要返工。
+例如，增加数据导出功能时，切换到 Worktree 模式并选择 Coordinator，为 API、命令行入口
+和测试分别创建 worktree。通过原有 Agent 工作流在对应目录启动 Agent，再在面板中绑定；
+创建 worktree 不会启动 Agent。Coordinator 分派任务、要求 Agent 互相审阅，再整合通过审阅的
+结果、验证组合后的改动并完成最终 Git 提交。消息、任务、验证材料和审阅决定贯穿整个过程。
 
 ```mermaid
 flowchart TB
-    Goal["你明确工作目标"] --> Lead["主 Agent 拆解任务并分派工作"]
+    Goal["你选择活动 Coordinator"] --> Lead["Coordinator 拆解任务并分派工作"]
     Lead -->|下达任务| Team
     subgraph Team["多个 Agent 并行工作、互通进展"]
         direction LR
-        Build["Agent A<br/>实现功能"]
-        Test["Agent B<br/>测试与验证"]
-        Docs["Agent C<br/>撰写文档"]
+        Build["Agent A · Worktree A<br/>实现功能"]
+        Test["Agent B · Worktree B<br/>测试与验证"]
+        Docs["Agent C · Worktree C<br/>撰写文档"]
     end
-    Team -->|汇报结果| Review["主 Agent 与审阅者检查结果"]
+    Team -->|汇报结果| Review["Coordinator 安排交叉审阅"]
     Review -->|需要修改| Team
-    Review -->|通过审阅| Delivery["主 Agent 整合并交付"]
+    Review -->|通过审阅| Delivery["Coordinator 整合、验证并提交"]
 ```
 
-这不要求所有 Agent 都直接改同一批文件。可以在任务中划分职责、明确交付物和验收标准，再由
-主 Agent 汇总各方结果。
+科研、分析、撰写和事实核查可以继续使用 Project 模式：划分任务、汇总交付，无需配置 worktree。
 
 ## 一个工作空间，覆盖从分工到交付
 
@@ -72,7 +73,8 @@ Warpai 把 Agent 管理、项目文件和日常开发工具放在同一应用中
 文件浏览器和审阅工具之间来回切换。
 
 - **左侧 Agent 面板：**管理和切换项目中的 Agent 会话，跟进在线状态与任务进度，发送消息、分派任务
-  并审阅提交结果。日常协作视图聚焦任务、进展和交付物，历史记录与维护操作在需要时打开。
+  并审阅提交结果。在协作面板顶部切换 Project / Worktree，选择 Coordinator、创建 worktree、
+  绑定工作 Agent；紧凑摘要可以展开查看目录详情，历史记录与维护操作在需要时打开。
 - **全功能终端：**运行常用 Shell、Git、构建工具、脚本、开发服务器和长时间任务。GPU 渲染、
   命令分块、垂直标签页、分屏、补全、命令搜索、主题和保持唤醒控制，方便并行工作与长时间任务。
 - **右侧项目面板：**浏览、创建、重命名和删除项目文件，点击代码或文本即可在内置编辑器中打开，
@@ -94,15 +96,9 @@ Agent 及版本；当前支持范围见[兼容性指南](docs/AGENTS.zh-CN.md)�
 可以互发消息、接收委派任务、提交验证材料并参与审阅；不同项目相互隔离。排队任务会等到接收方
 Agent 就绪，Warpai 不会代替你处理权限请求。
 
-协作面板提供 **Project** 和 **Worktree** 两种模式。Project 保留项目通信与历史；
-Worktree 模式先从活动 Agent 中选择 Coordinator，再创建隔离的 worktree，并明确分配
-已经在对应目录运行的 Agent。创建 worktree 不会启动 Agent。Coordinator 负责分工、
-传递上下文、安排交叉审阅、选择集成结果，并通过 Git 验证合并结果、完成最终提交；
-接受任务不会自动合并分支。
-
-本地与同一 SSH 主机、账号内均支持此流程，远程需要兼容的 Companion。独立 clone
-以及本地、远程环境保持隔离。模式切换只改变面板视图，Agent 加入团队必须明确选择。
-这些改动已在 `feat/worktree-collaboration` 分支实现并通过验收，尚未包含在已发布的桌面安装包中。
+先通过原有流程启动 Agent，再选择 Coordinator 或绑定工作 Agent。没有活动 Agent 时，
+Worktree 协调操作不可用。绑定必须匹配 Agent 实际所在的 checkout，不会移动或重启运行中的进程。
+模式切换只改变面板视图并保留 Project 历史；接受任务不会自动合并分支。
 
 Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
 Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。
@@ -115,8 +111,9 @@ Warpai 通信配置，保留其他集成设置，方便重新选择参与协作�
 都可以在远程项目中使用。在终端连接 Linux、macOS 或 Windows 主机，进入项目目录后，
 工作空间就会跟随该终端的远程 `cd`。
 
-远程协作视图显示项目中的 Agent、消息、任务与结果。主 Agent 可以像在本地一样分派工作、跟进进度、
-组织审阅并整合交付，同伴也可以互相通讯、协作处理同一项目。
+远程协作视图同样支持 Project / Worktree，显示 Agent、消息、任务和结果。在同一 SSH 主机、
+账号内，可以像本地一样选择 Coordinator，并将工作 Agent 绑定到独立 checkout。各 worktree
+保持自己的文件、编辑器和 Review 根目录；独立 clone、不同主机或账号、本地与远程环境相互隔离。
 
 ![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
@@ -131,8 +128,8 @@ Project Explorer 可以浏览远程项目，创建、重命名和删除文件。
 主 Agent 再把结果整理成最终交付。数据与计算留在服务器上，任务协调、文件检查、预览和审阅仍在
 同一个应用中完成。
 
-远程开发机同样适用：让不同 Agent 分别实现功能、运行测试、维护文档，你检查文件与变更后，由
-主 Agent 整合通过审阅的结果，减少在终端、文件管理器、编辑器与 Agent 管理工具之间来回切换。
+远程开发机可使用 Worktree 模式，在隔离目录中分别实现功能、运行测试和维护文档；检查文件与
+变更后，由 Coordinator 整合并提交通过审阅的结果。科研团队仍可使用 Project 模式，无需创建 worktree。
 
 ## 不止软件开发
 
@@ -144,7 +141,7 @@ Project Explorer 可以浏览远程项目，创建、重命名和删除文件。
 | **科研与数据分析** | 主 Agent 规划文献梳理；一位 Agent 提取研究方法，另一位分析不同数据集，第三位核对计算和来源。主 Agent 把结果整理成研究笔记或报告。 |
 | **写作与知识工作** | 一位 Agent 搭建报告结构，一位搜集支撑材料，另一位检查表达、逻辑与一致性。主 Agent 处理分歧并汇总成稿。 |
 | **商业分析与运营** | 分别委派市场或政策研究、数据整理、流程文档和事实核查，再基于材料共同整理决策简报。 |
-| **软件开发** | 将实现、测试、文档和代码审阅分给不同 Agent，再由主 Agent 整合通过审阅的成果。 |
+| **软件开发** | 使用 Worktree 模式，将实现、测试和文档分给独立 checkout 中的 Agent，由明确选择的 Coordinator 安排交叉审阅、集成成果并完成最终提交。 |
 
 你可以让 Python、R、Shell、Git 和现有命令行工具与 Agent 配合工作。Warpai 不要求把科研、
 写作、分析或运营工作改造成 IDE 工程，也不把单一模型服务商设为工作中心。
@@ -176,13 +173,13 @@ SSH 项目由匹配版本的 Warpai companion 提供远端支持。
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.3.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.0)** 将 Agent 协作、文件管理、
+**[Warpai 1.3.1](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)** 将 Agent 协作、文件管理、
 应用内编辑和预览整合进本地与 SSH 项目的完整工作流。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.0/Warpai-1.3.0-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiSetup-1.3.0-windows-x64.exe) | 运行安装器。 |
+| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiSetup-1.3.1-windows-x64.exe) | 运行安装器。 |
 
 macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
 **System Settings > Privacy & Security > Open Anyway** 中批准打开。Windows 可能要求确认
@@ -190,16 +187,16 @@ macOS 应用采用临时签名，尚未进行公证。若首次启动被系统�
 
 ### 远程 companion
 
-**Warpai Companion 3.0.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
+**Warpai Companion 3.1.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
 组件自带私有 Git；Warpai 的文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
 Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Companion 按需启动，
 空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-linux-x64.run) |
-| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.0/WarpaiCompanion-3.0.0-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) |
+| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) |
 
 ## 本地优先
 

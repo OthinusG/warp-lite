@@ -2,7 +2,8 @@
 
 Date: 2026-10-09. Status: explicit modes and Coordinator orchestration implemented;
 local/SSH backend, desktop regression and native visual acceptance verified.
-Source remains on `feat/worktree-collaboration`; no release or main merge is implied.
+Accepted source is being integrated into main for App 1.3.1 / Companion 3.1.0.
+Formal tagged-package delivery is tracked in [the release contract](../RELEASE.md).
 
 ## Product and acceptance
 

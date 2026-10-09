@@ -1,5 +1,22 @@
 # Project Memory
 
+## 1.3.1 release authorization — 2026-10-09
+
+- Owner authorizes merging accepted Worktree collaboration into main, removing
+  completed branches and obsolete workflows, integrating feature descriptions
+  into existing README sections, updating repository About, and publishing App
+  1.3.1 with Companion 3.1.0. Keep protocol major 1 and historical tags/assets.
+- Reuse the two native release workflows and two validation workflows: all four
+  serve current gates. Retired diagnose-codex-arguments.yml is already absent;
+  remove only its four obsolete diagnostic runs, not release/acceptance receipts.
+  The two old remote-tools branches are already ancestors of main; remove their
+  refs and the feature ref after integration. About homepage must use war pai's
+  current repository URL, not the earlier warp-lite URL.
+- README modes belong in product workflow, development example, panel/setup,
+  remote and use-case sections, not an appended changelog. Published screenshots
+  remain unchanged. Formal release/installer gates remain required after the
+  component version bump. No local Rust build or personal installation.
+
 ## Cross-worktree collaboration — 2026-10-08
 
 - Final acceptance recorded 2026-10-09: application/Companion source 06f0ab15
