@@ -28,6 +28,11 @@
   report unavailable and restore Project mode; they neither inherit nor clear a
   repository's Coordinator. Include cross-project denial and return-to-repository
   regression coverage (owner reminder on 2026-10-09).
+- Source ddfc5b7b passed all library tests (including non-Git, empty checkout and
+  bounded handoff coverage) and coordination integration tests on macOS/Windows.
+  Integration corrections remain: online pagination/readiness expectations and
+  native-only name collision suffixing. Generic shared workspaces must retain
+  their existing cross-checkout identity-reclaim denial. Desktop/UI checks pending.
 
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git

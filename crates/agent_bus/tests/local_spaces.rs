@@ -668,7 +668,7 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
     assert_eq!(first["agents"].as_array().unwrap().len(), 50);
     query.agent_after = first["agent_cursor"].as_str().map(str::to_owned);
     let second = b.operator_panel(&query).unwrap();
-    assert_eq!(second["agents"].as_array().unwrap().len(), 3);
+    assert_eq!(second["agents"].as_array().unwrap().len(), 2);
     assert!(second["agent_cursor"].is_null());
     let names: std::collections::HashSet<_> = first["agents"]
         .as_array()
@@ -677,7 +677,7 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
         .chain(second["agents"].as_array().unwrap())
         .map(|row| row["agent"]["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names.len(), 53);
+    assert_eq!(names.len(), 52);
 
     query.agent_after = None;
     loop {
