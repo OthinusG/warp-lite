@@ -526,9 +526,6 @@ impl Broker {
     pub fn expire_epoch(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.expire_epoch(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
-            if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref()) {
-                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
-            }
             if let Some(live) = state
                 .terminals
                 .get_mut(terminal)
@@ -919,6 +916,13 @@ impl Broker {
             }
             let program = live.program.clone();
             let project = live.project.clone();
+            let name = match state.terminals[&request.terminal].workspace.as_ref() {
+                Some(workspace) if state.store.agent(&project, &name).ok()
+                    .is_some_and(|existing| state.store.physical_root(&existing).ok().as_deref() != Some(workspace.root.as_str())) => {
+                    format!("{}-{}", name.chars().take(55).collect::<String>(), request.terminal.chars().take(8).collect::<String>())
+                }
+                _ => name,
+            };
             ensure!(
                 !state
                     .terminals
@@ -1260,6 +1264,9 @@ impl Broker {
             (invalid_workspace || invalid_actor || replaced_root).then(|| terminal.clone())
         }).collect();
         for terminal in revoked {
+            if let Some(live) = state.terminals[&terminal].live.as_ref() {
+                if let Some(actor) = &live.agent { state.store.worktree_offline(&actor.id, &live.run)?; }
+            }
             let binding = state.terminals.get_mut(&terminal).unwrap();
             binding.revoked = true;
             binding.live = None;
@@ -1334,7 +1341,10 @@ impl Broker {
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
-            .or_else(|| joined.as_ref().filter(|_| binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
+            .or_else(|| joined.as_ref().filter(|workspace|
+                (binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
+                && state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
+                    !live.expired && live.project == workspace.domain())))
                 .map(|workspace| workspace.domain()))
             .unwrap_or_else(|| query.project.clone());
         let project = if query.worktree {
@@ -1354,6 +1364,7 @@ impl Broker {
         }
         ensure!(!self.shared.stopped.load(Ordering::SeqCst), coordinator_unavailable("Broker unavailable"));
         let agents = state.store.agents(&project)?;
+        let participant_names: HashMap<_, _> = agents.iter().map(|agent| (agent.id.clone(), agent.name.clone())).collect();
         let remaining: Vec<_> = agents.into_iter()
             .filter(|agent| orchestration::active_agent(&state, &agent.id,
                 state.terminals.get(&agent.terminal).and_then(|binding| binding.live.as_ref())
@@ -1435,7 +1446,7 @@ impl Broker {
         drop(state);
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
-        Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
+        Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
             "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,

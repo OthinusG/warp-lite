@@ -82,11 +82,11 @@ combined checks, and creates the final integration commit. Task acceptance alone
 never merges branches. Publishing, pushing and creating PRs require separate
 authorization; branch commits used to hand off worker results are allowed.
 
-Explicit checkout admission is an internal communication foundation. Ordinary
-Agent launches stay in Project mode until selected through the trusted panel.
-Enrollment changes communication authority while preserving the native process,
-physical checkout and private history. Exiting an enrolled run leaves its durable
-role offline; a replacement run requires explicit selection. Stale run events
+Checkout admission is internal infrastructure. Selecting a Coordinator enables
+repository participation for native Agents. Enrollment preserves each process,
+physical checkout and prior Project history. Exiting a Coordinator run clears
+its active authority; a replacement run never elects itself. Worker participation
+is automatic after restart while the repository team remains active. Stale run events
 cannot revoke a newer run or restore an old Coordinator. Leaving fences shared
 access, including queued wake delivery, without claiming native processes stopped.
 
@@ -113,8 +113,8 @@ Git writes over the file protocol or cross-host federation.
   worktree creation and Agent launch. Validate both before admission; failure
   preserves the native process, private work and user files.
   Coordinator-authorized task/review assignments reference these explicit bindings.
-- Worker restart preserves its role, task and checkout records, revokes the
-  previous run and requires explicit panel reselection before team enrollment. Coordinator exit disables its coordination authority and does not elect
+- Worker restart preserves its task and checkout records and revokes the previous
+  run; participation is automatic while the team is active. Coordinator exit disables its coordination authority and does not elect
   a replacement. Explicit restart/reselection validates the active run and fences
   the old authority before granting it to the selected Coordinator.
 - Enforce team-management and assignment authority in Warpai's backend APIs,
@@ -136,9 +136,9 @@ Git writes over the file protocol or cross-host federation.
   authorization revalidates the admitted checkout/repository identity. Explicit
   project-space remapping replaces worktree admission and revokes its captured
   actors while preserving ordinary workspace access.
-- Ordinary local and remote Agent launches retain their private Project broker
-  until the trusted panel enrolls the exact active run. Preserve the process,
-  native input state, physical checkout and previous private history.
+- Ordinary local and remote Agent launches retain their Project scope until a
+  Coordinator enables the repository team. Admit active runs automatically while
+  preserving process, native input state, checkout and prior private history.
 - Remote physical project fences remain unchanged. A repository-owned
   Broker/Store serves explicitly enrolled runs; original private endpoints forward
   native lifecycle and communication without restarting a process. Scope-bound
@@ -148,9 +148,10 @@ Git writes over the file protocol or cross-host federation.
   Non-Git projects show an empty Worktree view with guidance to switch to Project.
 - Reuse native wrapping buttons, explicit selection forms and vertical scrolling.
   Worker details expand on demand. Internal Join/Leave operations remain private
-  infrastructure; the ordinary panel uses Coordinator and worker selection.
+  infrastructure; the ordinary panel selects only the Coordinator. Worktree
+  creation dispatches Warp's existing modal/tab action.
 
-## Orchestration implementation and acceptance
+## App 1.3.1 baseline orchestration acceptance
 
 - [x] Top-level modes; Project behavior/history regression and retained drafts.
 - [x] Active-Agent Coordinator selection, empty-project disabled actions and

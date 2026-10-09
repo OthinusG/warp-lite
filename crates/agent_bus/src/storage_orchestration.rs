@@ -67,6 +67,9 @@ impl Store {
         );
         Ok(Some(serde_json::from_str(&row.response)?))
     }
+    pub(crate) fn worktree_opted_out(&self, root: &str) -> Result<bool> {
+        Ok(self.count("SELECT COUNT(*) AS count FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE w.root=? AND a.active=0", &[root])? > 0)
+    }
     pub(crate) fn worktree_domain(&self, root: &str) -> Result<Option<String>> {
         let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
         Ok(diesel::sql_query("SELECT 'space:' || w.space_id AS value FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE a.repository=? LIMIT 1")
@@ -110,6 +113,21 @@ impl Store {
             let root = self.physical_root(actor)?;
             let roles = self.worktree_roles(&actor.project)?;
             if role == "coordinator" {
+                if let Some(previous) = roles.iter().find(|entry| entry.role == "coordinator" && entry.agent != actor.id && entry.run.is_some())
+                    .filter(|entry| self.agent(&actor.project, &entry.agent).ok()
+                        .is_some_and(|agent| self.authorize(&agent).is_ok())) {
+                    let body = format!("The user selected {} as Coordinator. You are now a Worktree participant in your existing checkout. Send cross-checkout coordination to the selected Coordinator.", actor.name);
+                    diesel::sql_query("UPDATE messages SET body=? WHERE recipient=? AND sender=? AND subject='Worktree role' AND acknowledged=0")
+                        .bind::<Text, _>(&body).bind::<Text, _>(&previous.agent)
+                        .bind::<Text, _>(&Self::operator(&actor.project).id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    if self.inbox_count(&previous.agent)? < MAX_PENDING_PER_AGENT {
+                        self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend {
+                            to:previous.agent.clone(), body, subject:Some("Coordinator changed".into()),
+                            thread_id:None, reply_to:None, task_id:None, request_id:Uuid::new_v4().to_string(),
+                        })?;
+                    }
+                }
                 diesel::sql_query(
                     "UPDATE worktree_roles SET role='worker' WHERE project=? AND role='coordinator'",
                 )
@@ -192,7 +210,7 @@ impl Store {
         );
         if manages {
             ensure!(
-                coordinator.is_some_and(
+                actor.program == OPERATOR_PROGRAM || coordinator.is_some_and(
                     |entry| entry.agent == actor.id && entry.run.as_deref() == Some(run)
                 ),
                 scope_denied("Only the selected active Coordinator can orchestrate this team")

@@ -220,6 +220,8 @@ struct Snapshot {
     #[serde(default)]
     worktree_branch: Option<String>,
     agents: Vec<PanelAgent>,
+    #[serde(default)]
+    participant_names: HashMap<String, String>,
     agent_cursor: Option<String>,
     tasks: Vec<PanelTask>,
     task_cursor: Option<u64>,
@@ -267,6 +269,9 @@ impl Snapshot {
         }
         if let Some(row) = self.agents.iter().find(|row| row.agent.id == id) {
             return row.agent.name.clone();
+        }
+        if let Some(name) = self.participant_names.get(id) {
+            return name.clone();
         }
         if uuid::Uuid::parse_str(id).is_ok() {
             "Unavailable agent".into()
@@ -756,46 +761,18 @@ impl CollaborationPanel {
         if self.query.history {
             fixture.state = "history and capacity".into();
             if let Some(history) = &snapshot.history {
-                let capacity = &history.capacity;
                 fixture.sections.push(Section {
-                    title: "Storage budget".into(),
-                    rows: vec![
-                        format!(
-                            "Database bytes used {} · soft limit {} · hard limit {}",
-                            capacity["database"]["used_bytes"],
-                            capacity["database"]["soft_limit"],
-                            capacity["database"]["hard_limit"]
-                        ),
-                        format!(
-                            "Tasks active {} · total {} · active limit {}",
-                            capacity["tasks"]["used"],
-                            capacity["tasks"]["total"],
-                            capacity["tasks"]["limit"]
-                        ),
-                        format!(
-                            "Messages {} · pending {} · per-agent pending limit {}",
-                            capacity["messages"]["used"],
-                            capacity["pending_messages"]["used"],
-                            capacity["pending_messages"]["per_agent_limit"]
-                        ),
-                    ],
-                });
-                fixture.sections.push(Section { title: "Purge preview".into(), rows: vec![
-                    format!("Eligible archived tasks {} · acknowledged messages {} · reviewed sequence {}", history.preview.tasks, history.preview.messages, history.preview.sequence),
-                    "Unknown execution, unread work, prerequisites and retained reply roots are protected. Cleanup does not stop processes or file writes.".into(),
-                ] });
-                fixture.sections.push(Section {
-                    title: "Ordered export page · up to 50 records".into(),
-                    rows: history
-                        .records
-                        .iter()
-                        .map(|record| {
-                            format!(
-                                "Sequence {} · {} · {}",
-                                record["sequence"], record["type"], record["data"]["id"]
-                            )
-                        })
-                        .collect(),
+                    title: "History".into(),
+                    rows: history.records.iter().filter_map(|record| {
+                        let data = &record["data"];
+                        match record["type"].as_str()? {
+                            "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or("Task"),
+                                data["state"].as_str().unwrap_or("unknown"))),
+                            "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
+                                snapshot.participant_label(data["to"].as_str().unwrap_or("")), data["body"].as_str().unwrap_or(""))),
+                            _ => None,
+                        }
+                    }).collect(),
                 });
             }
         } else if self.show_messages {
@@ -1010,27 +987,9 @@ impl CollaborationPanel {
                                 warp_agent_bus::readiness::Activity::Error => "error",
                             })
                             .unwrap_or("unknown activity");
-                        format!(
-                            "{} · {} · {} · {}{}{}",
-                            row.agent.name,
-                            row.agent.program,
-                            if self.remote.is_some() && !self.connected {
-                                "disconnected; last known state"
-                            } else if row.online {
-                                "online"
-                            } else {
-                                "offline"
-                            },
-                            activity,
-                            if row.blocked {
-                                " · approval required"
-                            } else if row.paused {
-                                " · paused"
-                            } else {
-                                ""
-                            },
-                            String::new()
-                        )
+                        format!("{} · {}{}", row.agent.name,
+                            if self.remote.is_some() && !self.connected { "disconnected" } else { activity },
+                            if row.blocked { " · approval required" } else if row.paused { " · paused" } else { "" })
                     })
                     .collect(),
             });
@@ -1508,15 +1467,11 @@ impl View for CollaborationPanel {
         let mut connection_controls = Wrap::row()
             .with_spacing(GAP_SECTION)
             .with_run_spacing(GAP_TIGHT);
-        if !self.preview {
+        if !self.preview && self.remote.is_some() {
             for (index, label, action) in [
                 (0, "SSH setup", Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
             ] {
-                if index > 0 && self.remote.is_none() {
-                    continue;
-                }
-                // The SSH entry point is the panel's primary action; the rest stay secondary text.
                 let variant = if index == 0 {
                     ButtonVariant::Secondary
                 } else {
@@ -1770,20 +1725,15 @@ impl View for CollaborationPanel {
             body.add_child(self.render_controls(app));
             let mut buttons = Vec::new();
             for (index, label, action) in [
-                (1, "First export page", Some(Action::FirstHistory)),
+                (1, "First page", Some(Action::FirstHistory)),
                 (
                     2,
-                    "Next export page",
+                    "Next page",
                     self.snapshot
                         .as_ref()
                         .and_then(|snapshot| snapshot.history.as_ref())
                         .and_then(|history| history.cursor)
                         .map(|_| Action::NextHistory),
-                ),
-                (
-                    3,
-                    "Copy this export page as JSON",
-                    Some(Action::CopyHistory),
                 ),
             ] {
                 let button = builder
@@ -1908,7 +1858,7 @@ impl View for CollaborationPanel {
                 }
             }
         }
-        if !self.preview && (self.show_spaces || self.query.history) {
+        if !self.preview && self.show_spaces {
             if let Some(snapshot) = &self.snapshot {
                 let mut buttons = Vec::new();
                 for (index, label, action) in [
@@ -2750,8 +2700,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             data.insert("worktree-source-tab", workspace.read(app, |workspace, _| workspace.active_tab_index()));
             data.insert("worktree-tab-count", workspace.read(app, |workspace, _| workspace.tabs.len()));
             workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::OpenNewWorktreeModal, ctx));
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            let repo = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktree_root.clone());
+            let repo = app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
+                .current_directory(window).unwrap().to_owned());
             let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
             modal.update(app, |modal, ctx| modal.fill_checkpoint(repo, ctx));
         }).with_take_screenshot("worktree-create-form.png"))
@@ -2845,22 +2795,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }),
         )
         .with_step(TestStep::new("live tasks projection").add_named_assertion(
-            "native task and offline identity",
+            "offline task history is retained without an offline participant row",
             |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 warpui::async_assert!(
                     panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
                         |snapshot| snapshot.tasks.len() == 1
-                            && snapshot.agents.iter().any(|agent| !agent.online
-                                && agent.device.as_deref() == Some("local")
-                                && agent.workspace.as_deref() == Some(snapshot.project.as_str())
-                                && agent.last_observed_ms.is_none())
+                            && snapshot.agents.iter().all(|agent| agent.online)
+                            && snapshot.participant_label(&snapshot.tasks[0].assignee) == "capture-worker"
                     )) && checkpoint_draft(app, window) == "unsent collaboration draft"
                 )
             },
         ));
     filenames.push("live-empty.png".into());
     filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png"].map(str::to_owned));
+    filenames.extend(["worktree-switched-coordinator.png", "worktree-coordinator-after-tab-switch.png"].map(str::to_owned));
     filenames.extend(["worktree-join-confirmation.png", "worktree-leave-confirmation.png", "worktree-panel-team.png", "worktree-panel-isolated.png"].map(str::to_owned));
     for detail in [false, true] {
         if detail {
@@ -4969,6 +4918,14 @@ mod tests {
             snapshot.participant_label("Legacy reviewer"),
             "Legacy reviewer"
         );
+    }
+    #[test]
+    fn collaboration_offline_participant_names_remain_readable_in_history() {
+        let id = "94cdc52c-48eb-415c-a1f2-355a6be4fbe9";
+        let mut snapshot = Snapshot::default();
+        snapshot.participant_names.insert(id.into(), "Reviewer".into());
+        assert!(snapshot.agents.is_empty());
+        assert_eq!(snapshot.participant_label(id), "Reviewer");
     }
     #[test]
     fn collaboration_fixtures_cover_required_states_and_long_content() {

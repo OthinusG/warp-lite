@@ -5,6 +5,26 @@ panel, native editors/text buttons and theme/soft-wrapping rules are the visual
 source. Earlier local and superseded manager evidence is
 [archived](https://github.com/OthinusG/warpai/blob/47a2a5a/specs/agent-communication-v2/legacy-ssh-project-manager/UI-CHECKPOINT.md).
 
+## 2026-10-09 Worktree correction — verification pending
+
+Visual source remains the existing native Appearance theme, Button/Flex components
+and fixed Worktree fixtures. Desktop canvas checks use 320/600px panel widths,
+light/dark themes and 1.0/1.25 zoom. Intentional changes:
+
+| Area | Baseline issue | Expected corrected artifact |
+| --- | --- | --- |
+| Mode selection | Text controls have weak selected state | Equal-width native Accent/Secondary Project and Worktree buttons |
+| Spacing | Rows, wrapping runs and sections use different gaps | Consistent 8px gaps and left alignment |
+| Coordinator | Selector limits checkout and repeats names/actions | One compact selector with candidates from every checkout |
+| Creation | Separate panel form and worker binding | Existing Warp worktree modal creates a terminal tab; participation is automatic |
+| Daily actions | Storage, mapping, filtering and repeated task buttons crowd the panel | Message/Assign and contextual review actions; paths expand on demand |
+| History | Protocol counters and export IDs dominate the view | Task descriptions/states and readable messages; offline names remain available |
+
+The native walkthrough also switches Coordinator to another checkout and returns
+to the original tab, asserting retained selection and the original unsent draft.
+Current screenshots and source-matched receipts are pending; the baseline receipts
+below do not validate this correction.
+
 ## Static gate accepted
 
 Source06aa074/run37122711581 produced native macOS/Windows captures. Reviewed

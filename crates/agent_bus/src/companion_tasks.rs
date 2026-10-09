@@ -91,6 +91,55 @@ mod tests {
     }
 
     #[test]
+    fn remote_worktrees_participate_automatically_and_switch_coordinator_across_fences() {
+        use crate::worktrees::tests::{Fixture, call, id};
+        use crate::transport::{Request, CAPABILITY, ENDPOINT, TERMINAL, PROTOCOL_MAJOR};
+        let fixture = Fixture::new();
+        let directory = tempfile::tempdir().unwrap();
+        let projects = Projects::new(directory.path());
+        let first = fence();
+        let mut second = first.clone();
+        second.project_id = id();
+        let register = |fence: &ManagedFence, root: &Path, name: &str| {
+            let binding = projects.bind_run(fence, root, &id(), &id(), "fixture").unwrap();
+            let env = |key| binding.environment.iter().find(|(name, _)| name == key).unwrap().1.clone();
+            let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal:env(TERMINAL),
+                capability:env(CAPABILITY), run:None, directory:Some(root.to_str().unwrap().into()),
+                defer_initial_ready:false, native_activity:None, operation:Operation::AgentRegister { name:name.into() } };
+            request.run = crate::transport::call(&env(ENDPOINT), &request).unwrap()["run"].as_str().map(str::to_owned);
+            (binding, request)
+        };
+        let (lead_binding, lead) = register(&first, &fixture.main, "lead");
+        let (worker_binding, worker) = register(&second, &fixture.linked, "worker");
+        let select = |fence: &ManagedFence, root: &Path, binding: &RunBinding, request: &Request| {
+            let actor = call(&binding.broker, request, Operation::AgentRegister { name:"".into() }).unwrap();
+            execute(&projects, fence, root, &Command::Controller(ControllerOperation::WorktreeCoordinator {
+                root:root.to_str().unwrap().into(), agent:actor["agent"]["id"].as_str().unwrap().into(),
+                run:request.run.clone().unwrap(), request_id:id(),
+            }))
+        };
+        assert!(select(&first, &fixture.main, &lead_binding, &lead).get("value").is_some());
+        let team = call(&worker_binding.broker, &worker, Operation::AgentList).unwrap();
+        assert!(team.as_array().unwrap().iter().any(|agent| agent["name"] == "lead"));
+        let (later_binding, later) = register(&second, &fixture.linked, "later");
+        assert!(call(&later_binding.broker, &later, Operation::AgentList).unwrap()
+            .as_array().unwrap().iter().any(|agent| agent["name"] == "worker"));
+        assert!(select(&second, &fixture.linked, &worker_binding, &worker).get("value").is_some());
+        let panel = Command::Panel(PanelQuery { worktree:true, ..Default::default() });
+        let main = execute(&projects, &first, &fixture.main, &panel);
+        let linked = execute(&projects, &second, &fixture.linked, &panel);
+        assert_eq!(main["value"]["collaboration_scope"], linked["value"]["collaboration_scope"]);
+        assert_eq!(main["value"]["coordinator_online"], true);
+        assert!(main["value"]["roles"].as_array().unwrap().iter().any(|role|
+            role["role"] == "coordinator" && role["root"].as_str() == fixture.linked.to_str()));
+        drop(lead_binding);
+        assert_eq!(execute(&projects, &first, &fixture.main, &panel)["value"]["coordinator_online"], true);
+        drop(worker_binding);
+        assert_eq!(execute(&projects, &first, &fixture.main, &panel)["value"]["coordinator_online"], false);
+        drop(later_binding);
+    }
+
+    #[test]
     fn worktree_team_spans_remote_project_fences_without_moving_private_history() {
         use crate::worktrees::tests::{Fixture, call, assign, id};
         use crate::transport::{Request, CAPABILITY, ENDPOINT, TERMINAL, PROTOCOL_MAJOR};
@@ -681,7 +730,8 @@ impl Projects {
                     ControllerOperation::WorktreeCoordinator { agent, run, .. } | ControllerOperation::WorktreeWorker { agent, run, .. } => (agent,run),
                     _ => unreachable!(),
                 };
-                if candidates.iter().any(|candidate| candidate["agent"]["id"].as_str() == Some(agent) && candidate["run"].as_str() == Some(run)) {
+                if candidates.iter().any(|candidate| (candidate["agent"]["id"].as_str() == Some(agent)
+                    || candidate["origin_agent"].as_str() == Some(agent)) && candidate["run"].as_str() == Some(run)) {
                     result = team.enroll_worktree(&source, operation);
                     break;
                 }
@@ -717,7 +767,7 @@ impl Projects {
                 .unwrap_or(checkout.root);
             (broker,domain)
         } else if matches!(&command, Command::Panel(query) if !query.worktree) {
-            (self.broker(&fence.project_id, root)?, root.to_owned())
+            self.selected_broker(fence, root_path)?
         } else if expected_scope.as_deref() == Some(fence.project_id.as_str()) {
             (self.broker(&fence.project_id, root)?, root.to_owned())
         } else { self.selected_broker(fence, root_path)? };
