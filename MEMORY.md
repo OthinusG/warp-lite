@@ -6,7 +6,10 @@
   Use public OthinusG/warpai stable releases, existing native widgets/local
   settings/toasts, and existing HTTP/runtime dependencies. Keep upstream Warp
   cloud updating disabled. Startup checks default off and run once when enabled;
-  checks never modify installed files, and Update opens a validated release page.
+  checks never modify installed files. Owner correction: Update checks; a separate
+  Download button opens the exact published installer for the current OS/arch.
+  Match public asset names and construct fixed-repository URLs; unsupported or
+  missing packages use a Releases fallback, never the wrong installer.
 - Accept only stable application vMAJOR.MINOR.PATCH tags, with numeric comparison,
   fixed HTTPS endpoint, timeout and bounded response. Do not send Warp headers or
   trust response URLs. Version tests and native About fixed-state captures are

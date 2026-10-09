@@ -4827,7 +4827,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }));
     for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
         for width in [800, 1200] {
-            for state in ["idle", "checking", "current", "available", "error"] {
+            for state in ["idle", "checking", "current", "available", "unavailable", "error"] {
                 let filename = format!("about-updates-{label}-{width}-{state}.png");
                 filenames.push(filename.clone());
                 let theme = theme.clone();
@@ -4841,11 +4841,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
                         crate::release_updates::ReleaseUpdates::handle(ctx).update(ctx, |updates, ctx| {
                             updates.checking = state == "checking";
-                            updates.available = (state == "available").then(|| "v1.99.0".into());
+                            updates.available = (["available", "unavailable"].contains(&state)).then(|| "v1.99.0".into());
+                            updates.download_url = (state == "available").then(|| crate::release_updates::installer_url("v1.99.0", std::env::consts::OS, std::env::consts::ARCH)).flatten();
                             updates.status = match state {
                                 "checking" => "Checking for updates…",
                                 "current" => "Warpai is up to date.",
-                                "available" => "v1.99.0 is available. Update opens the release download page.",
+                                "available" | "unavailable" => "Warpai v1.99.0 is available.",
                                 "error" => "Could not check for updates. Try again or open GitHub Releases.",
                                 _ => "",
                             }.into();

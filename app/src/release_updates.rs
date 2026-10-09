@@ -30,6 +30,33 @@ struct Release {
     tag_name: String,
     draft: bool,
     prerelease: bool,
+    #[serde(default)]
+    assets: Vec<ReleaseAsset>,
+}
+
+#[derive(serde::Deserialize)]
+struct ReleaseAsset {
+    name: String,
+}
+
+pub(crate) fn installer_url(tag: &str, os: &str, arch: &str) -> Option<String> {
+    version(tag)?;
+    let number = tag.strip_prefix('v')?;
+    let name = match (os, arch) {
+        ("macos", "aarch64") => format!("Warpai-{number}-macos-arm64.dmg"),
+        ("windows", "x86_64") => format!("WarpaiSetup-{number}-windows-x64.exe"),
+        _ => return None,
+    };
+    Some(format!("{RELEASES_URL}/download/{tag}/{name}"))
+}
+
+fn published_installer(release: &Release, os: &str, arch: &str) -> Option<String> {
+    let url = installer_url(&release.tag_name, os, arch)?;
+    release
+        .assets
+        .iter()
+        .any(|asset| url.rsplit('/').next() == Some(asset.name.as_str()))
+        .then_some(url)
 }
 
 fn version(value: &str) -> Option<[u64; 3]> {
@@ -59,7 +86,7 @@ fn newer_release(release: Release, current: &str) -> anyhow::Result<Option<Strin
     Ok((latest > current).then_some(release.tag_name))
 }
 
-async fn fetch_update(current: &str) -> anyhow::Result<Option<String>> {
+async fn fetch_update(current: &str) -> anyhow::Result<Option<(String, Option<String>)>> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::none())
@@ -79,13 +106,16 @@ async fn fetch_update(current: &str) -> anyhow::Result<Option<String>> {
         );
         body.extend_from_slice(&chunk);
     }
-    newer_release(serde_json::from_slice(&body)?, current)
+    let release: Release = serde_json::from_slice(&body)?;
+    let download = published_installer(&release, std::env::consts::OS, std::env::consts::ARCH);
+    Ok(newer_release(release, current)?.map(|tag| (tag, download)))
 }
 
 #[derive(Default)]
 pub(crate) struct ReleaseUpdates {
     pub(crate) checking: bool,
     pub(crate) available: Option<String>,
+    pub(crate) download_url: Option<String>,
     pub(crate) status: String,
 }
 
@@ -113,6 +143,8 @@ impl ReleaseUpdates {
             return;
         }
         self.checking = true;
+        self.available = None;
+        self.download_url = None;
         self.status = "Checking for updates…".into();
         ctx.notify();
         let current = ChannelState::app_version().unwrap_or("").to_owned();
@@ -121,17 +153,26 @@ impl ReleaseUpdates {
             |model, result, ctx| {
                 model.checking = false;
                 match result {
-                    Ok(Some(tag)) => {
-                        model.status =
-                            format!("{tag} is available. Update opens the release download page.");
+                    Ok(Some((tag, download))) => {
+                        model.status = format!("Warpai {tag} is available.");
                         model.available = Some(tag.clone());
+                        model.download_url = download.clone();
                         if let Some(window) = ctx.windows().active_window() {
                             ToastStack::handle(ctx).update(ctx, |toasts, ctx| {
                                 toasts.add_ephemeral_toast(
                                     DismissibleToast::default(format!("Warpai {tag} is available"))
                                         .with_link(
-                                            ToastLink::new("Update".into())
-                                                .with_href(format!("{RELEASES_URL}/tag/{tag}")),
+                                            ToastLink::new(
+                                                if download.is_some() {
+                                                    "Download"
+                                                } else {
+                                                    "GitHub Releases"
+                                                }
+                                                .into(),
+                                            )
+                                            .with_href(download.unwrap_or_else(|| {
+                                                format!("{RELEASES_URL}/tag/{tag}")
+                                            })),
                                         ),
                                     window,
                                     ctx,
@@ -164,11 +205,51 @@ impl SingletonEntity for ReleaseUpdates {}
 mod tests {
     use super::*;
     #[test]
+    fn downloads_select_only_published_desktop_installers() {
+        let release = Release {
+            tag_name: "v1.4.0".into(),
+            draft: false,
+            prerelease: false,
+            assets: [
+                "Warpai-1.4.0-macos-arm64.dmg",
+                "WarpaiSetup-1.4.0-windows-x64.exe",
+                "WarpaiCompanion-3.1.0-linux-x64.run",
+            ]
+            .into_iter()
+            .map(|name| ReleaseAsset { name: name.into() })
+            .collect(),
+        };
+        assert_eq!(
+            published_installer(&release, "macos", "aarch64").unwrap(),
+            format!("{RELEASES_URL}/download/v1.4.0/Warpai-1.4.0-macos-arm64.dmg")
+        );
+        assert_eq!(
+            published_installer(&release, "windows", "x86_64").unwrap(),
+            format!("{RELEASES_URL}/download/v1.4.0/WarpaiSetup-1.4.0-windows-x64.exe")
+        );
+        for (os, arch) in [
+            ("macos", "x86_64"),
+            ("windows", "aarch64"),
+            ("linux", "x86_64"),
+        ] {
+            assert!(published_installer(&release, os, arch).is_none());
+        }
+        let missing = Release {
+            assets: vec![ReleaseAsset {
+                name: "WarpaiCompanion-3.1.0-macos-arm64.dmg".into(),
+            }],
+            ..release
+        };
+        assert!(published_installer(&missing, "macos", "aarch64").is_none());
+        assert!(installer_url("v1.4.0/evil", "macos", "aarch64").is_none());
+    }
+    #[test]
     fn stable_versions_never_offer_downgrades_or_untrusted_tags() {
         let release = |tag: &str| Release {
             tag_name: tag.into(),
             draft: false,
             prerelease: false,
+            assets: Vec::new(),
         };
         assert_eq!(
             newer_release(release("v1.10.0"), "v1.9.9").unwrap(),

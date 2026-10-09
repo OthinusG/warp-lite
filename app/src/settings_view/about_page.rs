@@ -25,6 +25,7 @@ use warpui::{
 #[derive(Clone, Debug)]
 pub enum AboutAction {
     Update,
+    Download,
     ToggleStartup,
     OpenReleases,
 }
@@ -53,10 +54,11 @@ impl TypedActionView for AboutPageView {
         match action {
             AboutAction::OpenReleases => ctx.open_url(RELEASES_URL),
             AboutAction::Update => {
-                if let Some(tag) = &ReleaseUpdates::as_ref(ctx).available {
-                    ctx.open_url(&format!("{RELEASES_URL}/tag/{tag}"));
-                } else {
-                    ReleaseUpdates::handle(ctx).update(ctx, |updates, ctx| updates.check(ctx));
+                ReleaseUpdates::handle(ctx).update(ctx, |updates, ctx| updates.check(ctx));
+            }
+            AboutAction::Download => {
+                if let Some(url) = &ReleaseUpdates::as_ref(ctx).download_url {
+                    ctx.open_url(url);
                 }
             }
             AboutAction::ToggleStartup => {
@@ -82,6 +84,7 @@ impl View for AboutPageView {
 struct AboutPageWidget {
     copy_version_button_mouse_state: MouseStateHandle,
     update_button: MouseStateHandle,
+    download_button: MouseStateHandle,
     startup_switch: SwitchStateHandle,
     releases_button: MouseStateHandle,
 }
@@ -133,6 +136,16 @@ impl SettingsWidget for AboutPageWidget {
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::Update))
                 .finish(),
         );
+        if updates.download_url.is_some() && !updates.checking {
+            update_controls.add_child(
+                ui_builder
+                    .button(ButtonVariant::Accent, self.download_button.clone())
+                    .with_text_label("Download".into())
+                    .build()
+                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::Download))
+                    .finish(),
+            );
+        }
         update_controls.add_child(startup);
         if !updates.status.is_empty() {
             update_controls.add_child(
@@ -142,9 +155,9 @@ impl SettingsWidget for AboutPageWidget {
                     .build()
                     .finish(),
             );
-            if updates.available.is_none()
+            if updates.download_url.is_none()
                 && !updates.checking
-                && updates.status.starts_with("Could not")
+                && (updates.available.is_some() || updates.status.starts_with("Could not"))
             {
                 update_controls.add_child(
                     ui_builder

@@ -9,7 +9,10 @@ Date: 2026-10-09. Status: implementation and verification pending.
 - Check only OthinusG/warpai public stable GitHub Releases. Do not enable upstream
   Warp cloud updating, accounts, telemetry, polling or background installation.
 - Manual Update checks the published version, reports current/failure status, and
-  opens the available release page on the next Update click. A startup check runs
+  shows a separate Download button for the current OS and architecture. Download
+  opens the matching published installer directly in the browser. Update always
+  checks again. Unsupported platforms or missing installers show a Releases
+  fallback instead of offering the wrong package. A startup check runs
   once when enabled and notifies only when a newer version exists.
 - Startup checking defaults off to preserve local-first startup. The local setting
   survives restarts; disabling it before a queued startup check cancels that check.
@@ -20,8 +23,10 @@ Date: 2026-10-09. Status: implementation and verification pending.
 
 Use one application model shared by About and startup. Use existing reqwest and
 async-compat; apply a timeout, bounded response and fixed HTTPS endpoint. Accept
-only non-draft, non-prerelease vMAJOR.MINOR.PATCH tags; construct download-page URLs
-from validated tags rather than trusting a returned URL. Compare against the
+only non-draft, non-prerelease vMAJOR.MINOR.PATCH tags; match installer names in
+the release assets and construct fixed-repository download URLs from validated
+tags rather than trusting returned URLs. Current packages are macOS arm64 DMG
+and Windows x64 EXE; do not select Companion, archive or checksum assets. Compare against the
 packaged application version. Keep status text wrapping in the existing About
 layout and disable duplicate checks. Register About typed actions and observe
 the update/settings models.
@@ -29,6 +34,8 @@ the update/settings models.
 ## Verification
 
 - Version checks cover newer/equal/older, invalid tags and prerelease/draft data.
+- Installer selection covers both desktop targets, unsupported architectures,
+  missing installers and Companion-only releases.
 - Check the local settings registration, startup gate and About action routing.
 - Cloud checks compile both desktop targets and default/warp_platform builds.
 - Native captures cover About status and startup switch alongside collaboration
