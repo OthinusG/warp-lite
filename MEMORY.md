@@ -11,6 +11,9 @@
   fixed HTTPS endpoint, timeout and bounded response. Do not send Warp headers or
   trust response URLs. Version tests and native About fixed-state captures are
   added to desktop validation; current-source acceptance remains pending.
+- Source 3708d389 passed all remote workflow jobs, including controlled Linux SSH.
+  Desktop checks found one About EventContext URL call; route it through the
+  typed About action before continuing build/capture acceptance.
 
 ## Worktree behavior correction — 2026-10-09
 

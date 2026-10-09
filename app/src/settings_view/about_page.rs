@@ -16,7 +16,7 @@ use warpui::{
     },
     ui_components::{
         button::ButtonVariant,
-        components::{UiComponent, UiComponentStyles},
+        components::{Coords, UiComponent, UiComponentStyles},
         switch::SwitchStateHandle,
     },
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
@@ -26,6 +26,7 @@ use warpui::{
 pub enum AboutAction {
     Update,
     ToggleStartup,
+    OpenReleases,
 }
 
 pub struct AboutPageView {
@@ -50,6 +51,7 @@ impl TypedActionView for AboutPageView {
     type Action = AboutAction;
     fn handle_action(&mut self, action: &AboutAction, ctx: &mut ViewContext<Self>) {
         match action {
+            AboutAction::OpenReleases => ctx.open_url(RELEASES_URL),
             AboutAction::Update => {
                 if let Some(tag) = &ReleaseUpdates::as_ref(ctx).available {
                     ctx.open_url(&format!("{RELEASES_URL}/tag/{tag}"));
@@ -110,21 +112,18 @@ impl SettingsWidget for AboutPageWidget {
         let startup = ui_builder
             .switch(self.startup_switch.clone())
             .check(*UpdateSettings::as_ref(app).check_on_startup.value())
-            .build()
-            .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::ToggleStartup))
-            .finish();
-        let startup_row = Wrap::row()
-            .with_spacing(8.)
-            .with_run_spacing(8.)
-            .with_main_axis_alignment(MainAxisAlignment::Center)
-            .with_children([
-                startup,
+            .label(
                 ui_builder
                     .span("Check for updates on startup")
                     .with_soft_wrap()
-                    .build()
-                    .finish(),
-            ]);
+                    .with_style(UiComponentStyles {
+                        margin: Some(Coords::default().right(8.)),
+                        ..Default::default()
+                    }),
+            )
+            .build()
+            .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::ToggleStartup))
+            .finish();
         let mut update_controls = Flex::column()
             .with_spacing(8.)
             .with_cross_axis_alignment(CrossAxisAlignment::Center);
@@ -134,7 +133,7 @@ impl SettingsWidget for AboutPageWidget {
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::Update))
                 .finish(),
         );
-        update_controls.add_child(startup_row.finish());
+        update_controls.add_child(startup);
         if !updates.status.is_empty() {
             update_controls.add_child(
                 ui_builder
@@ -152,7 +151,7 @@ impl SettingsWidget for AboutPageWidget {
                         .button(ButtonVariant::Text, self.releases_button.clone())
                         .with_text_label("GitHub Releases".into())
                         .build()
-                        .on_click(|ctx, _, _| ctx.open_url(RELEASES_URL))
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::OpenReleases))
                         .finish(),
                 );
             }
