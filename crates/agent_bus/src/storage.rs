@@ -42,7 +42,7 @@ pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
 pub(crate) const REQUEST_RETENTION: Duration = Duration::from_secs(8 * 24 * 60 * 60);
 const MAX_AGENTS: i64 = 1000;
 const MAX_ACTIVE_TASKS_PER_PROJECT: i64 = 1000;
-const MAX_PENDING_PER_AGENT: i64 = 1000;
+pub(crate) const MAX_PENDING_PER_AGENT: i64 = 1000;
 const CONTROL_MESSAGE_RESERVE: i64 = 100;
 const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
@@ -705,6 +705,25 @@ impl Store {
             None,
             json!({"kind": message.kind, "to": message.to, "task_id": message.task_id}),
         )?;
+        if message.task_id.is_some() && control && self.worktree_mode(project)? {
+            if let Some(coordinator) = self.worktree_roles(project)?.into_iter().find(|role|
+                role.role == "coordinator" && role.run.is_some()
+                    && role.agent != message.to && role.agent != message.from) {
+                if self.inbox_count(&coordinator.agent)? < MAX_PENDING_PER_AGENT {
+                    let mut update = message.clone();
+                    update.from = Self::operator(project).id;
+                    update.to = coordinator.agent;
+                    update.body = format!("Task {} · {}\n{}", message.task_id.as_deref().unwrap(), message.kind, message.body);
+                    update.subject = Some("Task update".into());
+                    update.kind = "message".into();
+                    update.task_id = None;
+                    update.revision = None;
+                    update.thread_id = None;
+                    update.reply_to = None;
+                    self.queue(project, update)?;
+                }
+            }
+        }
         Ok(message)
     }
 
@@ -3430,6 +3449,7 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::WorktreeMode { worktree, .. } => self.set_worktree_mode(project, *worktree),
             ControllerOperation::WorktreeCreate { root, name, base, .. } => {
                 ensure!(self.worktree_binding(root)?.is_some_and(|binding| binding.domain() == project),
                     scope_denied("Worktree creation requires the selected team checkout"));

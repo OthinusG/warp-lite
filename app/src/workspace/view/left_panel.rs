@@ -393,7 +393,7 @@ impl LeftPanelView {
                 active_icon: None,
                 tooltip_text: "Agent collaboration".to_owned(),
                 action: LeftPanelAction::Collaboration,
-                render_with_active_state: true,
+                render_with_active_state: false,
                 tooltip_keybinding_names: vec![],
                 tooltip_keybinding: None,
             },
@@ -817,6 +817,14 @@ impl Entity for LeftPanelView {
 impl LeftPanelView {
     fn close_button(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
         let ui_builder = appearance.ui_builder().clone();
+        if matches!(action, LeftPanelAction::Collaboration) {
+            use warpui::ui_components::button::ButtonVariant;
+            return ui_builder.button(if button_config.render_with_active_state {
+                ButtonVariant::Accent
+            } else { ButtonVariant::Secondary }, mouse_state)
+                .with_text_label("Collaborate".into()).build()
+                .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish();
+        }
         let tooltip_keybinding =
             keybinding_name_to_display_string("workspace:toggle_left_panel", app);
 

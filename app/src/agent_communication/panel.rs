@@ -203,6 +203,8 @@ struct HistoryPage {
 #[derive(Default, Deserialize)]
 struct Snapshot {
     #[serde(default)]
+    worktree_mode: Option<bool>,
+    #[serde(default)]
     candidates: Vec<WorktreeCandidate>,
     #[serde(default)]
     roles: Vec<WorktreeRole>,
@@ -298,6 +300,7 @@ pub(crate) struct CollaborationPanel {
     events: Vec<Event>,
     context: Option<(String, Option<String>)>,
     in_flight: bool,
+    mode_pending: bool,
     status: String,
     task_buttons: HashMap<String, MouseStateHandle>,
     page_buttons: [MouseStateHandle; 8],
@@ -392,6 +395,7 @@ impl CollaborationPanel {
             events: Vec::new(),
             context: None,
             in_flight: false,
+            mode_pending: false,
             status: "Loading collaboration…".into(),
             task_buttons: Default::default(),
             page_buttons: Default::default(),
@@ -471,6 +475,56 @@ impl CollaborationPanel {
         Some((root, terminal))
     }
 
+    fn set_mode(&mut self, worktree: bool, ctx: &mut ViewContext<Self>) {
+        if self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
+        let Some(snapshot) = &self.snapshot else { return; };
+        let project = snapshot.project.clone();
+        let root = snapshot.worktree_root.clone();
+        let remote = self.remote.is_some();
+        let client = self.remote_client.clone();
+        let broker = super::BROKER.get().cloned();
+        let context = self.context.clone();
+        self.generation += 1;
+        let generation = self.generation;
+        self.mode_pending = true;
+        ctx.spawn(async move {
+            let operation = warp_agent_bus::ControllerOperation::WorktreeMode {
+                worktree, request_id:uuid::Uuid::new_v4().to_string(),
+            };
+            if remote {
+                let mut client = client.lock().await;
+                let client = client.as_mut().ok_or_else(|| anyhow::anyhow!("ssh_connection_lost"))?;
+                Self::remote_command(client, &TaskCommand::Scoped {
+                    scope:project, command:Box::new(TaskCommand::Controller(operation)),
+                }, generation).await
+            } else {
+                broker.ok_or_else(|| anyhow::anyhow!("Broker unavailable"))?.control(&root, &operation)
+            }
+        }, move |panel, result, ctx| {
+            if panel.context != context || panel.generation != generation { return; }
+            panel.mode_pending = false;
+            match result {
+                Ok(_) => {
+                    panel.worktree_mode = worktree;
+                    panel.query = PanelQuery { worktree, ..Default::default() };
+                    panel.snapshot = None;
+                    panel.events.clear();
+                    panel.show_spaces = false;
+                    panel.show_messages = false;
+                    panel.expanded_worker = None;
+                    panel.scroll = Default::default();
+                }
+                Err(_) => {
+                    panel.connected = false;
+                    panel.status = "Could not change communication mode. Reconnect and try again.".into();
+                }
+            }
+            panel.refresh(ctx);
+            ctx.notify();
+        });
+        ctx.notify();
+    }
+
     fn schedule(ctx: &mut ViewContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(250)), |panel, _, ctx| {
             panel.refresh(ctx);
@@ -512,6 +566,7 @@ impl CollaborationPanel {
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
             self.generation += 1;
+            self.mode_pending = false;
             if self.context.as_ref().map(|(root, _)| root) != context.as_ref().map(|(root, _)| root) {
                 self.remote_client = Default::default();
                 self.remote_failed = false;
@@ -542,7 +597,7 @@ impl CollaborationPanel {
             return;
         };
         self.query.worktree = self.worktree_mode;
-        if self.in_flight {
+        if self.in_flight || self.mode_pending {
             return;
         }
         if self.remote.is_some() && self.remote_failed {
@@ -595,6 +650,14 @@ impl CollaborationPanel {
             }
             match result {
                 Ok(mut snapshot) => {
+                    if let Some(mode) = snapshot.worktree_mode {
+                        if panel.worktree_mode != mode {
+                            panel.worktree_mode = mode;
+                            panel.query = PanelQuery { worktree:mode, ..Default::default() };
+                            panel.events.clear();
+                            panel.expanded_worker = None;
+                        }
+                    }
                     if panel.query.scope.as_deref() != Some(snapshot.project.as_str()) {
                         panel.events.clear();
                         panel.query = Default::default();
@@ -1049,15 +1112,8 @@ impl TypedActionView for CollaborationPanel {
             match action {
                 Action::Mode(worktree) => {
                     if self.form.is_some() { return; }
-                    self.worktree_mode = *worktree;
-                    self.query = PanelQuery { worktree: *worktree, ..Default::default() };
-                    self.snapshot = None;
-                    self.events.clear();
-                    self.show_spaces = false;
-                    self.show_messages = false;
-                    self.expanded_worker = None;
-                    self.generation += 1;
-                    self.scroll = Default::default();
+                    self.set_mode(*worktree, ctx);
+                    return;
                 }
                 Action::SelectParticipant(id) => {
                     if let Some(form) = self.form.as_mut().filter(|form| !form.submitting && form.submitted_fields.is_none()) {
@@ -1454,7 +1510,7 @@ impl View for CollaborationPanel {
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
                 let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Accent } else { ButtonVariant::Secondary }, self.mode_buttons[index].clone())
                     .with_centered_text_label(label.into());
-                let button = if self.form.is_some() { button.disabled() } else { button };
+                let button = if self.form.is_some() || self.mode_pending || !self.connected { button.disabled() } else { button };
                 modes.add_child(Expanded::new(1., button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Mode(worktree))).finish()).finish());
             }
             header.add_child(modes.finish());
@@ -2031,7 +2087,7 @@ fn register_capture_participant(
         Some(workspace) => broker.prepare_in_workspace(terminal, workspace)?,
         None => broker.prepare(terminal)?,
     };
-    broker.activate(terminal, "codex", root, true)?;
+    broker.activate_project(terminal, "codex", root, true)?;
     let mut request = Request {
         protocol_major: transport::PROTOCOL_MAJOR,
         terminal: terminal.into(),
@@ -2057,6 +2113,9 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No capture broker"))?;
     let terminal = "capture-native-worker";
     let mut request = register_capture_participant(terminal, "capture-worker", root, None)?;
+    let project = transport::call(&broker.endpoint, &warp_agent_bus::transport::Request {
+        operation:Operation::AgentRegister { name:String::new() }, ..request.clone()
+    })?["agent"]["project"].as_str().unwrap().to_owned();
     let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(
         "../../../specs/agent-communication-v2/panel-fixtures.json"
     ))?;
@@ -2067,7 +2126,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .and_then(|section| section.rows.first())
         .cloned()
         .unwrap_or_else(|| "Verify the native capture fixture".into());
-    let task = broker.operator(root, &Operation::TaskAssign {
+    let task = broker.operator(&project, &Operation::TaskAssign {
         to: "capture-worker".into(), description,
         acceptance: "The deterministic native IPC check passes and the unsent terminal draft remains intact.".into(),
         reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
@@ -2090,7 +2149,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     };
     transport::call(&broker.endpoint, &request)?;
     let thread = broker.operator(
-        root,
+        &project,
         &Operation::AgentSend {
             to: "capture-worker".into(),
             body: "Native thread checkpoint literal _% text".into(),

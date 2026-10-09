@@ -475,7 +475,7 @@ impl Broker {
         let handle = crate::companion::open_root(root)?;
         let workspace = self.worktree_binding(&crate::project_root(root)?)?;
         let capability = self.prepare_binding(terminal, workspace)?;
-        if let Err(error) = self.activate(terminal, program, project, false) {
+        if let Err(error) = self.activate_project(terminal, program, project, false) {
             self.revoke_remote_run(terminal, None);
             return Err(error);
         }
@@ -962,7 +962,8 @@ impl Broker {
             result["capacity"] = state.store.capacity(&project)?;
             let root = state.store.physical_root(&agent)?;
             if state.terminals[&request.terminal].workspace.is_some()
-                && !state.store.worktree_roles(&project)?.is_empty() {
+                && state.store.worktree_domain(&root).ok().flatten().as_deref() == Some(project.as_str()) {
+                state.store.initialize_project_mode(&project)?;
                 state.store.set_worktree_role(&agent, &run, "worker")?;
             }
             drop(state);
@@ -1250,6 +1251,25 @@ impl Broker {
             | ControllerOperation::RemoteWorkspaceMap { .. }),
             crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None));
         let mut state = self.store()?;
+        if matches!(operation, ControllerOperation::WorktreeMode { .. }) {
+            let domain = if crate::worktrees::Worktree::discover(Path::new(project)).is_ok() {
+                if state.store.worktree_binding(project)?.is_none() {
+                    state.store.execute_controller(project, &ControllerOperation::WorktreeJoin {
+                        root:project.into(), request_id:Uuid::new_v4().to_string(),
+                    })?;
+                }
+                state.store.worktree_binding(project)?.unwrap().domain()
+            } else { project.into() };
+            let result = state.store.execute_controller(&domain, operation)?;
+            for binding in state.terminals.values_mut() {
+                if let Some(live) = binding.live.as_mut().filter(|live| live.project == domain) {
+                    live.generation += 1;
+                    if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+                }
+            }
+            self.shared.changed.notify_all();
+            return Ok(result);
+        }
         if matches!(operation, ControllerOperation::WorktreeCreate { .. }) {
             let roles = state.store.worktree_roles(project)?;
             ensure!(roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run))),
@@ -1341,10 +1361,8 @@ impl Broker {
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
-            .or_else(|| joined.as_ref().filter(|workspace|
-                (binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
-                && state.terminals.values().any(|binding| !binding.revoked && binding.live.as_ref().is_some_and(|live|
-                    !live.expired && live.project == workspace.domain())))
+            .or_else(|| joined.as_ref().filter(|_|
+                binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
                 .map(|workspace| workspace.domain()))
             .unwrap_or_else(|| query.project.clone());
         let project = if query.worktree {
@@ -1369,7 +1387,6 @@ impl Broker {
             .filter(|agent| orchestration::active_agent(&state, &agent.id,
                 state.terminals.get(&agent.terminal).and_then(|binding| binding.live.as_ref())
                     .map(|live| live.run.as_str()).unwrap_or("")))
-            .filter(|agent| query.worktree || state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
             .collect();
         let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());
@@ -1443,10 +1460,11 @@ impl Broker {
         } else { None };
         let roles = state.store.worktree_roles(&project)?;
         let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
+        let worktree_mode = state.store.worktree_mode(&project)?;
         drop(state);
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
-        Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
+        Ok(json!({"project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
             "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,

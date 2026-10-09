@@ -2,6 +2,19 @@
 
 ## Worktree behavior correction — 2026-10-09
 
+- Audit correction: project identity must be established at native launch, before
+  registration/tasks. Native worktrees live under the managed data directory,
+  outside the main checkout; ancestry and basename cannot establish membership.
+  Coordinator changes preserve identity/task ownership and provide handoff plus
+  future task updates. A same-name restart cannot inherit Coordinator authority.
+- Communication mode is a project setting independent of Coordinator selection,
+  persisted with existing Store metadata. Panel reads do not change permissions;
+  Project lists include all online project participants across checkouts. Remove
+  remote candidate truncation and update MCP instructions to automatic membership.
+- First source a5ed10d3 fails two protocol regressions (remote origin-ID matching
+  after automatic enrollment, and noncanonical macOS fixture path). Corrections
+  and the expanded identity/mode/handoff coverage await source-matched cloud runs.
+
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git
   common-directory identity and all registered checkouts/subdirectories. Same

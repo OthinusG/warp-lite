@@ -503,6 +503,7 @@ impl Operation {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControllerOperation {
+    WorktreeMode { worktree: bool, request_id: String },
     WorktreeCoordinator { root: String, agent: String, run: String, request_id: String },
     WorktreeWorker { root: String, agent: String, run: String, request_id: String },
     WorktreeCreate { root: String, name: String, base: String, request_id: String },
@@ -627,7 +628,8 @@ pub enum ControllerOperation {
 impl ControllerOperation {
     pub(crate) fn request_id(&self) -> Option<&str> {
         match self {
-            Self::WorktreeCoordinator { request_id, .. }
+            Self::WorktreeMode { request_id, .. }
+            | Self::WorktreeCoordinator { request_id, .. }
             | Self::WorktreeWorker { request_id, .. }
             | Self::WorktreeCreate { request_id, .. } => Some(request_id),
             Self::SpaceCreate { request_id, .. }

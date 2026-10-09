@@ -19,6 +19,19 @@ or from the selected Coordinator are allowed. Separate clones and SSH authoritie
 remain isolated. Preserve private Project history and reject enrollment when
 unfinished private work cannot safely change scope.
 
+Native launches establish repository project membership before registration and
+task creation. Mode changes and Coordinator changes preserve Agent IDs, native
+runs, checkout bindings and task ownership. Legacy private history remains in its
+original authority; migration is not the normal launch or mode-switch path.
+Persist the active communication mode per project separately from Coordinator
+selection: Project permits project peers; Worktree permits same-checkout peers
+and Coordinator links. Reading the panel never changes the active mode. Exiting
+the selected run clears its role so a same-name restart is an ordinary participant.
+Coordinator changes notify the new selection about unfinished project tasks;
+task provenance and designated reviewer remain intact. Project participant lists
+include every online project Agent, regardless of the focused checkout. Remote
+Coordinator candidates must have pagination or complete bounded native coverage.
+
 Coordinator selection belongs to the project and exact native run, independent
 of focused pane, tab, directory or panel visibility. Clear active selection only
 on run termination/revocation or application shutdown; never elect a replacement.
@@ -39,6 +52,10 @@ Acceptance tasks:
 - [ ] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
 - [ ] Online filtering precedes pagination and preserves offline task/history data.
 - [ ] Schema upgrade preserves roles and produces a pre-upgrade backup.
+- [ ] Initial repository identity and task ownership survive both mode changes.
+- [ ] Same-name Coordinator restart remains a worker until explicit selection.
+- [ ] New Coordinator receives unfinished-task handoff and future task updates.
+- [ ] Collaboration entry remains prominent after toolbelt state refresh.
 - [ ] Focused protocol tests, desktop checks and native narrow/light/dark captures.
 
 Risks: preserve immutable checkout authority and private work during admission;
