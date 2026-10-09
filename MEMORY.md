@@ -16,6 +16,14 @@
   remote and use-case sections, not an appended changelog. Published screenshots
   remain unchanged. Formal release/installer gates remain required after the
   component version bump. No local Rust build or personal installation.
+- Main integration and immutable v1.3.1 tag both point to
+  0312ac0f9ed6d9781fcd0b52c9f8d0b4d1c0e4c9. Formal macOS/three-platform
+  Companion run 37881956251 started with auto_publish=true; Windows follows
+  after success. Publication remains pending. Only main remains on origin;
+  completed feature/remote-tools refs were removed after ancestor checks.
+  Retired Codex diagnostic workflow disappeared after removing its four runs;
+  the four current release/validation workflows remain. About now describes
+  Project/Worktree coordination and links to the current repository's downloads.
 
 ## Cross-worktree collaboration — 2026-10-08
 
