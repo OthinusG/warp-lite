@@ -1,5 +1,34 @@
 # Project Memory
 
+## 1.3.1 public delivery — 2026-10-09
+
+- Published v1.3.1 as latest with Companion 3.1.0. Immutable tagged source:
+  0312ac0f9ed6d9781fcd0b52c9f8d0b4d1c0e4c9. Main contains the accepted
+  Worktree collaboration and preparation; later commits record docs/receipts.
+  Historical tags, releases, screenshots and branding remain unchanged.
+- Formal macOS/three-platform Companion run 37881956251 succeeds on attempt 2;
+  retry only the desktop job after first-attempt dependency executable/disk I/O
+  errors. All Companion installer/runtime jobs pass on the first attempt.
+  Windows run 37888146809 passes package/version/icon/bridge checks and publishes
+  the complete draft at 2026-10-09 06:27:56 UTC.
+- Downloaded all five installers and both SHA-256 lists; every GitHub digest and
+  checksum matches, with exact five-installer coverage. Windows public bytes
+  match the native CI artifact and tagged-source receipt. Public inventory is
+  exactly five installers plus two checksum files; notes match the committed
+  changelog and all five unauthenticated download HEAD requests return HTTP 200.
+- Both read-only macOS DMGs pass verification, artwork/volume icon and payload
+  checks. App 1.3.1 identity, strict deep signature and Agent bridge pass;
+  Companion 3.1.0 native version/source/target and every payload checksum pass.
+  Linux payload source/target/version and all file hashes pass. Desktop, bridge,
+  Companion and private Git Mach-O binaries declare minimum macOS 11.0, matching
+  bilingual README requirements for Apple silicon; macOS 11 hardware execution
+  was not tested. No personal app, Agent or SSH configuration was installed.
+- Only main remains on origin. Three completed development branches and retired
+  Codex diagnostic workflow history were removed; two release and two validation
+  workflows remain. Repository About describes Project/Worktree coordination
+  and links to Warpai's current downloads. README integrates the modes into
+  workflow/example/panel/setup/remote sections without an appended update list.
+
 ## 1.3.1 release authorization — 2026-10-09
 
 - Owner requires minimum macOS version in README download requirements. Published

@@ -28,6 +28,34 @@ fails on an occupied identical DLL. Workflow-only fix 48f1ca4a passes focused
 Windows native run 37841105097. Each desktop has 191 verified captures; the
 overall full-run failure is retained in the Worktree contract.
 
+### 1.3.1 public delivery receipt
+
+Published [Warpai 1.3.1 with Companion 3.1.0](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)
+as latest on 2026-10-09. Immutable tagged source:
+`0312ac0f9ed6d9781fcd0b52c9f8d0b4d1c0e4c9`.
+
+- [macOS and three-platform Companion release](https://github.com/OthinusG/warpai/actions/runs/37881956251)
+  succeeds on attempt 2, preserving successful first-attempt Companion installers
+  while retrying the desktop job after dependency executable/disk I/O failures.
+  No source tag was changed and no check was bypassed.
+- [Windows desktop release](https://github.com/OthinusG/warpai/actions/runs/37888146809)
+  passes application/installer version, icon, Agent bridge and package checks,
+  then uploads and publishes the complete release.
+- All five downloaded installers and two SHA-256 lists match GitHub digests.
+  Windows public bytes match the native CI artifact and immutable source receipt.
+  The checksum lists cover exactly all five installers. Public notes match the
+  committed changelog; all five unauthenticated download URLs return HTTP 200.
+- Read-only macOS DMGs pass identity, version, deep signature, icons, launcher,
+  source/target and payload checks; Linux source/target/version and all payload
+  hashes pass. macOS App, bridge, Companion and private Git binaries declare
+  minimum macOS 11.0. Bilingual README requirements specify Big Sur or newer on
+  Apple silicon; this deployment minimum is not an older-OS execution receipt.
+- Completed branches and the obsolete Codex diagnostic workflow were removed.
+  The four current release/validation workflows remain; historical releases,
+  tags, screenshots and branding are preserved. About and bilingual README
+  describe both modes within the existing product sections. No personal-machine
+  installation, local Rust compilation or credential/configuration edit occurred.
+
 ## Historical delivery: 1.3.0 with Companion 3.0.0
 
 The owner authorizes packaging and public release of App 1.3.0 and Companion
