@@ -51,6 +51,11 @@
   and 1.25 zoom found a clipped startup switch and attribution despite green
   assertions. Use the existing Shrinkable label row and soft-wrap the attribution;
   require fresh native captures before accepting the visual change.
+- Windows 6f23b3fe now passes native creation, cross-checkout Coordinator switch
+  and return-to-main persistence; it reaches 143 frames before the scrolling
+  assertion. Its native font metrics let detail content fit even at 320px panel
+  width. Exercise real overflow in a 600px-high window, then restore its original
+  bounds; keep the positive scroll and retained-draft assertions on both OSes.
 
 ## Worktree behavior correction — 2026-10-09
 

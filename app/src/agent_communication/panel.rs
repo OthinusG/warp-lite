@@ -2886,9 +2886,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }
     driver = driver
         .with_step(
-            TestStep::new("focus live detail").with_action(|app, window, _| {
-                app.update(|ctx| ResizableData::as_ref(ctx).get_all_handles(window).unwrap()
-                    .left_panel_width.lock().unwrap().set_size(320.));
+            TestStep::new("focus live detail").with_action(|app, window, data| {
+                let bounds = app.read(|ctx| ctx.window_bounds(&window).unwrap());
+                data.insert("live-detail-window-bounds", bounds);
+                app.update(|ctx| {
+                    ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(
+                        bounds.origin(), pathfinder_geometry::vector::vec2f(bounds.size().x(), 600.)));
+                    ResizableData::as_ref(ctx).get_all_handles(window).unwrap()
+                        .left_panel_width.lock().unwrap().set_size(320.);
+                });
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
@@ -2926,7 +2932,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 }),
-        );
+        )
+        .with_step(TestStep::new("restore window after live detail scrolling").with_action(|app, window, data| {
+            let bounds = *data.get::<_, pathfinder_geometry::rect::RectF>("live-detail-window-bounds").unwrap();
+            app.update(|ctx| ctx.set_and_cache_window_bounds(window, bounds));
+        }));
     filenames.push("live-detail-end.png".into());
     driver = driver
         .with_step(
@@ -4899,7 +4909,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
