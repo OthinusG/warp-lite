@@ -13,6 +13,15 @@
   immutable tag and five-installer/checksum/source/native identity/public-link
   acceptance. Keep 30-minute cloud monitoring and repair failures without
   bypassing release gates. Current latest public baseline is 1.3.1 / 3.1.0.
+- Main integration preserves local website/branding memory commits 57122573 and
+  2f3611c4 through merge 734597ea. Both completed native worktrees were clean,
+  had no ignored files or observed cwd users, and were removed with their merged
+  local branches. The live gh-pages worktree/branch is retained. All current
+  workflow files are necessary; no obsolete workflow definition remains.
+- Preparation sets Companion 4.0.0, updates bilingual README/remote installation
+  downloads and About instructions, and adds 1.5.0 notes. Local packaging smoke,
+  shell/Python/YAML syntax, Rust parsing and exact five-installer mappings pass.
+  Tag-source/native packaging/public delivery remain pending.
 
 ## Worktree and About source acceptance — 2026-10-09
 

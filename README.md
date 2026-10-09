@@ -16,11 +16,11 @@ Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.3.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.5.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.3.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)
+[![Release](https://img.shields.io/badge/release-1.5.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.5.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -213,23 +213,28 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.3.1](https://github.com/OthinusG/warpai/releases/tag/v1.3.1)** brings
+**[Warpai 1.5.0](https://github.com/OthinusG/warpai/releases/tag/v1.5.0)** brings
 Agent coordination, file management, in-app editing and previews to
 your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiSetup-1.3.1-windows-x64.exe) | Run the installer. |
+| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.0/Warpai-1.5.0-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiSetup-1.5.0-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
 the download source. Windows may ask you to approve an unsigned installer.
 Checksums are included on the release page.
 
+Open **Settings > About** and click **Update** to check for a newer release.
+When one is available, **Download** opens the published installer for your
+platform. Enable **Check for updates on startup** to check once when Warpai starts.
+Install the downloaded package using the instructions above.
+
 ### Remote companion
 
-**Warpai Companion 3.1.0** provides the remote workspace on your Linux, macOS or
+**Warpai Companion 4.0.0** provides the remote workspace on your Linux, macOS or
 Windows machine, including its private Git runtime. Warpai's file, Review and
 Agent communication infrastructure requires no separate Git, Python, Node, tmux
 or socat installation. Vendor Agents retain their own requirements. Companion
@@ -238,9 +243,9 @@ machine you connect to.
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) |
-| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-linux-x64.run) |
+| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-windows-x64-setup.exe) |
 
 ## Local by design
 
