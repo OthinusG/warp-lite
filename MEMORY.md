@@ -1,5 +1,14 @@
 # Project Memory
 
+## Website deployment — 2026-10-09
+
+- https://othinusg.github.io/warpai/ is live on GitHub Pages, served from the
+  orphan `gh-pages` branch root (single blank placeholder `index.html`, commit
+  3fa59f20). Main branch and its workflows stay untouched; HTTPS enforced;
+  source is deploy-from-branch.
+- Update the site by committing to `gh-pages`. A future built site can publish
+  generated output to the same branch or switch Pages source to GitHub Actions.
+
 ## 1.3.1 public delivery — 2026-10-09
 
 - Published v1.3.1 as latest with Companion 3.1.0. Immutable tagged source:
