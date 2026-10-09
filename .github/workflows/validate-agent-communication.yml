@@ -162,7 +162,7 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          $expectedImages = $fixtureCount * 8 + 87
+          $expectedImages = $fixtureCount * 8 + 110
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
@@ -289,7 +289,7 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = len(fixtures) * 8 + 87
+          expected = len(fixtures) * 8 + 110
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures

@@ -14,6 +14,9 @@
   fixed HTTPS endpoint, timeout and bounded response. Do not send Warp headers or
   trust response URLs. Version tests and native About fixed-state captures are
   added to desktop validation; current-source acceptance remains pending.
+- Native capture totals must reflect retired manual join/leave screens (-4),
+  new empty-project/switch/return screens (+3), and 24 About state frames. Update
+  both platform count assertions together; the current fixed addition is 110.
 - Source 3708d389 passed all remote workflow jobs, including controlled Linux SSH.
   Desktop checks found one About EventContext URL call; route it through the
   typed About action before continuing build/capture acceptance.
