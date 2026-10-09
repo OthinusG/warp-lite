@@ -1,5 +1,19 @@
 # Project Memory
 
+## 1.5.0 release authorization — 2026-10-10
+
+- Owner authorizes main integration, unused branch/workflow cleanup, and public
+  desktop 1.5.0 / Companion 4.0.0 release. Reuse accepted source and native
+  packaging workflows; keep protocol major 1, historical tags/assets and the live
+  gh-pages website. No local Rust build or personal installation is implied.
+- Current two release and two validation workflows are all active acceptance/
+  delivery gates; Pages' generated workflow serves the website. Preserve them.
+  Inspect completed native worktrees for changes and active use before cleanup.
+- Release contract records scope, cleanup boundaries, version/README/notes tasks,
+  immutable tag and five-installer/checksum/source/native identity/public-link
+  acceptance. Keep 30-minute cloud monitoring and repair failures without
+  bypassing release gates. Current latest public baseline is 1.3.1 / 3.1.0.
+
 ## Worktree and About source acceptance — 2026-10-09
 
 - Accepted source 46248e08: run 37943970413 succeeds on macOS and Windows,

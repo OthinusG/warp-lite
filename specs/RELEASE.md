@@ -1,6 +1,36 @@
 # Warpai releases
 
-## Current delivery: 1.3.1 with Companion 3.1.0
+## Current delivery: 1.5.0 with Companion 4.0.0
+
+Owner authorization 2026-10-10: merge all accepted fixes into main, clean unused
+branches/workflows, and package/publish desktop 1.5.0 with Companion 4.0.0.
+
+1. Fast-forward main to the accepted correction branch. Preserve historical tags,
+   release assets, screenshots and the active gh-pages website. Delete completed
+   development refs only after main contains them; remove only clean, unused
+   native worktrees. The two release/two validation workflows remain necessary;
+   keep Pages deployment and acceptance/release evidence.
+2. Set Companion RELEASE_VERSION to 4.0.0, retaining protocol major 1. Desktop
+   version derives from the immutable v1.5.0 tag. Update both README download and
+   About/update sections, and write docs/releases/v1.5.0.md against public 1.3.1.
+   No unrelated refactor, new packaging flow, local Rust build or installation.
+3. Verify focused version/packaging checks and scripts, commit main, and create
+   v1.5.0 without altering older tags. Dispatch release-macos.yml with
+   release_tag=v1.5.0 and auto_publish=true. Existing native Companion install/
+   reinstall/version/source checks precede the macOS draft; Windows follows and
+   publishes only after its installer/version/icon/Agent-bridge checks pass.
+4. Monitor cloud jobs at the owner's 30-minute cadence. Diagnose and fix failed
+   gates without bypassing checks. Verify the five versioned public installers,
+   both SHA-256 lists, exact source provenance, signed macOS bundles/DMG contents
+   and public download links. Record delivery in MEMORY.md and this contract.
+
+Acceptance baseline: source 46248e08 passes both desktop protocol/build/native
+walkthrough jobs in run 37943970413, with 214 valid PNGs per OS (24 About states).
+Application unit suites pass at production-equivalent 27a9f992 in run 37939850502.
+Remote backend is unchanged from the three-platform accepted 15927aa3 source,
+run 37920112411. The new component version requires fresh tagged package gates.
+
+## Historical delivery: 1.3.1 with Companion 3.1.0
 
 Owner authorization 2026-10-09: merge accepted Worktree collaboration into main,
 remove completed branches and obsolete diagnostic workflow history, integrate
