@@ -12,8 +12,8 @@ rules below. Reuse Warp's existing worktree modal, tab configurations and new-ta
 flow; collaboration does not own a second worktree creation form. Git common-directory identity defines the parent project, including checkout subdirectories.
 Any active Agent in any checkout can become Coordinator. Switching the selection
 at any time demotes the previous Coordinator to an ordinary participant without
-ending its run or losing its tasks. Selecting one active Coordinator enables participation for active Agents in all
-registered checkouts of that repository, without restarting their processes.
+ending its run or losing its tasks. Agents automatically participate in all
+registered checkouts of that repository before Coordinator selection.
 Agents in the same checkout may communicate; across checkouts only messages to
 or from the selected Coordinator are allowed. Separate clones and SSH authorities
 remain isolated. Preserve private Project history and reject enrollment when

@@ -806,21 +806,6 @@ impl CollaborationPanel {
                 )],
             });
         }
-        if snapshot.worktree_available && !self.query.history && self.form.is_none() {
-            let active_team = snapshot.worktree_joined && snapshot.project.starts_with("space:");
-            let mode = if matches!(snapshot.admission.as_str(), "revoked" | "directory_mismatch") { "Participation unavailable · open a fresh pane" }
-                else if active_team { "Worktree team · messages and tasks shared" }
-                else if snapshot.worktree_joined { "Team joined · this existing session keeps its private scope" }
-                else { "Shared-directory collaboration · this checkout only" };
-            let mut rows = vec![mode.into(), format!("Checkout: {}", snapshot.worktree_root),
-                format!("Branch: {}", snapshot.worktree_branch.as_deref().unwrap_or("unavailable"))];
-            if snapshot.worktree_joined {
-                rows.push("Accept results, integrate commits, then verify the combined result.".into());
-            } else {
-                rows.push("Join participating checkouts, then start Agents in fresh panes.".into());
-            }
-            fixture.sections.push(Section { title: "Worktree collaboration".into(), rows });
-        }
         if self.query.history {
             fixture.state = "history and capacity".into();
             if let Some(history) = &snapshot.history {
@@ -1714,7 +1699,6 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
-            if !self.preview && section.title == "Worktree collaboration" { continue; }
             if self.worktree_mode && !self.preview && !self.query.history && !self.show_messages &&
                 (matches!(section.title.as_str(), "Worktree collaboration" | "Agents" | "No participating agents")
                     || section.title.starts_with("File reservations") || section.title.starts_with("Activity")) {
@@ -1741,14 +1725,6 @@ impl View for CollaborationPanel {
                 continue;
             }
             body.add_child(render_section(section));
-        }
-        if !self.preview
-            && !self.show_spaces
-            && !self.show_messages
-            && !self.query.history
-            && self.form.is_none()
-        {
-
         }
         if !self.preview {
             if let Some(task) = self

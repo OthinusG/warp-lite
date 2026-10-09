@@ -349,6 +349,13 @@ mod tests {
         let task = call(broker, &lead, assign("worker")).unwrap();
         call(broker, &worker, Operation::TaskStart { task_id:task["id"].as_str().unwrap().into(),
             revision:1, expected_version:None, request_id:id() }).unwrap();
+        for _ in 0..17 {
+            let mut operation = assign("worker");
+            if let Operation::TaskAssign { description, .. } = &mut operation {
+                *description = "x".repeat(512);
+            }
+            call(broker, &lead, operation).unwrap();
+        }
         let select = |request: &Request, actor: &Value, root: &Path| {
             broker.control(root.to_str().unwrap(), &ControllerOperation::WorktreeCoordinator {
                 root:root.to_str().unwrap().into(), agent:actor["id"].as_str().unwrap().into(),
@@ -357,14 +364,28 @@ mod tests {
         };
         select(&lead, &lead_agent, &fixture.main);
         select(&worker, &worker_agent, &fixture.linked);
+        let empty = fixture.directory.path().join("empty checkout");
+        git(&fixture.main, &["worktree", "add", "-b", "empty", empty.to_str().unwrap()]);
+        let empty_root = crate::project_root(&empty).unwrap();
+        let empty_panel = || broker.operator_panel(&PanelQuery { project:empty_root.clone(), ..Default::default() }).unwrap();
+        assert_eq!(empty_panel()["project"], lead_agent["project"]);
+        assert_eq!(empty_panel()["worktree_mode"], true);
+        assert_eq!(empty_panel()["coordinator_online"], true);
+        assert!(broker.store().unwrap().store.worktree_binding(&empty_root).unwrap().is_none());
         assert_eq!(call(broker, &worker, Operation::AgentRegister { name:String::new() }).unwrap()["agent"], worker_agent);
         let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
-        assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["subject"] == "Coordinator handoff"));
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|message|
+            message["subject"] == "Coordinator handoff"
+                && message["body"].as_str().unwrap().contains("18 unfinished project tasks")
+                && message["body"].as_str().unwrap().len() <= crate::MAX_TEXT));
         let mode = |worktree| broker.control(fixture.main.to_str().unwrap(), &ControllerOperation::WorktreeMode { worktree, request_id:id() }).unwrap();
         let send = || call(broker, &lead, Operation::AgentSend { to:"other".into(), body:"Check".into(),
             subject:None, thread_id:None, reply_to:None, task_id:None, request_id:id() });
         assert!(send().is_err());
         mode(false);
+        assert_eq!(empty_panel()["project"], lead_agent["project"]);
+        assert_eq!(empty_panel()["worktree_mode"], false);
+        assert_eq!(empty_panel()["coordinator_online"], true);
         assert!(send().is_ok());
         assert!(call(broker, &other, assign("lead")).is_ok());
         mode(true);
@@ -443,8 +464,9 @@ mod tests {
             let role = panel["roles"].as_array().unwrap().iter().find(|role| role["role"] == "coordinator").unwrap();
             assert_eq!(role["agent"], changed["agent"]["id"]);
         }
-        broker.operator_panel(&PanelQuery { project: fixture.directory.path().to_str().unwrap().into(),
+        let unrelated = broker.operator_panel(&PanelQuery { project: fixture.directory.path().to_str().unwrap().into(),
             worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(unrelated["worktree_mode"], false);
         assert_eq!(broker.operator_panel(&PanelQuery { project:main.into(), worktree:true,
             ..Default::default() }).unwrap()["coordinator_online"], true);
         broker.end(&left.terminal);

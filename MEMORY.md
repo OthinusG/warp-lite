@@ -18,6 +18,12 @@
   tests on macOS/Windows. One legacy remote restart assertion still expected a
   private directory scope; align it with automatic membership and assert that
   restart grants only Worker authority. Application/UI checks remain pending.
+- Coordinator handoff sends a bounded unfinished-task count and existing paginated
+  tool instructions, rather than concatenating descriptions that can exceed the
+  message limit and block selection. Include tasks beyond the first history page.
+- Empty native worktree tabs resolve the existing repository project even when
+  queried in Project mode before their first Agent starts. Keep legacy opted-out
+  or active private sessions isolated; a read does not create checkout admission.
 
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git

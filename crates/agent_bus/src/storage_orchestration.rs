@@ -175,14 +175,10 @@ impl Store {
                 .bind::<Text, _>(&actor.project).bind::<Text, _>(&actor.id).bind::<Text, _>(role)
                 .bind::<Text, _>(&root).bind::<Text, _>(run).execute(&mut *self.connection.borrow_mut())?;
             if role == "coordinator" && self.inbox_count(&actor.id)? < MAX_PENDING_PER_AGENT {
-                let tasks = self.operator_tasks(&actor.project, None, None, None, Some(50), false)?;
-                let tasks: Vec<_> = tasks["tasks"].as_array().unwrap().iter()
-                    .filter(|task| !matches!(task["state"].as_str(), Some("accepted" | "failed" | "cancelled" | "expired")))
-                    .map(|task| format!("{} · {} · {}", task["id"].as_str().unwrap(), task["state"].as_str().unwrap(), task["description"].as_str().unwrap()))
-                    .collect();
-                if !tasks.is_empty() {
+                let pending = self.count("SELECT COUNT(*) AS count FROM tasks WHERE project=? AND state NOT IN ('accepted','failed','cancelled','expired')", &[&actor.project])?;
+                if pending > 0 {
                     self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend {
-                        to:actor.id.clone(), body:format!("You now coordinate this project's unfinished work. Read warp_task_list for all pages and warp_task_get for current ownership and evidence. Existing assignees and reviewers remain responsible.\n{}", tasks.join("\n")),
+                        to:actor.id.clone(), body:format!("You now coordinate {pending} unfinished project tasks. Read warp_task_list for all pages and warp_task_get for current ownership and evidence. Existing assignees and reviewers remain responsible."),
                         subject:Some("Coordinator handoff".into()), thread_id:None, reply_to:None, task_id:None,
                         request_id:Uuid::new_v4().to_string(),
                     })?;

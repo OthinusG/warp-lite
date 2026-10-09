@@ -1334,7 +1334,7 @@ impl Broker {
             self.enroll_worktree_agents(self, &query.project)?;
         }
         if query.worktree && !Path::new(&query.project).join(".git").exists() {
-            return Ok(json!({"project":query.project,"admission":"private","worktree_available":false,
+            return Ok(json!({"project":query.project,"admission":"private","worktree_available":false,"worktree_mode":false,
                 "worktree_joined":false,"worktree_root":query.project,"worktree_branch":null,
                 "roles":[],"candidates":[],"worktrees":[],"coordinator_online":false,
                 "agents":[],"agent_cursor":null,"tasks":[],"task_cursor":null,"task":null,"task_runtime":null,
@@ -1361,9 +1361,12 @@ impl Broker {
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
-            .or_else(|| joined.as_ref().filter(|_|
-                binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
-                .map(|workspace| workspace.domain()))
+            .or_else(|| {
+                if binding.is_some_and(|binding| binding.revoked || binding.live.is_some())
+                    || state.store.worktree_opted_out(&query.project).unwrap_or(true) { return None; }
+                joined.as_ref().map(crate::WorkspaceBinding::domain)
+                    .or_else(|| state.store.worktree_domain(&query.project).ok().flatten())
+            })
             .unwrap_or_else(|| query.project.clone());
         let project = if query.worktree {
             match state.store.worktree_domain(&query.project)? {
