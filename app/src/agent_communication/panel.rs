@@ -476,7 +476,7 @@ impl CollaborationPanel {
     }
 
     fn set_mode(&mut self, worktree: bool, ctx: &mut ViewContext<Self>) {
-        if self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
+        if self.worktree_mode == worktree || self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
         let Some(snapshot) = &self.snapshot else { return; };
         if worktree && !snapshot.worktree_available { return; }
         let project = snapshot.project.clone();
