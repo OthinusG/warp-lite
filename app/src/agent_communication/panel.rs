@@ -2652,6 +2652,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.project.starts_with("space:")
                         && snapshot.worktree_joined && snapshot.agents.is_empty() && !snapshot.coordinator_online)))
             }).with_take_screenshot("worktree-empty-project.png"))
+        .with_step(TestStep::new("selected mode preserves the loaded project").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                assert!(panel.worktree_mode && panel.snapshot.is_some());
+                panel.handle_action(&Action::Mode(true), ctx);
+                assert!(!panel.mode_pending && panel.snapshot.is_some());
+            });
+        }))
         .with_step(TestStep::new("select Worktree mode with an existing native IPC Agent").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktree_root.clone());
@@ -2872,6 +2880,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     driver = driver
         .with_step(
             TestStep::new("focus live detail").with_action(|app, window, _| {
+                app.update(|ctx| ResizableData::as_ref(ctx).get_all_handles(window).unwrap()
+                    .left_panel_width.lock().unwrap().set_size(320.));
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
@@ -3197,6 +3207,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && snapshot.agents.is_empty())))
                 },
             ),
+        )
+        .with_step(
+            TestStep::new("non-Git project rejects Worktree mode without disconnecting").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    assert!(panel.connected && !panel.worktree_mode
+                        && panel.snapshot.as_ref().is_some_and(|snapshot| !snapshot.worktree_available));
+                    panel.handle_action(&Action::Mode(true), ctx);
+                    panel.handle_action(&Action::Mode(false), ctx);
+                    assert!(panel.connected && !panel.mode_pending && !panel.worktree_mode && panel.snapshot.is_some());
+                });
+            }),
         )
         .with_step(
             TestStep::new("register deterministic shared participant").with_action(

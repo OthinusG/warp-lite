@@ -26,6 +26,11 @@
   source be5810d3 passes both default/platform builds in run 37921826849; app
   tests and native visual acceptance are still pending. Final 0dfcf3ac also makes
   clicks on the already-selected mode inert and needs desktop verification.
+- macOS be5810d3 passes application tests, including version/installer selection,
+  then fails the native live-detail scrolling assertion: the simplified 600px
+  layout fits without overflow. Keep the real scrolling check at 320px/1.25 zoom
+  instead of adding product clutter. Add native no-op and non-Git mode assertions;
+  Worktree creation/switch/return already passed before that capture failure.
 
 ## Worktree behavior correction — 2026-10-09
 
