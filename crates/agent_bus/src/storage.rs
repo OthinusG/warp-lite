@@ -27,9 +27,10 @@ use uuid::Uuid;
 #[path = "storage_orchestration.rs"]
 mod orchestration;
 
-pub(crate) const SCHEMA_VERSION: &str = "8";
+pub(crate) const SCHEMA_VERSION: &str = "9";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
-pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":8}"#;
+pub(crate) const SENTINEL: &str = r#"{"warp_lite_schema_version":9}"#;
+pub(crate) const SENTINEL_V8: &str = r#"{"warp_lite_schema_version":8}"#;
 pub(crate) const SENTINEL_V7: &str = r#"{"warp_lite_schema_version":7}"#;
 pub(crate) const SENTINEL_V6: &str = r#"{"warp_lite_schema_version":6}"#;
 pub(crate) const SENTINEL_V5: &str = r#"{"warp_lite_schema_version":5}"#;
@@ -41,7 +42,7 @@ pub(crate) const SENTINEL_V2: &str = r#"{"warp_lite_schema_version":2}"#;
 pub(crate) const REQUEST_RETENTION: Duration = Duration::from_secs(8 * 24 * 60 * 60);
 const MAX_AGENTS: i64 = 1000;
 const MAX_ACTIVE_TASKS_PER_PROJECT: i64 = 1000;
-const MAX_PENDING_PER_AGENT: i64 = 1000;
+pub(crate) const MAX_PENDING_PER_AGENT: i64 = 1000;
 const CONTROL_MESSAGE_RESERVE: i64 = 100;
 const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
@@ -91,7 +92,7 @@ CREATE INDEX IF NOT EXISTS workspaces_repository ON workspaces(space_id, reposit
 CREATE TABLE IF NOT EXISTS space_members (space_id TEXT NOT NULL, agent TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(space_id, agent));
 CREATE TABLE IF NOT EXISTS agent_workspace_bindings (agent TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, space_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS worktree_admissions (workspace_id TEXT PRIMARY KEY, repository TEXT NOT NULL, checkout TEXT NOT NULL, active INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS worktree_roles (project TEXT NOT NULL, agent TEXT NOT NULL, role TEXT NOT NULL, root TEXT NOT NULL, run TEXT, PRIMARY KEY(project,agent), UNIQUE(project,root));
+CREATE TABLE IF NOT EXISTS worktree_roles (project TEXT NOT NULL, agent TEXT NOT NULL, role TEXT NOT NULL, root TEXT NOT NULL, run TEXT, PRIMARY KEY(project,agent));
 CREATE UNIQUE INDEX IF NOT EXISTS worktree_coordinator ON worktree_roles(project) WHERE role='coordinator';
 CREATE TABLE IF NOT EXISTS worktree_integrations (task TEXT PRIMARY KEY, project TEXT NOT NULL, coordinator TEXT NOT NULL, commit_id TEXT);
 CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, verifier TEXT NOT NULL, generation INTEGER NOT NULL, revoked INTEGER NOT NULL, created_at INTEGER NOT NULL);
@@ -157,6 +158,22 @@ impl Store {
     fn prepare_schema(&self, path: &str) -> Result<()> {
         match self.meta_version()? {
             Some(version) if version == SCHEMA_VERSION => self.create_schema(),
+            Some(version) if version == "8" => {
+                self.backup(path, Some(SENTINEL_V8))?;
+                self.transaction(|| {
+                    self.connection.borrow_mut().batch_execute(
+                        "DROP INDEX worktree_coordinator;
+                         ALTER TABLE worktree_roles RENAME TO worktree_roles_v8;",
+                    )?;
+                    self.create_schema()?;
+                    self.connection.borrow_mut().batch_execute(
+                        "INSERT INTO worktree_roles SELECT * FROM worktree_roles_v8;
+                         DROP TABLE worktree_roles_v8;",
+                    )?;
+                    self.set_legacy_payload(SENTINEL)?;
+                    self.set_meta_version()
+                })
+            }
             Some(version) if version == "7" => self.upgrade_additive(path, SENTINEL_V7),
             Some(version) if version == "6" => self.upgrade_additive(path, SENTINEL_V6),
             Some(version) if version == "5" => self.upgrade_additive(path, SENTINEL_V5),
@@ -251,7 +268,7 @@ impl Store {
             Some(payload) if payload == SENTINEL => bail!(
                 "Agent bus database is marked as migrated but its schema marker is missing; restore the pre-upgrade backup"
             ),
-            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 || payload == SENTINEL_V6 || payload == SENTINEL_V7 => {
+            Some(payload) if payload == SENTINEL_V2 || payload == SENTINEL_V3 || payload == SENTINEL_V4 || payload == SENTINEL_V5 || payload == SENTINEL_V6 || payload == SENTINEL_V7 || payload == SENTINEL_V8 => {
                 bail!("Agent bus schema marker and meta version disagree; restore the pre-upgrade backup")
             }
             Some(payload) => self.migrate(path, &payload),
@@ -266,6 +283,8 @@ impl Store {
         // Preserve the v1 backup when a later normalized store is upgraded again.
         let backup = if expected == Some(SENTINEL_V2) {
             format!("{path}.pre-upgrade-v2")
+        } else if expected == Some(SENTINEL_V8) {
+            format!("{path}.pre-upgrade-v8")
         } else if expected == Some(SENTINEL_V7) {
             format!("{path}.pre-upgrade-v7")
         } else if expected == Some(SENTINEL_V6) {
@@ -686,6 +705,25 @@ impl Store {
             None,
             json!({"kind": message.kind, "to": message.to, "task_id": message.task_id}),
         )?;
+        if message.task_id.is_some() && control && self.worktree_mode(project)? {
+            if let Some(coordinator) = self.worktree_roles(project)?.into_iter().find(|role|
+                role.role == "coordinator" && role.run.is_some()
+                    && role.agent != message.to && role.agent != message.from) {
+                if self.inbox_count(&coordinator.agent)? < MAX_PENDING_PER_AGENT {
+                    let mut update = message.clone();
+                    update.from = Self::operator(project).id;
+                    update.to = coordinator.agent;
+                    update.body = format!("Task {} · {}\n{}", message.task_id.as_deref().unwrap(), message.kind, message.body);
+                    update.subject = Some("Task update".into());
+                    update.kind = "message".into();
+                    update.task_id = None;
+                    update.revision = None;
+                    update.thread_id = None;
+                    update.reply_to = None;
+                    self.queue(project, update)?;
+                }
+            }
+        }
         Ok(message)
     }
 
@@ -1269,6 +1307,8 @@ impl Store {
     fn resolve(&self, actor: &Agent, name: &str) -> Result<Agent> {
         let recipient = self.agent(&actor.project, name)?;
         self.authorize(&recipient)?;
+        ensure!(self.can_communicate(actor, &recipient)?,
+            scope_denied("Different worktrees communicate through the Coordinator"));
         Ok(recipient)
     }
 
@@ -1442,7 +1482,15 @@ impl Store {
         self.authorize_orchestration(actor, run, operation)?;
         self.sweep(&actor.project)?;
         match operation {
-            Operation::AgentList => return Ok(json!(self.agents(&actor.project)?)),
+            Operation::AgentList => {
+                let agents = self.agents(&actor.project)?.into_iter()
+                    .filter_map(|peer| match self.can_communicate(actor, &peer) {
+                        Ok(true) => Some(Ok(peer)),
+                        Ok(false) => None,
+                        Err(error) => Some(Err(error)),
+                    }).collect::<Result<Vec<_>>>()?;
+                return Ok(json!(agents));
+            }
             Operation::AgentInbox { cursor, limit } => return self.inbox(actor, *cursor, *limit),
             Operation::TaskList {
                 state,
@@ -3401,6 +3449,7 @@ impl Store {
         operation: &ControllerOperation,
     ) -> Result<Value> {
         match operation {
+            ControllerOperation::WorktreeMode { worktree, .. } => self.set_worktree_mode(project, *worktree),
             ControllerOperation::WorktreeCreate { root, name, base, .. } => {
                 ensure!(self.worktree_binding(root)?.is_some_and(|binding| binding.domain() == project),
                     scope_denied("Worktree creation requires the selected team checkout"));
@@ -7837,6 +7886,38 @@ mod tests {
             .unwrap();
         let unrelated = reserve(&right, vec!["src/unrelated.rs".into()], "exclusive").unwrap();
         assert!(unrelated["overlap_warnings"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn v8_upgrade_preserves_roles_and_allows_multiple_agents_per_checkout() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("v8.sqlite");
+        let path = path.to_str().unwrap();
+        let store = Store::open(path).unwrap();
+        store.connection.borrow_mut().batch_execute(
+            "DROP INDEX worktree_coordinator;
+             DROP TABLE worktree_roles;
+             CREATE TABLE worktree_roles (project TEXT NOT NULL, agent TEXT NOT NULL, role TEXT NOT NULL,
+                 root TEXT NOT NULL, run TEXT, PRIMARY KEY(project,agent), UNIQUE(project,root));
+             CREATE UNIQUE INDEX worktree_coordinator ON worktree_roles(project) WHERE role='coordinator';
+             INSERT INTO worktree_roles VALUES ('project','lead','coordinator','/main','run');
+             UPDATE meta SET value='8' WHERE key='schema_version';",
+        ).unwrap();
+        store.set_legacy_payload(SENTINEL_V8).unwrap();
+        drop(store);
+        let upgraded = Store::open(path).unwrap();
+        assert_eq!(upgraded.meta_version().unwrap().as_deref(), Some(SCHEMA_VERSION));
+        assert_eq!(upgraded.worktree_roles("project").unwrap()[0].agent, "lead");
+        upgraded.connection.borrow_mut().batch_execute(
+            "INSERT INTO worktree_roles VALUES ('project','peer','worker','/main','peer-run');",
+        ).unwrap();
+        assert!(upgraded.connection.borrow_mut().batch_execute(
+            "INSERT INTO worktree_roles VALUES ('project','second','coordinator','/other','second-run');",
+        ).is_err());
+        let backup = format!("{path}.pre-upgrade-v8");
+        assert_eq!(read_legacy_payload(&backup).unwrap().as_deref(), Some(SENTINEL_V8));
+        let reopened = Store::open(path).unwrap();
+        assert_eq!(reopened.worktree_roles("project").unwrap().len(), 2);
     }
 
     #[test]

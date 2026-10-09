@@ -1,9 +1,81 @@
 # Cross-worktree collaboration
 
-Date: 2026-10-09. Status: explicit modes and Coordinator orchestration implemented;
-local/SSH backend, desktop regression and native visual acceptance verified.
-Accepted source is integrated into main and published in App 1.3.1 / Companion 3.1.0.
+Date: 2026-10-09. Status: behavior correction implemented; local/SSH backend,
+desktop regressions and native visual acceptance verified.
+App 1.3.1 / Companion 3.1.0 is the earlier released baseline, not this correction.
 Formal tagged-package receipts are tracked in [the release contract](../RELEASE.md).
+
+## 2026-10-09 correction — native worktrees and project lifetime
+
+This revision supersedes the explicit worker binding and one-Agent-per-checkout
+rules below. Reuse Warp's existing worktree modal, tab configurations and new-tab
+flow; collaboration does not own a second worktree creation form. Git common-directory identity defines the parent project, including checkout subdirectories.
+Any active Agent in any checkout can become Coordinator. Switching the selection
+at any time demotes the previous Coordinator to an ordinary participant without
+ending its run or losing its tasks. Agents automatically participate in all
+registered checkouts of that repository before Coordinator selection.
+Agents in the same checkout may communicate; across checkouts only messages to
+or from the selected Coordinator are allowed. Separate clones and SSH authorities
+remain isolated. Preserve private Project history and reject enrollment when
+unfinished private work cannot safely change scope.
+
+Native launches establish repository project membership before registration and
+task creation. Mode changes and Coordinator changes preserve Agent IDs, native
+runs, checkout bindings and task ownership. Legacy private history remains in its
+original authority; migration is not the normal launch or mode-switch path.
+Persist the active communication mode per project separately from Coordinator
+selection: Project permits project peers; Worktree permits same-checkout peers
+and Coordinator links. Reading the panel never changes the active mode. Exiting
+the selected run clears its role so a same-name restart is an ordinary participant.
+Coordinator changes notify the new selection about unfinished project tasks;
+task provenance and designated reviewer remain intact. Project participant lists
+include every online project Agent, regardless of the focused checkout. Remote
+Coordinator candidates must have pagination or complete bounded native coverage.
+
+Coordinator selection belongs to the project and exact native run, independent
+of focused pane, tab, directory or panel visibility. Clear active selection only
+on run termination/revocation or application shutdown; never elect a replacement.
+Project participant lists contain online Agents, with pagination applied after
+filtering. Offline history remains available through tasks/history.
+
+Visual source: existing native panel components, Appearance theme and the fixed
+Worktree layout fixtures. Use prominent equal-width Project/Worktree controls,
+short action labels, a compact Coordinator row and checkout Agent summaries.
+Remove nonessential option buttons; use one consistent row/section spacing.
+Keep full paths and task details behind expansion. Static narrow/light/dark
+fixture screenshots precede runtime capture acceptance.
+
+Acceptance tasks:
+- [x] Native worktree action creates/opens a new tab without starting an Agent.
+- [x] Automatic repository participation includes multiple Agents per checkout.
+- [x] Same-checkout and Coordinator messages pass; cross-worker messages fail.
+- [x] Focus/project/subdirectory changes retain Coordinator; process exit clears it.
+- [x] Online filtering precedes pagination and preserves offline task/history data.
+- [x] Schema upgrade preserves roles and produces a pre-upgrade backup.
+- [x] Initial repository identity and task ownership survive both mode changes.
+- [x] Non-Git directories remain independent Projects without inherited Worktree mode or Coordinator; returning to the repository retains its selection.
+- [x] Same-name Coordinator restart remains a worker until explicit selection.
+- [x] New Coordinator receives unfinished-task handoff and future task updates.
+- [x] Collaboration entry remains prominent after toolbelt state refresh.
+- [x] Focused protocol tests, desktop checks and native narrow/light/dark captures.
+
+Backend receipts: macOS/Windows protocol suites in run 37921826849 and three-OS
+remote run 37920112411. Desktop-only follow-ups do not change backend source.
+Source 46248e08 passes both desktop jobs in
+[run 37943970413](https://github.com/OthinusG/warpai/actions/runs/37943970413):
+protocol suites, default/platform builds and complete native walkthroughs.
+Both source-matched capture diagnostics report exit_code 0, no failed assertions
+or panics, and 214 valid PNGs. Reviewed native creation, cross-checkout Coordinator
+switch/return persistence, narrow selectors, readable historical names and detail
+scrolling with the original terminal draft retained. Application unit suites pass
+in run 37939850502 at 27a9f992; the only subsequent source change is the native
+capture viewport fixture. The former run's Windows capture failure is superseded
+by the successful source-matched walkthrough above. No merge/release/install.
+
+Risks: preserve immutable checkout authority and private work during admission;
+repository identity must never be inferred from a URL/name. Remote native
+worktree creation must retain the SSH terminal's existing command/tab path rather
+than invoking local filesystem creation.
 
 ## Product and acceptance
 
@@ -21,13 +93,12 @@ through the existing Agent workflow. Selecting a Coordinator does not launch or
 restart a process. Persist the explicit selection; never infer it from tab focus,
 display name, launch order or an Agent's self-declaration.
 
-Worktrees are worker isolation boundaries. Creating a worktree never launches an
-Agent. In the panel, the user explicitly binds an eligible active Agent to a
-worktree in the same repository and execution environment. A binding must match
-the Agent's actual checkout; it cannot relocate a running process or silently
-change its captured file authority. If no eligible Agent exists, leave the
-worktree unassigned and guide the user to start an Agent there using the existing
-workflow. The panel shows the Coordinator and each worker's task, checkout,
+Worktrees are communication isolation boundaries. Creating a worktree through
+Warp's existing modal opens a new terminal tab and never launches an Agent.
+Active Agents automatically participate using their actual checkout; participation
+cannot relocate a process or change its captured file authority. Multiple Agents
+may share one checkout. The Coordinator can be selected from any checkout and
+changed while both the previous and new Coordinator processes keep running. The panel shows the Coordinator and each worker's task, checkout,
 branch and state; unassigned worktrees remain visible.
 
 The Coordinator assigns tasks, passes context, collects results, asks one worker
@@ -42,11 +113,11 @@ combined checks, and creates the final integration commit. Task acceptance alone
 never merges branches. Publishing, pushing and creating PRs require separate
 authorization; branch commits used to hand off worker results are allowed.
 
-Explicit checkout admission is an internal communication foundation. Ordinary
-Agent launches stay in Project mode until selected through the trusted panel.
-Enrollment changes communication authority while preserving the native process,
-physical checkout and private history. Exiting an enrolled run leaves its durable
-role offline; a replacement run requires explicit selection. Stale run events
+Checkout admission is internal infrastructure. Selecting a Coordinator enables
+repository participation for native Agents. Enrollment preserves each process,
+physical checkout and prior Project history. Exiting a Coordinator run clears
+its active authority; a replacement run never elects itself. Worker participation
+is automatic after restart while the repository team remains active. Stale run events
 cannot revoke a newer run or restore an old Coordinator. Leaving fences shared
 access, including queued wake delivery, without claiming native processes stopped.
 
@@ -64,17 +135,17 @@ Git writes over the file protocol or cross-host federation.
 
 - Persist the team, stable participant identity, explicit `coordinator` / `worker`
   role, native checkout identity and task ownership in the existing authority.
-  Bind each active run to this record using its revocable run identity.
+  Bind each active run to this record using its revocable run identity. Switching
+  Coordinator demotes the previous selection to worker within one transaction.
 - An operational team has exactly one explicitly selected active Coordinator.
-  Without one, disable coordination actions. A worker has exactly one owned
-  worktree; two active workers cannot own the same worktree. The Coordinator's integration
-  checkout cannot also be assigned to an active worker.
-- Panel-selected worker binding records participant/checkout ownership separately
-  from worktree creation and Agent launch. Validate actual checkout and active run
-  before binding; failure leaves the worktree unassigned and preserves user files.
+  Without one, disable coordination actions. Each Agent retains its native
+  checkout; several Agents may occupy it, including the Coordinator and workers.
+- Automatic participation records native checkout/run identity separately from
+  worktree creation and Agent launch. Validate both before admission; failure
+  preserves the native process, private work and user files.
   Coordinator-authorized task/review assignments reference these explicit bindings.
-- Worker restart preserves its role, task and checkout records, revokes the
-  previous run and requires explicit panel reselection before team enrollment. Coordinator exit disables its coordination authority and does not elect
+- Worker restart preserves its task and checkout records and revokes the previous
+  run; participation is automatic while the team is active. Coordinator exit disables its coordination authority and does not elect
   a replacement. Explicit restart/reselection validates the active run and fences
   the old authority before granting it to the selected Coordinator.
 - Enforce team-management and assignment authority in Warpai's backend APIs,
@@ -96,9 +167,9 @@ Git writes over the file protocol or cross-host federation.
   authorization revalidates the admitted checkout/repository identity. Explicit
   project-space remapping replaces worktree admission and revokes its captured
   actors while preserving ordinary workspace access.
-- Ordinary local and remote Agent launches retain their private Project broker
-  until the trusted panel enrolls the exact active run. Preserve the process,
-  native input state, physical checkout and previous private history.
+- Ordinary local and remote Agent launches retain their Project scope until a
+  Coordinator enables the repository team. Admit active runs automatically while
+  preserving process, native input state, checkout and prior private history.
 - Remote physical project fences remain unchanged. A repository-owned
   Broker/Store serves explicitly enrolled runs; original private endpoints forward
   native lifecycle and communication without restarting a process. Scope-bound
@@ -108,9 +179,10 @@ Git writes over the file protocol or cross-host federation.
   Non-Git projects show an empty Worktree view with guidance to switch to Project.
 - Reuse native wrapping buttons, explicit selection forms and vertical scrolling.
   Worker details expand on demand. Internal Join/Leave operations remain private
-  infrastructure; the ordinary panel uses Coordinator and worker selection.
+  infrastructure; the ordinary panel selects only the Coordinator. Worktree
+  creation dispatches Warp's existing modal/tab action.
 
-## Orchestration implementation and acceptance
+## App 1.3.1 baseline orchestration acceptance
 
 - [x] Top-level modes; Project behavior/history regression and retained drafts.
 - [x] Active-Agent Coordinator selection, empty-project disabled actions and

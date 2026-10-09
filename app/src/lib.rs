@@ -9,6 +9,7 @@ mod app_services;
 mod app_state;
 mod auth;
 mod autoupdate;
+mod release_updates;
 mod banner;
 #[cfg(feature = "warp_platform")]
 mod billing;
@@ -1733,6 +1734,7 @@ fn initialize_app(
     }
 
     AutoupdateState::register(ctx, server_api.clone());
+    ctx.add_singleton_model(release_updates::ReleaseUpdates::new);
 
     ctx.add_singleton_model(LocalWorkflows::new);
 

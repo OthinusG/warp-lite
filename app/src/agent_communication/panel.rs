@@ -21,7 +21,7 @@ use warpui::{
     accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},
     elements::{
         ClippedScrollStateHandle, ClippedScrollable, Container, DispatchEventResult, Element,
-        EventHandler, Fill, Flex, MouseStateHandle, Padding, ParentElement, ScrollbarWidth,
+        EventHandler, Expanded, Fill, Flex, MouseStateHandle, Padding, ParentElement, ScrollbarWidth,
         Shrinkable, Wrap,
     },
     fonts::Weight,
@@ -34,9 +34,9 @@ use warpui::{
 };
 
 /// Shared panel spacing so every row, section and button run keeps one rhythm.
-const GAP_TIGHT: f32 = 4.;
+const GAP_TIGHT: f32 = 8.;
 const GAP_ROW: f32 = 8.;
-const GAP_SECTION: f32 = 12.;
+const GAP_SECTION: f32 = 8.;
 
 // Text roles: the 14px semibold primary title outranks semibold section headings;
 // 12px secondary text carries status and guidance.
@@ -203,6 +203,8 @@ struct HistoryPage {
 #[derive(Default, Deserialize)]
 struct Snapshot {
     #[serde(default)]
+    worktree_mode: Option<bool>,
+    #[serde(default)]
     candidates: Vec<WorktreeCandidate>,
     #[serde(default)]
     roles: Vec<WorktreeRole>,
@@ -220,6 +222,8 @@ struct Snapshot {
     #[serde(default)]
     worktree_branch: Option<String>,
     agents: Vec<PanelAgent>,
+    #[serde(default)]
+    participant_names: HashMap<String, String>,
     agent_cursor: Option<String>,
     tasks: Vec<PanelTask>,
     task_cursor: Option<u64>,
@@ -268,6 +272,9 @@ impl Snapshot {
         if let Some(row) = self.agents.iter().find(|row| row.agent.id == id) {
             return row.agent.name.clone();
         }
+        if let Some(name) = self.participant_names.get(id) {
+            return name.clone();
+        }
         if uuid::Uuid::parse_str(id).is_ok() {
             "Unavailable agent".into()
         } else {
@@ -280,7 +287,7 @@ pub(crate) struct CollaborationPanel {
     worktree_mode: bool,
     mode_buttons: [MouseStateHandle; 2],
     expanded_worker: Option<String>,
-    team_buttons: [MouseStateHandle; 3],
+    team_buttons: [MouseStateHandle; 2],
     checkout_buttons: HashMap<String, MouseStateHandle>,
     fixtures: Vec<Fixture>,
     selected: usize,
@@ -293,6 +300,7 @@ pub(crate) struct CollaborationPanel {
     events: Vec<Event>,
     context: Option<(String, Option<String>)>,
     in_flight: bool,
+    mode_pending: bool,
     status: String,
     task_buttons: HashMap<String, MouseStateHandle>,
     page_buttons: [MouseStateHandle; 8],
@@ -387,6 +395,7 @@ impl CollaborationPanel {
             events: Vec::new(),
             context: None,
             in_flight: false,
+            mode_pending: false,
             status: "Loading collaboration…".into(),
             task_buttons: Default::default(),
             page_buttons: Default::default(),
@@ -459,11 +468,62 @@ impl CollaborationPanel {
             return None;
         }
         // Shell integration may change Windows path spelling without changing the checkout.
-        let root = active.path_if_local(ctx.window_id())?.canonicalize().ok()?.to_str()?.to_owned();
+        let root = warp_agent_bus::project_root(&active.path_if_local(ctx.window_id())?).ok()?;
         let terminal = active
             .terminal_view_id(ctx.window_id())
             .and_then(|id| super::terminal_for_view(id));
         Some((root, terminal))
+    }
+
+    fn set_mode(&mut self, worktree: bool, ctx: &mut ViewContext<Self>) {
+        if self.worktree_mode == worktree || self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
+        let Some(snapshot) = &self.snapshot else { return; };
+        if worktree && !snapshot.worktree_available { return; }
+        let project = snapshot.project.clone();
+        let root = snapshot.worktree_root.clone();
+        let remote = self.remote.is_some();
+        let client = self.remote_client.clone();
+        let broker = super::BROKER.get().cloned();
+        let context = self.context.clone();
+        self.generation += 1;
+        let generation = self.generation;
+        self.mode_pending = true;
+        ctx.spawn(async move {
+            let operation = warp_agent_bus::ControllerOperation::WorktreeMode {
+                worktree, request_id:uuid::Uuid::new_v4().to_string(),
+            };
+            if remote {
+                let mut client = client.lock().await;
+                let client = client.as_mut().ok_or_else(|| anyhow::anyhow!("ssh_connection_lost"))?;
+                Self::remote_command(client, &TaskCommand::Scoped {
+                    scope:project, command:Box::new(TaskCommand::Controller(operation)),
+                }, generation).await
+            } else {
+                broker.ok_or_else(|| anyhow::anyhow!("Broker unavailable"))?.control(&root, &operation)
+            }
+        }, move |panel, result, ctx| {
+            if panel.context != context || panel.generation != generation { return; }
+            panel.mode_pending = false;
+            match result {
+                Ok(_) => {
+                    panel.worktree_mode = worktree;
+                    panel.query = PanelQuery { worktree, ..Default::default() };
+                    panel.snapshot = None;
+                    panel.events.clear();
+                    panel.show_spaces = false;
+                    panel.show_messages = false;
+                    panel.expanded_worker = None;
+                    panel.scroll = Default::default();
+                }
+                Err(_) => {
+                    panel.connected = false;
+                    panel.status = "Could not change communication mode. Reconnect and try again.".into();
+                }
+            }
+            panel.refresh(ctx);
+            ctx.notify();
+        });
+        ctx.notify();
     }
 
     fn schedule(ctx: &mut ViewContext<Self>) {
@@ -507,19 +567,22 @@ impl CollaborationPanel {
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
             self.generation += 1;
+            self.mode_pending = false;
+            if self.context.as_ref().map(|(root, _)| root) != context.as_ref().map(|(root, _)| root) {
+                self.remote_client = Default::default();
+                self.remote_failed = false;
+                self.snapshot = None;
+                self.last_received = None;
+                self.connected = false;
+                self.form = None;
+                self.show_spaces = false;
+                self.show_messages = false;
+                self.workspace_preview = None;
+                self.events.clear();
+                self.query = Default::default();
+                self.scroll = Default::default();
+            }
             self.context = context.clone();
-            self.remote_client = Default::default();
-            self.remote_failed = false;
-            self.snapshot = None;
-            self.last_received = None;
-            self.connected = false;
-            self.form = None;
-            self.show_spaces = false;
-            self.show_messages = false;
-            self.workspace_preview = None;
-            self.events.clear();
-            self.query = Default::default();
-            self.scroll = Default::default();
             ctx.notify();
         }
         let Some((directory, terminal)) = context.clone() else {
@@ -535,7 +598,7 @@ impl CollaborationPanel {
             return;
         };
         self.query.worktree = self.worktree_mode;
-        if self.in_flight {
+        if self.in_flight || self.mode_pending {
             return;
         }
         if self.remote.is_some() && self.remote_failed {
@@ -588,6 +651,14 @@ impl CollaborationPanel {
             }
             match result {
                 Ok(mut snapshot) => {
+                    if let Some(mode) = snapshot.worktree_mode {
+                        if panel.worktree_mode != mode {
+                            panel.worktree_mode = mode;
+                            panel.query = PanelQuery { worktree:mode, ..Default::default() };
+                            panel.events.clear();
+                            panel.expanded_worker = None;
+                        }
+                    }
                     if panel.query.scope.as_deref() != Some(snapshot.project.as_str()) {
                         panel.events.clear();
                         panel.query = Default::default();
@@ -736,64 +807,21 @@ impl CollaborationPanel {
                 )],
             });
         }
-        if snapshot.worktree_available && !self.query.history && self.form.is_none() {
-            let active_team = snapshot.worktree_joined && snapshot.project.starts_with("space:");
-            let mode = if matches!(snapshot.admission.as_str(), "revoked" | "directory_mismatch") { "Participation unavailable · open a fresh pane" }
-                else if active_team { "Worktree team · messages and tasks shared" }
-                else if snapshot.worktree_joined { "Team joined · this existing session keeps its private scope" }
-                else { "Shared-directory collaboration · this checkout only" };
-            let mut rows = vec![mode.into(), format!("Checkout: {}", snapshot.worktree_root),
-                format!("Branch: {}", snapshot.worktree_branch.as_deref().unwrap_or("unavailable"))];
-            if snapshot.worktree_joined {
-                rows.push("Accept results, integrate commits, then verify the combined result.".into());
-            } else {
-                rows.push("Join participating checkouts, then start Agents in fresh panes.".into());
-            }
-            fixture.sections.push(Section { title: "Worktree collaboration".into(), rows });
-        }
         if self.query.history {
             fixture.state = "history and capacity".into();
             if let Some(history) = &snapshot.history {
-                let capacity = &history.capacity;
                 fixture.sections.push(Section {
-                    title: "Storage budget".into(),
-                    rows: vec![
-                        format!(
-                            "Database bytes used {} · soft limit {} · hard limit {}",
-                            capacity["database"]["used_bytes"],
-                            capacity["database"]["soft_limit"],
-                            capacity["database"]["hard_limit"]
-                        ),
-                        format!(
-                            "Tasks active {} · total {} · active limit {}",
-                            capacity["tasks"]["used"],
-                            capacity["tasks"]["total"],
-                            capacity["tasks"]["limit"]
-                        ),
-                        format!(
-                            "Messages {} · pending {} · per-agent pending limit {}",
-                            capacity["messages"]["used"],
-                            capacity["pending_messages"]["used"],
-                            capacity["pending_messages"]["per_agent_limit"]
-                        ),
-                    ],
-                });
-                fixture.sections.push(Section { title: "Purge preview".into(), rows: vec![
-                    format!("Eligible archived tasks {} · acknowledged messages {} · reviewed sequence {}", history.preview.tasks, history.preview.messages, history.preview.sequence),
-                    "Unknown execution, unread work, prerequisites and retained reply roots are protected. Cleanup does not stop processes or file writes.".into(),
-                ] });
-                fixture.sections.push(Section {
-                    title: "Ordered export page · up to 50 records".into(),
-                    rows: history
-                        .records
-                        .iter()
-                        .map(|record| {
-                            format!(
-                                "Sequence {} · {} · {}",
-                                record["sequence"], record["type"], record["data"]["id"]
-                            )
-                        })
-                        .collect(),
+                    title: "History".into(),
+                    rows: history.records.iter().filter_map(|record| {
+                        let data = &record["data"];
+                        match record["type"].as_str()? {
+                            "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or("Task"),
+                                data["state"].as_str().unwrap_or("unknown"))),
+                            "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
+                                snapshot.participant_label(data["to"].as_str().unwrap_or("")), data["body"].as_str().unwrap_or(""))),
+                            _ => None,
+                        }
+                    }).collect(),
                 });
             }
         } else if self.show_messages {
@@ -911,7 +939,7 @@ impl CollaborationPanel {
                             format!(
                                 "{} · owner {} · outcome {}",
                                 attempt.certainty,
-                                attempt.owner,
+                                snapshot.participant_label(&attempt.owner),
                                 attempt.outcome.as_deref().unwrap_or("unknown")
                             )
                         })
@@ -1008,34 +1036,14 @@ impl CollaborationPanel {
                                 warp_agent_bus::readiness::Activity::Error => "error",
                             })
                             .unwrap_or("unknown activity");
-                        format!(
-                            "{} · {} · {} · {}{}{}",
-                            row.agent.name,
-                            row.agent.program,
-                            if self.remote.is_some() && !self.connected {
-                                "disconnected; last known state"
-                            } else if row.online {
-                                "online"
-                            } else {
-                                "offline"
-                            },
-                            activity,
-                            if row.blocked {
-                                " · approval required"
-                            } else if row.paused {
-                                " · paused"
-                            } else {
-                                ""
-                            },
-                            if snapshot.worktree_joined {
-                                format!("\nCheckout: {} · branch {}", row.workspace.as_deref().unwrap_or("unavailable"), row.worktree_branch.as_deref().unwrap_or("unavailable"))
-                            } else { String::new() }
-                        )
+                        format!("{} · {}{}", row.agent.name,
+                            if self.remote.is_some() && !self.connected { "disconnected" } else { activity },
+                            if row.blocked { " · approval required" } else if row.paused { " · paused" } else { "" })
                     })
                     .collect(),
             });
             if snapshot.agents.is_empty() {
-                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec![if self.remote.is_some() { "Start managed Agents in SSH terminals of this remote project using the manually installed companion." } else { "Configure installed agents in communication settings, then start them in a new terminal pane." }.into()] });
+                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec![if self.remote.is_some() { "Start an Agent in this SSH project." } else { "Start an Agent in this project." }.into()] });
             }
         }
         fixture.sections.push(Section {
@@ -1090,15 +1098,8 @@ impl TypedActionView for CollaborationPanel {
             match action {
                 Action::Mode(worktree) => {
                     if self.form.is_some() { return; }
-                    self.worktree_mode = *worktree;
-                    self.query = PanelQuery { worktree: *worktree, ..Default::default() };
-                    self.snapshot = None;
-                    self.events.clear();
-                    self.show_spaces = false;
-                    self.show_messages = false;
-                    self.expanded_worker = None;
-                    self.generation += 1;
-                    self.scroll = Default::default();
+                    self.set_mode(*worktree, ctx);
+                    return;
                 }
                 Action::SelectParticipant(id) => {
                     if let Some(form) = self.form.as_mut().filter(|form| !form.submitting && form.submitted_fields.is_none()) {
@@ -1489,52 +1490,33 @@ impl View for CollaborationPanel {
             .as_ref()
             .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
-        header.add_child(panel_title(appearance, "Agent collaboration"));
+        header.add_child(panel_title(appearance, "Collaboration"));
         if !self.preview {
-            let mut modes = Wrap::row().with_spacing(GAP_ROW).with_run_spacing(GAP_TIGHT);
+            let mut modes = Flex::row().with_spacing(GAP_ROW);
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
-                let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Secondary } else { ButtonVariant::Text }, self.mode_buttons[index].clone())
-                    .with_text_label(label.into());
-                let button = if self.form.is_some() { button.disabled() } else { button };
-                modes.add_child(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Mode(worktree))).finish());
+                let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Accent } else { ButtonVariant::Secondary }, self.mode_buttons[index].clone())
+                    .with_centered_text_label(label.into());
+                let button = if self.form.is_some() || self.mode_pending || !self.connected
+                    || (worktree && !self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_available)) {
+                    button.disabled()
+                } else { button };
+                modes.add_child(Expanded::new(1., button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Mode(worktree))).finish()).finish());
             }
             header.add_child(modes.finish());
         }
-        let state = if self.preview {
-            format!("Design preview — sample data · {}", fixture.state)
-        } else {
-            format!(
-                "{} collaboration · {}",
-                if self.remote.is_some() {
-                    "SSH"
-                } else {
-                    "Local"
-                },
-                fixture.state
-            )
-        };
-        header.add_child(note(
-            appearance,
-            if self.worktree_mode && !self.preview {
-                format!("{} · {}", if self.remote.is_some() { "SSH" } else { "Local" }, if self.connected { "Connected" } else { self.status.as_str() })
-            } else if fixture.guidance.is_empty() {
-                state
-            } else {
-                format!("{state} — {}", fixture.guidance)
-            },
-        ));
+        if self.preview {
+            header.add_child(note(appearance, format!("Preview · {}", fixture.state)));
+        } else if !self.connected {
+            header.add_child(note(appearance, self.status.clone()));
+        }
         let mut connection_controls = Wrap::row()
             .with_spacing(GAP_SECTION)
             .with_run_spacing(GAP_TIGHT);
-        if !self.preview {
+        if !self.preview && self.remote.is_some() {
             for (index, label, action) in [
                 (0, "SSH setup", Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
             ] {
-                if index > 0 && self.remote.is_none() {
-                    continue;
-                }
-                // The SSH entry point is the panel's primary action; the rest stay secondary text.
                 let variant = if index == 0 {
                     ButtonVariant::Secondary
                 } else {
@@ -1558,31 +1540,21 @@ impl View for CollaborationPanel {
                 );
             }
         }
-        connection_controls.add_child(
-            builder
-                .button(ButtonVariant::Text, self.next.clone())
-                .with_text_label(
-                    if self.preview {
-                        "Next preview state"
-                    } else {
-                        "Refresh"
-                    }
-                    .to_owned(),
-                )
-                .build()
-                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture))
-                .finish(),
-        );
-        header.add_child(connection_controls.finish());
+        if self.preview {
+            connection_controls.add_child(builder.button(ButtonVariant::Secondary, self.next.clone())
+                .with_text_label("Next preview".into()).build()
+                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture)).finish());
+        }
+        if self.preview || self.remote.is_some() {
+            header.add_child(connection_controls.finish());
+        }
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let render_section = |section: &Section| {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, section.title.clone()));
             for row in &section.rows {
                 column.add_child(
-                    Container::new(detail(appearance, row.clone()))
-                        .with_padding_left(GAP_ROW)
-                        .finish(),
+                    detail(appearance, row.clone()),
                 );
             }
             column.finish()
@@ -1609,21 +1581,11 @@ impl View for CollaborationPanel {
                 let mut navigation = Wrap::row()
                     .with_spacing(GAP_SECTION)
                     .with_run_spacing(GAP_TIGHT);
-                if !self.worktree_mode && self.remote.is_none() && !hide_navigation {
-                    navigation.add_child(
-                        builder
-                            .button(ButtonVariant::Text, self.scope_buttons[0].clone())
-                            .with_text_label("Spaces and workspaces".into())
-                            .build()
-                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Spaces))
-                            .finish(),
-                    );
-                }
                 if !hide_navigation {
                     navigation.add_child(
                         builder
                             .button(ButtonVariant::Text, self.history_buttons[0].clone())
-                            .with_text_label("History and storage".into())
+                            .with_text_label("History".into())
                             .build()
                             .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History))
                             .finish(),
@@ -1638,7 +1600,7 @@ impl View for CollaborationPanel {
                         navigation.add_child(
                             builder
                                 .button(ButtonVariant::Text, self.page_buttons[0].clone())
-                                .with_text_label("Back to agents and tasks".into())
+                                .with_text_label("Back".into())
                                 .build()
                                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
                                 .finish(),
@@ -1741,7 +1703,6 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
-            if !self.preview && section.title == "Worktree collaboration" { continue; }
             if self.worktree_mode && !self.preview && !self.query.history && !self.show_messages &&
                 (matches!(section.title.as_str(), "Worktree collaboration" | "Agents" | "No participating agents")
                     || section.title.starts_with("File reservations") || section.title.starts_with("Activity")) {
@@ -1768,70 +1729,6 @@ impl View for CollaborationPanel {
                 continue;
             }
             body.add_child(render_section(section));
-        }
-        if !self.preview
-            && !self.show_spaces
-            && !self.show_messages
-            && !self.query.history
-            && self.form.is_none()
-        {
-            let mut buttons = Vec::new();
-            for (label, state, action) in [
-                (
-                    format!(
-                        "Task state: {}",
-                        self.query.task_state.as_deref().unwrap_or("any")
-                    ),
-                    self.scope_buttons[4].clone(),
-                    Action::FilterTaskState,
-                ),
-                (
-                    format!(
-                        "Archived: {}",
-                        if self.query.include_archived {
-                            "included"
-                        } else {
-                            "hidden"
-                        }
-                    ),
-                    self.page_buttons[6].clone(),
-                    Action::ToggleArchived,
-                ),
-                (
-                    "All assignees".into(),
-                    self.page_buttons[7].clone(),
-                    Action::FilterTaskAssignee(None),
-                ),
-            ] {
-                buttons.push(
-                    builder
-                        .button(ButtonVariant::Text, state)
-                        .with_text_label(label)
-                        .build()
-                        .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
-                        .finish(),
-                );
-            }
-            if let Some(buttons) = button_row(buttons) {
-                body.add_child(buttons);
-            }
-            if let Some(snapshot) = self.snapshot.as_ref().filter(|_| !self.worktree_mode) {
-                for row in &snapshot.agents {
-                    let id = row.agent.id.clone();
-                    body.add_child(
-                        builder
-                            .button(ButtonVariant::Text, self.agent_task_buttons[&id].clone())
-                            .with_text_label(format!("Tasks assigned to {}", row.agent.name))
-                            .build()
-                            .on_click(move |ctx, _, _| {
-                                ctx.dispatch_typed_action(Action::FilterTaskAssignee(Some(
-                                    id.clone(),
-                                )))
-                            })
-                            .finish(),
-                    );
-                }
-            }
         }
         if !self.preview {
             if let Some(task) = self
@@ -1864,20 +1761,15 @@ impl View for CollaborationPanel {
             body.add_child(self.render_controls(app));
             let mut buttons = Vec::new();
             for (index, label, action) in [
-                (1, "First export page", Some(Action::FirstHistory)),
+                (1, "First page", Some(Action::FirstHistory)),
                 (
                     2,
-                    "Next export page",
+                    "Next page",
                     self.snapshot
                         .as_ref()
                         .and_then(|snapshot| snapshot.history.as_ref())
                         .and_then(|history| history.cursor)
                         .map(|_| Action::NextHistory),
-                ),
-                (
-                    3,
-                    "Copy this export page as JSON",
-                    Some(Action::CopyHistory),
                 ),
             ] {
                 let button = builder
@@ -2002,7 +1894,7 @@ impl View for CollaborationPanel {
                 }
             }
         }
-        if !self.preview && (self.show_spaces || self.query.history) {
+        if !self.preview && self.show_spaces {
             if let Some(snapshot) = &self.snapshot {
                 let mut buttons = Vec::new();
                 for (index, label, action) in [
@@ -2175,7 +2067,7 @@ fn register_capture_participant(
         Some(workspace) => broker.prepare_in_workspace(terminal, workspace)?,
         None => broker.prepare(terminal)?,
     };
-    broker.activate(terminal, "codex", root, true)?;
+    broker.activate_project(terminal, "codex", root, true)?;
     let mut request = Request {
         protocol_major: transport::PROTOCOL_MAJOR,
         terminal: terminal.into(),
@@ -2201,6 +2093,9 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No capture broker"))?;
     let terminal = "capture-native-worker";
     let mut request = register_capture_participant(terminal, "capture-worker", root, None)?;
+    let project = transport::call(&broker.endpoint, &warp_agent_bus::transport::Request {
+        operation:Operation::AgentRegister { name:String::new() }, ..request.clone()
+    })?["agent"]["project"].as_str().unwrap().to_owned();
     let fixtures: Vec<Fixture> = serde_json::from_str(include_str!(
         "../../../specs/agent-communication-v2/panel-fixtures.json"
     ))?;
@@ -2211,7 +2106,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .and_then(|section| section.rows.first())
         .cloned()
         .unwrap_or_else(|| "Verify the native capture fixture".into());
-    let task = broker.operator(root, &Operation::TaskAssign {
+    let task = broker.operator(&project, &Operation::TaskAssign {
         to: "capture-worker".into(), description,
         acceptance: "The deterministic native IPC check passes and the unsent terminal draft remains intact.".into(),
         reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
@@ -2234,7 +2129,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     };
     transport::call(&broker.endpoint, &request)?;
     let thread = broker.operator(
-        root,
+        &project,
         &Operation::AgentSend {
             to: "capture-worker".into(),
             body: "Native thread checkpoint literal _% text".into(),
@@ -2746,71 +2641,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("live-empty.png"),
         )
-        .with_step(TestStep::new("load Worktree projection before opening its native form")
+        .with_step(TestStep::new("select Worktree mode for an empty native project")
             .with_action(|app, window, _| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(true), ctx));
             })
-            .add_named_assertion("unjoined Worktree projection is loaded", |app, window| {
+            .add_named_assertion("project identity exists before Agent registration", |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
-                    snapshot.project.starts_with("worktree:") && !snapshot.worktree_joined)))
-            }))
-        .with_step(
-            TestStep::new("worktree join confirmation uses existing native controls")
-                .with_action(|app, window, _| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| { panel.open_control(controls::Kind::JoinWorktree, ctx); });
-                })
-                .add_named_assertion("join form retains checkout and terminal draft", |app, window| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    warpui::async_assert!(panel.read(app, |panel, _| panel.form.as_ref().is_some_and(|form|
-                        form.kind == controls::Kind::JoinWorktree && !form.worktree_root.is_empty()))
-                        && checkpoint_draft(app, window) == "unsent collaboration draft")
-                })
-                .with_take_screenshot("worktree-join-confirmation.png"),
-        )
-        .with_step(TestStep::new("join worktree team through native form").with_action(|app, window, data| {
+                warpui::async_assert!(panel.read(app, |panel, _| !panel.mode_pending && panel.worktree_mode
+                    && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.project.starts_with("space:")
+                        && snapshot.worktree_joined && snapshot.agents.is_empty() && !snapshot.coordinator_online)))
+            }).with_take_screenshot("worktree-empty-project.png"))
+        .with_step(TestStep::new("selected mode preserves the loaded project").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            let submitted = panel.update(app, |panel, ctx| {
-                panel.confirm_control(ctx);
-                panel.form.as_ref().is_some_and(|form| form.submitting)
+            panel.update(app, |panel, ctx| {
+                assert!(panel.worktree_mode && panel.snapshot.is_some());
+                panel.handle_action(&Action::Mode(true), ctx);
+                assert!(!panel.mode_pending && panel.snapshot.is_some());
             });
-            data.insert("worktree_join_submitted", submitted);
         }))
-        .with_step(TestStep::new("worktree join intent reaches the controller")
-            .add_named_assertion_with_data_from_prior_step("join request was submitted", |_, _, data| {
-                warpui::async_assert!(data.get::<_, bool>("worktree_join_submitted") == Some(&true))
-            }))
-        .with_step(TestStep::new("native worktree team status reports checkout and branch")
-            .add_named_assertion("team projection is active", |app, window| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
-                    snapshot.worktree_joined && snapshot.project.starts_with("space:") && snapshot.worktree_branch.as_deref() == Some("main"))))
-            }).with_take_screenshot("worktree-panel-team.png"))
-        .with_step(
-            TestStep::new("worktree leave confirmation preserves process-stop boundary")
-                .with_action(|app, window, _| {
-                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                    panel.update(app, |panel, ctx| {
-                        panel.open_control(controls::Kind::LeaveWorktree, ctx);
-                    });
-                })
-                .with_take_screenshot("worktree-leave-confirmation.png"),
-        )
-        .with_step(
-            TestStep::new("leave worktree team through native form").with_action(|app, window, _| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                panel.update(app, |panel, ctx| { panel.worktree_mode = false; panel.confirm_control(ctx); });
-            }),
-        )
-        .with_step(TestStep::new("native worktree checkout returns to private collaboration")
-            .add_named_assertion("private checkout and draft retained", |app, window| {
-                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
-                    !snapshot.worktree_joined && !snapshot.project.starts_with("space:") && snapshot.worktree_branch.as_deref() == Some("main")))
-                    && checkpoint_draft(app, window) == "unsent collaboration draft")
-            }).with_take_screenshot("worktree-panel-isolated.png"))
         .with_step(TestStep::new("select Worktree mode with an existing native IPC Agent").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktree_root.clone());
@@ -2838,53 +2687,97 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.coordinator_online))
                 && checkpoint_draft(app, window) == "unsent collaboration draft")
         }))
-        .with_step(TestStep::new("create worktree without launching an Agent").with_action(|app, window, _| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| {
-                panel.open_control(controls::Kind::CreateWorktree, ctx);
-                panel.fill_control_checkpoint(&["ui-worker", "main"], ctx);
-            });
-        }).with_take_screenshot("worktree-create-form.png"))
-        .with_step(TestStep::new("confirm isolated worktree creation").with_action(|app, window, _| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+        .with_step(TestStep::new("open Warp native worktree creation").with_action(|app, window, data| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            data.insert("worktree-source-tab", workspace.read(app, |workspace, _| workspace.active_tab_index()));
+            data.insert("worktree-tab-count", workspace.read(app, |workspace, _| workspace.tabs.len()));
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::OpenNewWorktreeModal, ctx));
+            let repo = app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
+                .current_directory(window).unwrap().to_owned());
+            let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
+            modal.update(app, |modal, ctx| modal.fill_checkpoint(repo, ctx));
         }))
-        .with_step(TestStep::new("new worktree remains unassigned").add_named_assertion("no implicit Agent launch", |app, window| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
-                snapshot.worktrees.iter().any(|checkout| checkout.branch.as_deref() == Some("warpai/ui-worker"))
-                    && snapshot.roles.len() == 1 && snapshot.candidates.len() == 1)))
-        }).with_take_screenshot("worktree-created.png"))
+        .with_step(TestStep::new("native worktree repository and branches are ready")
+            .set_timeout(std::time::Duration::from_secs(45))
+            .add_named_assertion("native main branch is selected", |app, window| {
+                let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
+                warpui::async_assert!(modal.read(app, |modal, ctx| modal.checkpoint_ready(ctx)))
+            }).with_take_screenshot("worktree-create-form.png"))
+        .with_step(TestStep::new("submit native worktree modal into new tab").with_action(|app, window, _| {
+            let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
+            modal.update(app, |modal, ctx| modal.handle_action(&crate::tab_configs::new_worktree_modal::NewWorktreeModalAction::Open, ctx));
+        }))
+        .with_step(TestStep::new("new worktree opens a tab without launching an Agent")
+            .set_timeout(std::time::Duration::from_secs(45))
+            .add_named_assertion("native tab and persistent Coordinator", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
+                    snapshot.worktree_branch.as_deref() == Some("ui-worker") && snapshot.coordinator_online
+                        && snapshot.roles.len() == 1 && snapshot.candidates.len() == 1)))
+            }).with_take_screenshot("worktree-created.png"))
         .with_step(TestStep::new("prepare separate native IPC worker").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktrees.iter().find(|checkout| checkout.branch.as_deref() == Some("warpai/ui-worker")).unwrap().root.clone());
+            let root = panel.read(app, |panel, _| panel.snapshot.as_ref().unwrap().worktrees.iter().find(|checkout| checkout.branch.as_deref() == Some("ui-worker")).unwrap().root.clone());
             register_capture_participant("ui-worker-terminal", "ui-worker", &root, None).unwrap();
         }))
         .with_step(TestStep::new("worker selection observes its actual checkout").add_named_assertion("worker candidate observed", |app, window| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot| snapshot.candidates.iter().any(|candidate| candidate.agent.name == "ui-worker"))))
         }))
-        .with_step(TestStep::new("open native worker selector").with_action(|app, window, _| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| panel.open_control(controls::Kind::BindWorker, ctx));
-        }).with_take_screenshot("worktree-worker-selector.png"))
-        .with_step(TestStep::new("bind worker to its actual worktree").with_action(|app, window, _| {
-            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| {
-                let id = panel.form.as_ref().unwrap().candidates.iter().find(|candidate| candidate.agent.name == "ui-worker").unwrap().agent.id.clone();
-                panel.handle_action(&Action::SelectParticipant(id), ctx);
-                panel.confirm_control(ctx);
-            });
-        }))
+        .with_step(TestStep::new("worker automatically joins its native checkout")
+            .add_named_assertion("automatic Worktree participant", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
+                    snapshot.roles.iter().any(|role| role.role == "worker"))))
+            }).with_take_screenshot("worktree-worker-selector.png"))
         .with_step(TestStep::new("native Worktree team has explicit ownership").add_named_assertion("two roles and preserved terminal draft", |app, window| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
                 snapshot.roles.len() == 2 && snapshot.roles.iter().any(|role| role.role == "worker")))
                 && checkpoint_draft(app, window) == "unsent collaboration draft")
         }).with_take_screenshot("worktree-bound-team.png"))
-        .with_step(TestStep::new("restore Project mode and finish owned IPC team runs").with_action(|app, window, _| {
+        .with_step(TestStep::new("switch Coordinator to the Agent in another worktree").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                panel.open_control(controls::Kind::SelectCoordinator, ctx);
+                let id = panel.form.as_ref().unwrap().candidates.iter()
+                    .find(|candidate| candidate.agent.name == "ui-worker").unwrap().agent.id.clone();
+                panel.handle_action(&Action::SelectParticipant(id), ctx);
+                panel.confirm_control(ctx);
+            });
+        }))
+        .with_step(TestStep::new("Coordinator switch preserves both processes")
+            .add_named_assertion("worker becomes Coordinator", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none() && panel.snapshot.as_ref().is_some_and(|snapshot|
+                    snapshot.coordinator_online && snapshot.roles.iter().any(|role| role.role == "coordinator"
+                        && snapshot.participant_label(&role.agent) == "ui-worker"))))
+            }).with_take_screenshot("worktree-switched-coordinator.png"))
+        .with_step(TestStep::new("return to the original project tab").with_action(|app, window, data| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            let index = *data.get::<_, usize>("worktree-source-tab").unwrap();
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ActivateTab(index), ctx));
+        }))
+        .with_step(TestStep::new("Coordinator survives tab and checkout changes")
+            .add_named_assertion("project Coordinator persists", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
+                    snapshot.worktree_branch.as_deref() == Some("main") && snapshot.coordinator_online
+                        && snapshot.roles.iter().any(|role| role.role == "coordinator"
+                            && snapshot.participant_label(&role.agent) == "ui-worker")))
+                    && checkpoint_draft(app, window) == "unsent collaboration draft")
+            }).with_take_screenshot("worktree-coordinator-after-tab-switch.png"))
+        .with_step(TestStep::new("restore Project mode and finish owned IPC team runs").with_action(|app, window, data| {
             super::BROKER.get().unwrap().end("ui-coordinator-terminal");
             super::BROKER.get().unwrap().end("ui-worker-terminal");
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            let index = *data.get::<_, usize>("worktree-source-tab").unwrap();
+            let count = *data.get::<_, usize>("worktree-tab-count").unwrap();
+            assert_eq!(workspace.read(app, |workspace, _| workspace.tabs.len()), count + 1);
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ActivateTab(index), ctx));
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action(&Action::Mode(false), ctx));
         }))
@@ -2902,23 +2795,22 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }),
         )
         .with_step(TestStep::new("live tasks projection").add_named_assertion(
-            "native task and offline identity",
+            "offline task history is retained without an offline participant row",
             |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 warpui::async_assert!(
                     panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
                         |snapshot| snapshot.tasks.len() == 1
-                            && snapshot.agents.iter().any(|agent| !agent.online
-                                && agent.device.as_deref() == Some("local")
-                                && agent.workspace.as_deref() == Some(snapshot.project.as_str())
-                                && agent.last_observed_ms.is_none())
+                            && snapshot.agents.iter().all(|agent| agent.online)
+                            && snapshot.participant_label(&snapshot.tasks[0].assignee) == "capture-worker"
                     )) && checkpoint_draft(app, window) == "unsent collaboration draft"
                 )
             },
         ));
     filenames.push("live-empty.png".into());
     filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png"].map(str::to_owned));
-    filenames.extend(["worktree-join-confirmation.png", "worktree-leave-confirmation.png", "worktree-panel-team.png", "worktree-panel-isolated.png"].map(str::to_owned));
+    filenames.extend(["worktree-switched-coordinator.png", "worktree-coordinator-after-tab-switch.png"].map(str::to_owned));
+    filenames.push("worktree-empty-project.png".into());
     for detail in [false, true] {
         if detail {
             driver = driver
@@ -2994,7 +2886,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }
     driver = driver
         .with_step(
-            TestStep::new("focus live detail").with_action(|app, window, _| {
+            TestStep::new("focus live detail").with_action(|app, window, data| {
+                let bounds = app.read(|ctx| ctx.window_bounds(&window).unwrap());
+                data.insert("live-detail-window-bounds", bounds);
+                app.update(|ctx| {
+                    ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(
+                        bounds.origin(), pathfinder_geometry::vector::vec2f(bounds.size().x(), 600.)));
+                    ResizableData::as_ref(ctx).get_all_handles(window).unwrap()
+                        .left_panel_width.lock().unwrap().set_size(320.);
+                });
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
@@ -3032,7 +2932,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 }),
-        );
+        )
+        .with_step(TestStep::new("restore window after live detail scrolling").with_action(|app, window, data| {
+            let bounds = *data.get::<_, pathfinder_geometry::rect::RectF>("live-detail-window-bounds").unwrap();
+            app.update(|ctx| ctx.set_and_cache_window_bounds(window, bounds));
+        }));
     filenames.push("live-detail-end.png".into());
     driver = driver
         .with_step(
@@ -3320,6 +3224,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             && snapshot.agents.is_empty())))
                 },
             ),
+        )
+        .with_step(
+            TestStep::new("non-Git project rejects Worktree mode without disconnecting").with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    assert!(panel.connected && !panel.worktree_mode
+                        && panel.snapshot.as_ref().is_some_and(|snapshot| !snapshot.worktree_available));
+                    panel.handle_action(&Action::Mode(true), ctx);
+                    panel.handle_action(&Action::Mode(false), ctx);
+                    assert!(panel.connected && !panel.mode_pending && !panel.worktree_mode && panel.snapshot.is_some());
+                });
+            }),
         )
         .with_step(
             TestStep::new("register deterministic shared participant").with_action(
@@ -3744,12 +3660,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .snapshot
                             .as_ref()
                             .unwrap()
-                            .agents
+                            .participant_names
                             .iter()
-                            .find(|row| row.agent.name == "capture-worker")
+                            .find(|(_, name)| name.as_str() == "capture-worker")
                             .unwrap()
-                            .agent
-                            .id
+                            .0
                             .clone();
                         panel.handle_action(&Action::FilterTaskState, ctx);
                         panel.handle_action(&Action::FilterTaskAssignee(Some(worker)), ctx);
@@ -4936,11 +4851,65 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             );
         }
     }
+    driver = driver.with_step(TestStep::new("open native About update settings").with_action(|app, window, _| {
+        let root = app.root_view::<RootView>(window).unwrap();
+        let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+        workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ShowSettingsPageWithSearch {
+            search_query:String::new(), section:Some(crate::settings_view::SettingsSection::About),
+        }, ctx));
+    }).add_named_assertion("About view is available", |app, window| {
+        warpui::async_assert!(app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window)
+            .is_some_and(|views| !views.is_empty()))
+    }));
+    driver = driver.with_step(TestStep::new("About startup switch uses registered native actions").with_action(|app, window, _| {
+        let about = app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window).unwrap()[0].clone();
+        app.dispatch_typed_action(window, &[about.id()], &crate::settings_view::about_page::AboutAction::ToggleStartup);
+    }).add_named_assertion("startup preference is enabled", |app, _| {
+        warpui::async_assert!(app.read(|ctx| *crate::release_updates::UpdateSettings::as_ref(ctx).check_on_startup.value()))
+    }));
+    for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for width in [800, 1200] {
+            for state in ["idle", "checking", "current", "available", "unavailable", "error"] {
+                let filename = format!("about-updates-{label}-{width}-{state}.png");
+                filenames.push(filename.clone());
+                let theme = theme.clone();
+                driver = driver.with_step(TestStep::new(&filename).with_action(move |app, window, _| {
+                    app.update(|ctx| {
+                        let origin = ctx.window_bounds(&window).unwrap().origin();
+                        ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(origin,
+                            pathfinder_geometry::vector::vec2f(width as f32, 800.)));
+                        ctx.set_zoom_factor(1.25);
+                        let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                        Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                        crate::release_updates::ReleaseUpdates::handle(ctx).update(ctx, |updates, ctx| {
+                            updates.checking = state == "checking";
+                            updates.available = (["available", "unavailable"].contains(&state)).then(|| "v1.99.0".into());
+                            updates.download_url = (state == "available").then(|| crate::release_updates::installer_url("v1.99.0", std::env::consts::OS, std::env::consts::ARCH)).flatten();
+                            updates.status = match state {
+                                "checking" => "Checking for updates…",
+                                "current" => "Warpai is up to date.",
+                                "available" | "unavailable" => "Warpai v1.99.0 is available.",
+                                "error" => "Could not check for updates. Try again or open GitHub Releases.",
+                                _ => "",
+                            }.into();
+                            ctx.notify();
+                        });
+                    });
+                }).with_take_screenshot(filename));
+            }
+        }
+    }
+    driver = driver.with_step(TestStep::new("restore disabled startup checking").with_action(|app, window, _| {
+        let about = app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window).unwrap()[0].clone();
+        app.dispatch_typed_action(window, &[about.id()], &crate::settings_view::about_page::AboutAction::ToggleStartup);
+    }).add_named_assertion("startup preference is disabled", |app, _| {
+        warpui::async_assert!(app.read(|ctx| !*crate::release_updates::UpdateSettings::as_ref(ctx).check_on_startup.value()))
+    }));
     let driver = driver.with_on_finish(move |app, window, data| {
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
@@ -5026,6 +4995,14 @@ mod tests {
             snapshot.participant_label("Legacy reviewer"),
             "Legacy reviewer"
         );
+    }
+    #[test]
+    fn collaboration_offline_participant_names_remain_readable_in_history() {
+        let id = "94cdc52c-48eb-415c-a1f2-355a6be4fbe9";
+        let mut snapshot = Snapshot::default();
+        snapshot.participant_names.insert(id.into(), "Reviewer".into());
+        assert!(snapshot.agents.is_empty());
+        assert_eq!(snapshot.participant_label(id), "Reviewer");
     }
     #[test]
     fn collaboration_fixtures_cover_required_states_and_long_content() {

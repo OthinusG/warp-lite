@@ -47,7 +47,15 @@ impl Projects {
         run: &str,
         program: &str,
     ) -> Result<RunBinding, ManagedErrorCode> {
-        let broker = self.broker(&fence.project_id, root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?)?;
+        let (broker, domain) = self.selected_broker(fence, root)?;
+        if domain.starts_with("space:") && broker.worktree_binding(&crate::project_root(root)
+            .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?.is_none() {
+            let checkout = crate::project_root(root).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
+            broker.control(&checkout, &ControllerOperation::WorktreeJoin {
+                root: checkout.clone(), request_id: Uuid::new_v4().to_string(),
+            }).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        }
         let executable = std::env::current_exe().map_err(path_error)?;
         let executable = executable
             .to_str()
@@ -83,6 +91,55 @@ mod tests {
     }
 
     #[test]
+    fn remote_worktrees_participate_automatically_and_switch_coordinator_across_fences() {
+        use crate::worktrees::tests::{Fixture, call, id};
+        use crate::transport::{Request, CAPABILITY, ENDPOINT, TERMINAL, PROTOCOL_MAJOR};
+        let fixture = Fixture::new();
+        let directory = tempfile::tempdir().unwrap();
+        let projects = Projects::new(directory.path());
+        let first = fence();
+        let mut second = first.clone();
+        second.project_id = id();
+        let register = |fence: &ManagedFence, root: &Path, name: &str| {
+            let binding = projects.bind_run(fence, root, &id(), &id(), "fixture").unwrap();
+            let env = |key| binding.environment.iter().find(|(name, _)| name == key).unwrap().1.clone();
+            let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal:env(TERMINAL),
+                capability:env(CAPABILITY), run:None, directory:Some(root.to_str().unwrap().into()),
+                defer_initial_ready:false, native_activity:None, operation:Operation::AgentRegister { name:name.into() } };
+            request.run = crate::transport::call(&env(ENDPOINT), &request).unwrap()["run"].as_str().map(str::to_owned);
+            (binding, request)
+        };
+        let (lead_binding, lead) = register(&first, &fixture.main, "lead");
+        let (worker_binding, worker) = register(&second, &fixture.linked, "worker");
+        let select = |fence: &ManagedFence, root: &Path, binding: &RunBinding, request: &Request| {
+            let actor = call(&binding.broker, request, Operation::AgentRegister { name:"".into() }).unwrap();
+            execute(&projects, fence, root, &Command::Controller(ControllerOperation::WorktreeCoordinator {
+                root:root.to_str().unwrap().into(), agent:actor["agent"]["id"].as_str().unwrap().into(),
+                run:request.run.clone().unwrap(), request_id:id(),
+            }))
+        };
+        assert!(select(&first, &fixture.main, &lead_binding, &lead).get("value").is_some());
+        let team = call(&worker_binding.broker, &worker, Operation::AgentList).unwrap();
+        assert!(team.as_array().unwrap().iter().any(|agent| agent["name"] == "lead"));
+        let (later_binding, later) = register(&second, &fixture.linked, "later");
+        assert!(call(&later_binding.broker, &later, Operation::AgentList).unwrap()
+            .as_array().unwrap().iter().any(|agent| agent["name"] == "worker"));
+        assert!(select(&second, &fixture.linked, &worker_binding, &worker).get("value").is_some());
+        let panel = Command::Panel(PanelQuery { worktree:true, ..Default::default() });
+        let main = execute(&projects, &first, &fixture.main, &panel);
+        let linked = execute(&projects, &second, &fixture.linked, &panel);
+        assert_eq!(main["value"]["collaboration_scope"], linked["value"]["collaboration_scope"]);
+        assert_eq!(main["value"]["coordinator_online"], true);
+        assert!(main["value"]["roles"].as_array().unwrap().iter().any(|role|
+            role["role"] == "coordinator" && role["root"].as_str() == fixture.linked.to_str()));
+        drop(lead_binding);
+        assert_eq!(execute(&projects, &first, &fixture.main, &panel)["value"]["coordinator_online"], true);
+        drop(worker_binding);
+        assert_eq!(execute(&projects, &first, &fixture.main, &panel)["value"]["coordinator_online"], false);
+        drop(later_binding);
+    }
+
+    #[test]
     fn worktree_team_spans_remote_project_fences_without_moving_private_history() {
         use crate::worktrees::tests::{Fixture, call, assign, id};
         use crate::transport::{Request, CAPABILITY, ENDPOINT, TERMINAL, PROTOCOL_MAJOR};
@@ -104,11 +161,20 @@ mod tests {
             request.run = crate::transport::call(&endpoint, &request).unwrap()["run"].as_str().map(str::to_owned);
             (binding, request)
         };
-        let (private_binding, private) = register(&first, &fixture.main, "private");
-        let private_task = execute(&projects, &first, &fixture.main, &Command::Operator(Operation::TaskCreatePool {
+        let legacy = projects.broker(&first.project_id, fixture.main.to_str().unwrap()).unwrap();
+        let terminal = id();
+        let capability = legacy.prepare(&terminal).unwrap();
+        legacy.activate(&terminal, "fixture", fixture.main.to_str().unwrap(), true).unwrap();
+        let mut private = Request { protocol_major:PROTOCOL_MAJOR, terminal:terminal.clone(), capability:capability.clone(),
+            run:None, directory:Some(fixture.main.to_str().unwrap().into()), defer_initial_ready:false, native_activity:None,
+            operation:Operation::AgentRegister { name:"private".into() } };
+        private.run = call(&legacy, &private, private.operation.clone()).unwrap()["run"].as_str().map(str::to_owned);
+        let private_binding = RunBinding { broker:legacy, terminal, run:private.run.clone().unwrap(), environment:vec![] };
+        let private_task = execute(&projects, &first, &fixture.main, &Command::Scoped {
+            scope:first.project_id.clone(), command:Box::new(Command::Operator(Operation::TaskCreatePool {
             eligible: vec!["private".into()], description: "Retain private history".into(), acceptance: "Private only".into(),
             reviewer: None, dependencies: vec![], start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None, request_id: id()
-        }))["value"]["id"].as_str().unwrap().to_owned();
+        })) })["value"]["id"].as_str().unwrap().to_owned();
         let join_main = Command::Controller(ControllerOperation::WorktreeJoin { root: fixture.main.to_str().unwrap().into(), request_id: id() });
         assert!(execute(&projects, &first, &fixture.main, &join_main).get("value").is_some());
         let join_linked = Command::Controller(ControllerOperation::WorktreeJoin { root: fixture.linked.to_str().unwrap().into(), request_id: id() });
@@ -123,8 +189,8 @@ mod tests {
         assert!(execute(&projects, &second, &fixture.linked, &Command::Controller(ControllerOperation::WorktreeWorker {
             root:fixture.linked.to_str().unwrap().into(), agent:worker_agent, run:worker.run.clone().unwrap(), request_id:id(),
         })).get("value").is_some());
-        assert_ne!(lead_binding.broker.endpoint, worker_binding.broker.endpoint);
-        assert_eq!(private_binding.broker.endpoint, lead_binding.broker.endpoint);
+        assert_eq!(lead_binding.broker.endpoint, worker_binding.broker.endpoint);
+        assert_ne!(private_binding.broker.endpoint, lead_binding.broker.endpoint);
         assert!(call(&lead_binding.broker, &lead, Operation::TaskGet { task_id: private_task.clone() }).is_err());
         assert!(call(&private_binding.broker, &private, Operation::AgentList).unwrap().as_array().unwrap().is_empty());
         let task = call(&lead_binding.broker, &lead, assign("worker")).unwrap()["id"].as_str().unwrap().to_owned();
@@ -153,7 +219,7 @@ mod tests {
         assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: first.project_id.clone(), command: Box::new(Command::Operator(review.clone())) })["error"]["code"], "scope_denied");
         assert_eq!(execute(&projects, &first, &fixture.main, &Command::Scoped { scope: scope.clone(), command: Box::new(Command::Operator(review)) })["value"]["state"], "accepted");
         let unjoined = execute(&projects, &fence(), &fixture.unjoined, &Command::Panel(PanelQuery::default()));
-        assert!(unjoined["value"]["tasks"].as_array().unwrap().is_empty());
+        assert_eq!(unjoined["value"]["collaboration_scope"], first_panel["value"]["collaboration_scope"]);
         let independent = Projects::new(other_data.path());
         assert!(execute(&independent, &first, &fixture.main, &panel)["value"]["tasks"].as_array().unwrap().is_empty());
         let leave = Command::Controller(ControllerOperation::WorktreeLeave { root: fixture.linked.to_str().unwrap().into(), request_id: id() });
@@ -527,12 +593,17 @@ impl Projects {
 
     fn selected_broker(&self, fence: &ManagedFence, root: &Path) -> Result<(Broker, String), ManagedErrorCode> {
         if let Ok(checkout) = crate::worktrees::Worktree::discover(root) {
-            if self.directory.join(&checkout.repository).join("tasks.sqlite").exists() {
-                let broker = self.broker(&checkout.repository, checkout.common.to_str().ok_or(ManagedErrorCode::ManagedInvalidInput)?)?;
-                if let Some(binding) = broker.worktree_binding(&checkout.root)
-                    .map_err(|_| ManagedErrorCode::ManagedStaleAttachment)? {
-                    return Ok((broker, binding.domain()));
+            let broker = self.broker(&checkout.repository, checkout.common.to_str().ok_or(ManagedErrorCode::ManagedInvalidInput)?)?;
+            if !broker.worktree_opted_out(&checkout.root).map_err(|_| ManagedErrorCode::ManagedUnavailable)? {
+                if broker.worktree_binding(&checkout.root).map_err(|_| ManagedErrorCode::ManagedUnavailable)?.is_none() {
+                    broker.control(&checkout.root, &ControllerOperation::WorktreeJoin {
+                        root:checkout.root.clone(), request_id:Uuid::new_v4().to_string(),
+                    }).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
                 }
+                let domain = broker.worktree_domain(&checkout.root)
+                    .map_err(|_| ManagedErrorCode::ManagedStaleAttachment)?
+                    .ok_or(ManagedErrorCode::ManagedStaleAttachment)?;
+                return Ok((broker, domain));
             }
         }
         Ok((self.broker(&fence.project_id, root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?)?,
@@ -621,7 +692,8 @@ impl Projects {
             Command::Controller(operation)
                 if !matches!(
                     operation,
-                    ControllerOperation::WorktreeCoordinator { .. }
+                    ControllerOperation::WorktreeMode { .. }
+                        | ControllerOperation::WorktreeCoordinator { .. }
                         | ControllerOperation::WorktreeWorker { .. }
                         | ControllerOperation::WorktreeCreate { .. }
                         | ControllerOperation::WorktreeJoin { .. }
@@ -671,9 +743,18 @@ impl Projects {
                     ControllerOperation::WorktreeCoordinator { agent, run, .. } | ControllerOperation::WorktreeWorker { agent, run, .. } => (agent,run),
                     _ => unreachable!(),
                 };
-                if candidates.iter().any(|candidate| candidate["agent"]["id"].as_str() == Some(agent) && candidate["run"].as_str() == Some(run)) {
+                if candidates.iter().any(|candidate| (candidate["agent"]["id"].as_str() == Some(agent)
+                    || candidate["origin_agent"].as_str() == Some(agent)) && candidate["run"].as_str() == Some(run)) {
                     result = team.enroll_worktree(&source, operation);
                     break;
+                }
+            }
+            if result.is_ok() && matches!(operation, ControllerOperation::WorktreeCoordinator { .. }) {
+                let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+                    .values().map(|(_, owner)| owner.broker.clone()).collect();
+                for source in sources {
+                    team.enroll_worktree_agents(&source, &checkout.root)
+                        .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
                 }
             }
             let value = match result { Ok(value) => serde_json::json!({"value":value}), Err(error) => {
@@ -689,11 +770,17 @@ impl Projects {
             (broker, root.to_owned())
         } else if matches!(&command, Command::Panel(query) if query.worktree) && root_path.join(".git").exists() {
             let (broker, checkout) = self.worktree_broker(root_path)?;
+            let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+                .values().map(|(_, owner)| owner.broker.clone()).collect();
+            for source in sources {
+                broker.enroll_worktree_agents(&source, &checkout.root)
+                    .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            }
             let domain = broker.worktree_domain(&checkout.root).map_err(|_| ManagedErrorCode::ManagedStaleAttachment)?
                 .unwrap_or(checkout.root);
             (broker,domain)
         } else if matches!(&command, Command::Panel(query) if !query.worktree) {
-            (self.broker(&fence.project_id, root)?, root.to_owned())
+            self.selected_broker(fence, root_path)?
         } else if expected_scope.as_deref() == Some(fence.project_id.as_str()) {
             (self.broker(&fence.project_id, root)?, root.to_owned())
         } else { self.selected_broker(fence, root_path)? };
@@ -718,7 +805,7 @@ impl Projects {
                     value["worktree_joined"] = serde_json::json!(broker.worktree_binding(root).ok().flatten().is_some());
                     if worktree {
                         let sources: Vec<_> = self.owners.lock().map(|owners| owners.values().map(|(_, owner)| owner.broker.clone()).collect()).unwrap_or_default();
-                        let candidates: Vec<_> = sources.into_iter().flat_map(|source| source.worktree_candidates(root).unwrap_or_default()).take(50).collect();
+                        let candidates: Vec<_> = sources.into_iter().flat_map(|source| source.worktree_candidates(root).unwrap_or_default()).collect();
                         value["candidates"] = serde_json::json!(candidates);
                     }
                     let checkout_root = crate::project_root(root_path).unwrap_or_else(|_| root.into());

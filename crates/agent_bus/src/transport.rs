@@ -319,7 +319,11 @@ impl Broker {
             .filter_map(|(id, binding)| {
                 let live = binding.live.as_ref()?;
                 let agent = live.agent.as_ref()?;
-                (id != terminal && live.project == source.project && state.store.authorize(agent).is_ok()).then(|| Peer {
+                (id != terminal && !binding.revoked && !live.expired
+                    && live.started.elapsed() < MUTATION_EPOCH && live.project == source.project
+                    && state.store.authorize(agent).is_ok()
+                    && source.agent.as_ref().is_some_and(|actor|
+                        state.store.can_communicate(actor, agent).unwrap_or(false))).then(|| Peer {
                     terminal: id.clone(),
                     run: live.run.clone(),
                     name: agent.name.clone(),
@@ -471,7 +475,7 @@ impl Broker {
         let handle = crate::companion::open_root(root)?;
         let workspace = self.worktree_binding(&crate::project_root(root)?)?;
         let capability = self.prepare_binding(terminal, workspace)?;
-        if let Err(error) = self.activate(terminal, program, project, false) {
+        if let Err(error) = self.activate_project(terminal, program, project, false) {
             self.revoke_remote_run(terminal, None);
             return Err(error);
         }
@@ -522,9 +526,6 @@ impl Broker {
     pub fn expire_epoch(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.expire_epoch(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
-            if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref()) {
-                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
-            }
             if let Some(live) = state
                 .terminals
                 .get_mut(terminal)
@@ -915,6 +916,14 @@ impl Broker {
             }
             let program = live.program.clone();
             let project = live.project.clone();
+            let name = match state.terminals[&request.terminal].workspace.as_ref() {
+                Some(workspace) if state.store.worktree_domain(&workspace.root).ok().flatten().as_deref() == Some(project.as_str())
+                    && state.store.agent(&project, &name).ok()
+                    .is_some_and(|existing| state.store.physical_root(&existing).ok().as_deref() != Some(workspace.root.as_str())) => {
+                    format!("{}-{}", name.chars().take(55).collect::<String>(), request.terminal.chars().take(8).collect::<String>())
+                }
+                _ => name,
+            };
             ensure!(
                 !state
                     .terminals
@@ -952,6 +961,19 @@ impl Broker {
             self.shared.changed.notify_all();
             let mut result = registration_result(&agent, &run);
             result["capacity"] = state.store.capacity(&project)?;
+            let root = state.store.physical_root(&agent)?;
+            if state.terminals[&request.terminal].workspace.is_some()
+                && state.store.worktree_domain(&root).ok().flatten().as_deref() == Some(project.as_str()) {
+                state.store.initialize_project_mode(&project)?;
+                state.store.set_worktree_role(&agent, &run, "worker")?;
+            }
+            drop(state);
+            if Path::new(&root).join(".git").exists() {
+                self.enroll_worktree_agents(self, &root)?;
+                let state = self.store()?;
+                let live = state.terminals[&request.terminal].live.as_ref().unwrap();
+                result["agent"] = json!(live.agent);
+            }
             return Ok(result);
         }
         let actor = live
@@ -1119,7 +1141,9 @@ impl Broker {
                 state
                     .terminals
                     .values()
+                    .filter(|binding| !binding.revoked)
                     .filter_map(|t| t.live.as_ref())
+                    .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
                     .any(|live| {
                         live.agent
                             .as_ref()
@@ -1216,7 +1240,11 @@ impl Broker {
     /// Space, workspace, evidence, archive and history control operations.
     pub fn control(&self, project: &str, operation: &ControllerOperation) -> Result<Value> {
         if matches!(operation, ControllerOperation::WorktreeCoordinator { .. } | ControllerOperation::WorktreeWorker { .. }) {
-            return self.enroll_worktree(self, operation);
+            let result = self.enroll_worktree(self, operation)?;
+            if let ControllerOperation::WorktreeCoordinator { root, .. } = operation {
+                self.enroll_worktree_agents(self, root)?;
+            }
+            return Ok(result);
         }
         ensure!(!matches!(operation,
             ControllerOperation::InvitationCreate { .. } | ControllerOperation::DeviceList
@@ -1224,6 +1252,25 @@ impl Broker {
             | ControllerOperation::RemoteWorkspaceMap { .. }),
             crate::domain("feature_unavailable", "Device federation has been retired; SSH projects are not available in this build", false, None));
         let mut state = self.store()?;
+        if matches!(operation, ControllerOperation::WorktreeMode { .. }) {
+            let domain = if crate::worktrees::Worktree::discover(Path::new(project)).is_ok() {
+                if state.store.worktree_binding(project)?.is_none() {
+                    state.store.execute_controller(project, &ControllerOperation::WorktreeJoin {
+                        root:project.into(), request_id:Uuid::new_v4().to_string(),
+                    })?;
+                }
+                state.store.worktree_binding(project)?.unwrap().domain()
+            } else { project.into() };
+            let result = state.store.execute_controller(&domain, operation)?;
+            for binding in state.terminals.values_mut() {
+                if let Some(live) = binding.live.as_mut().filter(|live| live.project == domain) {
+                    live.generation += 1;
+                    if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+                }
+            }
+            self.shared.changed.notify_all();
+            return Ok(result);
+        }
         if matches!(operation, ControllerOperation::WorktreeCreate { .. }) {
             let roles = state.store.worktree_roles(project)?;
             ensure!(roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run))),
@@ -1238,6 +1285,9 @@ impl Broker {
             (invalid_workspace || invalid_actor || replaced_root).then(|| terminal.clone())
         }).collect();
         for terminal in revoked {
+            if let Some(live) = state.terminals[&terminal].live.as_ref() {
+                if let Some(actor) = &live.agent { state.store.worktree_offline(&actor.id, &live.run)?; }
+            }
             let binding = state.terminals.get_mut(&terminal).unwrap();
             binding.revoked = true;
             binding.live = None;
@@ -1281,8 +1331,11 @@ impl Broker {
     /// Bounded read projection and resumable events, off the UI thread. A timeout also
     /// refreshes volatile readiness, which deliberately does not enter durable history.
     pub fn operator_panel(&self, query: &PanelQuery) -> Result<Value> {
+        if query.worktree && Path::new(&query.project).join(".git").exists() {
+            self.enroll_worktree_agents(self, &query.project)?;
+        }
         if query.worktree && !Path::new(&query.project).join(".git").exists() {
-            return Ok(json!({"project":query.project,"admission":"private","worktree_available":false,
+            return Ok(json!({"project":query.project,"admission":"private","worktree_available":false,"worktree_mode":false,
                 "worktree_joined":false,"worktree_root":query.project,"worktree_branch":null,
                 "roles":[],"candidates":[],"worktrees":[],"coordinator_online":false,
                 "agents":[],"agent_cursor":null,"tasks":[],"task_cursor":null,"task":null,"task_runtime":null,
@@ -1309,16 +1362,18 @@ impl Broker {
             .and_then(|live| live.agent.as_ref())
             .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
-            .or_else(|| joined.as_ref().filter(|_| binding.is_none() || binding.is_some_and(|binding| binding.live.is_none() && !binding.revoked))
-                .map(|workspace| workspace.domain()))
+            .or_else(|| {
+                if binding.is_some_and(|binding| binding.revoked || binding.live.is_some())
+                    || state.store.worktree_opted_out(&query.project).unwrap_or(true) { return None; }
+                joined.as_ref().map(crate::WorkspaceBinding::domain)
+                    .or_else(|| state.store.worktree_domain(&query.project).ok().flatten())
+            })
             .unwrap_or_else(|| query.project.clone());
         let project = if query.worktree {
             match state.store.worktree_domain(&query.project)? {
                 Some(domain) => domain,
                 None => format!("worktree:{}", crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository),
             }
-        } else if joined.is_some() || binding.and_then(|binding| binding.live.as_ref()).is_some_and(|live| live.origin_agent.is_some()) {
-            query.project.clone()
         } else { project };
         let same_scope = query.scope.as_deref() == Some(project.as_str());
         let after = same_scope.then_some(query.event_after).flatten();
@@ -1331,7 +1386,11 @@ impl Broker {
         }
         ensure!(!self.shared.stopped.load(Ordering::SeqCst), coordinator_unavailable("Broker unavailable"));
         let agents = state.store.agents(&project)?;
+        let participant_names: HashMap<_, _> = agents.iter().map(|agent| (agent.id.clone(), agent.name.clone())).collect();
         let remaining: Vec<_> = agents.into_iter()
+            .filter(|agent| orchestration::active_agent(&state, &agent.id,
+                state.terminals.get(&agent.terminal).and_then(|binding| binding.live.as_ref())
+                    .map(|live| live.run.as_str()).unwrap_or("")))
             .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
             .collect();
         let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());
@@ -1405,10 +1464,11 @@ impl Broker {
         } else { None };
         let roles = state.store.worktree_roles(&project)?;
         let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
+        let worktree_mode = state.store.worktree_mode(&project)?;
         drop(state);
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
-        Ok(json!({"project": project, "admission": admission, "agents": agents, "agent_cursor": agent_cursor,
+        Ok(json!({"project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
             "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,

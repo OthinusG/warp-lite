@@ -43,9 +43,9 @@ place to coordinate.
 
 Choose **Project** mode for shared project communication, research and writing,
 or **Worktree** mode for parallel changes in one Git repository. Project keeps
-the team's messages, tasks and history together. In Worktree mode, explicitly
-select an active Agent as Coordinator and bind other active Agents to their own
-checkouts. The Coordinator assigns tasks and context, collects results, requests
+the team's messages, tasks and history together. In Worktree mode, select an active Agent from any checkout as Coordinator. Agents join their
+repository team automatically; same-checkout Agents communicate directly and
+cross-checkout communication goes through the Coordinator. The Coordinator assigns tasks and context, collects results, requests
 peer review and chooses what to integrate. Reviewers can request changes; the
 assigned Agent can continue and submit again. You stay in control of the goal,
 scope and final result.
@@ -53,9 +53,8 @@ scope and final result.
 ### Example: ship a feature with an Agent team
 
 To add an export feature, switch to Worktree mode and select your Coordinator.
-Create separate worktrees for the API, command line interface and tests. Start
-Agents in those checkouts through your normal Agent workflow, then bind them in
-the panel. Creating a worktree never starts an Agent. The Coordinator delegates
+Create separate worktrees for the API, command line interface and tests. Create worktrees through the existing worktree menu, which opens each in a new
+tab. Start Agents there through your normal Agent workflow. Creating a worktree never starts an Agent. The Coordinator delegates
 the work, asks Agents to review one another, integrates accepted results, checks
 the combined changes and makes the final Git commit. Warpai keeps messages,
 assignments, evidence and review decisions together throughout the process.
@@ -86,9 +85,9 @@ review tool.
 
 - **Left Agent panel:** manage and switch between project Agent sessions, follow
   readiness and task status, send messages and review results. Switch between
-  Project and Worktree at the top of the collaboration panel. Select the
-  Coordinator, create worktrees and bind workers; compact summaries expand to
-  show checkout details. History and maintenance remain available when needed.
+  Project and Worktree at the top of the collaboration panel. Select or switch the
+  Coordinator from any checkout; compact summaries expand to show checkout details.
+  Worktree creation uses the existing worktree menu and opens a new tab. History and maintenance remain available when needed.
 - **Full-featured terminal:** run your normal shells, Git, build tools, scripts,
   development servers and long-running commands. GPU rendering, command blocks,
   vertical tabs, split panes, command completion, command search, themes and
@@ -121,10 +120,10 @@ submit evidence and participate in review. Separate projects remain isolated.
 Queued work waits for the receiving Agent to be ready, and Warpai does not answer
 permission requests on an Agent's behalf.
 
-Start Agents through their normal workflow before selecting a Coordinator or
-binding workers. With no active Agent, Worktree coordination remains unavailable.
-A worker binding must match the Agent's actual checkout; it does not move or
-restart a running process. Switching modes changes the panel view and preserves
+Start Agents through their normal workflow before selecting a Coordinator. With no active Agent, Worktree coordination remains unavailable.
+Participation follows the Agent's actual checkout without moving or restarting
+its process. Coordinator selection survives pane, tab and project switches until
+that Agent exits or Warpai closes. You can switch to another online Agent at any time. Switching modes changes the panel view and preserves
 Project history. Accepting a task does not automatically merge branches.
 
 Settings reports useful setup errors when an Agent cannot join. A single cleanup
@@ -141,8 +140,8 @@ terminal and enter your project directory; the workspace follows that terminal's
 remote `cd`.
 
 The remote collaboration view supports both Project and Worktree modes, showing
-Agents, conversations, assignments and results. On one SSH host/account, select
-a Coordinator and bind workers in isolated checkouts just as you do locally.
+Agents, conversations, assignments and results. On one SSH host/account, select or switch
+a Coordinator from any checkout just as you do locally.
 Each worktree retains its own file, editor and Review root. Separate clones,
 hosts/accounts and local/remote environments remain isolated.
 

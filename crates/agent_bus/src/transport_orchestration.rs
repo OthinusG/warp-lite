@@ -19,8 +19,36 @@ pub(super) fn active_agent(state: &State, agent: &str, run: &str) -> bool {
 }
 
 impl Broker {
+    /// Native launches bind repository identity before registration or task creation.
+    pub fn activate_project(&self, terminal: &str, program: &str, root: &str, initial_prompt: bool) -> Result<()> {
+        let checkout = crate::worktrees::Worktree::discover(Path::new(root)).ok();
+        let root = checkout.as_ref().map_or(root, |checkout| checkout.root.as_str());
+        if checkout.is_some() {
+            let mut state = self.store()?;
+            let binding = state.terminals.get(terminal)
+                .ok_or_else(|| unauthorized("Terminal is not bound"))?;
+            ensure!(!binding.revoked, scope_denied("Terminal participation was revoked"));
+            if binding.workspace.is_none() && !state.store.worktree_opted_out(root)? {
+                if state.store.worktree_binding(root)?.is_none() {
+                    state.store.execute_controller(root, &ControllerOperation::WorktreeJoin {
+                        root:root.into(), request_id:Uuid::new_v4().to_string(),
+                    })?;
+                }
+                let workspace = state.store.worktree_binding(root)?;
+                state.terminals.get_mut(terminal).unwrap().workspace = workspace;
+            }
+            if let Some(workspace) = &state.terminals[terminal].workspace {
+                state.store.initialize_project_mode(&workspace.domain())?;
+            }
+        }
+        self.activate(terminal, program, root, initial_prompt)
+    }
+
     pub(crate) fn worktree_domain(&self, root: &str) -> Result<Option<String>> {
         self.store()?.store.worktree_domain(root)
+    }
+    pub(crate) fn worktree_opted_out(&self, root: &str) -> Result<bool> {
+        self.store()?.store.worktree_opted_out(root)
     }
     pub(crate) fn worktree_role_receipt(
         &self,
@@ -63,12 +91,55 @@ impl Broker {
                 let live = binding.live.as_ref()?;
                 if live.expired || live.started.elapsed() >= MUTATION_EPOCH { return None; }
                 let agent = live.agent.as_ref()?;
+                if !active_agent(&state, &agent.id, &live.run) { return None; }
                 state.store.authorize(agent).ok()?;
                 let physical = state.store.physical_root(agent).ok()?;
                 let checkout = crate::worktrees::Worktree::discover(Path::new(&physical)).ok()?;
                 if checkout.repository != repository { return None; }
-                Some(json!({"agent":agent,"run":live.run,"root":physical,"branch":crate::worktrees::branch(&physical)}))
+                Some(json!({"agent":agent,"run":live.run,"root":physical,"branch":crate::worktrees::branch(&physical),"origin_agent":live.origin_agent.as_ref().map(|agent| &agent.id)}))
             }).collect())
+    }
+
+    /// Repository participation follows native runs, never the focused pane.
+    pub(crate) fn enroll_worktree_agents(&self, source: &Broker, root: &str) -> Result<()> {
+        let Some(domain) = self.worktree_domain(root)? else { return Ok(()); };
+        let roles = {
+            let state = self.store()?;
+            let roles = state.store.worktree_roles(&domain)?;
+            if !roles.iter().any(|role| role.role == "coordinator"
+                && role.run.as_ref().is_some_and(|run| active_agent(&state, &role.agent, run))) {
+                return Ok(());
+            }
+            roles
+        };
+        let needs_admission = {
+            let state = source.store()?;
+            state.terminals.values().filter(|binding| !binding.revoked).filter_map(|binding| binding.live.as_ref())
+                .filter(|live| !live.expired).filter_map(|live| live.agent.as_ref().map(|agent| (agent, live)))
+                .any(|(agent, live)| !roles.iter().any(|role| role.agent == agent.id && role.run.as_deref() == Some(live.run.as_str())))
+        };
+        if !needs_admission { return Ok(()); }
+        for candidate in source.worktree_candidates(root)? {
+            let agent = candidate["agent"]["id"].as_str().unwrap();
+            let run = candidate["run"].as_str().unwrap();
+            if roles.iter().any(|role| role.agent == agent && role.run.as_deref() == Some(run)) {
+                continue;
+            }
+            if self.store()?.store.worktree_opted_out(candidate["root"].as_str().unwrap())? {
+                continue;
+            }
+            let operation = ControllerOperation::WorktreeWorker {
+                root: candidate["root"].as_str().unwrap().into(),
+                agent: agent.into(), run: run.into(), request_id: Uuid::new_v4().to_string(),
+            };
+            // Existing private work retains its authority until it is resolved.
+            if let Err(error) = self.enroll_worktree(source, &operation) {
+                if crate::DomainError::from_error(error).code != "invalid_state" {
+                    return Err(scope_denied("Could not admit an active worktree Agent"));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn enroll_worktree(
@@ -121,10 +192,6 @@ impl Broker {
             source_state.store.physical_root(&original)? == root,
             scope_denied("Agent must already run in the selected checkout")
         );
-        ensure!(
-            !live.waiting && live.wake.is_none(),
-            invalid_state("Agent is receiving work; retry after it returns")
-        );
         let physical = source_state.terminals[&terminal].physical_root.as_ref();
         ensure!(
             physical.is_some_and(
@@ -151,19 +218,6 @@ impl Broker {
             };
             let domain = binding.domain();
             let roles = state.store.worktree_roles(&domain)?;
-            ensure!(
-                roles.iter().all(|entry| entry.root != root
-                    || entry.agent == original.id
-                    || (role == "coordinator" && entry.role == "coordinator")
-                    || (role == "worker" && entry.role == "worker" && entry.run.is_none())
-                    || state
-                        .terminals
-                        .get(&terminal)
-                        .and_then(|binding| binding.live.as_ref())
-                        .and_then(|live| live.agent.as_ref())
-                        .is_some_and(|agent| entry.agent == agent.id)),
-                scope_denied("Checkout already has a bound Agent")
-            );
             if role == "worker" {
                 ensure!(
                     roles.iter().any(|entry| entry.role == "coordinator"
@@ -175,12 +229,19 @@ impl Broker {
                     invalid_state("Select an active Coordinator first")
                 );
             }
-            let actor = state.store.register_in_workspace(
-                &terminal,
-                &original.program,
-                &binding,
-                &original.name,
-            )?;
+            let name = match state.store.agent(&domain, &original.name).ok() {
+                Some(existing) if existing.terminal != terminal
+                    && (state.store.physical_root(&existing)? != root
+                        || state.terminals.values().any(|binding| binding.live.as_ref()
+                            .is_some_and(|live| live.agent.as_ref().is_some_and(|agent| agent.id == existing.id)))) => {
+                    format!("{}-{}", original.name.chars().take(55).collect::<String>(),
+                        original.id.chars().take(8).collect::<String>())
+                }
+                _ => original.name.clone(),
+            };
+            let actor = if original.project == domain { original.clone() } else {
+                state.store.register_in_workspace(&terminal, &original.program, &binding, &name)?
+            };
             let result = state
                 .store
                 .worktree_role_intent(&root, operation, &actor, run, role)?;
@@ -215,6 +276,14 @@ impl Broker {
             drop(source_state);
             (target, binding, actor, result)
         };
+        if role == "coordinator" {
+            for binding in target.terminals.values_mut() {
+                if let Some(live) = binding.live.as_mut().filter(|live| live.project == actor.project) {
+                    live.generation += 1;
+                    if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+                }
+            }
+        }
         let native = target.terminals.get_mut(&terminal).unwrap();
         native.workspace = Some(binding);
         let live = native.live.as_mut().unwrap();
@@ -225,24 +294,28 @@ impl Broker {
         live.agent = Some(actor.clone());
         live.generation += 1;
         live.delivered.clear();
+        live.wake = None;
+        live.waiting = false;
         let message = if role == "coordinator" {
-            "You are the explicitly selected Worktree Coordinator. Assign tasks and context to bound workers, collect results, designate a different worker for peer review, choose accepted results for integration with warp_task_integrate, and create the final integration commit in your checkout. Do not start Agents or change their ownership."
+            "You are the explicitly selected Worktree Coordinator. Assign tasks and context to participating Agents, collect results, designate a different worker for peer review, choose accepted results for integration with warp_task_integrate, and create the final integration commit in your checkout. Agents in any checkout may become Coordinator when the user changes the selection. Workers in different checkouts communicate through you."
         } else {
-            "You are an explicitly bound Worktree worker. Work only in your own checkout, execute assigned tasks, report results and commit/test evidence, and review another worker when designated. The Coordinator owns task allocation and integration decisions."
+            "You are a Worktree participant. Work only in your own checkout, execute assigned tasks, report results and commit/test evidence, and review another worker when designated. Communicate directly with Agents in your checkout or with the Coordinator; other checkouts are isolated. The selected Coordinator owns task allocation and integration decisions."
         };
-        target.store.execute(
-            &Store::operator(&actor.project),
-            crate::storage::OPERATOR_EPOCH,
-            &Operation::AgentSend {
-                to: actor.name.clone(),
-                body: message.into(),
-                subject: Some("Worktree role".into()),
-                thread_id: None,
-                reply_to: None,
-                task_id: None,
-                request_id: operation.request_id().unwrap().into(),
-            },
-        )?;
+        if target.store.inbox_count(&actor.id)? < crate::storage::MAX_PENDING_PER_AGENT {
+            target.store.execute(
+                &Store::operator(&actor.project),
+                crate::storage::OPERATOR_EPOCH,
+                &Operation::AgentSend {
+                    to: actor.name.clone(),
+                    body: message.into(),
+                    subject: Some("Worktree role".into()),
+                    thread_id: None,
+                    reply_to: None,
+                    task_id: None,
+                    request_id: operation.request_id().unwrap().into(),
+                },
+            )?;
+        }
         self.shared.changed.notify_all();
         Ok(result)
     }
@@ -252,6 +325,235 @@ impl Broker {
 mod tests {
     use super::*;
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
+
+    #[test]
+    fn native_project_identity_mode_and_busy_coordinator_handoff_preserve_tasks() {
+        let fixture = Fixture::new();
+        let owner = RunningBroker::start(&fixture.directory.path().join("initial-project.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let register = |root: &Path, name: &str| {
+            let terminal = id();
+            let capability = broker.prepare(&terminal).unwrap();
+            broker.activate_project(&terminal, "fixture", root.to_str().unwrap(), true).unwrap();
+            let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal, capability, run:None,
+                directory:Some(root.to_str().unwrap().into()), defer_initial_ready:false, native_activity:None,
+                operation:Operation::AgentRegister { name:name.into() } };
+            let actor = call(broker, &request, request.operation.clone()).unwrap();
+            request.run = actor["run"].as_str().map(str::to_owned);
+            (request, actor["agent"].clone())
+        };
+        let (lead, lead_agent) = register(&fixture.main, "lead");
+        let (worker, worker_agent) = register(&fixture.linked, "worker");
+        let (other, other_agent) = register(&fixture.unjoined, "other");
+        assert_eq!(lead_agent["project"], worker_agent["project"]);
+        let task = call(broker, &lead, assign("worker")).unwrap();
+        call(broker, &worker, Operation::TaskStart { task_id:task["id"].as_str().unwrap().into(),
+            revision:1, expected_version:None, request_id:id() }).unwrap();
+        for _ in 0..17 {
+            let mut operation = assign("worker");
+            if let Operation::TaskAssign { description, .. } = &mut operation {
+                *description = "x".repeat(512);
+            }
+            call(broker, &lead, operation).unwrap();
+        }
+        let select = |request: &Request, actor: &Value, root: &Path| {
+            broker.control(root.to_str().unwrap(), &ControllerOperation::WorktreeCoordinator {
+                root:root.to_str().unwrap().into(), agent:actor["id"].as_str().unwrap().into(),
+                run:request.run.clone().unwrap(), request_id:id(),
+            }).unwrap();
+        };
+        select(&lead, &lead_agent, &fixture.main);
+        select(&worker, &worker_agent, &fixture.linked);
+        let empty = fixture.directory.path().join("empty checkout");
+        git(&fixture.main, &["worktree", "add", "-b", "empty", empty.to_str().unwrap()]);
+        let empty_root = crate::project_root(&empty).unwrap();
+        let empty_panel = || broker.operator_panel(&PanelQuery { project:empty_root.clone(), ..Default::default() }).unwrap();
+        assert_eq!(empty_panel()["project"], lead_agent["project"]);
+        assert_eq!(empty_panel()["worktree_mode"], true);
+        assert_eq!(empty_panel()["coordinator_online"], true);
+        assert!(broker.store().unwrap().store.worktree_binding(&empty_root).unwrap().is_none());
+        let plain = fixture.directory.path().join("plain project");
+        std::fs::create_dir(&plain).unwrap();
+        let (plain_request, plain_agent) = register(&plain, "plain");
+        let plain_root = crate::project_root(&plain).unwrap();
+        assert_eq!(plain_agent["project"], plain_root);
+        let plain_panel = broker.operator_panel(&PanelQuery { project:plain_root.clone(),
+            terminal:Some(plain_request.terminal.clone()), ..Default::default() }).unwrap();
+        assert_eq!(plain_panel["project"], plain_root);
+        assert_eq!(plain_panel["worktree_mode"], false);
+        assert_eq!(plain_panel["worktree_available"], false);
+        assert_eq!(plain_panel["coordinator_online"], false);
+        assert_eq!(plain_panel["agents"].as_array().unwrap().len(), 1);
+        assert!(call(broker, &plain_request, Operation::AgentSend { to:"lead".into(),
+            body:"Separate project".into(), subject:None, thread_id:None, reply_to:None,
+            task_id:None, request_id:id() }).is_err());
+        let unavailable = broker.operator_panel(&PanelQuery { project:plain_root,
+            worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(unavailable["worktree_mode"], false);
+        assert_eq!(unavailable["worktree_available"], false);
+        assert_eq!(empty_panel()["coordinator_online"], true);
+        assert_eq!(call(broker, &worker, Operation::AgentRegister { name:String::new() }).unwrap()["agent"], worker_agent);
+        let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|message|
+            message["subject"] == "Coordinator handoff"
+                && message["body"].as_str().unwrap().contains("18 unfinished project tasks")
+                && message["body"].as_str().unwrap().len() <= crate::MAX_TEXT));
+        let mode = |worktree| broker.control(fixture.main.to_str().unwrap(), &ControllerOperation::WorktreeMode { worktree, request_id:id() }).unwrap();
+        let send = || call(broker, &lead, Operation::AgentSend { to:"other".into(), body:"Check".into(),
+            subject:None, thread_id:None, reply_to:None, task_id:None, request_id:id() });
+        assert!(send().is_err());
+        mode(false);
+        assert_eq!(empty_panel()["project"], lead_agent["project"]);
+        assert_eq!(empty_panel()["worktree_mode"], false);
+        assert_eq!(empty_panel()["coordinator_online"], true);
+        assert!(send().is_ok());
+        assert!(call(broker, &other, assign("lead")).is_ok());
+        mode(true);
+        assert!(send().is_err());
+        let panel = broker.operator_panel(&PanelQuery { project:fixture.main.to_str().unwrap().into(), ..Default::default() }).unwrap();
+        assert_eq!(panel["agents"].as_array().unwrap().len(), 3);
+        assert_eq!(panel["coordinator_online"], true);
+        assert_eq!(call(broker, &worker, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap()["assignee"], worker_agent["id"]);
+        select(&other, &other_agent, &fixture.unjoined);
+        call(broker, &worker, Operation::TaskSubmit { task_id:task["id"].as_str().unwrap().into(),
+            revision:1, result:"Ready".into(), evidence:"Checked".into(), evidence_ids:vec![],
+            attempt_id:None, expected_version:None, request_id:id() }).unwrap();
+        let updates = call(broker, &other, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        assert!(updates["messages"].as_array().unwrap().iter().any(|message|
+            message["subject"] == "Task update" && message["body"].as_str().unwrap().contains(task["id"].as_str().unwrap())));
+        select(&worker, &worker_agent, &fixture.linked);
+        broker.end(&worker.terminal);
+        let (replacement, replacement_agent) = register(&fixture.linked, "worker");
+        assert_eq!(replacement_agent["id"], worker_agent["id"]);
+        let panel = broker.operator_panel(&PanelQuery { project:fixture.main.to_str().unwrap().into(), worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(panel["coordinator_online"], false);
+        assert!(call(broker, &replacement, assign("lead")).is_err());
+    }
+
+    #[test]
+    fn native_project_participation_isolates_checkouts_and_preserves_coordinator_selection() {
+        let fixture = Fixture::new();
+        let owner = RunningBroker::start(&fixture.directory.path().join("native-project.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let main = fixture.main.to_str().unwrap();
+        let lead = client(broker, &fixture.main, "lead");
+        let left = client(broker, &fixture.linked, "left");
+        let right = client(broker, &fixture.linked, "right");
+        let other = client(broker, &fixture.unjoined, "other");
+        let select = |request: &Request, root: &Path| {
+            let actor = call(broker, request, Operation::AgentRegister { name: "".into() }).unwrap();
+            broker.control(main, &ControllerOperation::WorktreeCoordinator {
+                root: root.to_str().unwrap().into(), agent: actor["agent"]["id"].as_str().unwrap().into(),
+                run: request.run.clone().unwrap(), request_id: id(),
+            }).unwrap()
+        };
+        let send = |request: &Request, to: &str| call(broker, request, Operation::AgentSend {
+            to: to.into(), body: "Scope check".into(), subject: None, thread_id: None,
+            reply_to: None, task_id: None, request_id: id(),
+        });
+        let original = select(&lead, &fixture.main);
+        assert_eq!(broker.run(&lead.terminal), lead.run);
+        assert!(send(&left, "right").is_ok());
+        assert!(send(&left, "lead").is_ok());
+        assert!(send(&lead, "other").is_ok());
+        assert!(send(&left, "other").is_err());
+        let visible = call(broker, &left, Operation::AgentList).unwrap();
+        assert!(visible.as_array().unwrap().iter().any(|agent| agent["name"] == "right"));
+        assert!(!visible.as_array().unwrap().iter().any(|agent| agent["name"] == "other"));
+        assert!(!broker.peers(&left.terminal).iter().any(|peer| peer.name == "other"));
+        let later = client(broker, &fixture.linked, "later");
+        assert!(send(&later, "right").is_ok());
+        assert!(send(&later, "other").is_err());
+        let changed = select(&left, &fixture.linked);
+        assert_eq!(broker.run(&left.terminal), left.run);
+        assert!(send(&lead, "right").is_err());
+        assert!(send(&left, "other").is_ok());
+        assert!(send(&lead, "left").is_ok());
+        let inbox = call(broker, &lead, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|message|
+            message["subject"] == "Coordinator changed" && message["body"].as_str().unwrap().contains("left")));
+        // Changing pane, checkout, subdirectory or project only changes the read projection.
+        std::fs::create_dir(fixture.linked.join("nested")).unwrap();
+        let nested = crate::project_root(&fixture.linked.join("nested")).unwrap();
+        for (root, terminal) in [(main.to_owned(), Some(lead.terminal.clone())),
+            (nested, Some(right.terminal.clone())),
+            (fixture.unjoined.to_str().unwrap().into(), None)] {
+            let panel = broker.operator_panel(&PanelQuery { project:root, terminal,
+                worktree:true, ..Default::default() }).unwrap();
+            assert_eq!(panel["coordinator_online"], true);
+            let role = panel["roles"].as_array().unwrap().iter().find(|role| role["role"] == "coordinator").unwrap();
+            assert_eq!(role["agent"], changed["agent"]["id"]);
+        }
+        let unrelated = broker.operator_panel(&PanelQuery { project: fixture.directory.path().to_str().unwrap().into(),
+            worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(unrelated["worktree_mode"], false);
+        assert_eq!(broker.operator_panel(&PanelQuery { project:main.into(), worktree:true,
+            ..Default::default() }).unwrap()["coordinator_online"], true);
+        broker.end(&left.terminal);
+        assert_eq!(broker.operator_panel(&PanelQuery { project:main.into(), worktree:true,
+            ..Default::default() }).unwrap()["coordinator_online"], false);
+        // A prior selection receipt cannot elect the original Coordinator again.
+        assert_ne!(original["agent"]["id"], changed["agent"]["id"]);
+        assert!(send(&right, "later").is_ok());
+        drop(owner);
+        let reopened = RunningBroker::start(&fixture.directory.path().join("native-project.sqlite")).unwrap();
+        assert_eq!(reopened.broker.operator_panel(&PanelQuery { project:main.into(), worktree:true,
+            ..Default::default() }).unwrap()["coordinator_online"], false);
+    }
+
+    #[test]
+    fn automatic_participation_disambiguates_names_without_reclaiming_other_checkouts() {
+        let fixture = Fixture::new();
+        let owner = RunningBroker::start(&fixture.directory.path().join("names.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let lead = client(broker, &fixture.main, "lead");
+        let first = client(broker, &fixture.linked, "worker");
+        let second = client(broker, &fixture.unjoined, "worker");
+        let lead_id = call(broker, &lead, Operation::AgentRegister { name:"".into() }).unwrap()["agent"]["id"].as_str().unwrap().to_owned();
+        broker.control(fixture.main.to_str().unwrap(), &ControllerOperation::WorktreeCoordinator {
+            root:fixture.main.to_str().unwrap().into(), agent:lead_id, run:lead.run.clone().unwrap(), request_id:id(),
+        }).unwrap();
+        let first_agent = call(broker, &first, Operation::AgentRegister { name:"".into() }).unwrap();
+        let second_agent = call(broker, &second, Operation::AgentRegister { name:"".into() }).unwrap();
+        assert_ne!(first_agent["agent"]["name"], second_agent["agent"]["name"]);
+        assert_eq!(first_agent["agent"]["project"], second_agent["agent"]["project"]);
+        assert_eq!(broker.run(&first.terminal), first.run);
+        assert_eq!(broker.run(&second.terminal), second.run);
+        let later = client(broker, &fixture.main, "worker");
+        let later_agent = call(broker, &later, Operation::AgentRegister { name:"".into() }).unwrap();
+        assert_ne!(first_agent["agent"]["name"], later_agent["agent"]["name"]);
+        assert_ne!(second_agent["agent"]["name"], later_agent["agent"]["name"]);
+        assert_eq!(first_agent["agent"]["project"], later_agent["agent"]["project"]);
+        broker.expire_epoch(&lead.terminal);
+        let panel = broker.operator_panel(&PanelQuery { project:fixture.main.to_str().unwrap().into(),
+            worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(panel["coordinator_online"], false);
+        assert!(panel["roles"].as_array().unwrap().iter()
+            .any(|role| role["role"] == "coordinator" && !role["run"].is_null()));
+    }
+
+    #[test]
+    fn online_project_agents_are_filtered_before_pagination() {
+        let directory = tempfile::tempdir().unwrap();
+        let canonical = directory.path().canonicalize().unwrap();
+        let root = canonical.to_str().unwrap();
+        let owner = RunningBroker::start(&directory.path().join("online.sqlite")).unwrap();
+        let broker = &owner.broker;
+        for index in 0..55 {
+            let request = client(broker, directory.path(), &format!("a-offline-{index:02}"));
+            broker.end(&request.terminal);
+        }
+        let online = client(broker, directory.path(), "z-online");
+        let panel = broker.operator_panel(&PanelQuery { project:root.into(), ..Default::default() }).unwrap();
+        assert_eq!(panel["agents"].as_array().unwrap().len(), 1);
+        assert_eq!(panel["agents"][0]["agent"]["name"], "z-online");
+        assert!(panel["agent_cursor"].is_null());
+        assert_eq!(panel["participant_names"].as_object().unwrap().len(), 56);
+        broker.end(&online.terminal);
+        assert!(broker.operator_panel(&PanelQuery { project:root.into(), ..Default::default() })
+            .unwrap()["agents"].as_array().unwrap().is_empty());
+        assert_eq!(broker.store().unwrap().store.agents(root).unwrap().len(), 56);
+    }
 
     #[test]
     fn enrollment_requires_the_native_runs_captured_checkout_authority() {
@@ -358,7 +660,7 @@ mod tests {
                 limit: None
             }
         )
-        .is_err());
+        .is_ok());
         let replay = broker
             .control(fixture.main.to_str().unwrap(), &first_selection)
             .unwrap();
@@ -591,8 +893,9 @@ mod tests {
                 ..Default::default()
             })
             .unwrap();
-        assert_eq!(project["agents"][0]["agent"]["id"], old_id);
-        assert!(project["tasks"].as_array().unwrap().is_empty());
+        assert!(project["agents"].as_array().unwrap().iter().all(|row| row["online"] == true));
+        assert_ne!(project["agents"][0]["agent"]["id"], old_id);
+        assert_eq!(project["tasks"].as_array().unwrap().len(), 1);
         let team = broker
             .operator_panel(&PanelQuery {
                 project: private_project.into(),
@@ -627,13 +930,13 @@ mod tests {
             run: broker.run(&coordinator.terminal),
             ..coordinator.clone()
         };
-        let private_agent = call(
+        let restarted_agent = call(
             broker,
             &restarted,
             Operation::AgentRegister { name: "".into() },
         )
         .unwrap();
-        assert_eq!(private_agent["agent"]["project"], private_project);
+        assert_eq!(restarted_agent["agent"]["project"], private_project);
         assert_eq!(
             broker
                 .operator_panel(&PanelQuery {
@@ -741,16 +1044,20 @@ mod tests {
             run: Some(next_run.clone()),
             ..request.clone()
         };
-        let private_agent = call(
+        let restarted_agent = call(
             &source.broker,
             &restarted,
             Operation::AgentRegister { name: "".into() },
         )
         .unwrap();
-        assert_eq!(
-            private_agent["agent"]["project"],
-            fixture.main.to_str().unwrap()
-        );
+        assert!(restarted_agent["agent"]["project"].as_str().unwrap().starts_with("space:"));
+        let restarted_panel = source.broker.operator_panel(&PanelQuery {
+            project:fixture.main.to_str().unwrap().into(), worktree:true,
+            terminal:Some(request.terminal.clone()), ..Default::default()
+        }).unwrap();
+        assert_eq!(restarted_panel["coordinator_online"], false);
+        assert!(restarted_panel["roles"].as_array().unwrap().iter().any(|role|
+            role["agent"] == restarted_agent["agent"]["id"] && role["role"] == "worker"));
         source
             .broker
             .revoke_remote_run(&request.terminal, request.run.as_deref());

@@ -1,5 +1,153 @@
 # Project Memory
 
+## 1.5.0 release authorization — 2026-10-10
+
+- Owner authorizes main integration, unused branch/workflow cleanup, and public
+  desktop 1.5.0 / Companion 4.0.0 release. Reuse accepted source and native
+  packaging workflows; keep protocol major 1, historical tags/assets and the live
+  gh-pages website. No local Rust build or personal installation is implied.
+- Current two release and two validation workflows are all active acceptance/
+  delivery gates; Pages' generated workflow serves the website. Preserve them.
+  Inspect completed native worktrees for changes and active use before cleanup.
+- Release contract records scope, cleanup boundaries, version/README/notes tasks,
+  immutable tag and five-installer/checksum/source/native identity/public-link
+  acceptance. Keep 30-minute cloud monitoring and repair failures without
+  bypassing release gates. Current latest public baseline is 1.3.1 / 3.1.0.
+
+## Worktree and About source acceptance — 2026-10-09
+
+- Accepted source 46248e08: run 37943970413 succeeds on macOS and Windows,
+  including protocol/native IPC/MCP/history suites, default/platform builds and
+  complete native collaboration/SSH/file/review/About walkthroughs. Each artifact
+  has 214 CRC-validated PNGs, 24 About states, matching source and exit_code 0,
+  with no failed assertions or panics. Non-Git Git exit128 remains expected probe
+  context. Earlier Windows creation and overflow fixture failures are resolved.
+- Reviewed both platforms' native modal/new-tab/Coordinator switch-and-return,
+  narrow controls/selectors, historical labels and real detail scrolling with
+  the terminal draft retained. About light/dark at 800/1200px and 1.25 zoom keeps
+  Update/Download/startup switch/fallback visible; narrow clipping is corrected.
+- Application unit suites pass at 27a9f992 in run 37939850502; only capture
+  viewport/diagnostic fixtures changed afterward. Remote backend is byte-identical
+  to 15927aa3, accepted on Linux/macOS/Windows in run 37920112411. Reuse these
+  receipts rather than repeating unchanged tests. Changes stay on
+  fix/native-worktree-collaboration; no merge, release, local Rust build or
+  personal application installation was requested/performed.
+
+## About update checks — 2026-10-09
+
+- Owner requests an Update button and Check for updates on startup in About.
+  Use public OthinusG/warpai stable releases, existing native widgets/local
+  settings/toasts, and existing HTTP/runtime dependencies. Keep upstream Warp
+  cloud updating disabled. Startup checks default off and run once when enabled;
+  checks never modify installed files. Owner correction: Update checks; a separate
+  Download button opens the exact published installer for the current OS/arch.
+  Match public asset names and construct fixed-repository URLs; unsupported or
+  missing packages use a Releases fallback, never the wrong installer.
+- Accept only stable application vMAJOR.MINOR.PATCH tags, with numeric comparison,
+  fixed HTTPS endpoint, timeout and bounded response. Do not send Warp headers or
+  trust response URLs. Version tests and native About fixed-state captures are
+  added to desktop validation; current-source acceptance remains pending.
+- Native capture totals must reflect retired manual join/leave screens (-4),
+  new empty-project/switch/return screens (+3), and 24 About state frames. Update
+  both platform count assertions together; the current fixed addition is 110.
+- Source 3708d389 passed all remote workflow jobs, including controlled Linux SSH.
+  Desktop checks found one About EventContext URL call; route it through the
+  typed About action before continuing build/capture acceptance.
+- Source 15927aa3 remote run 37920112411 passes Linux/macOS/Windows, including
+  controlled SSH. Later changes affect only About, desktop mode controls and
+  native screenshot expectations; backend source remains identical. Desktop
+  source be5810d3 passes both default/platform builds in run 37921826849; app
+  tests and native visual acceptance are still pending. Final 0dfcf3ac also makes
+  clicks on the already-selected mode inert and needs desktop verification.
+- macOS be5810d3 passes application tests, including version/installer selection,
+  then fails the native live-detail scrolling assertion: the simplified 600px
+  layout fits without overflow. Keep the real scrolling check at 320px/1.25 zoom
+  instead of adding product clutter. Add native no-op and non-Git mode assertions;
+  Worktree creation/switch/return already passed before that capture failure.
+- Native visual review found raw attempt-owner UUIDs in task details. Reuse the
+  existing participant label lookup, including offline historical names, instead
+  of displaying protocol identity in that user-facing row.
+- Native 2009d9cd passes the corrected narrow scrolling and mode edge assertions,
+  then panics in a retired participant filter fixture that searches the online
+  list for the ended capture-worker. Resolve its ID from historical participant
+  names, keeping online-only product behavior. Non-Git probe Git exit128 is
+  incidental diagnostic context, not that panic cause.
+- Windows native creation captures stopped while BranchPicker was still loading;
+  the debug fixture had bypassed the native workspace catalog and forced a branch.
+  Populate the owned workspace through the existing folder-picker path, await
+  the real main-branch selection, and allow native tab startup 45 seconds. Keep
+  the actual new-checkout/Coordinator assertions and report their current names.
+  Both platform native walkthroughs and About captures remain pending.
+- Run 37931402160 passes the complete macOS walkthrough and both platforms'
+  application suites/default/platform builds; Windows still fails native creation
+  before the picker-readiness fixture change. macOS About screenshot QA at 800px
+  and 1.25 zoom found a clipped startup switch and attribution despite green
+  assertions. Use the existing Shrinkable label row and soft-wrap the attribution;
+  require fresh native captures before accepting the visual change.
+- Windows 6f23b3fe now passes native creation, cross-checkout Coordinator switch
+  and return-to-main persistence; it reaches 143 frames before the scrolling
+  assertion. Its native font metrics let detail content fit even at 320px panel
+  width. Exercise real overflow in a 600px-high window, then restore its original
+  bounds; keep the positive scroll and retained-draft assertions on both OSes.
+
+## Worktree behavior correction — 2026-10-09
+
+- Audit correction: project identity must be established at native launch, before
+  registration/tasks. Native worktrees live under the managed data directory,
+  outside the main checkout; ancestry and basename cannot establish membership.
+  Coordinator changes preserve identity/task ownership and provide handoff plus
+  future task updates. A same-name restart cannot inherit Coordinator authority.
+- Communication mode is a project setting independent of Coordinator selection,
+  persisted with existing Store metadata. Panel reads do not change permissions;
+  Project lists include all online project participants across checkouts. Remove
+  remote candidate truncation and update MCP instructions to automatic membership.
+- First source a5ed10d3 fails two protocol regressions (remote origin-ID matching
+  after automatic enrollment, and noncanonical macOS fixture path). Corrections
+  and the expanded identity/mode/handoff coverage await source-matched cloud runs.
+- Source bed129ce passed the expanded identity/mode/handoff and online pagination
+  tests on macOS/Windows. One legacy remote restart assertion still expected a
+  private directory scope; align it with automatic membership and assert that
+  restart grants only Worker authority. Application/UI checks remain pending.
+- Coordinator handoff sends a bounded unfinished-task count and existing paginated
+  tool instructions, rather than concatenating descriptions that can exceed the
+  message limit and block selection. Include tasks beyond the first history page.
+- Empty native worktree tabs resolve the existing repository project even when
+  queried in Project mode before their first Agent starts. Keep legacy opted-out
+  or active private sessions isolated; a read does not create checkout admission.
+- Non-Git directories remain independent canonical-root Projects. Worktree reads
+  report unavailable and restore Project mode; they neither inherit nor clear a
+  repository's Coordinator. Include cross-project denial and return-to-repository
+  regression coverage (owner reminder on 2026-10-09). Native Worktree mode
+  controls must honor that availability flag before mutation, so non-Git folders
+  keep Project communication instead of reporting a spurious connection error.
+- Source ddfc5b7b passed all library tests (including non-Git, empty checkout and
+  bounded handoff coverage) and coordination integration tests on macOS/Windows.
+  Integration corrections remain: online pagination/readiness expectations and
+  native-only name collision suffixing. Generic shared workspaces must retain
+  their existing cross-checkout identity-reclaim denial. Desktop/UI checks pending.
+- Source 0ab4c54d passed macOS/Windows remote jobs and all library/coordination
+  tests. Cloud compilation identified a toolbar branch placed in close_button;
+  move it to render_button. Controlled Linux SSH must now expect same-repository
+  worktrees to share Project history, while retaining native terminal/file fences.
+
+- Owner supersedes manual worker binding and exclusive checkout ownership: reuse
+  Warp native worktree creation/tab configurations; one project spans the Git
+  common-directory identity and all registered checkouts/subdirectories. Same
+  checkout Agents communicate directly; cross-checkout messages go through the
+  selected Coordinator. Keep separate clones and SSH authorities isolated.
+- Any online Agent in any project checkout can become Coordinator at any time.
+  Switching demotes the prior Coordinator without ending its process or tasks.
+  Selection belongs to the project/native run and survives pane/tab/project
+  focus changes; only process termination/revocation or app shutdown clears it.
+- Project participant lists exclude offline Agents before pagination. Preserve
+  history and original native checkout/file authority during enrollment.
+- Owner requires prominent Project/Worktree controls, removal of nonessential
+  option buttons and consistent row/section spacing. Reuse native theme/widgets
+  and fixed narrow/light/dark capture fixtures; no second worktree manager.
+- Schema v9 removes checkout uniqueness after a consistent pre-upgrade-v8 backup.
+  Source parsing and diff checks are local; Rust/native verification stays on
+  GitHub. Current implementation verification is pending.
+
 ## Website deployment — 2026-10-09
 
 - https://othinusg.github.io/warpai/ is live on GitHub Pages from the orphan

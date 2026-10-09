@@ -20,6 +20,31 @@ pub(crate) struct WorktreeIntegration {
 }
 
 impl Store {
+    pub(crate) fn initialize_project_mode(&self, project: &str) -> Result<()> {
+        diesel::sql_query("INSERT INTO meta(key,value) VALUES (?,'project') ON CONFLICT(key) DO NOTHING")
+            .bind::<Text, _>(format!("collaboration-mode:{project}"))
+            .execute(&mut *self.connection.borrow_mut())?;
+        Ok(())
+    }
+    pub(crate) fn worktree_mode(&self, project: &str) -> Result<bool> {
+        let mode = diesel::sql_query("SELECT value FROM meta WHERE key=?")
+            .bind::<Text, _>(format!("collaboration-mode:{project}"))
+            .get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
+        match mode {
+            Some(row) => Ok(row.value == "worktree"),
+            None => Ok(!self.worktree_roles(project)?.is_empty()),
+        }
+    }
+
+    pub(crate) fn set_worktree_mode(&self, project: &str, worktree: bool) -> Result<Value> {
+        diesel::sql_query("INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
+            .bind::<Text, _>(format!("collaboration-mode:{project}"))
+            .bind::<Text, _>(if worktree { "worktree" } else { "project" })
+            .execute(&mut *self.connection.borrow_mut())?;
+        self.record(project, "collaboration_mode_changed", &Self::operator(project).id, None, None, json!({"worktree":worktree}))?;
+        Ok(json!({"worktree":worktree}))
+    }
+
     pub(crate) fn worktree_integration(
         &self,
         project: &str,
@@ -34,7 +59,20 @@ impl Store {
         .optional()?)
     }
     pub(crate) fn is_worktree_coordinator(&self, actor: &Agent) -> Result<bool> {
-        Ok(self.count("SELECT COUNT(*) AS count FROM worktree_roles WHERE project=? AND agent=? AND role='coordinator' AND run IS NOT NULL", &[&actor.project, &actor.id])? == 1)
+        Ok(self.worktree_mode(&actor.project)? && self.count("SELECT COUNT(*) AS count FROM worktree_roles WHERE project=? AND agent=? AND role='coordinator' AND run IS NOT NULL", &[&actor.project, &actor.id])? == 1)
+    }
+
+    pub(crate) fn can_communicate(&self, actor: &Agent, peer: &Agent) -> Result<bool> {
+        if actor.program == OPERATOR_PROGRAM || peer.program == OPERATOR_PROGRAM {
+            return Ok(true);
+        }
+        let roles = self.worktree_roles(&actor.project)?;
+        if !self.worktree_mode(&actor.project)? {
+            return Ok(true);
+        }
+        Ok(roles.iter().any(|role| role.role == "coordinator" && role.run.is_some()
+            && (role.agent == actor.id || role.agent == peer.id))
+            || self.physical_root(actor)? == self.physical_root(peer)?)
     }
 
     pub(crate) fn worktree_role_receipt(
@@ -53,6 +91,9 @@ impl Store {
             request_conflict("Request ID belongs to another selection")
         );
         Ok(Some(serde_json::from_str(&row.response)?))
+    }
+    pub(crate) fn worktree_opted_out(&self, root: &str) -> Result<bool> {
+        Ok(self.count("SELECT COUNT(*) AS count FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE w.root=? AND a.active=0", &[root])? > 0)
     }
     pub(crate) fn worktree_domain(&self, root: &str) -> Result<Option<String>> {
         let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
@@ -96,34 +137,32 @@ impl Store {
             self.authorize(actor)?;
             let root = self.physical_root(actor)?;
             let roles = self.worktree_roles(&actor.project)?;
-            ensure!(
-                roles.iter().all(|entry| entry.root != root
-                    || entry.agent == actor.id
-                    || (role == "coordinator" && entry.role == "coordinator")
-                    || (role == "worker" && entry.role == "worker" && entry.run.is_none())),
-                scope_denied("Checkout is already owned by another team participant")
-            );
-            diesel::sql_query("DELETE FROM worktree_roles WHERE project=? AND root=? AND agent!=? AND role='worker' AND run IS NULL")
-                .bind::<Text, _>(&actor.project).bind::<Text, _>(&root).bind::<Text, _>(&actor.id).execute(&mut *self.connection.borrow_mut())?;
             if role == "coordinator" {
-                ensure!(
-                    roles
-                        .iter()
-                        .all(|entry| entry.agent != actor.id || entry.role == "coordinator"),
-                    invalid_state("A worker cannot also own the integration checkout")
-                );
+                self.set_worktree_mode(&actor.project, true)?;
+                if let Some(previous) = roles.iter().find(|entry| entry.role == "coordinator" && entry.agent != actor.id && entry.run.is_some())
+                    .filter(|entry| self.agent(&actor.project, &entry.agent).ok()
+                        .is_some_and(|agent| self.authorize(&agent).is_ok())) {
+                    let body = format!("The user selected {} as Coordinator. You are now a Worktree participant in your existing checkout. Send cross-checkout coordination to the selected Coordinator.", actor.name);
+                    diesel::sql_query("UPDATE messages SET body=? WHERE recipient=? AND sender=? AND subject='Worktree role' AND acknowledged=0")
+                        .bind::<Text, _>(&body).bind::<Text, _>(&previous.agent)
+                        .bind::<Text, _>(&Self::operator(&actor.project).id)
+                        .execute(&mut *self.connection.borrow_mut())?;
+                    if self.inbox_count(&previous.agent)? < MAX_PENDING_PER_AGENT {
+                        self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend {
+                            to:previous.agent.clone(), body, subject:Some("Coordinator changed".into()),
+                            thread_id:None, reply_to:None, task_id:None, request_id:Uuid::new_v4().to_string(),
+                        })?;
+                    }
+                }
                 diesel::sql_query(
-                    "DELETE FROM worktree_roles WHERE project=? AND role='coordinator'",
+                    "UPDATE worktree_roles SET role='worker' WHERE project=? AND role='coordinator'",
                 )
                 .bind::<Text, _>(&actor.project)
                 .execute(&mut *self.connection.borrow_mut())?;
             } else {
                 ensure!(
-                    role == "worker"
-                        && roles
-                            .iter()
-                            .any(|entry| entry.role == "coordinator" && entry.run.is_some()),
-                    invalid_state("Select an active Coordinator first")
+                    role == "worker",
+                    invalid_input("Invalid Worktree role")
                 );
                 ensure!(
                     roles
@@ -132,9 +171,19 @@ impl Store {
                     scope_denied("Coordinator cannot also be a worker")
                 );
             }
-            diesel::sql_query("INSERT INTO worktree_roles(project,agent,role,root,run) VALUES (?,?,?,?,?) ON CONFLICT(project,agent) DO UPDATE SET run=excluded.run")
+            diesel::sql_query("INSERT INTO worktree_roles(project,agent,role,root,run) VALUES (?,?,?,?,?) ON CONFLICT(project,agent) DO UPDATE SET role=excluded.role,root=excluded.root,run=excluded.run")
                 .bind::<Text, _>(&actor.project).bind::<Text, _>(&actor.id).bind::<Text, _>(role)
                 .bind::<Text, _>(&root).bind::<Text, _>(run).execute(&mut *self.connection.borrow_mut())?;
+            if role == "coordinator" && self.inbox_count(&actor.id)? < MAX_PENDING_PER_AGENT {
+                let pending = self.count("SELECT COUNT(*) AS count FROM tasks WHERE project=? AND state NOT IN ('accepted','failed','cancelled','expired')", &[&actor.project])?;
+                if pending > 0 {
+                    self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend {
+                        to:actor.id.clone(), body:format!("You now coordinate {pending} unfinished project tasks. Read warp_task_list for all pages and warp_task_get for current ownership and evidence. Existing assignees and reviewers remain responsible."),
+                        subject:Some("Coordinator handoff".into()), thread_id:None, reply_to:None, task_id:None,
+                        request_id:Uuid::new_v4().to_string(),
+                    })?;
+                }
+            }
             self.record(
                 &actor.project,
                 "worktree_role_selected",
@@ -148,7 +197,7 @@ impl Store {
     }
 
     pub(crate) fn worktree_offline(&self, agent: &str, run: &str) -> Result<()> {
-        diesel::sql_query("UPDATE worktree_roles SET run=NULL WHERE agent=? AND run=?")
+        diesel::sql_query("UPDATE worktree_roles SET run=NULL,role='worker' WHERE agent=? AND run=?")
             .bind::<Text, _>(agent)
             .bind::<Text, _>(run)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -156,7 +205,7 @@ impl Store {
     }
 
     pub(crate) fn clear_worktree_runs(&self) -> Result<()> {
-        diesel::sql_query("UPDATE worktree_roles SET run=NULL")
+        diesel::sql_query("UPDATE worktree_roles SET run=NULL,role='worker'")
             .execute(&mut *self.connection.borrow_mut())?;
         Ok(())
     }
@@ -174,7 +223,7 @@ impl Store {
         operation: &Operation,
     ) -> Result<()> {
         let roles = self.worktree_roles(&actor.project)?;
-        if roles.is_empty() {
+        if !self.worktree_mode(&actor.project)? {
             ensure!(
                 !matches!(operation, Operation::TaskIntegrate { .. }),
                 scope_denied("Integration decisions require Worktree mode")
@@ -194,7 +243,7 @@ impl Store {
         );
         if manages {
             ensure!(
-                coordinator.is_some_and(
+                actor.program == OPERATOR_PROGRAM || coordinator.is_some_and(
                     |entry| entry.agent == actor.id && entry.run.as_deref() == Some(run)
                 ),
                 scope_denied("Only the selected active Coordinator can orchestrate this team")

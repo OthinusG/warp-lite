@@ -252,6 +252,26 @@ impl NewWorktreeModal {
         ctx.notify();
     }
 
+    #[cfg(debug_assertions)]
+    pub(crate) fn fill_checkpoint(&mut self, repo: String, ctx: &mut ViewContext<Self>) {
+        let repo = PathBuf::from(repo);
+        PersistedWorkspace::handle(ctx).update(ctx, |persisted, ctx| {
+            persisted.user_added_workspace(repo.clone(), ctx);
+        });
+        self.on_new_repo_selected(repo, ctx);
+        self.autogenerate_branch_name = false;
+        self.worktree_name_editor.update(ctx, |editor, ctx|
+            editor.set_buffer_text("ui-worker", ctx));
+        ctx.notify();
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn checkpoint_ready(&self, ctx: &AppContext) -> bool {
+        self.selected_repo.is_some()
+            && self.selected_branch.as_deref() == Some("main")
+            && self.branch_picker.as_ref(ctx).selected_value(ctx).as_deref() == Some("main")
+    }
+
     fn try_submit(&mut self, ctx: &mut ViewContext<Self>) {
         let repo = self
             .selected_repo

@@ -310,10 +310,11 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         call(&server, &worker).await;
         assert_eq!(status(&server, &observer, &terminal).await["paused"], false);
         server.broker.expire_epoch(&terminal);
-        assert_eq!(
-            status(&server, &observer, &terminal).await["can_auto_submit"],
-            false
-        );
+        let mut listing = observer.clone();
+        listing.operation = Operation::AgentList;
+        assert!(!call(&server, &listing).await.as_array().unwrap().iter()
+            .any(|peer| peer["terminal"] == terminal));
+        assert!(!server.broker.wakeups().iter().any(|wake| wake.terminal == terminal));
         client.cancel().await.unwrap();
         server.broker.end(&terminal);
     }

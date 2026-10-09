@@ -55,6 +55,7 @@ pub struct UserDefaultsOnStartup {
 /// and hierarchy info for every setting. It does not set up appearance,
 /// rendering config, or event subscriptions.
 pub fn register_all_settings(ctx: &mut AppContext) {
+    crate::release_updates::UpdateSettings::register(ctx);
     BlockListSettings::register(ctx);
     BlockVisibilitySettings::register(ctx);
     DebugSettings::register(ctx);

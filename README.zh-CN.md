@@ -38,15 +38,15 @@ Agent 不只是代码旁边的聊天窗口。它可以接手一项具体工作�
 并把结果交给同伴审阅。Warpai 让多个 Agent 会话共享同一个项目上下文，也给它们一个协同工作的地方。
 
 科研、写作和共享项目通信可以使用 **Project** 模式，消息、任务和历史集中在项目中。
-同一 Git 仓库的并行开发可以使用 **Worktree** 模式：从活动 Agent 中明确选择 Coordinator，
-再将其他活动 Agent 绑定到各自的 checkout。Coordinator 负责拆解任务、传递上下文、收集结果、
+同一 Git 仓库的并行开发可以使用 **Worktree** 模式：从任意 worktree 的在线 Agent 中选择 Coordinator。
+同仓库的 Agent 自动参与，同一 worktree 内可以直接通信，不同 worktree 通过 Coordinator 通信。Coordinator 负责拆解任务、传递上下文、收集结果、
 安排交叉审阅并决定集成哪些成果。审阅者可以要求修改，执行任务的 Agent 修改后再次提交。
 你始终决定目标、范围和最终结果。
 
 ### 示例：让一支 Agent 团队交付一个功能
 
 例如，增加数据导出功能时，切换到 Worktree 模式并选择 Coordinator，为 API、命令行入口
-和测试分别创建 worktree。通过原有 Agent 工作流在对应目录启动 Agent，再在面板中绑定；
+和测试通过原有 worktree 入口分别创建新 tab，再在对应目录启动 Agent；
 创建 worktree 不会启动 Agent。Coordinator 分派任务、要求 Agent 互相审阅，再整合通过审阅的
 结果、验证组合后的改动并完成最终 Git 提交。消息、任务、验证材料和审阅决定贯穿整个过程。
 
@@ -73,8 +73,8 @@ Warpai 把 Agent 管理、项目文件和日常开发工具放在同一应用中
 文件浏览器和审阅工具之间来回切换。
 
 - **左侧 Agent 面板：**管理和切换项目中的 Agent 会话，跟进在线状态与任务进度，发送消息、分派任务
-  并审阅提交结果。在协作面板顶部切换 Project / Worktree，选择 Coordinator、创建 worktree、
-  绑定工作 Agent；紧凑摘要可以展开查看目录详情，历史记录与维护操作在需要时打开。
+  并审阅提交结果。在协作面板顶部切换 Project / Worktree，从任意 checkout 选择或切换 Coordinator；
+  创建 worktree 使用原有入口并打开新 tab，紧凑摘要可以展开查看目录详情。
 - **全功能终端：**运行常用 Shell、Git、构建工具、脚本、开发服务器和长时间任务。GPU 渲染、
   命令分块、垂直标签页、分屏、补全、命令搜索、主题和保持唤醒控制，方便并行工作与长时间任务。
 - **右侧项目面板：**浏览、创建、重命名和删除项目文件，点击代码或文本即可在内置编辑器中打开，
@@ -96,8 +96,9 @@ Agent 及版本；当前支持范围见[兼容性指南](docs/AGENTS.zh-CN.md)�
 可以互发消息、接收委派任务、提交验证材料并参与审阅；不同项目相互隔离。排队任务会等到接收方
 Agent 就绪，Warpai 不会代替你处理权限请求。
 
-先通过原有流程启动 Agent，再选择 Coordinator 或绑定工作 Agent。没有活动 Agent 时，
-Worktree 协调操作不可用。绑定必须匹配 Agent 实际所在的 checkout，不会移动或重启运行中的进程。
+先通过原有流程启动 Agent，再选择 Coordinator。没有活动 Agent 时，Worktree 协调操作不可用。
+参与关系跟随 Agent 实际所在的 checkout，不会移动或重启进程。Coordinator 可随时切换，
+选择在切换 pane、tab 和 project 后仍保留，直到该 Agent 退出或 Warpai 关闭。
 模式切换只改变面板视图并保留 Project 历史；接受任务不会自动合并分支。
 
 Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
@@ -112,7 +113,7 @@ Warpai 通信配置，保留其他集成设置，方便重新选择参与协作�
 工作空间就会跟随该终端的远程 `cd`。
 
 远程协作视图同样支持 Project / Worktree，显示 Agent、消息、任务和结果。在同一 SSH 主机、
-账号内，可以像本地一样选择 Coordinator，并将工作 Agent 绑定到独立 checkout。各 worktree
+账号内，可以像本地一样从任意 checkout 选择或切换 Coordinator。各 worktree
 保持自己的文件、编辑器和 Review 根目录；独立 clone、不同主机或账号、本地与远程环境相互隔离。
 
 ![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
