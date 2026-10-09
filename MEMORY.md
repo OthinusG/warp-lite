@@ -48,7 +48,9 @@
 - Non-Git directories remain independent canonical-root Projects. Worktree reads
   report unavailable and restore Project mode; they neither inherit nor clear a
   repository's Coordinator. Include cross-project denial and return-to-repository
-  regression coverage (owner reminder on 2026-10-09).
+  regression coverage (owner reminder on 2026-10-09). Native Worktree mode
+  controls must honor that availability flag before mutation, so non-Git folders
+  keep Project communication instead of reporting a spurious connection error.
 - Source ddfc5b7b passed all library tests (including non-Git, empty checkout and
   bounded handoff coverage) and coordination integration tests on macOS/Windows.
   Integration corrections remain: online pagination/readiness expectations and

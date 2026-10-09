@@ -478,6 +478,7 @@ impl CollaborationPanel {
     fn set_mode(&mut self, worktree: bool, ctx: &mut ViewContext<Self>) {
         if self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
         let Some(snapshot) = &self.snapshot else { return; };
+        if worktree && !snapshot.worktree_available { return; }
         let project = snapshot.project.clone();
         let root = snapshot.worktree_root.clone();
         let remote = self.remote.is_some();
@@ -1495,7 +1496,10 @@ impl View for CollaborationPanel {
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
                 let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Accent } else { ButtonVariant::Secondary }, self.mode_buttons[index].clone())
                     .with_centered_text_label(label.into());
-                let button = if self.form.is_some() || self.mode_pending || !self.connected { button.disabled() } else { button };
+                let button = if self.form.is_some() || self.mode_pending || !self.connected
+                    || (worktree && !self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_available)) {
+                    button.disabled()
+                } else { button };
                 modes.add_child(Expanded::new(1., button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Mode(worktree))).finish()).finish());
             }
             header.add_child(modes.finish());
