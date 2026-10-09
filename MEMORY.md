@@ -39,6 +39,12 @@
   list for the ended capture-worker. Resolve its ID from historical participant
   names, keeping online-only product behavior. Non-Git probe Git exit128 is
   incidental diagnostic context, not that panic cause.
+- Windows native creation captures stopped while BranchPicker was still loading;
+  the debug fixture had bypassed the native workspace catalog and forced a branch.
+  Populate the owned workspace through the existing folder-picker path, await
+  the real main-branch selection, and allow native tab startup 45 seconds. Keep
+  the actual new-checkout/Coordinator assertions and report their current names.
+  Both platform native walkthroughs and About captures remain pending.
 
 ## Worktree behavior correction — 2026-10-09
 

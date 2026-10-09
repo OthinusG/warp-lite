@@ -2697,12 +2697,19 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .current_directory(window).unwrap().to_owned());
             let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
             modal.update(app, |modal, ctx| modal.fill_checkpoint(repo, ctx));
-        }).with_take_screenshot("worktree-create-form.png"))
+        }))
+        .with_step(TestStep::new("native worktree repository and branches are ready")
+            .set_timeout(std::time::Duration::from_secs(45))
+            .add_named_assertion("native main branch is selected", |app, window| {
+                let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
+                warpui::async_assert!(modal.read(app, |modal, ctx| modal.checkpoint_ready(ctx)))
+            }).with_take_screenshot("worktree-create-form.png"))
         .with_step(TestStep::new("submit native worktree modal into new tab").with_action(|app, window, _| {
             let modal = app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap()[0].clone();
             modal.update(app, |modal, ctx| modal.handle_action(&crate::tab_configs::new_worktree_modal::NewWorktreeModalAction::Open, ctx));
         }))
         .with_step(TestStep::new("new worktree opens a tab without launching an Agent")
+            .set_timeout(std::time::Duration::from_secs(45))
             .add_named_assertion("native tab and persistent Coordinator", |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(|snapshot|
@@ -4892,7 +4899,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
