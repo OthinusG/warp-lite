@@ -2,6 +2,13 @@
 
 ## 1.3.1 release authorization — 2026-10-09
 
+- Owner requires minimum macOS version in README download requirements. Published
+  macOS packages are Apple silicon only: report macOS 11.0 (Big Sur) or newer,
+  rather than copying the generic 10.14 deployment/plist setting. Formal 3.1.0
+  Companion and bundled Git Mach-O LC_BUILD_VERSION both declare minos 11.0.
+  Confirm the desktop executable and bridge in the formal DMG before final
+  delivery; this is a deployment minimum, not an older-OS runtime test.
+
 - Owner authorizes merging accepted Worktree collaboration into main, removing
   completed branches and obsolete workflows, integrating feature descriptions
   into existing README sections, updating repository About, and publishing App

@@ -220,7 +220,7 @@ your local and SSH projects.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
 | **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiSetup-1.3.1-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
@@ -240,7 +240,7 @@ machine you connect to.
 | Remote host | Package |
 | --- | --- |
 | Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) |
-| macOS Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
+| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
 | Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) |
 
 ## Local by design

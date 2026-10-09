@@ -178,7 +178,7 @@ SSH 项目由匹配版本的 Warpai companion 提供远端支持。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **macOS 11.0（Big Sur）或更高版本 · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.3.1/Warpai-1.3.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
 | **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiSetup-1.3.1-windows-x64.exe) | 运行安装器。 |
 
 macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
@@ -195,7 +195,7 @@ Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Compani
 | 远程主机 | 下载 |
 | --- | --- |
 | Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-linux-x64.run) |
-| macOS Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
+| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-macos-arm64.dmg) |
 | Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.3.1/WarpaiCompanion-3.1.0-windows-x64-setup.exe) |
 
 ## 本地优先
