@@ -102,7 +102,7 @@ Worktree 模式先从活动 Agent 中选择 Coordinator，再创建隔离的 wor
 
 本地与同一 SSH 主机、账号内均支持此流程，远程需要兼容的 Companion。独立 clone
 以及本地、远程环境保持隔离。模式切换只改变面板视图，Agent 加入团队必须明确选择。
-这些改动正在 `feat/worktree-collaboration` 分支开发，尚未包含在已发布的桌面安装包中。
+这些改动已在 `feat/worktree-collaboration` 分支实现并通过验收，尚未包含在已发布的桌面安装包中。
 
 Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
 Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。

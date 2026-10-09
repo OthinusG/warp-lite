@@ -1,7 +1,8 @@
 # Cross-worktree collaboration
 
-Date: 2026-10-08. Status: explicit modes and Coordinator orchestration implemented;
-three-platform remote protocol verified, desktop and native visual acceptance pending.
+Date: 2026-10-09. Status: explicit modes and Coordinator orchestration implemented;
+local/SSH backend, desktop regression and native visual acceptance verified.
+Source remains on `feat/worktree-collaboration`; no release or main merge is implied.
 
 ## Product and acceptance
 
@@ -117,7 +118,7 @@ Git writes over the file protocol or cross-host federation.
       wrong-root, duplicate, stale-run and cross-environment assignments.
 - [x] Coordinator-only task/context/review orchestration; worker A reviews worker
       B; Coordinator chooses integration and performs the final commit.
-- [ ] Local and SSH backend enforcement, persistence and native panel acceptance.
+- [x] Local and SSH backend enforcement, persistence and native panel acceptance.
 
 ## Panel layout and visual acceptance
 
@@ -138,8 +139,10 @@ Git writes over the file protocol or cross-host federation.
   Native macOS/Windows screenshot acceptance covers narrow/default panel widths,
   light/dark themes, no active Agents, long names/paths, many workers, expanded
   details and open selectors/forms. Check clipping, overlap, focus and disabled
-  states as well as the Coordinator-to-peer-review flow. Visual acceptance is
-  pending; documenting this layout does not establish that the UI passes.
+  states. Narrow light/dark layouts and actual Coordinator selection, creation
+  without Agent launch, worker selection and binding frames were reviewed on both
+  desktop platforms. Coordinator-to-peer-review authority is exercised by the
+  deterministic backend fixtures.
 
 ## Tasks and verification
 
@@ -153,12 +156,35 @@ Git writes over the file protocol or cross-host federation.
       isolation, stale scope/run, leave/rejoin, replacement and reopen.
 - [x] Companion tests with different physical project fences and shared team,
       private-history retention, independent file roots and service isolation.
-- [ ] GitHub pinned protocol suites on all remote platforms; default and
+- [x] GitHub pinned protocol suites on all remote platforms; default and
       `warp_platform` desktop checks on macOS/Windows; focused native UI capture.
 
 Rust compilation stays on GitHub per the project's existing preference. Local
 checks cover parsing, focused source review and diff hygiene. Native vendor/model
 execution is distinct from deterministic native IPC/Companion acceptance.
+
+## Acceptance receipts
+
+- Application and Companion source: `06f0ab155871019f08801885e37830a3eb4128d2`.
+  [Three-platform Companion run 37830659603](https://github.com/OthinusG/warpai/actions/runs/37830659603)
+  passes protocol, persistence, repository/run authority, owned SSH/SFTP and
+  private-runtime/packaging checks on Linux, macOS and Windows.
+- [Desktop run 37830653334](https://github.com/OthinusG/warpai/actions/runs/37830653334)
+  passes macOS default/platform checks, focused application regressions and all
+  191 native screenshots. Windows protocol, default/platform checks and focused
+  application regressions pass, but runtime preparation fails when overwriting
+  an identical DLL held by a previous test process; the overall run is red.
+- Workflow-only fix `48f1ca4a` reuses DLLs only when their SHA-256 matches tracked
+  source. [Focused Windows run 37841105097](https://github.com/OthinusG/warpai/actions/runs/37841105097)
+  passes compilation, owned SSH/SFTP and all 191 native screenshot assertions.
+  Application and Companion code are unchanged from the full regression source.
+  Both downloaded capture artifacts report exit code 0 and no failed steps,
+  assertions, Worktree reads or private Git errors.
+- Native captures exercise local Worktree panel orchestration and existing SSH
+  panel/file workflows. SSH Worktree orchestration is verified by backend
+  fixtures; no separate SSH Worktree GUI capture or paid vendor/model execution
+  is claimed. Fixtures use real Git, IPC and owned processes rather than model
+  decisions. Final integration uses the Coordinator's ordinary Git CLI.
 
 ## Focused cloud debugging
 

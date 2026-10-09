@@ -5,8 +5,8 @@
 > active Coordinator and panel-selected worker/worktree bindings, locally and over
 > same-host/account SSH. Creating a worktree never starts an Agent. The existing
 > communication foundation preserves physical file fences and private history;
-> Coordinator orchestration is implemented; final desktop and native acceptance
-> are tracked in the cross-worktree contract.
+> Coordinator orchestration and local/SSH acceptance are implemented; exact-source
+> desktop, Companion and native receipts are tracked in the cross-worktree contract.
 
 > Current 1.1.0 iteration: [remote installation and terminal-driven connection](INSTALLATION.md) supersedes manual SSH alias/root/companion forms and raw companion delivery.
 

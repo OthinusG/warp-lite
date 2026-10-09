@@ -127,7 +127,7 @@ Accepting a task does not automatically merge branches.
 This workflow works locally and within one SSH host/account with a compatible
 Companion. Separate clones and local/remote environments remain isolated. Mode
 switches change the panel view; enrolling an Agent requires explicit selection.
-These changes are under development on `feat/worktree-collaboration` and are not
+These changes are implemented and verified on `feat/worktree-collaboration` and are not
 included in the published desktop installers.
 
 Settings reports useful setup errors when an Agent cannot join. A single cleanup

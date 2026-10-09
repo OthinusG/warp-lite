@@ -2,6 +2,19 @@
 
 ## Cross-worktree collaboration — 2026-10-08
 
+- Final acceptance recorded 2026-10-09: application/Companion source 06f0ab15
+  passes all three remote targets in run 37830659603. Desktop run 37830653334
+  passes macOS including 191 captures and Windows protocol/default/platform/
+  focused application regressions; its overall failure is DLL preparation.
+  Workflow-only fix 48f1ca4a passes focused Windows run 37841105097, including
+  owned SSH/SFTP and 191 native captures. Downloaded diagnostics are clean on
+  both desktops; narrow light/dark and actual create/unassigned/bind frames
+  reviewed. Acceptance contract records exact receipts and the red full-run
+  limitation rather than calling that run successful. SSH Worktree GUI-specific
+  capture and paid vendor/model execution are not claimed; backend fixtures
+  enforce remote orchestration. Feature remains unmerged/unreleased on
+  feat/worktree-collaboration; no personal installation was changed.
+
 - Owner requests focused cloud checks while debugging (2026-10-08): avoid
   repeating hour-long full builds. `native_windows_only` skips macOS and redundant
   protocol/history/default/platform checks while retaining native Windows and
