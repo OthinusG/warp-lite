@@ -1,6 +1,6 @@
 ---
 layout: default
-lang: en
+lang: zh
 ---
 {% assign s = site.data.strings[page.lang] %}
 <section class="hero">
@@ -18,16 +18,16 @@ lang: en
           {{ s.hero.cta }}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
-        <a class="hero-doc-link" href="https://github.com/OthinusG/warpai/blob/main/README.md">
+        <a class="hero-doc-link" href="https://github.com/OthinusG/warpai/blob/main/README.zh-CN.md">
           {{ s.hero.doc_link }}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
         </a>
       </div>
       <div class="hero-platforms" aria-label="{{ s.hero.platforms_label }}">
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-apple.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">macOS 11+ · Apple silicon</span>
+        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-apple.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">macOS 11+ · Apple 芯片</span>
         <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-windows.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Windows x64</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-linux.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Linux companion</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-ssh.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">SSH remote</span>
+        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-linux.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Linux 远程 Companion</span>
+        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-ssh.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">SSH 远程</span>
       </div>
       <div class="hero-features" aria-label="{{ s.hero.features_label }}">
         {%- for feature in s.hero.features %}
@@ -54,13 +54,13 @@ lang: en
     <article class="chapter">
       <div class="chapter-number">01</div>
       <div>
-        <h3>Agent sessions</h3>
-        <p class="chapter-body">Project mode coordinates one workspace. Worktree mode runs parallel agents in isolated Git checkouts, led by a Coordinator.</p>
+        <h3>智能体会话</h3>
+        <p class="chapter-body">Project 模式协调单个工作区；Worktree 模式在隔离的 Git 检出中并行运行多个智能体，由协调者统一调度。</p>
       </div>
-      <p class="chapter-detail">Every session stays attached to its project, branch and history — reopening a task never means starting over.</p>
+      <p class="chapter-detail">每个会话都锚定在项目、分支与历史记录上——重新打开任务，不必从头再来。</p>
       <div class="chapter-image">
         <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-agent-sessions.jpg' | relative_url }}" alt="Warpai workspace with a project session list and agent tabs" loading="lazy">
+          <img src="{{ '/assets/images/chapter-agent-sessions.jpg' | relative_url }}" alt="含项目会话列表与智能体标签的工作区界面" loading="lazy">
         </div>
       </div>
     </article>
@@ -68,13 +68,13 @@ lang: en
     <article class="chapter">
       <div class="chapter-number">02</div>
       <div>
-        <h3>Evidence &amp; review</h3>
-        <p class="chapter-body">Tasks carry acceptance criteria. Diffs, test runs and logs arrive as evidence, and each result is reviewed before the Coordinator integrates it.</p>
+        <h3>证据与评审</h3>
+        <p class="chapter-body">任务自带验收标准。差异、测试与日志作为证据送达，每一项结果都要经过评审，再由协调者决定集成。</p>
       </div>
-      <p class="chapter-detail">Accepting a result never merges a branch on its own — the Coordinator makes the final call and the final commit.</p>
+      <p class="chapter-detail">接受结果不会自动合并分支——最终由协调者拍板并完成提交。</p>
       <div class="chapter-image">
         <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-evidence-review.jpg' | relative_url }}" alt="Agent collaboration panel showing task states and review evidence" loading="lazy">
+          <img src="{{ '/assets/images/chapter-evidence-review.jpg' | relative_url }}" alt="展示任务状态与评审证据的智能体协作面板" loading="lazy">
         </div>
       </div>
     </article>
@@ -82,13 +82,13 @@ lang: en
     <article class="chapter">
       <div class="chapter-number">03</div>
       <div>
-        <h3>A real terminal</h3>
-        <p class="chapter-body">Command blocks, GPU-accelerated rendering, vertical tabs, split panes, a file tree and an editor — terminal work stays in one window.</p>
+        <h3>原生终端</h3>
+        <p class="chapter-body">命令块、GPU 渲染、垂直标签、分屏、文件树与编辑器——终端工作始终在同一个窗口里完成。</p>
       </div>
-      <p class="chapter-detail">Blocks keep output, exit codes and searchable history, so long-running work is easy to re-read and re-run.</p>
+      <p class="chapter-detail">命令块保留输出、退出码与可搜索的历史，长时间的任务随时翻看、随时重跑。</p>
       <div class="chapter-image">
         <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-native-terminal.jpg' | relative_url }}" alt="Warpai terminal with command blocks, splits and an SSH project" loading="lazy">
+          <img src="{{ '/assets/images/chapter-native-terminal.jpg' | relative_url }}" alt="带命令块、分屏与 SSH 项目的 Warpai 终端" loading="lazy">
         </div>
       </div>
     </article>
@@ -96,13 +96,13 @@ lang: en
     <article class="chapter">
       <div class="chapter-number">04</div>
       <div>
-        <h3>Local &amp; remote</h3>
-        <p class="chapter-body">Open an SSH project on a remote machine and the same panels follow — agents, tasks and reviews behave exactly like they do locally.</p>
+        <h3>本地与远程</h3>
+        <p class="chapter-body">在远程机器上打开 SSH 项目，同一套面板如影随形——智能体、任务与评审和本地完全一致。</p>
       </div>
-      <p class="chapter-detail">Companion runs on Linux, macOS and Windows, so remote sessions stay connected across platforms.</p>
+      <p class="chapter-detail">Companion 覆盖 Linux、macOS 与 Windows，跨平台的远程会话保持在线。</p>
       <div class="chapter-image">
         <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-local-remote.jpg' | relative_url }}" alt="Collab panel observing an agent working in a remote SSH project" loading="lazy">
+          <img src="{{ '/assets/images/chapter-local-remote.jpg' | relative_url }}" alt="观察远程 SSH 项目中智能体工作的协作面板" loading="lazy">
         </div>
       </div>
     </article>

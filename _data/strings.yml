@@ -1,0 +1,183 @@
+en:
+  lang_code: en
+  switch_lang_label: 中文
+  switch_lang_url: /zh/
+  nav:
+    features: Features
+    workflow: Workflow
+    remote: Remote
+    download: Downloads
+  aria:
+    home: Warpai home
+    nav: Main navigation
+    download: Download
+    menu: Menu
+    language: Switch to Chinese
+    theme: Toggle color theme
+  header:
+    download: "Download 1.3.1"
+  badge: "Free · Open source · Local-first"
+  hero:
+    subtitle: The terminal built around agents
+    lead: Make an Agent session the unit of work. Collaborate in a shared project, or select a Coordinator to lead parallel development across isolated Git worktrees.
+    cta: "Download 1.3.1"
+    doc_link: Read the README
+    platforms_label: Supported platforms
+    features_label: Main features
+    features:
+      - GPU-accelerated terminal
+      - Command blocks
+      - Vertical tabs & splits
+      - File tree & editor
+      - Code review
+      - No account · No telemetry
+    note: "v1.3.1 · macOS ad-hoc signed · SHA-256 checksums with every release"
+    shot_alt: "Warpai workspace with vertical tabs, a source editor and an agent collaboration panel"
+  panel:
+    kicker: Collaboration panel
+    heading: One loop, always visible
+    body: Tasks move from assignment to evidence to review. Accepting a result never merges a branch — the Coordinator decides what is integrated.
+    head: "Task · evidence review"
+    rows:
+      - id: t-01
+        title: Export command
+        who: Agent A · worktree A
+        state: running
+        tone: run
+      - id: t-02
+        title: Regression tests
+        who: Agent B · worktree B
+        state: in review
+        tone: review
+      - id: t-03
+        title: Docs update
+        who: Agent C · worktree C
+        state: accepted
+        tone: done
+    result: Reviewer inspected submitted diff and test runs, then accepted the result. The Coordinator integrates accepted work and makes the final commit.
+    ready: "2 of 3 tasks accepted"
+    foot_link: How it works
+  pocket:
+    kicker: Local and remote
+    heading: Same workflow, every machine
+    body: Desktop app for macOS and Windows. SSH projects and Companion for Linux, macOS and Windows — the same panels follow you.
+    shots:
+      - alt: "Warpai desktop workspace with vertical tabs and the collaboration panel"
+        title: Warpai
+      - alt: "Warpai SSH project connected to a remote agent"
+        title: Warpai · SSH
+      - alt: "Agent collaboration panel observing a remote project"
+        title: Warpai · SSH panel
+  close:
+    kicker: Get started
+    heading_line: Bring your agents to
+    body: One project, many agents, one coordinated workflow — locally or over SSH.
+    primary: "Download 1.3.1"
+    secondary: All downloads
+  footer:
+    links:
+      - label: Releases
+        url: https://github.com/OthinusG/warpai/releases
+      - label: README
+        url: https://github.com/OthinusG/warpai/blob/main/README.md
+      - label: Issues
+        url: https://github.com/OthinusG/warpai/issues
+      - label: "AGPL-3.0"
+        url: https://github.com/OthinusG/warpai/blob/main/LICENSE-AGPL
+    note: "© 2026 Warpai · Independently maintained"
+  meta:
+    title: "Warpai — The terminal built around agents"
+    description: "Warpai manages Agent sessions as the unit of work — a full-featured native terminal for macOS and Windows, with project coordination locally and over SSH."
+    og_alt: "Warpai — The terminal built around agents"
+
+zh:
+  lang_code: zh-CN
+  switch_lang_label: EN
+  switch_lang_url: /
+  nav:
+    features: 特性
+    workflow: 工作流
+    remote: 远程
+    download: 下载
+  aria:
+    home: Warpai 首页
+    nav: 主导航
+    download: 下载
+    menu: 打开菜单
+    language: 切换到英文
+    theme: 切换主题
+  header:
+    download: 下载 1.3.1
+  badge: "免费 · 开源 · 本地优先"
+  hero:
+    subtitle: 为智能体而生的终端
+    lead: 让每个智能体会话成为工作单元。在共享项目中协作，或指定协调者，在隔离的 Git worktree 中并行推进开发。
+    cta: 下载 1.3.1
+    doc_link: 阅读 README
+    platforms_label: 支持平台
+    features_label: 主要功能
+    features:
+      - GPU 渲染终端
+      - 命令块
+      - 垂直标签与分屏
+      - 文件树与编辑器
+      - 代码审查
+      - 免账号 · 免遥测
+    note: "v1.3.1 · macOS ad-hoc 签名 · 每个版本附带 SHA-256 校验"
+    shot_alt: 带垂直标签、源码编辑器与智能体协作面板的 Warpai 工作区
+  panel:
+    kicker: 协作面板
+    heading: 闭环全程可见
+    body: 任务从指派、证据到评审逐步推进。接受任务不等于合并分支——由协调者决定集成什么。
+    head: "任务 · 证据评审"
+    rows:
+      - id: t-01
+        title: 导出命令
+        who: 智能体 A · worktree A
+        state: 执行中
+        tone: run
+      - id: t-02
+        title: 回归测试
+        who: 智能体 B · worktree B
+        state: 评审中
+        tone: review
+      - id: t-03
+        title: 文档更新
+        who: 智能体 C · worktree C
+        state: 已接受
+        tone: done
+    result: 评审者检查了提交的差异与测试记录并接受结果。协调者集成被接受的成果，完成最终提交。
+    ready: "3 个任务中已接受 2 个"
+    foot_link: 了解协作流程
+  pocket:
+    kicker: 本地与远程
+    heading: 每台机器，同一套工作流
+    body: 面向 macOS 与 Windows 的桌面应用；SSH 项目与 Companion 覆盖 Linux、macOS 和 Windows——同一套面板始终跟随。
+    shots:
+      - alt: 带垂直标签与协作面板的 Warpai 桌面工作区
+        title: Warpai
+      - alt: 连接到远程智能体的 Warpai SSH 项目
+        title: Warpai · SSH
+      - alt: 观察远程项目的智能体协作面板
+        title: Warpai · SSH 面板
+  close:
+    kicker: 开始使用
+    heading_line: 把智能体带进
+    body: 一个项目，多个智能体，一套协作工作流——本地或远程。
+    primary: 下载 1.3.1
+    secondary: 全部下载
+  footer:
+    links:
+      - label: 发布版本
+        url: https://github.com/OthinusG/warpai/releases
+      - label: README
+        url: https://github.com/OthinusG/warpai/blob/main/README.zh-CN.md
+      - label: 问题反馈
+        url: https://github.com/OthinusG/warpai/issues
+      - label: AGPL-3.0
+        url: https://github.com/OthinusG/warpai/blob/main/LICENSE-AGPL
+    note: "© 2026 Warpai · 独立维护"
+  meta:
+    title: "Warpai — 为智能体而生的终端"
+    description: "Warpai 以智能体会话为工作单元：面向 macOS 与 Windows 的全功能原生终端，本地与 SSH 远程共用一套项目协作流程。"
+    og_alt: "Warpai — 为智能体而生的终端"

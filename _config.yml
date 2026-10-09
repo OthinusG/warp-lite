@@ -1,3 +1,6 @@
 title: Warpai
+description: The terminal built around agents. Agent management and project coordination with a full-featured native terminal for macOS and Windows, locally and over SSH.
 url: https://othinusg.github.io
 baseurl: /warpai
+plugins:
+  - jekyll-sitemap

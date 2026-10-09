@@ -1,3 +1,39 @@
-<header>
-  <a href="{{ '/' | relative_url }}">{{ site.title }}</a>
+<header class="site-header">
+  <div class="site-header-inner">
+    <div class="header-brand-cluster">
+      <a class="brand" href="{{ '/' | relative_url }}" aria-label="{{ s.aria.home }}">
+        <img class="brand-mark" src="{{ '/assets/images/favicon.svg' | relative_url }}" width="46" height="46" alt="">
+        <span>Warpai</span>
+      </a>
+      <a class="github-star-badge" href="https://github.com/OthinusG/warpai" target="_blank" rel="noreferrer" aria-label="GitHub stars">
+        <img src="https://img.shields.io/github/stars/OthinusG/warpai?style=flat" width="92" height="20" alt="GitHub Repo stars" loading="lazy">
+      </a>
+    </div>
+    <nav class="header-nav header-nav-desktop" aria-label="{{ s.aria.nav }}">
+      <a href="#features">{{ s.nav.features }}</a>
+      <a href="#workflow">{{ s.nav.workflow }}</a>
+      <a href="#remote">{{ s.nav.remote }}</a>
+      <a href="#download">{{ s.nav.download }}</a>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-button icon-button--accent header-mobile-download" href="#download" aria-label="{{ s.aria.download }}" title="{{ s.aria.download }}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+      </a>
+      <button type="button" class="icon-button header-mobile-menu" id="menu-toggle" aria-label="{{ s.aria.menu }}" title="{{ s.aria.menu }}" aria-expanded="false" aria-controls="mobile-nav">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <a class="header-cta" href="#download">{{ s.header.download }}</a>
+      <a class="icon-button icon-button--text" href="{{ s.switch_lang_url | relative_url }}" aria-label="{{ s.aria.language }}" title="{{ s.aria.language }}">{{ s.switch_lang_label }}</a>
+      <button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="{{ s.aria.theme }}" title="{{ s.aria.theme }}">
+        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="{{ s.aria.nav }}" hidden>
+    <a href="#features">{{ s.nav.features }}</a>
+    <a href="#workflow">{{ s.nav.workflow }}</a>
+    <a href="#remote">{{ s.nav.remote }}</a>
+    <a href="#download">{{ s.nav.download }}</a>
+  </nav>
 </header>
