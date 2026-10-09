@@ -20,6 +20,12 @@
 - Source 3708d389 passed all remote workflow jobs, including controlled Linux SSH.
   Desktop checks found one About EventContext URL call; route it through the
   typed About action before continuing build/capture acceptance.
+- Source 15927aa3 remote run 37920112411 passes Linux/macOS/Windows, including
+  controlled SSH. Later changes affect only About, desktop mode controls and
+  native screenshot expectations; backend source remains identical. Desktop
+  source be5810d3 passes both default/platform builds in run 37921826849; app
+  tests and native visual acceptance are still pending. Final 0dfcf3ac also makes
+  clicks on the already-selected mode inert and needs desktop verification.
 
 ## Worktree behavior correction — 2026-10-09
 
