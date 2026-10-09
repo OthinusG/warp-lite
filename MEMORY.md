@@ -31,6 +31,9 @@
   layout fits without overflow. Keep the real scrolling check at 320px/1.25 zoom
   instead of adding product clutter. Add native no-op and non-Git mode assertions;
   Worktree creation/switch/return already passed before that capture failure.
+- Native visual review found raw attempt-owner UUIDs in task details. Reuse the
+  existing participant label lookup, including offline historical names, instead
+  of displaying protocol identity in that user-facing row.
 
 ## Worktree behavior correction — 2026-10-09
 

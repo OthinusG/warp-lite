@@ -939,7 +939,7 @@ impl CollaborationPanel {
                             format!(
                                 "{} · owner {} · outcome {}",
                                 attempt.certainty,
-                                attempt.owner,
+                                snapshot.participant_label(&attempt.owner),
                                 attempt.outcome.as_deref().unwrap_or("unknown")
                             )
                         })
