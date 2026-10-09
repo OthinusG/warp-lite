@@ -2,12 +2,15 @@
 
 ## Website deployment — 2026-10-09
 
-- https://othinusg.github.io/warpai/ is live on GitHub Pages, served from the
-  orphan `gh-pages` branch root (single blank placeholder `index.html`, commit
-  3fa59f20). Main branch and its workflows stay untouched; HTTPS enforced;
-  source is deploy-from-branch.
-- Update the site by committing to `gh-pages`. A future built site can publish
-  generated output to the same branch or switch Pages source to GitHub Actions.
+- https://othinusg.github.io/warpai/ is live on GitHub Pages from the orphan
+  `gh-pages` branch, a Jekyll skeleton built natively by Pages (commit
+  d7c4bfea): `_config.yml` (title/url/baseurl), `_layouts/default.html`,
+  `_includes/header.html`, `_includes/footer.html`, blank `index.html`. Main
+  branch and its workflows stay untouched; HTTPS enforced; deploy-from-branch.
+- Fill content in `index.html`; new pages copy its front matter and pick up the
+  shared layout/includes. No workflow, Gemfile or local Jekyll install needed;
+  Pages rebuilds on every push. A built pipeline (Astro etc.) can still publish
+  output to the same branch later.
 
 ## 1.3.1 public delivery — 2026-10-09
 
