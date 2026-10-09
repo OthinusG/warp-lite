@@ -32,6 +32,10 @@
   window width; verify true 375px layouts via a 375px-wide iframe.
 - Visual system replicates the getaigist.com layout/color/typography tokens;
   none of its copy or assets are reused.
+- Branding: favicon and header/footer marks are a 256px PNG export of the app
+  icon master `app/assets/branding/warpai.png`; og:image is the official
+  `docs/images/warpai-social-preview.jpg` banner. Copy from these sources
+  instead of drawing new marks.
 
 ## 1.3.1 public delivery — 2026-10-09
 
