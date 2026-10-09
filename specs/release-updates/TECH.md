@@ -40,3 +40,6 @@ the update/settings models.
 - Cloud checks compile both desktop targets and default/warp_platform builds.
 - Native captures cover About status and startup switch alongside collaboration
   narrow/light/dark fixtures; accept only source-matched successful diagnostics.
+- At 800px/1.25 zoom, the startup label shrinks/wraps beside its native switch;
+  attribution wraps within the page. Clicks on the label or switch toggle the
+  same saved preference. Screenshot QA must verify both controls remain visible.

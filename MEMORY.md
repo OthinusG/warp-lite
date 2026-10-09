@@ -45,6 +45,12 @@
   the real main-branch selection, and allow native tab startup 45 seconds. Keep
   the actual new-checkout/Coordinator assertions and report their current names.
   Both platform native walkthroughs and About captures remain pending.
+- Run 37931402160 passes the complete macOS walkthrough and both platforms'
+  application suites/default/platform builds; Windows still fails native creation
+  before the picker-readiness fixture change. macOS About screenshot QA at 800px
+  and 1.25 zoom found a clipped startup switch and attribution despite green
+  assertions. Use the existing Shrinkable label row and soft-wrap the attribution;
+  require fresh native captures before accepting the visual change.
 
 ## Worktree behavior correction — 2026-10-09
 

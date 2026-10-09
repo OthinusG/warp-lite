@@ -11,12 +11,12 @@ use settings::{Setting as _, ToggleableSetting as _};
 use warpui::{
     assets::asset_cache::AssetSource,
     elements::{
-        Align, CacheOption, ConstrainedBox, Container, CrossAxisAlignment, Element, Flex, Image,
-        MainAxisAlignment, MouseStateHandle, ParentElement, Wrap,
+        Align, CacheOption, ConstrainedBox, Container, CrossAxisAlignment, Element, Flex, Hoverable,
+        Image, MainAxisAlignment, MouseStateHandle, ParentElement, Shrinkable, Wrap,
     },
     ui_components::{
         button::ButtonVariant,
-        components::{Coords, UiComponent, UiComponentStyles},
+        components::UiComponent,
         switch::SwitchStateHandle,
     },
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
@@ -86,6 +86,7 @@ struct AboutPageWidget {
     update_button: MouseStateHandle,
     download_button: MouseStateHandle,
     startup_switch: SwitchStateHandle,
+    startup_row: MouseStateHandle,
     releases_button: MouseStateHandle,
 }
 
@@ -112,19 +113,20 @@ impl SettingsWidget for AboutPageWidget {
         } else {
             update
         };
-        let startup = ui_builder
-            .switch(self.startup_switch.clone())
-            .check(*UpdateSettings::as_ref(app).check_on_startup.value())
-            .label(
-                ui_builder
+        let startup = Hoverable::new(self.startup_row.clone(), |_| {
+            Flex::row()
+                .with_spacing(8.)
+                .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                .with_child(Shrinkable::new(1., ui_builder
                     .span("Check for updates on startup")
                     .with_soft_wrap()
-                    .with_style(UiComponentStyles {
-                        margin: Some(Coords::default().right(8.)),
-                        ..Default::default()
-                    }),
-            )
-            .build()
+                    .build().finish()).finish())
+                .with_child(ui_builder
+                    .switch(self.startup_switch.clone())
+                    .check(*UpdateSettings::as_ref(app).check_on_startup.value())
+                    .build().finish())
+                .finish()
+        })
             .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::ToggleStartup))
             .finish();
         let mut update_controls = Flex::column()
@@ -231,6 +233,7 @@ impl SettingsWidget for AboutPageWidget {
                 .with_child(
                     ui_builder
                         .span("Warpai by OthinusG · Based on Warp")
+                        .with_soft_wrap()
                         .build()
                         .with_margin_top(16.)
                         .finish(),
