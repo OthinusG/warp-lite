@@ -24,6 +24,12 @@
   Retired Codex diagnostic workflow disappeared after removing its four runs;
   the four current release/validation workflows remain. About now describes
   Project/Worktree coordination and links to the current repository's downloads.
+- Formal run 37881956251 first attempt passes all three Companion 3.1.0
+  installer/runtime jobs. macOS desktop fails in unrelated dependency builds:
+  unicode-general-category build executable cannot execute (126) and ranlib
+  reports an output-file I/O error. Retry only failed jobs on a fresh runner,
+  preserving the immutable tag and successful Companion artifacts; no release
+  is public yet. This is runner failure evidence, not an application type error.
 
 ## Cross-worktree collaboration — 2026-10-08
 
