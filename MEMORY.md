@@ -3,14 +3,35 @@
 ## Website deployment — 2026-10-09
 
 - https://othinusg.github.io/warpai/ is live on GitHub Pages from the orphan
-  `gh-pages` branch, a Jekyll skeleton built natively by Pages (commit
-  d7c4bfea): `_config.yml` (title/url/baseurl), `_layouts/default.html`,
-  `_includes/header.html`, `_includes/footer.html`, blank `index.html`. Main
-  branch and its workflows stay untouched; HTTPS enforced; deploy-from-branch.
-- Fill content in `index.html`; new pages copy its front matter and pick up the
-  shared layout/includes. No workflow, Gemfile or local Jekyll install needed;
-  Pages rebuilds on every push. A built pipeline (Astro etc.) can still publish
-  output to the same branch later.
+  `gh-pages` branch, built natively by Pages. Bilingual landing page (commit
+  16984f89): EN at `/`, ZH at `/zh/`, light/dark theme with manual toggle and
+  no-flash inline script (localStorage `warpai-theme`; `?theme=dark|light` URL
+  param for QA), hreflang/canonical/og tags, jekyll-sitemap. Responsive
+  container tiers min(1180px,100%-40px) / 680px (801-1100) / 560px (≤800).
+  Main branch and its workflows stay untouched; HTTPS enforced;
+  deploy-from-branch. No Gemfile or workflow needed; Pages rebuilds on every
+  push to `gh-pages` (no [skip ci] needed there — nothing else triggers on it).
+- i18n: static dual pages; shared chrome copy in `_data/strings.yml` keyed by
+  `page.lang`. Jekyll 3.9 layouts do NOT expose their `{% assign %}` variables
+  to page content — each page must assign its own
+  `s = site.data.strings[page.lang]` (missing this silently empties all copy).
+- Fonts: self-hosted Glow Sans subsets (welai/glow-sans v0.93 SC-Normal, OFL),
+  6 woff2 for weights 600/700/900 × latin/CJK (162KB total), split by CSS
+  unicode-range so EN pages skip CJK files. Pipeline: otf2ttf, then pyftsubset
+  on the TTF — subsetting the original CFF/OTF leaves ~112KB constant dead
+  weight per file. Subsets only cover characters used on the current pages:
+  re-subset and re-verify cmaps whenever site copy changes.
+- Local Jekyll build (system ruby 2.6 on macOS): jekyll 3.9.5 installed
+  `--user-install --ignore-dependencies` plus pinned pure-Ruby gems (sass
+  3.4.25, jekyll-sass-converter 1.5.2, kramdown 1.17.0, jekyll-sitemap 1.4.0,
+  i18n 0.9.5, addressable 2.8.7, public_suffix 5.1.1, concurrent-ruby 1.1.10),
+  with em-websocket/jekyll-watch dependency lines removed from the installed
+  jekyll gemspec (serve-only, native deps). Use `--baseurl ''` for local
+  preview only; production absolute URLs require the configured `/warpai`.
+- QA: Brave headless screenshots. Chromium headless enforces a 500px minimum
+  window width; verify true 375px layouts via a 375px-wide iframe.
+- Visual system replicates the getaigist.com layout/color/typography tokens;
+  none of its copy or assets are reused.
 
 ## 1.3.1 public delivery — 2026-10-09
 
