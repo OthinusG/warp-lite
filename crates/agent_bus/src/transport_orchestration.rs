@@ -936,7 +936,7 @@ mod tests {
             Operation::AgentRegister { name: "".into() },
         )
         .unwrap();
-        assert_eq!(private_agent["agent"]["project"], private_project);
+        assert_eq!(restarted_agent["agent"]["project"], private_project);
         assert_eq!(
             broker
                 .operator_panel(&PanelQuery {
@@ -1044,7 +1044,7 @@ mod tests {
             run: Some(next_run.clone()),
             ..request.clone()
         };
-        let private_agent = call(
+        let restarted_agent = call(
             &source.broker,
             &restarted,
             Operation::AgentRegister { name: "".into() },
