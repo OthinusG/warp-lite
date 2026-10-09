@@ -1,5 +1,17 @@
 # Project Memory
 
+## About update checks — 2026-10-09
+
+- Owner requests an Update button and Check for updates on startup in About.
+  Use public OthinusG/warpai stable releases, existing native widgets/local
+  settings/toasts, and existing HTTP/runtime dependencies. Keep upstream Warp
+  cloud updating disabled. Startup checks default off and run once when enabled;
+  checks never modify installed files, and Update opens a validated release page.
+- Accept only stable application vMAJOR.MINOR.PATCH tags, with numeric comparison,
+  fixed HTTPS endpoint, timeout and bounded response. Do not send Warp headers or
+  trust response URLs. Version tests and native About fixed-state captures are
+  added to desktop validation; current-source acceptance remains pending.
+
 ## Worktree behavior correction — 2026-10-09
 
 - Audit correction: project identity must be established at native launch, before
@@ -33,6 +45,10 @@
   Integration corrections remain: online pagination/readiness expectations and
   native-only name collision suffixing. Generic shared workspaces must retain
   their existing cross-checkout identity-reclaim denial. Desktop/UI checks pending.
+- Source 0ab4c54d passed macOS/Windows remote jobs and all library/coordination
+  tests. Cloud compilation identified a toolbar branch placed in close_button;
+  move it to render_button. Controlled Linux SSH must now expect same-repository
+  worktrees to share Project history, while retaining native terminal/file fences.
 
 - Owner supersedes manual worker binding and exclusive checkout ownership: reuse
   Warp native worktree creation/tab configurations; one project spans the Git

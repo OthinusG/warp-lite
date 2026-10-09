@@ -4809,6 +4809,59 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             );
         }
     }
+    driver = driver.with_step(TestStep::new("open native About update settings").with_action(|app, window, _| {
+        let root = app.root_view::<RootView>(window).unwrap();
+        let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+        workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ShowSettingsPageWithSearch {
+            search_query:String::new(), section:Some(crate::settings_view::SettingsSection::About),
+        }, ctx));
+    }).add_named_assertion("About view is available", |app, window| {
+        warpui::async_assert!(app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window)
+            .is_some_and(|views| !views.is_empty()))
+    }));
+    driver = driver.with_step(TestStep::new("About startup switch uses registered native actions").with_action(|app, window, _| {
+        let about = app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window).unwrap()[0].clone();
+        app.dispatch_typed_action(window, &[about.id()], &crate::settings_view::about_page::AboutAction::ToggleStartup);
+    }).add_named_assertion("startup preference is enabled", |app, _| {
+        warpui::async_assert!(app.read(|ctx| *crate::release_updates::UpdateSettings::as_ref(ctx).check_on_startup.value()))
+    }));
+    for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for width in [800, 1200] {
+            for state in ["idle", "checking", "current", "available", "error"] {
+                let filename = format!("about-updates-{label}-{width}-{state}.png");
+                filenames.push(filename.clone());
+                let theme = theme.clone();
+                driver = driver.with_step(TestStep::new(&filename).with_action(move |app, window, _| {
+                    app.update(|ctx| {
+                        let origin = ctx.window_bounds(&window).unwrap().origin();
+                        ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(origin,
+                            pathfinder_geometry::vector::vec2f(width as f32, 800.)));
+                        ctx.set_zoom_factor(1.25);
+                        let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                        Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                        crate::release_updates::ReleaseUpdates::handle(ctx).update(ctx, |updates, ctx| {
+                            updates.checking = state == "checking";
+                            updates.available = (state == "available").then(|| "v1.99.0".into());
+                            updates.status = match state {
+                                "checking" => "Checking for updates…",
+                                "current" => "Warpai is up to date.",
+                                "available" => "v1.99.0 is available. Update opens the release download page.",
+                                "error" => "Could not check for updates. Try again or open GitHub Releases.",
+                                _ => "",
+                            }.into();
+                            ctx.notify();
+                        });
+                    });
+                }).with_take_screenshot(filename));
+            }
+        }
+    }
+    driver = driver.with_step(TestStep::new("restore disabled startup checking").with_action(|app, window, _| {
+        let about = app.views_of_type::<crate::settings_view::about_page::AboutPageView>(window).unwrap()[0].clone();
+        app.dispatch_typed_action(window, &[about.id()], &crate::settings_view::about_page::AboutAction::ToggleStartup);
+    }).add_named_assertion("startup preference is disabled", |app, _| {
+        warpui::async_assert!(app.read(|ctx| !*crate::release_updates::UpdateSettings::as_ref(ctx).check_on_startup.value()))
+    }));
     let driver = driver.with_on_finish(move |app, window, data| {
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {

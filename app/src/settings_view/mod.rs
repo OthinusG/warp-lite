@@ -81,7 +81,7 @@ use warpui::{
     View, ViewContext, ViewHandle,
 };
 
-mod about_page;
+pub(crate) mod about_page;
 mod admin_actions;
 mod agent_assisted_environment_modal;
 mod ai_page;
@@ -1112,7 +1112,7 @@ impl SettingsView {
         });
 
         // About page
-        let about_page_handle = ctx.add_view(AboutPageView::new);
+        let about_page_handle = ctx.add_typed_action_view(AboutPageView::new);
 
         // AI page
         let ai_page_handle = ctx.add_typed_action_view(AISettingsPageView::new);

@@ -359,8 +359,13 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     } else { other_profile.remote_root.push_str("/isolated"); }
     std::fs::create_dir_all(&other_profile.remote_root).unwrap();
     let mut other = HostClient::connect(&other_profile).await.unwrap();
-    let panel = other.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 11).await.unwrap();
-    assert!(panel["value"]["tasks"].as_array().unwrap().is_empty());
+    let other_panel = other.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 11).await.unwrap();
+    if worktree_team {
+        assert_eq!(other_panel["value"]["collaboration_scope"], panel["value"]["collaboration_scope"]);
+        assert!(other_panel["value"]["tasks"].as_array().unwrap().iter().any(|entry| entry["id"] == task));
+    } else {
+        assert!(other_panel["value"]["tasks"].as_array().unwrap().is_empty());
+    }
     assert!(other
         .terminal_control(terminal_command(
             &other,
