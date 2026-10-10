@@ -586,7 +586,7 @@ impl CollaborationPanel {
             .iter()
             .enumerate()
             .map(|(index, label)| {
-                let label = (*label).to_owned();
+                let label = warpui::localization::text(label).to_owned();
                 let editor = ctx.add_typed_action_view(|ctx| {
                     let mut editor = EditorView::single_line(
                         SingleLineEditorOptions {
@@ -961,7 +961,7 @@ impl CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         if let Some(form) = &self.form {
             if form.kind == Kind::SelectCoordinator {
-                if !form.error.is_empty() { body.add_child(detail(appearance, form.error.clone())); }
+                if !form.error.is_empty() { body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned())); }
                 if form.submitting { body.add_child(note(appearance, warpui::localization::text("Updating Coordinator…"))); }
                 else if !form.error.is_empty() {
                     body.add_child(builder.button(ButtonVariant::Secondary, form.buttons[0].clone())
@@ -971,7 +971,7 @@ impl CollaborationPanel {
                 }
                 return body.finish();
             }
-            body.add_child(heading(appearance, form.kind.label()));
+            body.add_child(heading(appearance, warpui::localization::text(form.kind.label())));
             if let Some(task) = &form.task {
                 body.add_child(note(
                     appearance,
@@ -1083,7 +1083,7 @@ impl CollaborationPanel {
                 body.add_child(
                     Flex::column()
                         .with_spacing(GAP_TIGHT)
-                        .with_child(heading(appearance, *label))
+                        .with_child(heading(appearance, warpui::localization::text(label)))
                         .with_child(value)
                         .finish(),
                 );
@@ -1098,7 +1098,7 @@ impl CollaborationPanel {
                 }
             }
             if !form.error.is_empty() {
-                body.add_child(detail(appearance, form.error.clone()));
+                body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned()));
             }
             let mut buttons = Vec::new();
             for (index, label, action) in [
@@ -1179,7 +1179,7 @@ impl CollaborationPanel {
             for (index, kind) in kinds.into_iter().enumerate() {
                 let button = builder
                     .button(ButtonVariant::Secondary, self.control_buttons[index].clone())
-                    .with_text_label(kind.label().into());
+                    .with_text_label(warpui::localization::text(kind.label()).into());
                 let button = if self.connected {
                     button
                 } else {

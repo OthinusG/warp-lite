@@ -160,6 +160,18 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_action_descriptions_translate_before_title_casing() {
+        assert_eq!(
+            titlecase::titlecase(text_in(Language::SimplifiedChinese, "move tab up")),
+            "向上移动标签页"
+        );
+        assert_eq!(
+            titlecase::titlecase(text_in(Language::TraditionalChinese, "close tabs below")),
+            "關閉下方分頁"
+        );
+    }
+
+    #[test]
     fn translated_confirmation_keeps_argument_identity_when_reordered() {
         let source = "Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.";
         let values = [("0", "3"), ("1", "7"), ("2", "42")];

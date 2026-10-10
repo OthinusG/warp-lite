@@ -87,3 +87,11 @@ EditableBinding construction sites. The catalog includes terminal/editor actions
 and compiled debug labels without changing action IDs or key sequences. Language
 selector updates subscribe to the settings model so Reset and external preference
 reloads reflect the persisted language; restart still applies the interface locale.
+
+All nonempty inventoried settings keyword groups have simplified/traditional
+search aliases. Communication forms translate their labels and validation errors
+at display boundaries, retaining original enum identities and literal confirmation
+tokens (ALLOW OVERLAP, RELEASE RESERVATION, DELETE HISTORY). Companion response
+status text is translated on the host without changing Companion 4.0.0 payloads.
+Heading icons recognize their translated titles and have a focused three-locale
+regression check. Font weight dropdown creation and selection use identical labels.

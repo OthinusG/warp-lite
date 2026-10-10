@@ -44,19 +44,25 @@ const GAP_SECTION: f32 = 8.;
 
 // Text roles: semibold function headings;
 // 12px secondary text carries status and guidance.
+fn heading_icon(text: &str, language: warpui::localization::Language) -> Option<crate::ui_components::icons::Icon> {
+    use crate::ui_components::icons::Icon;
+    let matches = |sources: &[&str]| sources.iter().any(|source|
+        text == *source || text == warpui::localization::text_in(language, source));
+    match () {
+        _ if matches(&["Agents", "Coordinator", "Agents Collaboration Mode"]) => Some(Icon::Users),
+        _ if matches(&["Worktrees", "Worktree collaboration"]) => Some(Icon::GitBranch),
+        _ if matches(&["History"]) => Some(Icon::History),
+        _ if matches(&["Message", "Messages", "Conversation"]) => Some(Icon::MessageText),
+        _ if matches(&["Data usage"]) => Some(Icon::Dataflow),
+        _ if matches(&["Tasks", "Assign"]) => Some(Icon::TaskListBlock),
+        _ if matches(&["Project", "SSH project", "WSL project"]) => Some(Icon::Folder),
+        _ => None,
+    }
+}
+
 fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
     let text = text.into();
-    use crate::ui_components::icons::Icon;
-    let icon = match text.as_ref() {
-        "Agents" | "Coordinator" | "Agents Collaboration Mode" => Some(Icon::Users),
-        "Worktrees" | "Worktree collaboration" => Some(Icon::GitBranch),
-        "History" => Some(Icon::History),
-        "Message" | "Messages" | "Conversation" => Some(Icon::MessageText),
-        "Data usage" => Some(Icon::Dataflow),
-        "Tasks" | "Assign" => Some(Icon::TaskListBlock),
-        "Project" | "SSH project" => Some(Icon::Folder),
-        _ => None,
-    };
+    let icon = heading_icon(&text, warpui::localization::language());
     let label = appearance
         .ui_builder()
         .span(text)
@@ -1657,7 +1663,7 @@ impl View for CollaborationPanel {
         if !self.preview {
             return Some(AccessibilityContent::new(
                 {
-                    let __warpai_locale_argument_0 = &(self.status);
+                    let __warpai_locale_argument_0 = &(warpui::localization::text(&self.status));
                     warpui::localization::format_text(
                         "Agent collaboration. {}",
                         &[("0", format!("{__warpai_locale_argument_0}").as_str())],
@@ -1704,7 +1710,7 @@ impl View for CollaborationPanel {
             let mut modes = Flex::row().with_spacing(GAP_ROW);
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
                 let button = builder.button(if self.worktree_mode == worktree { ButtonVariant::Accent } else { ButtonVariant::Secondary }, self.mode_buttons[index].clone())
-                    .with_centered_text_label(label.into());
+                    .with_centered_text_label(warpui::localization::text(label).into());
                 let button = if self.form.is_some() || self.mode_pending || !self.connected
                     || (worktree && !self.snapshot.as_ref().is_some_and(|snapshot| snapshot.worktree_available)) {
                     button.disabled()
@@ -1722,7 +1728,7 @@ impl View for CollaborationPanel {
                 )
             }));
         } else if !self.connected {
-            header.add_child(note(appearance, self.status.clone()));
+            header.add_child(note(appearance, warpui::localization::text(&self.status).to_owned()));
         }
         let mut connection_controls = Wrap::row()
             .with_spacing(GAP_SECTION)
@@ -5476,6 +5482,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn heading_icons_preserve_roles_in_each_interface_language() {
+        use crate::ui_components::icons::Icon;
+        use warpui::localization::{text_in, Language};
+        for language in Language::ALL {
+            assert!(matches!(super::heading_icon(text_in(language, "Agents"), language), Some(Icon::Users)));
+            assert!(matches!(super::heading_icon(text_in(language, "Project"), language), Some(Icon::Folder)));
+            assert!(matches!(super::heading_icon(text_in(language, "History"), language), Some(Icon::History)));
+            assert!(super::heading_icon("User-defined heading", language).is_none());
+        }
+    }
+
     use super::*;
     #[test]
     fn collaboration_participant_labels_hide_internal_identifiers() {

@@ -116,6 +116,7 @@ def fields(template):
 
 BINDING_DISPLAY = re.compile(
     r'BindingDescription::new\(\s*$|EditableBinding::new\(\s*"[^"\n]*"\s*,\s*$'
+    r"|FixedBinding::custom\(\s*[^,()]+,\s*[^,()]+,\s*$"
 )
 
 DISPLAY = re.compile(

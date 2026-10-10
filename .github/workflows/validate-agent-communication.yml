@@ -109,6 +109,7 @@ jobs:
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
           cargo test -p warpai --lib localization_search_tests --locked
+          cargo test -p warpai --lib heading_icons_preserve_roles_in_each_interface_language --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
@@ -303,6 +304,7 @@ jobs:
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
           cargo test -p warpai --lib localization_search_tests --locked
+          cargo test -p warpai --lib heading_icons_preserve_roles_in_each_interface_language --locked
           cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warpai --lib collaboration_ --locked
           cargo test -p warp-agent-bus --lib setup::tests::legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers --locked

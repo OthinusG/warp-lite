@@ -1035,13 +1035,13 @@ impl AppearanceSettingsPageView {
                 .iter()
                 .map(|weight| {
                     DropdownItem::new(
-                        weight.to_string(),
+                        warpui::localization::text(&weight.to_string()).to_owned(),
                         AppearancePageAction::SetFontWeight(*weight),
                     )
                 })
                 .collect();
             dropdown.add_items(items, ctx);
-            dropdown.set_selected_by_name(monospace_font_weight.to_string(), ctx);
+            dropdown.set_selected_by_name(warpui::localization::text(&monospace_font_weight.to_string()).to_owned(), ctx);
             dropdown
         });
 
@@ -1437,7 +1437,7 @@ impl AppearanceSettingsPageView {
             AppearanceEvent::MonospaceFontWeightChanged { .. } => {
                 let font_weight = handle.as_ref(ctx).monospace_font_weight();
                 self.font_weight_dropdown.update(ctx, |dropdown, ctx| {
-                    dropdown.set_selected_by_name(font_weight.to_string(), ctx);
+                    dropdown.set_selected_by_name(warpui::localization::text(&font_weight.to_string()).to_owned(), ctx);
                 });
             }
             AppearanceEvent::LineHeightRatioChanged { .. } => {

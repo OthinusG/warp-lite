@@ -224,11 +224,11 @@ impl View for CommunicationSettingsView {
                             ctx.dispatch_typed_action(Action::Select(command.clone()))
                         })
                         .finish(),
-                    appearance, Some(row.status),
+                    appearance, Some(warpui::localization::text(&row.status).to_owned()),
                 ));
             }
         }
-        body.add_child(secondary_text(appearance, model.status.clone(), None));
+        body.add_child(secondary_text(appearance, warpui::localization::text(&model.status).to_owned(), None));
         if model.preferences.legacy_cleanup_pending() {
             // Cleanup needs user action, so it uses the theme warning color instead of plain text.
             body.add_child(secondary_text(
@@ -319,21 +319,21 @@ impl View for CommunicationSettingsView {
                         render_body_item_label_with_icon::<Action>(row.command.clone(), crate::agent_usage::agent_icon(&row.program), None, None,
                             LocalOnlyIconState::Hidden, if model.wsl.busy || row.installed.is_none() { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
                         checkbox.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::WslAgent(command.clone()))).finish(),
-                        appearance, Some(row.status.clone()),
+                        appearance, Some(warpui::localization::text(&row.status).to_owned()),
                     ));
                 }
                 if !model.wsl.status.is_empty() {
-                    body.add_child(secondary_text(appearance, model.wsl.status.clone(), None));
+                    body.add_child(secondary_text(appearance, warpui::localization::text(&model.wsl.status).to_owned(), None));
                 }
                 if model.wsl.selected_target().is_some() {
                     for (index, label, action) in [(0, "Rescan agents", Action::WslRefresh), (1, "Remove Warpai MCP from all agents", Action::WslRemoveAll)] {
                         let button = builder.button(ButtonVariant::Secondary, self.wsl_maintenance[index].clone())
-                            .with_text_label(label.into());
+                            .with_text_label(warpui::localization::text(label).into());
                         let button = if model.wsl.busy { button.disabled() } else { button };
                         body.add_child(Container::new(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish())
                             .with_margin_top(8.).finish());
                     }
-                    body.add_child(secondary_text(appearance, "Applies only to this WSL account.".into(), None));
+                    body.add_child(secondary_text(appearance, warpui::localization::text("Applies only to this WSL account.").into(), None));
                 }
             }
         }
