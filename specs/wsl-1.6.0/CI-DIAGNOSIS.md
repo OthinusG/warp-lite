@@ -78,3 +78,19 @@ data, and print that code in the owned fixture. Extend the guest lifecycle test
 to register through the actual broker for both Git and non-Git roots; successful
 kernel binding alone does not prove MCP registration. Keep diagnostic streams
 on one shared file offset to preserve ordering.
+
+Run 38060600725 at 7af5b0f0 reproduces registration failure directly in the
+Git-root guest unit test: Git worktree registration unavailable. Its Ubuntu 22.04
+guest has system Git 2.34.1, whose worktree list does not support -z. The fixture
+copied a bare debug Companion without the packaged private Git, so registration
+used the incompatible system executable. Official Git sources confirm the option
+is absent in v2.34.1 and present in v2.36.0:
+https://github.com/git/git/blob/v2.34.1/builtin/worktree.c#L646
+https://github.com/git/git/blob/v2.36.0/builtin/worktree.c#L713
+
+Package and install the guest through the existing generated installer before
+acceptance; preserve its verified private Git and manifest. Put that installed
+runtime on the debug test subprocess PATH only. Do not weaken worktree discovery
+or add a legacy Git fallback. The production guest now exercises the release
+payload, and debug guest regressions exercise its pinned Git. Rerun the focused
+Git-root registration test and real Windows-to-WSL acceptance, then both OS gates.
