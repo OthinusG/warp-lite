@@ -97,6 +97,19 @@ and in MEMORY.md. Release/package only accepted version-specific source.
 
 ### CI repair plan — 2026-10-10
 
+### Native port compatibility audit
+
+Compare the pinned Orca transport, auth, CLI and payload contracts against the
+Rust implementation. Electron net/session/preload/React must not be runtime
+dependencies: reuse reqwest with native roots/system proxy, OS secure storage,
+native menus/editors and the application singleton. Add request-object tests
+for every HTTP provider (fixed HTTPS URL, method, sensitive credential headers
+and JSON body). Match Antigravity's successful usage envelope and JSON-line
+stdout handling; reject unrelated commands and failed envelopes. Verify both
+desktop targets through the combined acceptance workflow. Real vendor account
+requests are a separate authenticated check; synthetic fixtures must not be
+reported as proof that every live account/service is available.
+
 Run 38016331795 at da5a8a96 fails both desktop application checks with the
 same three E0599 errors in the new usage settings view. Paragraph already
 wraps text; its API has no `with_soft_wrap` method. Remove those three redundant

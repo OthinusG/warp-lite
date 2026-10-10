@@ -34,6 +34,18 @@
   Paragraph wraps by default; remove the nonexistent method calls, retain Span
   wrapping and rerun full combined acceptance. No native usage acceptance or
   1.5.1 publication is implied by the implementation checkpoint.
+- Owner requires native compatibility of every transplanted Orca interface,
+  API and component. Port uses no Electron/Node/renderer runtime: existing
+  reqwest/native TLS+proxy, OS secure storage, CLI discovery and native widgets.
+  Audit found agy log-noise/envelope guards missing; match Orca's successful
+  usage command and JSON-line handling, and add request-object tests for all
+  HTTP providers. Fixtures do not establish authenticated vendor availability;
+  keep account/service limitations explicit and full desktop acceptance pending.
+- Header parity review adds Codex client/beta/originator, Zen Origin and Grok
+  user ID. agy replies showing a model turn stop subsequent account polling for
+  the session; other account refreshes preserve that guard and hidden caches.
+  Windows metadata child processes use CREATE_NO_WINDOW; prepend the resolved
+  executable directory to PATH for native package-manager shims.
 
 ## 1.5.0 release authorization — 2026-10-10
 

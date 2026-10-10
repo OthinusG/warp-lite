@@ -107,6 +107,11 @@ impl AgentUsage {
         token: String,
         ctx: &mut ModelContext<Self>,
     ) -> bool {
+        if provider == Provider::OpenCodeZen && context.is_empty() {
+            self.status = "A workspace ID is required for Zen balance".into();
+            ctx.notify();
+            return false;
+        }
         let cli_login = token.is_empty();
         let account = Account {
             id: uuid::Uuid::new_v4().to_string(),
@@ -215,6 +220,12 @@ impl AgentUsage {
             .accounts
             .iter()
             .filter(|a| a.visible)
+            .filter(|a| {
+                !matches!(
+                    self.readings.get(&a.id),
+                    Some(Err(providers::AGY_UNSAFE_USAGE))
+                )
+            })
             .map(|account| {
                 let token = if account.cli_login {
                     None
@@ -246,8 +257,16 @@ impl AgentUsage {
             },
             move |model, rows, ctx| {
                 model.checking = false;
+                // A visibility change must not erase evidence of a billed CLI probe.
+                for (id, reading) in &rows {
+                    if matches!(reading, Err(providers::AGY_UNSAFE_USAGE))
+                        && model.accounts.iter().any(|account| &account.id == id)
+                    {
+                        model.readings.insert(id.clone(), reading.clone());
+                    }
+                }
                 if generation == model.generation {
-                    model.readings = rows.into_iter().collect();
+                    model.readings.extend(rows);
                     model.updated = Some(Instant::now());
                 } else {
                     model.refresh(ctx);
@@ -344,8 +363,22 @@ fn bounded_json(path: PathBuf) -> Result<serde_json::Value, &'static str> {
 async fn output(program: &str, args: &[&str], seconds: u64) -> Result<Vec<u8>, &'static str> {
     use tokio::io::AsyncReadExt as _;
     let operation = async {
-        let mut child = tokio::process::Command::new(program)
+        let mut command = tokio::process::Command::new(program);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+        let path = std::env::join_paths(
+            std::path::Path::new(program)
+                .parent()
+                .into_iter()
+                .map(std::path::Path::to_owned)
+                .chain(std::env::split_paths(
+                    &std::env::var_os("PATH").unwrap_or_default(),
+                )),
+        )
+        .map_err(|_| "CLI executable search path unavailable")?;
+        let mut child = command
             .args(args)
+            .env("PATH", path)
             .kill_on_drop(true)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
@@ -401,8 +434,7 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
             30,
         )
         .await?;
-        let data = serde_json::from_slice(&bytes).map_err(|_| "Invalid agy usage response")?;
-        return providers::parse(Provider::Antigravity, &data);
+        return providers::parse_agy_stdout(&bytes);
     }
     let mut context = account.context.clone();
     let token = if account.cli_login {
@@ -468,10 +500,19 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
                 .and_then(|entries| {
                     entries
                         .iter()
-                        .find(|(k, v)| k.starts_with("https://auth.x.ai") && v["key"].is_string())
+                        .find(|(k, v)| {
+                            (k.as_str() == "https://auth.x.ai"
+                                || k.starts_with("https://auth.x.ai::"))
+                                && v["key"].is_string()
+                        })
                         .map(|(_, v)| v)
                 })
-                .and_then(|v| v["key"].as_str()),
+                .and_then(|v| {
+                    if context.is_empty() {
+                        context = v["user_id"].as_str().unwrap_or("").to_owned();
+                    }
+                    v["key"].as_str()
+                }),
             _ => data["access_token"].as_str(),
         };
         token

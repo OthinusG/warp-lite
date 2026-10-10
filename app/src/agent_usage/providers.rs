@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
 
+pub(crate) const AGY_UNSAFE_USAGE: &str =
+    "Usage polling stopped: agy ran a model turn; update agy and restart Warpai";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Provider {
     Codex,
@@ -195,6 +198,16 @@ pub(crate) fn parse(provider: Provider, data: &Value) -> Result<Reading, &'stati
             }
         }
         Provider::Antigravity => {
+            if number(&data["num_turns"]).is_some_and(|turns| turns > 0.)
+                || data["conversation_id"]
+                    .as_str()
+                    .is_some_and(|id| !id.is_empty())
+            {
+                return Err(AGY_UNSAFE_USAGE);
+            }
+            if data["status"] != "SUCCESS" || data["command"]["name"] != "usage" {
+                return Err("Invalid agy usage response");
+            }
             if let Some(groups) = data["command"]["data"]["groups"].as_array() {
                 for group in groups.iter().take(32) {
                     if let Some(rows) = group["buckets"].as_array() {
@@ -351,10 +364,6 @@ pub(crate) async fn fetch(
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|_| "Could not start usage query")?;
-    let mut secret = token
-        .parse::<reqwest::header::HeaderValue>()
-        .map_err(|_| "Invalid credential format")?;
-    secret.set_sensitive(true);
     let project;
     let context = if provider == Provider::Gemini && context.is_empty() {
         let response = client
@@ -374,6 +383,41 @@ pub(crate) async fn fetch(
     } else {
         context
     };
+    let request = usage_request(&client, provider, token, context)?;
+    let response = request
+        .send()
+        .await
+        .map_err(|_| "Usage query failed; retry in Settings")?;
+    let data = response_json(response).await?;
+    match parse(provider, &data) {
+        Err(_) if provider == Provider::Grok => {
+            let mut request = client
+                .get("https://cli-chat-proxy.grok.com/v1/billing")
+                .bearer_auth(token)
+                .header("X-XAI-Token-Auth", "xai-grok-cli");
+            if !context.is_empty() {
+                request = request.header("x-userid", context);
+            }
+            let response = request
+                .send()
+                .await
+                .map_err(|_| "Grok usage query unavailable")?;
+            parse(provider, &response_json(response).await?)
+        }
+        result => result,
+    }
+}
+
+fn usage_request(
+    client: &reqwest::Client,
+    provider: Provider,
+    token: &str,
+    context: &str,
+) -> Result<reqwest::RequestBuilder, &'static str> {
+    let mut secret = token
+        .parse::<reqwest::header::HeaderValue>()
+        .map_err(|_| "Invalid credential format")?;
+    secret.set_sensitive(true);
     let url = match provider {
         Provider::Codex => "https://chatgpt.com/backend-api/wham/usage",
         Provider::Claude => "https://api.anthropic.com/api/oauth/usage",
@@ -403,6 +447,7 @@ pub(crate) async fn fetch(
             }
             request = request
                 .header("Cookie", secret.clone())
+                .header("Origin", "https://opencode.ai")
                 .header("x-org-id", context)
                 .header(
                     "Referer",
@@ -427,30 +472,42 @@ pub(crate) async fn fetch(
             .header("anthropic-beta", "oauth-2025-04-20")
             .header("User-Agent", "claude-code/2.1.0");
     }
-    if provider == Provider::Codex && !context.is_empty() {
-        request = request.header("ChatGPT-Account-Id", context);
+    if provider == Provider::Codex {
+        request = request
+            .header("User-Agent", "codex-cli")
+            .header("OpenAI-Beta", "codex-1")
+            .header("originator", "Codex Desktop");
+        if !context.is_empty() {
+            request = request.header("ChatGPT-Account-Id", context);
+        }
     }
     if provider == Provider::Grok {
         request = request.header("X-XAI-Token-Auth", "xai-grok-cli");
-    }
-    let response = request
-        .send()
-        .await
-        .map_err(|_| "Usage query failed; retry in Settings")?;
-    let data = response_json(response).await?;
-    match parse(provider, &data) {
-        Err(_) if provider == Provider::Grok => {
-            let response = client
-                .get("https://cli-chat-proxy.grok.com/v1/billing")
-                .bearer_auth(token)
-                .header("X-XAI-Token-Auth", "xai-grok-cli")
-                .send()
-                .await
-                .map_err(|_| "Grok usage query unavailable")?;
-            parse(provider, &response_json(response).await?)
+        if !context.is_empty() {
+            request = request.header("x-userid", context);
         }
-        result => result,
     }
+    Ok(request)
+}
+
+pub(crate) fn parse_agy_stdout(bytes: &[u8]) -> Result<Reading, &'static str> {
+    if let Ok(data) = serde_json::from_slice(bytes) {
+        match parse(Provider::Antigravity, &data) {
+            Ok(reading) => return Ok(reading),
+            Err(AGY_UNSAFE_USAGE) => return Err(AGY_UNSAFE_USAGE),
+            _ => (),
+        }
+    }
+    for line in bytes.split(|byte| *byte == b'\n') {
+        if let Ok(data) = serde_json::from_slice(line) {
+            match parse(Provider::Antigravity, &data) {
+                Ok(reading) => return Ok(reading),
+                Err(AGY_UNSAFE_USAGE) => return Err(AGY_UNSAFE_USAGE),
+                _ => (),
+            }
+        }
+    }
+    Err("Invalid agy usage response")
 }
 
 async fn response_json(mut response: reqwest::Response) -> Result<Value, &'static str> {
@@ -493,6 +550,155 @@ pub(crate) fn safe_agy_version(text: &str) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn native_requests_match_provider_transport_contracts() {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+        let client = reqwest::Client::new();
+        let cases = [
+            (
+                Provider::Codex,
+                "https://chatgpt.com/backend-api/wham/usage",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::Claude,
+                "https://api.anthropic.com/api/oauth/usage",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::Gemini,
+                "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::Cursor,
+                "https://cursor.com/api/usage-summary",
+                "Cookie",
+                "synthetic-token",
+            ),
+            (
+                Provider::OpenCodeGo,
+                "https://opencode.ai/zen/go/v1/usage",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::OpenCodeZen,
+                "https://opencode.ai/console/api/billing/status",
+                "Cookie",
+                "synthetic-token",
+            ),
+            (
+                Provider::Kimi,
+                "https://api.kimi.com/coding/v1/usages",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::MiniMax,
+                "https://platform.minimax.io/v1/api/openplatform/coding_plan/remains",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::MiniMaxCN,
+                "https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+            (
+                Provider::Zai,
+                "https://api.z.ai/api/monitor/usage/quota/limit",
+                "Authorization",
+                "synthetic-token",
+            ),
+            (
+                Provider::Zhipu,
+                "https://open.bigmodel.cn/api/monitor/usage/quota/limit",
+                "Authorization",
+                "synthetic-token",
+            ),
+            (
+                Provider::Grok,
+                "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+                "Authorization",
+                "Bearer synthetic-token",
+            ),
+        ];
+        for (provider, url, credential_header, credential) in cases {
+            let request = usage_request(&client, provider, "synthetic-token", "synthetic-context")
+                .unwrap()
+                .build()
+                .unwrap();
+            assert_eq!(request.url().as_str(), url, "{provider:?}");
+            assert_eq!(
+                request.method(),
+                if provider == Provider::Gemini {
+                    reqwest::Method::POST
+                } else {
+                    reqwest::Method::GET
+                }
+            );
+            assert_eq!(request.headers()[credential_header], credential);
+            assert!(request.headers()[credential_header].is_sensitive());
+            match provider {
+                Provider::Codex => {
+                    assert_eq!(request.headers()["ChatGPT-Account-Id"], "synthetic-context");
+                    assert_eq!(request.headers()["User-Agent"], "codex-cli");
+                    assert_eq!(request.headers()["OpenAI-Beta"], "codex-1");
+                    assert_eq!(request.headers()["originator"], "Codex Desktop");
+                }
+                Provider::Claude => {
+                    assert_eq!(request.headers()["anthropic-beta"], "oauth-2025-04-20");
+                    assert_eq!(request.headers()["User-Agent"], "claude-code/2.1.0");
+                }
+                Provider::Cursor => assert_eq!(request.headers()["Origin"], "https://cursor.com"),
+                Provider::OpenCodeZen => {
+                    assert_eq!(request.headers()["x-org-id"], "synthetic-context");
+                    assert_eq!(request.headers()["Origin"], "https://opencode.ai");
+                }
+                Provider::Grok => {
+                    assert_eq!(request.headers()["X-XAI-Token-Auth"], "xai-grok-cli");
+                    assert_eq!(request.headers()["x-userid"], "synthetic-context");
+                }
+                Provider::Gemini => assert_eq!(
+                    serde_json::from_slice::<Value>(request.body().unwrap().as_bytes().unwrap())
+                        .unwrap(),
+                    json!({"project":"synthetic-context"})
+                ),
+                _ => (),
+            }
+        }
+        assert!(usage_request(&client, Provider::OpenCodeZen, "synthetic-token", "").is_err());
+        assert!(usage_request(&client, Provider::Codex, "bad\r\nheader", "").is_err());
+        assert!(usage_request(&client, Provider::Antigravity, "synthetic-token", "").is_err());
+    }
+    #[test]
+    fn agy_stdout_accepts_log_noise_but_requires_successful_usage_envelope() {
+        let mut envelope = json!({"status":"SUCCESS","command":{"name":"usage","data":{"groups":[{"name":"Pro","buckets":[{"name":"Weekly","remaining_fraction":0.6}]}]}}});
+        let noisy = format!("Starting CLI\n{}\nFinished\n", envelope);
+        assert!((parse_agy_stdout(noisy.as_bytes()).unwrap().windows[0].used - 40.).abs() < 0.001);
+        assert!(parse_agy_stdout(&serde_json::to_vec_pretty(&envelope).unwrap()).is_ok());
+        envelope["status"] = json!("ERROR");
+        assert!(parse_agy_stdout(envelope.to_string().as_bytes()).is_err());
+        envelope["status"] = json!("SUCCESS");
+        envelope["command"]["name"] = json!("model");
+        assert!(parse_agy_stdout(envelope.to_string().as_bytes()).is_err());
+        envelope["num_turns"] = json!(1);
+        assert_eq!(
+            parse_agy_stdout(envelope.to_string().as_bytes()).unwrap_err(),
+            AGY_UNSAFE_USAGE
+        );
+        envelope["num_turns"] = json!(0);
+        envelope["conversation_id"] = json!("synthetic-conversation");
+        assert_eq!(
+            parse_agy_stdout(envelope.to_string().as_bytes()).unwrap_err(),
+            AGY_UNSAFE_USAGE
+        );
+    }
     #[test]
     fn missing_usage_never_becomes_zero() {
         for provider in Provider::ALL {
@@ -583,7 +789,7 @@ mod tests {
         assert!(!safe_agy_version("unknown"));
         assert!(!safe_agy_version("agy 1.1.10 (runtime 22.1.0)"));
         assert!(safe_agy_version("Antigravity CLI 1.2.11"));
-        let r = parse(Provider::Antigravity, &json!({"command":{"data":{"groups":[{"name":"Pro","buckets":[{"remaining_fraction":0.4,"name":"5h"},{"remaining_fraction":0,"disabled":true}]}]}}})).unwrap();
+        let r = parse(Provider::Antigravity, &json!({"status":"SUCCESS","command":{"name":"usage","data":{"groups":[{"name":"Pro","buckets":[{"remaining_fraction":0.4,"name":"5h"},{"remaining_fraction":0,"disabled":true}]}]}}})).unwrap();
         assert_eq!(r.windows.len(), 1);
         assert!((r.windows[0].used - 60.).abs() < 0.001);
     }

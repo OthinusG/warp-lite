@@ -51,3 +51,28 @@ No personal provider credentials or real usage queries are used in development
 or fixtures. Synthetic parser/account tests and native light/dark captures gate
 desktop acceptance; authenticated provider service availability remains account
 and vendor dependent.
+
+## Native compatibility audit
+
+| Orca dependency / contract | Warpai implementation | Verification |
+| --- | --- | --- |
+| Electron `net.fetch` | Existing reqwest with native TLS roots and system proxy support; fixed HTTPS endpoints and bounded responses | Request-object tests for all 12 HTTP providers, method/auth/required headers and Gemini JSON body |
+| Electron session / browser cookies | Explicit user-provided Cookie header for Cursor and Zen, stored through OS secure storage; no shared browser cookie jar | Sensitive-header and workspace requirements tested; MiniMax uses Orca's separate Bearer API-key contract |
+| Node CLI process / path discovery | Existing native executable discovery plus bounded Tokio child process; exact unmodified agy metadata arguments and version probe; hidden Windows child console | Version, successful command envelope and noisy/pretty JSON stdout regression tests; stop subsequent polling if agy runs a model turn |
+| Orca credential stores | Warpai Keychain on macOS and DPAPI-backed secure storage on Windows; bounded read-only vendor CLI auth discovery | Metadata rejects credential fields; no credentials enter Agent IPC or raw errors |
+| Electron IPC / renderer components | Native singleton model, typed view actions, dropdowns/editors/icons and independently scrolling footer | Both desktop native captures and focus/cache assertions required |
+| Electron activation / renderer lifecycle | Application-owned account metadata, configuration generation and usage cache | Panel/project/focus changes have no account reset path; restart restores metadata and queries fresh usage |
+
+The port does not execute Orca JavaScript or depend on Electron, Node fetch,
+preload globals, React components or files in the temporary research clone.
+CLI accounts mean native desktop CLI logins; WSL/remote profile discovery and
+browser OAuth/cookie extraction are not claimed. Synthetic transport tests
+construct real reqwest requests without sending credentials or contacting
+providers. Compilation and native runtime acceptance are still required;
+authenticated third-party service access cannot be certified from fixtures.
+
+Header audit also preserves Codex client/beta/originator headers, Zen Origin and
+Grok user ID (discovered from CLI auth or provided as account context). Hidden
+account caches and blocked unsafe agy readings survive other account refreshes;
+workspace or focus changes never reset either state. Updating agy and restarting
+the application restores eligibility after an unsafe-command detection.

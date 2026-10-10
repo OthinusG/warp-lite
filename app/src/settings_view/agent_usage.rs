@@ -100,6 +100,16 @@ impl TypedActionView for UsageSettingsView {
                     });
                 }
                 self.provider = *provider;
+                self.context.update(ctx, |editor, ctx| {
+                    editor.set_placeholder_text(
+                        if *provider == Provider::OpenCodeZen {
+                            "Workspace ID (required for Zen balance)"
+                        } else {
+                            "Account / project / workspace ID (optional)"
+                        },
+                        ctx,
+                    )
+                });
                 ctx.notify();
             }
             Action::Add => {
@@ -176,7 +186,7 @@ impl View for UsageSettingsView {
         }
         if matches!(
             self.provider,
-            Provider::Codex | Provider::Gemini | Provider::OpenCodeZen
+            Provider::Codex | Provider::Gemini | Provider::OpenCodeZen | Provider::Grok
         ) {
             body.add_child(ChildView::new(&self.context).finish());
         }
