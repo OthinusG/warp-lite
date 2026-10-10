@@ -20,6 +20,9 @@ source /home/warpai-test/.cargo/env
 cargo build -p warp-agent-bus --bin warpai-companion --locked
 cargo test -p warp-agent-bus --lib wsl_chunks_ --locked
 cargo test -p warp-agent-bus --test managed_agent --locked
+agent_fixture=$(find target/debug/deps -maxdepth 1 -type f -executable -name 'managed_agent-*' -print -quit)
+[[ -n "$agent_fixture" ]]
+install -D -m 755 "$agent_fixture" /home/warpai-test/managed-agent-fixture
 install -D -m 755 target/debug/warpai-companion /home/warpai-test/.config/.warpai/bin/warpai-companion
 project='/home/warpai-test/project spaces 多语言'
 mkdir -p "$project"

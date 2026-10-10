@@ -80,3 +80,38 @@ companion 控制连接沿用原连接的目标与选项，由系统 SSH 密钥�
 面板会说明原因并提供重连操作。Warpai 不保存密码。
 
 参考：[Microsoft Win32-OpenSSH 功能范围](https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope)。
+
+## Windows 直接接入 WSL（1.5.8）
+
+直接 WSL 接入需要 Warpai 1.5.8 和 Companion 5.0.0。在目标发行版中，使用实际工作的
+Linux 用户安装对应的 Linux x64 Companion。4.0.0 不提供 WSL 文件通道。
+从[对应版本的 Warpai release](https://github.com/OthinusG/warpai/releases)获取 Linux 安装包；
+Windows Companion 安装器不会将组件安装进 WSL。
+
+在 Windows Warpai 终端中明确选择发行版和用户：
+
+```powershell
+wsl.exe --distribution Ubuntu --user your-linux-user
+```
+
+随后在 Linux shell 中安装、检查组件并进入项目：
+
+```sh
+sh WarpaiCompanion-5.0.0-linux-x64.run
+"$HOME/.config/.warpai/bin/warpai-companion" --check-runtime
+cd /absolute/path/to/project
+```
+
+Warpai 根据已确认的 WSL shell 信息选择 Linux 项目，文件浏览、编辑、预览、Review
+和协作共用现有工作流。文件通过 Companion 的有界 stdio 分块通道传输，无需 SSH 服务、
+密钥或 SFTP；在 WSL 内继续连接 SSH 时，仍使用原有 SSH 通道。
+
+启用 Agent communication 后，Bash、Zsh、Fish 中识别出的普通 Agent 启动命令通过
+Linux Companion 加入协作。Agent 的安装与认证留在 Linux；已有别名、函数和管理命令
+保留原行为。也可以使用上面的显式 `companion agent` 入口。
+Codex 的 `--cd`/`-C` 会绑定实际项目，同时保留原启动目录，避免改变其他相对路径参数。
+
+项目模式和 Coordinator 按 Linux 用户与实际仓库持久化，同仓库 worktree 共享项目身份。
+切换 pane、tab 或面板连接不会清除仍在运行的 Coordinator。其他发行版、用户和 Windows
+本地项目保持隔离。WSL 停止后须显式重连，旧进程权限不能复用；缺少组件或版本过旧时，
+安装对应的 Linux 组件后重连。

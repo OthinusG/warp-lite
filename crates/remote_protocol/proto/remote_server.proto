@@ -175,6 +175,8 @@ message TerminalLaunch {
   uint32 columns = 5;
   uint32 rows = 6;
   optional string agent_program = 7;
+  // Preserve native relative CLI arguments when the selected project differs from shell cwd.
+  optional string working_directory = 8;
 }
 enum TerminalAction {
   TERMINAL_ACTION_UNSPECIFIED = 0;

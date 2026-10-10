@@ -114,6 +114,7 @@ impl Companion {
                     capabilities: vec![
                         "project_open".into(),
                         "managed_agent".into(),
+                        "managed_launch_cwd".into(),
                         "project_tasks".into(),
                         "project_mcp".into(),
                         "project_files".into(),

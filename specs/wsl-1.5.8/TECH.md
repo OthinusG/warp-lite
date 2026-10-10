@@ -13,6 +13,14 @@ WSL scope includes distribution/user plus verified service/account/project ident
 Use Linux Git common-directory ownership; do not treat /mnt/c as Windows-local.
 Host and guest authority remain separate. Nested SSH still uses its existing route.
 
+## Agent launch directory
+
+TerminalLaunch adds optional working_directory, gated by managed_launch_cwd.
+It preserves the original shell cwd for relative native arguments while the
+selected project and MCP authority follow Codex's verified --cd/-C option.
+Resolve the option in Linux using the installed CLI help; reject invalid directories.
+Replay compares the original cwd too. Existing callers omit the field.
+
 ## File API
 
 Keep SSH/SFTP transfers unchanged. WSL adds bounded binary chunks to existing

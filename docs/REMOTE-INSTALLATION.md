@@ -113,3 +113,43 @@ noninteractive connection. The terminal remains usable; the panel explains
 authentication failure and offers reconnect. No password is stored.
 
 Reference: [Microsoft Win32-OpenSSH scope](https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope).
+
+## Direct WSL on Windows (1.5.8)
+
+Direct WSL requires Warpai 1.5.8 and Companion 5.0.0. Install the matching Linux
+x64 Companion package inside the distribution under the Linux user you will use.
+Companion 4.0.0 does not implement the WSL file channel. Use the Linux installer
+from the matching [Warpai release](https://github.com/OthinusG/warpai/releases);
+installing the Windows Companion does not install it into WSL.
+
+From a Windows Warpai terminal, enter the distribution and user explicitly:
+
+```powershell
+wsl.exe --distribution Ubuntu --user your-linux-user
+```
+
+In that Linux shell, install and check Companion, then enter your project:
+
+```sh
+sh WarpaiCompanion-5.0.0-linux-x64.run
+"$HOME/.config/.warpai/bin/warpai-companion" --check-runtime
+cd /absolute/path/to/project
+```
+
+Warpai follows confirmed WSL shell metadata. Explorer, editor, previews, Review
+and collaboration use the Linux project. Files travel through bounded Companion
+stdio chunks; an SSH daemon, SSH keys and SFTP are not needed for this connection.
+A nested SSH session continues to use the SSH route.
+
+With Agent communication enabled, recognized ordinary Agent invocations in Bash,
+Zsh and Fish use the Linux Companion entry. CLI installation and authentication
+stay in Linux. Existing aliases, functions and administrative commands remain
+native. You can also use the explicit `companion agent` entry shown above.
+Codex's `--cd`/`-C` selects its actual project while preserving the original
+working directory for relative CLI arguments.
+
+Project and Coordinator state belongs to the Linux account and repository,
+including its worktrees. Switching panes, tabs or panel connections preserves a
+running Coordinator. Other distributions/users and Windows-local projects have
+separate authority. If WSL stops, reconnect explicitly; old run authority cannot
+be reused. Missing or outdated Companion requires the matching Linux installation.

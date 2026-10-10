@@ -98,6 +98,7 @@ impl Terminals {
                 || original.columns != request.columns
                 || original.rows != request.rows
                 || original.agent_program != request.agent_program
+                || original.working_directory != request.working_directory
             {
                 return Err(Error::ManagedConflict);
             }
@@ -110,6 +111,16 @@ impl Terminals {
         if sessions.len() >= MAX_SESSIONS {
             return Err(Error::ManagedCapacityExceeded);
         }
+        let working_directory = match request.working_directory.as_deref() {
+            Some(directory) if directory.len() <= 4096 && !directory.contains('\0')
+                && Path::new(directory).is_absolute() => {
+                let directory = Path::new(directory).canonicalize().map_err(path_error)?;
+                if !directory.is_dir() { return Err(Error::ManagedInvalidInput); }
+                directory
+            }
+            Some(_) => return Err(Error::ManagedInvalidInput),
+            None => root.to_owned(),
+        };
         let run_id = Uuid::new_v4().to_string();
         let binding = request
             .agent_program
@@ -142,7 +153,7 @@ impl Terminals {
         let pty = NativePty::spawn_with_environment(
             &executable,
             &arguments,
-            root,
+            &working_directory,
             size,
             binding
                 .as_ref()

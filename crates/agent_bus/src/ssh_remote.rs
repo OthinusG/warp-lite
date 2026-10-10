@@ -546,6 +546,10 @@ impl HostClient {
         &mut self,
         request: TerminalLaunch,
     ) -> Result<TerminalState, ConnectionError> {
+        if request.working_directory.is_some()
+            && !self.capabilities.iter().any(|cap| cap == "managed_launch_cwd") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         if request.agent_program.is_some()
             && !self.capabilities.iter().any(|cap| cap == "project_mcp")
         {

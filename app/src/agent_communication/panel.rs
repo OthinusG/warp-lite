@@ -2284,7 +2284,7 @@ impl CollaborationPanel {
                             .to_vec(),
                             columns: 120,
                             rows: 24,
-                            agent_program: Some("fixture".into()),
+                            agent_program: Some("fixture".into()), working_directory: None,
                         })
                         .await
                         .expect("Real managed native Agent");

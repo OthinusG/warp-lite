@@ -138,12 +138,12 @@ async fn main() {
     }
 }
 
-/// Explicit launch inside an existing SSH terminal; no shell command evaluation.
+/// Explicit launch inside an existing remote terminal; no shell command evaluation.
 async fn launch_agent() -> anyhow::Result<i32> {
     use remote_protocol::proto::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut arguments = std::env::args().skip(2);
-    let root = arguments
+    let mut root = arguments
         .next()
         .ok_or_else(|| anyhow::anyhow!("Missing project root"))?;
     let program = arguments
@@ -152,6 +152,17 @@ async fn launch_agent() -> anyhow::Result<i32> {
     let executable = arguments
         .next()
         .ok_or_else(|| anyhow::anyhow!("Missing executable"))?;
+    let arguments = arguments.collect::<Vec<_>>();
+    let original_directory = std::path::PathBuf::from(&root).canonicalize()?;
+    let working_directory = if program == "codex" {
+        let help = tokio::time::timeout(std::time::Duration::from_secs(8),
+            tokio::process::Command::new(&executable).arg("--help").kill_on_drop(true).output()).await??;
+        anyhow::ensure!(help.status.success(), "Native CLI capability probe failed");
+        let options = warp_agent_bus::launch::LaunchOptions::from_help("codex", &String::from_utf8_lossy(&help.stdout));
+        let directory = options.codex_working_directory(&arguments, &original_directory).canonicalize()?;
+        root = directory.to_str().ok_or_else(|| anyhow::anyhow!("Native workspace must be UTF-8"))?.into();
+        (directory != original_directory).then(|| original_directory.to_string_lossy().into_owned())
+    } else { None };
     let _terminal_mode = TerminalMode::raw()?;
     let mut dimensions = terminal_size();
     let mut client = warp_agent_bus::ssh_remote::HostClient::connect_local(&root)
@@ -162,10 +173,10 @@ async fn launch_agent() -> anyhow::Result<i32> {
             fence: client.fence().cloned(),
             session_id: uuid::Uuid::new_v4().to_string(),
             executable,
-            arguments: arguments.collect(),
+            arguments,
             columns: dimensions.0,
             rows: dimensions.1,
-            agent_program: Some(program),
+            agent_program: Some(program), working_directory,
         })
         .await
         .map_err(|_| anyhow::anyhow!("Agent launch unavailable"))?;

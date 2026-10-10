@@ -46,6 +46,7 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
         [
             "project_open",
             "managed_agent",
+            "managed_launch_cwd",
             "project_tasks",
             "project_mcp",
             "project_files",

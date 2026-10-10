@@ -44,7 +44,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     // A separate control attachment must not own or terminate the Agent's PTY.
     let state = client.terminal_launch(TerminalLaunch {
         fence: client.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
-        executable: "/bin/cat".into(), arguments: vec![], columns: 80, rows: 24, agent_program: None,
+        executable: "/bin/sh".into(), arguments: vec!["-c".into(), "printf 'LAUNCH_CWD=%s\\n' \"$PWD\"; exec /bin/cat".into()], columns: 80, rows: 24, agent_program: None, working_directory: Some("/home/warpai-test".into()),
     }).await.unwrap();
     let other = connection.connect(&profile).await.unwrap();
     drop(other);
@@ -55,12 +55,55 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     for _ in 0..50 {
         let reply = client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id.clone(),
             run_id: state.run_id.clone(), action: TerminalAction::TerminalRead as i32, ..Default::default() }).await.unwrap();
-        if String::from_utf8_lossy(&reply.output).contains("WSL owned input") { seen = true; break; }
+        if String::from_utf8_lossy(&reply.output).contains("WSL owned input")
+            && String::from_utf8_lossy(&reply.output).contains("LAUNCH_CWD=/home/warpai-test") { seen = true; break; }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
     assert!(seen);
     client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id,
         run_id: state.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
+    let agent = client.terminal_launch(TerminalLaunch {
+        fence: client.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
+        executable: "/home/warpai-test/managed-agent-fixture".into(),
+        arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"].map(str::to_owned).to_vec(),
+        columns: 240, rows: 24, agent_program: Some("fixture".into()), working_directory: None,
+    }).await.unwrap();
+    let mut registered = false;
+    for _ in 0..450 {
+        let reply = client.terminal_control(TerminalControl { fence: client.fence().cloned(),
+            session_id: agent.session_id.clone(), run_id: agent.run_id.clone(),
+            action: TerminalAction::TerminalRead as i32, ..Default::default() }).await.unwrap();
+        if String::from_utf8_lossy(&reply.output).contains(&format!("MCP_NATIVE_RUN={}", agent.run_id)) {
+            registered = true; break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert!(registered, "WSL Agent must complete native MCP registration");
+    use warp_agent_bus::{companion::TaskCommand, transport::PanelQuery, ControllerOperation};
+    let panel = TaskCommand::Panel(PanelQuery { worktree: true, ..Default::default() });
+    let mut observer = connection.connect(&profile).await.unwrap();
+    let before = observer.project_tasks(&panel, 1).await.unwrap();
+    let candidate = before["value"]["candidates"].as_array().unwrap().iter()
+        .find(|candidate| candidate["run"].as_str() == Some(&agent.run_id)).expect("Live guest candidate");
+    let selected = observer.project_tasks(&TaskCommand::Controller(ControllerOperation::WorktreeCoordinator {
+        root: root.clone(), agent: candidate["agent"]["id"].as_str().unwrap().into(),
+        run: agent.run_id.clone(), request_id: uuid::Uuid::new_v4().to_string(),
+    }), 2).await.unwrap();
+    assert!(selected.get("error").is_none(), "{selected}");
+    assert_eq!(observer.project_tasks(&panel, 3).await.unwrap()["value"]["coordinator_online"], true);
+    drop(observer);
+    let mut observer = connection.connect(&profile).await.unwrap();
+    assert_eq!(observer.project_tasks(&panel, 4).await.unwrap()["value"]["coordinator_online"], true);
+    client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: agent.session_id,
+        run_id: agent.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
+    let mut cleared = false;
+    for generation in 5..55 {
+        if observer.project_tasks(&panel, generation).await.unwrap()["value"]["coordinator_online"] == false {
+            cleared = true; break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert!(cleared, "Only actual Agent exit clears Coordinator liveness");
     files.disconnect();
     files.reconnect().await.unwrap();
     assert_eq!(files.download(&path).await.unwrap().1, updated);

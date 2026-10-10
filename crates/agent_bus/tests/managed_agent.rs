@@ -178,7 +178,7 @@ async fn background_activity_blocks_release_until_owned_stop() {
             .to_vec(),
             columns: 100,
             rows: 24,
-            agent_program: None,
+            agent_program: None, working_directory: None,
         }))
         .await
     else {
@@ -359,7 +359,7 @@ async fn managed_agent_fences_input_project_and_owned_stop() {
             .to_vec(),
         columns: 240,
         rows: 24,
-        agent_program: Some("fixture".into()),
+        agent_program: Some("fixture".into()), working_directory: None,
     };
     let managed_response::Result::TerminalState(state) = first
         .call(managed_request::Operation::TerminalLaunch(launch.clone()))
@@ -377,6 +377,15 @@ async fn managed_agent_fences_input_project_and_owned_stop() {
         .wait_output(&state, &format!("MCP_NATIVE_RUN={}", state.run_id))
         .await;
     assert_eq!(state.run_id, repeated.run_id);
+    let mut changed_directory = launch.clone();
+    changed_directory.working_directory = Some(root.to_str().unwrap().into());
+    assert!(matches!(first.call(managed_request::Operation::TerminalLaunch(changed_directory)).await,
+        managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedConflict as i32));
+    let mut invalid_directory = launch.clone();
+    invalid_directory.session_id = Uuid::new_v4().to_string();
+    invalid_directory.working_directory = Some("relative-workspace".into());
+    assert!(matches!(first.call(managed_request::Operation::TerminalLaunch(invalid_directory)).await,
+        managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedInvalidInput as i32));
     let mut changed = launch;
     changed.rows = 30;
     assert!(
@@ -454,7 +463,7 @@ async fn disconnected_agent_cannot_be_adopted_by_another_connection() {
             .to_vec(),
         columns: 100,
         rows: 24,
-        agent_program: Some("fixture".into()),
+        agent_program: Some("fixture".into()), working_directory: None,
     };
     let managed_response::Result::TerminalState(state) = first
         .call(managed_request::Operation::TerminalLaunch(launch.clone()))
@@ -515,7 +524,7 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
                     .to_vec(),
                 columns: 1000,
                 rows: 24,
-                agent_program: Some("fixture".into()),
+                agent_program: Some("fixture".into()), working_directory: None,
             }))
             .await
         else {
