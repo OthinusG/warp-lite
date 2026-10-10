@@ -3260,7 +3260,7 @@ impl TypedActionView for RichTextEditorView {
             EditorViewAction::ExitCommandSelection => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new(
                     warpui::localization::text("De-select command"),
-                    "Switch from selecting commands to selecting text",
+                    warpui::localization::text("Switch from selecting commands to selecting text"),
                     WarpA11yRole::UserAction,
                 ))
             }

@@ -644,9 +644,9 @@ impl View for LaunchConfigSaveModal {
     fn accessibility_contents(&self, _ctx: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
             warpui::localization::text("Save Config Modal"),
-            "Type the name of the file to which you want to save your
+            warpui::localization::text("Type the name of the file to which you want to save your
             current configuration of windows, tabs, and panes. Use enter to save the
-            launch configuration, esc to quit the save configuration modal.",
+            launch configuration, esc to quit the save configuration modal."),
             WarpA11yRole::PopoverRole,
         ))
     }

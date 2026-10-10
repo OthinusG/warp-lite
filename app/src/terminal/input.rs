@@ -6624,7 +6624,7 @@ impl Input {
         }
         ctx.emit_a11y_content(AccessibilityContent::new(
             accessibility_text,
-            "Press shift-tab to select the next workflow argument",
+            warpui::localization::text("Press shift-tab to select the next workflow argument"),
             WarpA11yRole::UserAction,
         ));
 
@@ -13721,9 +13721,9 @@ impl TypedActionView for Input {
         match action {
             InputAction::FocusInputBox => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new(
-                    INPUT_A11Y_LABEL,
+                    warpui::localization::text(INPUT_A11Y_LABEL),
                     // TODO (a11y) use bindings from user settings
-                    INPUT_A11Y_HELPER,
+                    warpui::localization::text(INPUT_A11Y_HELPER),
                     WarpA11yRole::TextareaRole,
                 ))
             }
@@ -13914,9 +13914,9 @@ impl View for Input {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            INPUT_A11Y_LABEL,
+            warpui::localization::text(INPUT_A11Y_LABEL),
             // TODO (a11y) use bindings from user settings
-            INPUT_A11Y_HELPER,
+            warpui::localization::text(INPUT_A11Y_HELPER),
             WarpA11yRole::TextareaRole,
         ))
     }

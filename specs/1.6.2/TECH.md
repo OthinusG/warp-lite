@@ -105,3 +105,8 @@ Constant-based find tooltips/placeholders, secret-redaction descriptions and MCP
 empty states are localized at their callers. The catalog checker resolves local
 constant and LazyLock references used by explicit localization calls, with
 self-checks for both declaration forms; it does not translate arbitrary content.
+
+The accessibility audit also covers the help argument of announcements and views,
+including native menus, workflow selection, find/replace, command input, update
+and notification guidance. Command/output content stays literal. Shared command
+input labels are localized at consumers, retaining the original constant values.

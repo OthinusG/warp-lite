@@ -262,7 +262,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> Find<T> {
                         ],
                     )
                 },
-                "Use enter and shift-enter to navigate between matches. Escape to quit.",
+                warpui::localization::text("Use enter and shift-enter to navigate between matches. Escape to quit."),
                 WarpA11yRole::UserAction,
             )
         } else {
@@ -483,7 +483,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> View for Find<T> {
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
             warpui::localization::text("Type searched phrase."),
-            "Press escape to quit, use enter and shift-enter to navigate between matches",
+            warpui::localization::text("Press escape to quit, use enter and shift-enter to navigate between matches"),
             WarpA11yRole::TextareaRole,
         ))
     }

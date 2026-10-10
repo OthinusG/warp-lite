@@ -8781,7 +8781,7 @@ impl TerminalView {
 
         let a11y_content = AccessibilityContent::new(
             trigger.discovery_banner_copy(),
-            "You can enable notifications through the command palette.",
+            warpui::localization::text("You can enable notifications through the command palette."),
             WarpA11yRole::TextRole,
         );
         ctx.emit_a11y_content(a11y_content);
@@ -8819,7 +8819,7 @@ impl TerminalView {
 
         let a11y_content = AccessibilityContent::new(
             banner_title,
-            "Make sure you have enabled access for Warpai notifications in System Preferences.",
+            warpui::localization::text("Make sure you have enabled access for Warpai notifications in System Preferences."),
             WarpA11yRole::TextRole,
         );
         ctx.emit_a11y_content(a11y_content);
@@ -13531,7 +13531,7 @@ impl TerminalView {
 
             let a11y_content = AccessibilityContent::new(
                 format!("Suggested corrected command: {}", correction.command),
-                "Press right arrow to insert or keep editing to ignore",
+                warpui::localization::text("Press right arrow to insert or keep editing to ignore"),
                 WarpA11yRole::HelpRole,
             );
             ctx.emit_a11y_content(a11y_content);
@@ -24134,15 +24134,15 @@ impl TypedActionView for TerminalView {
             }
             FocusInputAndClearSelection => {
                 Custom(AccessibilityContent::new(
-                    INPUT_A11Y_LABEL,
+                    warpui::localization::text(INPUT_A11Y_LABEL),
                     // TODO (a11y) use bindings from user settings
-                    INPUT_A11Y_HELPER,
+                    warpui::localization::text(INPUT_A11Y_HELPER),
                     WarpA11yRole::TextareaRole,
                 ))
             }
             KeyDown(key) => {
                 let label = if key.eq("\x1b") {
-                    INPUT_A11Y_LABEL
+                    warpui::localization::text(INPUT_A11Y_LABEL)
                 } else {
                     key
                 };

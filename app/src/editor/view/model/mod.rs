@@ -2253,7 +2253,7 @@ impl EditorModel {
 
         ctx.emit_a11y_content(AccessibilityContent::new(
             self.selected_text(ctx),
-            ", deleted",
+            warpui::localization::text(", deleted"),
             WarpA11yRole::UserAction,
         ));
         self.change_selections(new_selections, ctx);
@@ -2277,7 +2277,7 @@ impl EditorModel {
 
         ctx.emit_a11y_content(AccessibilityContent::new(
             self.selected_text(ctx),
-            ", deleted",
+            warpui::localization::text(", deleted"),
             WarpA11yRole::UserAction,
         ));
         self.change_selections(new_selections, ctx);

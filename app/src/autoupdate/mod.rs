@@ -715,7 +715,7 @@ pub fn accessibility_content(
         // Found autoupdate
         (RequestType::ManualCheck, Ok(UpdateReady::Yes { .. })) => Some(AccessibilityContent::new(
             warpui::localization::text("Update available."),
-            "Use the command palette to install and relaunch Warpai",
+            warpui::localization::text("Use the command palette to install and relaunch Warpai"),
             WarpA11yRole::HelpRole,
         )),
         // Any non-successful autoupdate check

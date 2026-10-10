@@ -400,7 +400,7 @@ impl CodeEditorFind {
                         ],
                     )
                 },
-                "Use enter and shift-enter to navigate between matches. Escape to quit.",
+                warpui::localization::text("Use enter and shift-enter to navigate between matches. Escape to quit."),
                 WarpA11yRole::UserAction,
             )
         } else {
@@ -416,7 +416,7 @@ impl CodeEditorFind {
             let remaining_matches = self.searcher.as_ref(ctx).match_count();
             AccessibilityContent::new(
                 warpui::localization::format_text("Successfully replaced match. Selected match is {match_index} of {remaining_matches}", &[("match_index", format!("{match_index}").as_str()), ("remaining_matches", format!("{remaining_matches}").as_str())]),
-                "Continue pressing Enter to replace more matches, or use up/down arrows to navigate.",
+                warpui::localization::text("Continue pressing Enter to replace more matches, or use up/down arrows to navigate."),
                 WarpA11yRole::UserAction,
             )
         } else {

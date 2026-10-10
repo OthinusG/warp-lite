@@ -2411,22 +2411,22 @@ impl<A: Action + Clone> SubMenu<A> {
             }
             OpenSubmenu => Custom(AccessibilityContent::new(
                 String::from("Submenu Expanded"),
-                "Press the right key to open the selected submenu",
+                warpui::localization::text("Press the right key to open the selected submenu"),
                 WarpA11yRole::TextRole,
             )),
             CloseSubmenu(_) => Custom(AccessibilityContent::new(
                 String::from("Submenu Closed"),
-                "Removing focus from a submenu will close the submenu",
+                warpui::localization::text("Removing focus from a submenu will close the submenu"),
                 WarpA11yRole::TextRole,
             )),
             Close(_) => Custom(AccessibilityContent::new(
                 String::from("Menu Closed"),
-                "Press the escape key to close the menu",
+                warpui::localization::text("Press the escape key to close the menu"),
                 WarpA11yRole::TextRole,
             )),
             Enter => Custom(AccessibilityContent::new(
                 String::from("Action Selected"),
-                "Press the enter key to execute the selected menu item action",
+                warpui::localization::text("Press the enter key to execute the selected menu item action"),
                 WarpA11yRole::TextRole,
             )),
             HoverSubmenuLeafNode { .. }

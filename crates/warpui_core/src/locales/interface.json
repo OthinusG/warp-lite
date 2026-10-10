@@ -67,6 +67,10 @@
     "+ 另外 {hidden_branch_count} 项",
     "+ 另外 {hidden_branch_count} 項"
   ],
+  ", deleted": [
+    "，已删除",
+    "，已刪除"
+  ],
   "1 Comment": [
     "1 条评论",
     "1 則留言"
@@ -851,6 +855,10 @@
     "列数",
     "欄數"
   ],
+  "Command Input.": [
+    "命令输入。",
+    "命令輸入。"
+  ],
   "Command Search": [
     "命令搜索",
     "指令搜尋"
@@ -990,6 +998,10 @@
   "Continue locally": [
     "在本地继续",
     "在本機繼續"
+  ],
+  "Continue pressing Enter to replace more matches, or use up/down arrows to navigate.": [
+    "继续按 Enter 替换更多匹配项，或使用上下方向键切换。",
+    "繼續按 Enter 取代更多符合項目，或使用上下方向鍵切換。"
   ],
   "Continue summarization": [
     "继续摘要",
@@ -2971,6 +2983,10 @@
     "输入类型",
     "輸入類型"
   ],
+  "Input your shell command, press enter to execute. Press cmd-up to navigate to output of previously executed commands. Press cmd-l to re-focus command input.": [
+    "输入 Shell 命令，按 Enter 执行。按 Cmd+上方向键前往已执行命令的输出。按 Cmd+L 将焦点移回命令输入。",
+    "輸入 Shell 命令，按 Enter 執行。按 Cmd+上方向鍵前往已執行命令的輸出。按 Cmd+L 將焦點移回命令輸入。"
+  ],
   "Insert Command Correction": [
     "插入命令修正",
     "插入命令修正"
@@ -3147,6 +3163,10 @@
     "了解更多",
     "瞭解更多"
   ],
+  "Learn more about opening Markdown files in Warpai": [
+    "了解如何在 Warpai 中打开 Markdown 文件",
+    "瞭解如何在 Warpai 中開啟 Markdown 檔案"
+  ],
   "Leave participation": [
     "退出参与",
     "退出參與"
@@ -3278,6 +3298,10 @@
   "Make default": [
     "设为默认",
     "設為預設"
+  ],
+  "Make sure you have enabled access for Warpai notifications in System Preferences.": [
+    "请确认已在系统偏好设置中允许 Warpai 发送通知。",
+    "請確認已在系統偏好設定中允許 Warpai 傳送通知。"
   ],
   "Manage": [
     "管理",
@@ -4263,9 +4287,41 @@
     "选择命令块时保留输入焦点",
     "選取命令區塊時保留輸入焦點"
   ],
+  "Press escape to close.": [
+    "按 Esc 关闭。",
+    "按 Esc 關閉。"
+  ],
+  "Press escape to quit": [
+    "按 Esc 退出",
+    "按 Esc 退出"
+  ],
+  "Press escape to quit, use enter and shift-enter to navigate between matches": [
+    "按 Esc 退出，使用 Enter 和 Shift+Enter 在匹配项之间切换",
+    "按 Esc 退出，使用 Enter 與 Shift+Enter 在符合項目之間切換"
+  ],
   "Press new keyboard shortcut": [
     "按下新的快捷键",
     "按下新的快捷鍵"
+  ],
+  "Press right arrow to insert or keep editing to ignore": [
+    "按右方向键插入，或继续编辑以忽略",
+    "按右方向鍵插入，或繼續編輯以忽略"
+  ],
+  "Press shift-tab to select the next workflow argument": [
+    "按 Shift+Tab 选择下一个工作流参数",
+    "按 Shift+Tab 選取下一個工作流程參數"
+  ],
+  "Press the enter key to execute the selected menu item action": [
+    "按 Enter 执行选定菜单项的操作",
+    "按 Enter 執行所選選單項目的操作"
+  ],
+  "Press the escape key to close the menu": [
+    "按 Esc 关闭菜单",
+    "按 Esc 關閉選單"
+  ],
+  "Press the right key to open the selected submenu": [
+    "按右方向键打开选定子菜单",
+    "按右方向鍵開啟所選子選單"
   ],
   "Preview · {}": [
     "预览 · {}",
@@ -4502,6 +4558,10 @@
   "Remove {display_name}": [
     "移除 {display_name}",
     "移除 {display_name}"
+  ],
+  "Removing focus from a submenu will close the submenu": [
+    "移开焦点会关闭子菜单",
+    "移開焦點會關閉子選單"
   ],
   "Rename the current pane": [
     "重命名当前窗格",
@@ -4838,6 +4898,10 @@
   "Search": [
     "搜索",
     "搜尋"
+  ],
+  "Search or use arrow up and arrow down keys to navigate and find a workflow. Use enter to confirm the workflow and esc to quit.": [
+    "搜索或使用上下方向键查找工作流。按 Enter 确认工作流，按 Esc 退出。",
+    "搜尋或使用上下方向鍵尋找工作流程。按 Enter 確認工作流程，按 Esc 退出。"
   ],
   "Search sessions, agents, files...": [
     "搜索会话、智能体和文件…",
@@ -5419,6 +5483,10 @@
     "切换回横向标签页",
     "切換回橫向分頁"
   ],
+  "Switch from selecting commands to selecting text": [
+    "从选择命令切换到选择文本",
+    "從選取命令切換至選取文字"
+  ],
   "Switch panes down": [
     "向下切换窗格",
     "向下切換窗格"
@@ -5935,6 +6003,10 @@
     "输入要查找的短语。",
     "輸入要尋找的片語。"
   ],
+  "Type the name of the file to which you want to save your\n            current configuration of windows, tabs, and panes. Use enter to save the\n            launch configuration, esc to quit the save configuration modal.": [
+    "输入文件名以保存当前窗口、标签页和面板配置。按 Enter 保存启动配置，按 Esc 退出保存配置对话框。",
+    "輸入檔案名稱以儲存目前視窗、分頁與面板設定。按 Enter 儲存啟動設定，按 Esc 退出儲存設定對話框。"
+  ],
   "Unable to load file content": [
     "无法加载文件内容",
     "無法載入檔案內容"
@@ -6039,6 +6111,10 @@
     "在备用屏幕中使用自定义边距",
     "在替代螢幕中使用自訂邊距"
   ],
+  "Use enter and shift-enter to navigate between matches. Escape to quit.": [
+    "使用 Enter 和 Shift+Enter 在匹配项之间切换。按 Esc 退出。",
+    "使用 Enter 與 Shift+Enter 在符合項目之間切換。按 Esc 退出。"
+  ],
   "Use latest user prompt as conversation title in tab names": [
     "以最新用户提示作为标签页中的对话标题",
     "以最新使用者提示作為分頁中的對話標題"
@@ -6046,6 +6122,10 @@
   "Use regex to define additional secrets or data you'd like to redact. This will take effect when the next command runs. You can use the inline (?i) flag as a prefix to your regex to make it case-insensitive.": [
     "使用正则表达式定义需要脱敏的其他敏感信息或数据。此设置将在下一条命令运行时生效。你可以在正则表达式前添加内联标志 (?i)，以忽略大小写。",
     "使用正規表示式定義需要遮蔽的其他敏感資訊或資料。此設定將在下一條命令執行時生效。你可以在正規表示式前加入行內旗標 (?i)，以忽略大小寫。"
+  ],
+  "Use the command palette to install and relaunch Warpai": [
+    "通过命令面板安装并重新启动 Warpai",
+    "透過命令面板安裝並重新啟動 Warpai"
   ],
   "Use vertical tab layout": [
     "使用垂直标签页布局",
@@ -6354,6 +6434,10 @@
   "You (default reviewer)": [
     "你（默认审查者）",
     "你（預設審查者）"
+  ],
+  "You can enable notifications through the command palette.": [
+    "你可以通过命令面板启用通知。",
+    "你可以透過命令面板啟用通知。"
   ],
   "You can sign up later, but some features, such as AI,": [
     "你可以稍后注册，但 AI 等部分功能",
