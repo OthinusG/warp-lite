@@ -4856,6 +4856,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ResizableData::as_ref(ctx).get_all_handles(window).unwrap().left_panel_width.lock().unwrap().set_size(width as f32);
                             crate::agent_usage::AgentUsage::handle(ctx).update(ctx, |model, ctx| model.capture_fixture(state, ctx));
                         });
+                        let root = app.root_view::<RootView>(window).unwrap();
+                        let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                        workspace.update(app, |workspace, ctx| {
+                            if workspace.active_tab_pane_group().as_ref(ctx).right_panel_open {
+                                workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx);
+                            }
+                            if !workspace.is_left_panel_open(ctx) {
+                                workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                            }
+                        });
                         let tools = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                         tools.update(app, |tools, ctx| tools.handle_action_with_force_open(&LeftPanelAction::Collaboration, true, ctx));
                         let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
@@ -4867,7 +4877,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ctx.notify();
                         });
                     }).add_named_assertion("usage fixture preserves terminal draft and account count", move |app, window| {
-                        warpui::async_assert!(app.read(|ctx| crate::agent_usage::AgentUsage::as_ref(ctx).accounts.len()
+                        let root = app.root_view::<RootView>(window).unwrap();
+                        let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                        let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        warpui::async_assert!(workspace.read(app, |workspace, ctx| workspace.is_left_panel_open(ctx))
+                            && panel.read(app, |panel, _| panel.visible)
+                            && app.read(|ctx| crate::agent_usage::AgentUsage::as_ref(ctx).accounts.len()
                             == if state == "empty" { 0 } else if state == "overflow" { 8 } else { 3 })
                             && checkpoint_draft(app, window) == "unsent collaboration draft")
                     }).with_take_screenshot(filename));

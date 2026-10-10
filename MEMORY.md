@@ -21,37 +21,32 @@ consult it only when a specific historical question requires it.
   source. Follow [release gates](specs/RELEASE.md), including five installers and
   checksums. Finish UI acceptance before screenshots/packages. Protocol major is 1.
 
-## Current patch work: 1.5.1 and 1.5.5
+## Current patch releases: 1.5.1 and 1.5.5
 
-- Last delivered baseline: Warpai 1.5.0 / Companion 4.0.0. The owner explicitly
-  ended its audit; do not resume it. Current patch work is not yet accepted/released.
-- b.txt has eight items (duplicate number 7): first seven UI items are 1.5.1;
-  Data usage is 1.5.5. Keep Companion 4.0.0 if unchanged. Contract:
+- Baseline: published Warpai 1.5.0 / Companion 4.0.0; its audit was explicitly
+  ended. The owner now authorizes sequential publication of 1.5.1, then 1.5.5.
+  Add no telemetry. 1.6.0 waits for further owner instructions; do not start it.
+- b.txt has eight items (duplicate 7): first seven UI items are 1.5.1; Data usage
+  is 1.5.5. Companion stays 4.0.0. Contract:
   [PATCHES-1.5.1-1.5.5.md](specs/agent-communication-v2/PATCHES-1.5.1-1.5.5.md).
-- 1.5.1: icon toolbelt entry; native local worktree management/removal;
-  Coordinator dropdown; `Agents Collaboration Mode` heading; section icons,
-  dividers and consistent spacing; secondary selectable History beside Message;
-  Message/Assign recipient/reviewer/prerequisite dropdowns in both modes.
-- Also 1.5.1: show Rescan agents / Remove all MCP only inside enabled Agent
-  communication settings. Remove the nonfunctional App icon selector, retaining
-  package artwork and the independent Dock visibility setting.
-- Validate the completed combined 1.5.5 source directly, backport shared fixes to
-  the independent 1.5.1 checkpoint, then package/publish 1.5.1. Skip a redundant
-  intermediate native walkthrough; retain tagged installer gates. Do not publish
-  1.5.5 automatically or include Data usage in the 1.5.1 source.
-- Combined branch: `feature/collaboration-patches-1.5.1-1.5.5`. Independent branch:
-  `patch/1.5.1`, worktree `/private/tmp/warpai-patch-1.5.1`, checkpoint ca42a88e.
-  Main remains the delivered baseline. Preserve both checkpoints until delivery.
-- Both desktops failed run 38016331795 on redundant Paragraph::with_soft_wrap;
-  fixed in 4974c5e6. Native compatibility fixes follow in 74649624.
-- Latest full combined validation dispatched:
-  [38018432379](https://github.com/OthinusG/warpai/actions/runs/38018432379), source
-  74649624, check_app/capture_ui enabled. Result has not yet been inspected.
-  Require default/warp_platform builds, focused tests and 274 native PNGs per OS
-  (60 new usage/settings frames), including focus/cache and independent scrolling.
-- Remaining: inspect/fix cloud results, review native captures, propagate shared
-  fixes to 1.5.1, update acceptance/release receipts, then release exact 1.5.1.
-  Local syntax/diff/license checks do not establish runtime or provider acceptance.
+- 1.5.1: toolbelt icon; native worktree removal; Coordinator dropdown; mode
+  heading/icons/dividers/spacing; selectable secondary History; Message/Assign
+  dropdowns. Rescan/Remove MCP appear only when communication is enabled;
+  nonfunctional App icon selector is removed, retaining Dock visibility.
+- Combined source 74649624 passes both OS default/platform builds, focused tests
+  and native assertions in [38018432379](https://github.com/OthinusG/warpai/actions/runs/38018432379).
+  Both artifacts contain 274 CRC-valid PNGs, exact source, exit 0 and no failed
+  assertions. Review exposed the new usage fixtures' closed Tools panel after
+  SSH Review; explicitly restore visibility and assert it before usage captures.
+  Recheck these images before 1.5.5 publication; shared 1.5.1 captures are visible.
+- Independent 1.5.1 is tagged at 30ad76bb on patch/1.5.1, excluding Data usage.
+  [Formal release 38022801330](https://github.com/OthinusG/warpai/actions/runs/38022801330)
+  was dispatched with auto_publish=true; Windows follows. Publication is pending.
+- Combined branch: feature/collaboration-patches-1.5.1-1.5.5. Independent worktree:
+  /private/tmp/warpai-patch-1.5.1. Main still holds the delivered baseline.
+- Remaining: finish 1.5.1 native package/public-asset gates; fix and review usage
+  captures; prepare/tag/release 1.5.5 only after 1.5.1 is public. Retain existing
+  release checks; no redundant intermediate 1.5.1 walkthrough is requested.
 
 ## Project, worktree and Agent ownership
 

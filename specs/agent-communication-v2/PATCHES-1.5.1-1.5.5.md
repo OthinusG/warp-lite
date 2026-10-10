@@ -128,3 +128,15 @@ frames (274 total per platform) for usage states, independent scrolling and
 settings, plus assertions that focus changes preserve accounts and percentages.
 Rust syntax parsing, diff whitespace and shell syntax pass locally. Desktop
 compilation, application tests and visual acceptance still require GitHub.
+
+## Sequential publication authorization — 2026-10-10
+
+The owner now authorizes 1.5.1 followed by 1.5.5, with Companion 4.0.0 and no
+telemetry. 1.6.0 remains paused until the owner specifies it. Source 74649624
+passes both desktop jobs in run 38018432379; all 548 PNGs have valid CRC and
+matching source diagnostics with exit_code 0 and no failed assertions. Shared
+1.5.1 captures show the panel. Usage fixtures retained a closed Tools panel
+after the SSH Review steps, so restore workspace visibility and assert the
+panel is visible before rechecking those captures for 1.5.5 acceptance.
+Independent tag v1.5.1 points to 30ad76bb; formal release run 38022801330 is
+pending. Sequential public delivery and all installer gates remain required.
