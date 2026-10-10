@@ -4,6 +4,8 @@
     not(target_family = "wasm")
 ))]
 pub(crate) mod agent_communication;
+#[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+pub(crate) mod agent_usage;
 use self::telemetry::SettingsTelemetryEvent;
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;

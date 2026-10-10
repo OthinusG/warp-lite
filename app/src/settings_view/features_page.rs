@@ -2539,6 +2539,10 @@ impl FeaturesPageView {
         general_widgets.push(Box::new(super::agent_communication::CommunicationWidget(
             ctx.add_typed_action_view(super::agent_communication::CommunicationSettingsView::new),
         )));
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        general_widgets.push(Box::new(super::agent_usage::UsageWidget(
+            ctx.add_typed_action_view(super::agent_usage::UsageSettingsView::new),
+        )));
 
         let native_preference_settings = NativePreferenceSettings::as_ref(ctx);
         if native_preference_settings

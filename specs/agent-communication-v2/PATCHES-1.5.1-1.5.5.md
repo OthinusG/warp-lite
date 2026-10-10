@@ -56,6 +56,10 @@ never fabricated percentages. Provider balances without a known limit must
 remain balances rather than an invented percentage.
 
 Add a native settings entry for account setup and which accounts appear.
+Accounts and their visibility are application-wide and persist independently of
+project/worktree/tab/pane focus. Store cached readings in the application model;
+restart restores account configuration and requests fresh readings. Panel context
+resets must never clear account configuration, credentials or cached readings.
 Provider authentication is explicitly authorized; Warp account/cloud AI,
 telemetry and billing remain excluded. Store secrets through the existing OS
 credential abstraction; never include secret values in settings, logs, errors,
@@ -88,3 +92,15 @@ checkpoint with the normal release identity/installer gates. Data usage must
 remain absent from the 1.5.1 source. Retain the 1.5.5 acceptance receipt separately.
 Record provider support, source/license provenance and validation receipts here
 and in MEMORY.md. Release/package only accepted version-specific source.
+
+## Implementation checkpoint (acceptance pending)
+
+Orca support inventory is [USAGE-PROVIDERS.md](USAGE-PROVIDERS.md). Native account
+settings, OS credential storage, bounded provider requests, CLI metadata queries,
+fixed four-row footer and Agent icons are integrated. No Companion source change.
+Parser/account tests cover missing usage, zero allowance, balance-only payloads,
+provider mappings and the free Antigravity version guard. Native captures add 60
+frames (274 total per platform) for usage states, independent scrolling and
+settings, plus assertions that focus changes preserve accounts and percentages.
+Rust syntax parsing, diff whitespace and shell syntax pass locally. Desktop
+compilation, application tests and visual acceptance still require GitHub.

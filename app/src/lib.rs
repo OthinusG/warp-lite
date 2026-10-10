@@ -10,6 +10,8 @@ mod app_state;
 mod auth;
 mod autoupdate;
 mod release_updates;
+#[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+mod agent_usage;
 mod banner;
 #[cfg(feature = "warp_platform")]
 mod billing;
@@ -1735,6 +1737,8 @@ fn initialize_app(
 
     AutoupdateState::register(ctx, server_api.clone());
     ctx.add_singleton_model(release_updates::ReleaseUpdates::new);
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    ctx.add_singleton_model(agent_usage::AgentUsage::new);
 
     ctx.add_singleton_model(LocalWorkflows::new);
 

@@ -5,7 +5,8 @@ use crate::{
     settings_view::{
         features_page::FeaturesPageView,
         settings_page::{
-            render_body_item, render_sub_header, LocalOnlyIconState, SettingsWidget, ToggleState,
+            render_body_item, render_body_item_label_with_icon, build_toggle_element,
+            render_sub_header, LocalOnlyIconState, SettingsWidget, ToggleState,
         },
     },
     ui_components::blended_colors,
@@ -130,23 +131,20 @@ impl View for CommunicationSettingsView {
                     checkbox
                 };
                 let command = row.command.clone();
-                body.add_child(render_body_item::<Action>(
-                    row.command,
-                    None,
-                    LocalOnlyIconState::Hidden,
-                    if model.busy || row.installed.is_none() {
-                        ToggleState::Disabled
-                    } else {
-                        ToggleState::Enabled
-                    },
-                    appearance,
+                body.add_child(build_toggle_element(
+                    render_body_item_label_with_icon::<Action>(
+                        row.command, crate::agent_usage::agent_icon(&row.program), None, None,
+                        LocalOnlyIconState::Hidden,
+                        if model.busy || row.installed.is_none() { ToggleState::Disabled } else { ToggleState::Enabled },
+                        appearance,
+                    ),
                     checkbox
                         .build()
                         .on_click(move |ctx, _, _| {
                             ctx.dispatch_typed_action(Action::Select(command.clone()))
                         })
                         .finish(),
-                    Some(row.status),
+                    appearance, Some(row.status),
                 ));
             }
         }
@@ -160,42 +158,42 @@ impl View for CommunicationSettingsView {
             ));
         }
         if model.preferences.enabled {
-        let refresh = builder
-            .button(ButtonVariant::Secondary, self.refresh.clone())
-            .with_text_label("Rescan agents".to_owned());
-        let refresh = if model.busy {
-            refresh.disabled()
-        } else {
-            refresh
-        };
-        body.add_child(
-            Container::new(
+            let refresh = builder
+                .button(ButtonVariant::Secondary, self.refresh.clone())
+                .with_text_label("Rescan agents".to_owned());
+            let refresh = if model.busy {
+                refresh.disabled()
+            } else {
                 refresh
-                    .build()
-                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
-                    .finish(),
-            )
-            .with_margin_top(12.)
-            .finish(),
-        );
-        let uninstall_all = builder
-            .button(ButtonVariant::Secondary, self.uninstall_all.clone())
-            .with_text_label("Remove Warpai MCP from all agents".to_owned());
-        let uninstall_all = if model.busy {
-            uninstall_all.disabled()
-        } else {
-            uninstall_all
-        };
-        body.add_child(
-            Container::new(
+            };
+            body.add_child(
+                Container::new(
+                    refresh
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
+                        .finish(),
+                )
+                .with_margin_top(12.)
+                .finish(),
+            );
+            let uninstall_all = builder
+                .button(ButtonVariant::Secondary, self.uninstall_all.clone())
+                .with_text_label("Remove Warpai MCP from all agents".to_owned());
+            let uninstall_all = if model.busy {
+                uninstall_all.disabled()
+            } else {
                 uninstall_all
-                    .build()
-                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::UninstallAll))
-                    .finish(),
-            )
-            .with_margin_top(8.)
-            .finish(),
-        );
+            };
+            body.add_child(
+                Container::new(
+                    uninstall_all
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::UninstallAll))
+                        .finish(),
+                )
+                .with_margin_top(8.)
+                .finish(),
+            );
         }
         Container::new(body.finish())
             .with_margin_bottom(16.)

@@ -103,6 +103,9 @@ jobs:
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warpai --lib release_updates::tests --locked
+          cargo test -p warpai --lib agent_usage:: --locked
+          cargo test -p warpai --lib prerequisite_selector_toggles_stable_ids_and_clears_explicitly --locked
+          cargo test -p warpai --lib remove_worktree_preserves_protected_checkouts_and_branch --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
           cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
@@ -162,7 +165,7 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          $expectedImages = $fixtureCount * 8 + 110
+          $expectedImages = $fixtureCount * 8 + 170
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
@@ -244,6 +247,9 @@ jobs:
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warpai --lib release_updates::tests --locked
+          cargo test -p warpai --lib agent_usage:: --locked
+          cargo test -p warpai --lib prerequisite_selector_toggles_stable_ids_and_clears_explicitly --locked
+          cargo test -p warpai --lib remove_worktree_preserves_protected_checkouts_and_branch --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpui_extras --lib --features secure_storage keychain_access_errors_do_not_prove_missing_credentials --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
@@ -289,7 +295,7 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = len(fixtures) * 8 + 110
+          expected = len(fixtures) * 8 + 170
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures

@@ -4,6 +4,8 @@ use crate::ui_components::blended_colors;
 use crate::view_components::dropdown::{Dropdown, DropdownItem};
 #[path = "panel_controls.rs"]
 mod controls;
+#[path = "panel_usage.rs"]
+mod usage;
 use serde::Deserialize;
 use std::{
     borrow::Cow,
@@ -40,24 +42,8 @@ const GAP_TIGHT: f32 = 8.;
 const GAP_ROW: f32 = 8.;
 const GAP_SECTION: f32 = 8.;
 
-// Text roles: the 14px semibold primary title outranks semibold section headings;
+// Text roles: semibold function headings;
 // 12px secondary text carries status and guidance.
-fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> {
-    let theme = appearance.theme();
-    appearance
-        .ui_builder()
-        .span(text)
-        .with_style(UiComponentStyles {
-            font_size: Some(14.),
-            font_weight: Some(Weight::Semibold),
-            font_color: Some(theme.active_ui_text_color().into()),
-            ..Default::default()
-        })
-        .with_soft_wrap()
-        .build()
-        .finish()
-}
-
 fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
     let text = text.into();
     use crate::ui_components::icons::Icon;
@@ -66,6 +52,7 @@ fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<d
         "Worktrees" | "Worktree collaboration" => Some(Icon::GitBranch),
         "History" => Some(Icon::History),
         "Message" | "Messages" | "Conversation" => Some(Icon::MessageText),
+        "Data usage" => Some(Icon::Dataflow),
         "Tasks" | "Assign" => Some(Icon::TaskListBlock),
         "Project" | "SSH project" => Some(Icon::Folder),
         _ => None,
@@ -82,7 +69,7 @@ fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<d
         .finish();
     if let Some(icon) = icon {
         Flex::row().with_spacing(GAP_ROW)
-            .with_child(icon.to_warpui_icon(appearance.theme().foreground()).finish())
+            .with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(appearance.theme().foreground()).finish()).with_width(16.).with_height(16.).finish())
             .with_child(Shrinkable::new(1., label).finish()).finish()
     } else { label }
 }
@@ -319,6 +306,9 @@ pub(crate) struct CollaborationPanel {
     selected: usize,
     next: MouseStateHandle,
     scroll: ClippedScrollStateHandle,
+    usage_scroll: ClippedScrollStateHandle,
+    usage_buttons: [MouseStateHandle; 2],
+    usage_rows: std::cell::RefCell<HashMap<String, MouseStateHandle>>,
     preview: bool,
     visible: bool,
     snapshot: Option<Snapshot>,
@@ -355,6 +345,8 @@ pub(crate) struct CollaborationPanel {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
+    UsageSettings,
+    RefreshUsage,
     Mode(bool),
     SelectFormField { request: String, index: usize, value: String },
     ChooseCoordinator { project: String, agent: String, run: String },
@@ -399,6 +391,7 @@ pub(crate) enum Action {
 
 impl CollaborationPanel {
     pub(crate) fn new(ctx: &mut ViewContext<Self>) -> Self {
+        ctx.observe(&crate::agent_usage::AgentUsage::handle(ctx), |_, _, ctx| ctx.notify());
         let preview = std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some();
         if !preview {
             Self::schedule(ctx);
@@ -417,6 +410,9 @@ impl CollaborationPanel {
             selected: 0,
             next: Default::default(),
             scroll: Default::default(),
+            usage_scroll: Default::default(),
+            usage_buttons: Default::default(),
+            usage_rows: Default::default(),
             preview,
             visible: false,
             snapshot: None,
@@ -1049,6 +1045,7 @@ impl CollaborationPanel {
                 rows: snapshot
                     .agents
                     .iter()
+                    .filter(|row| row.online)
                     .map(|row| {
                         let activity = row
                             .activity
@@ -1124,6 +1121,17 @@ impl Entity for CollaborationPanel {
 impl TypedActionView for CollaborationPanel {
     type Action = Action;
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
+        match action {
+            Action::UsageSettings => {
+                ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::ShowSettingsPage(crate::settings_view::SettingsSection::Features));
+                return;
+            }
+            Action::RefreshUsage => {
+                crate::agent_usage::AgentUsage::handle(ctx).update(ctx, |model, ctx| model.refresh(ctx));
+                return;
+            }
+            _ => (),
+        }
         if !self.preview {
             match action {
                 Action::SelectFormField { request, index, value } => {
@@ -1148,6 +1156,7 @@ impl TypedActionView for CollaborationPanel {
                     if self.form.is_some() || !self.worktree_mode || !self.connected
                         || self.snapshot.as_ref().is_none_or(|snapshot| snapshot.project != *project
                             || !snapshot.candidates.iter().any(|candidate| candidate.agent.id == *agent && candidate.run == *run)) {
+                        if let Some(snapshot) = &self.snapshot { self.sync_coordinator_dropdown(snapshot, ctx); }
                         return;
                     }
                     self.open_control(controls::Kind::SelectCoordinator, ctx);
@@ -1453,7 +1462,7 @@ impl TypedActionView for CollaborationPanel {
                         .and_then(|snapshot| snapshot.agent_cursor.clone())
                 }
                 Action::FirstAgents => self.query.agent_after = None,
-                Action::NextFixture | Action::PreviousFixture => {}
+                Action::NextFixture | Action::PreviousFixture | Action::UsageSettings | Action::RefreshUsage => {}
                 Action::Scroll(delta) => {
                     self.scroll.scroll_by((*delta).into_pixels());
                     ctx.notify();
@@ -1597,10 +1606,16 @@ impl View for CollaborationPanel {
         let render_section = |section: &Section| {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, section.title.clone()));
-            for row in &section.rows {
+            for (index, row) in section.rows.iter().enumerate() {
                 let record = detail(appearance, row.clone());
                 column.add_child(if section.title == "History" {
                     self::section(appearance, record)
+                } else if section.title == "Agents" {
+                    let icon = self.snapshot.as_ref().and_then(|s| s.agents.iter().filter(|a| a.online).nth(index))
+                        .map(|a| crate::agent_usage::agent_icon(&a.agent.program))
+                        .unwrap_or(crate::ui_components::icons::Icon::Terminal);
+                    Flex::row().with_spacing(GAP_ROW).with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(theme.foreground()).finish()).with_width(16.).with_height(16.).finish())
+                        .with_child(Shrinkable::new(1., record).finish()).finish()
                 } else { record });
             }
             self::section(appearance, column.finish())
@@ -2013,6 +2028,7 @@ impl View for CollaborationPanel {
                     .with_spacing(GAP_SECTION)
                     .with_child(header.finish())
                     .with_child(Shrinkable::new(1.0, scroll).finish())
+                    .with_child(self.render_usage(app))
                     .finish(),
             )
             .with_padding(Padding::uniform(GAP_SECTION))
@@ -2085,7 +2101,7 @@ impl CollaborationPanel {
         } else { self.expanded_worker = None; }
         self.sync_coordinator_dropdown(&snapshot, ctx);
         self.snapshot = Some(snapshot);
-        if state == "selector" { self.open_control(controls::Kind::SelectCoordinator, ctx); }
+        if state == "selector" { self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.toggle_expanded(ctx)); }
         ctx.notify();
     }
 }
@@ -4817,6 +4833,71 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             .with_take_screenshot(filename),
         );
     }
+    for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for width in [320, 420] {
+            for worktree in [false, true] {
+                for state in ["empty", "loading", "available", "error", "balance", "overflow"] {
+                    let filename = format!("usage-{label}-{width}-{worktree}-{state}.png");
+                    filenames.push(filename.clone());
+                    let theme = theme.clone();
+                    driver = driver.with_step(TestStep::new(&filename).with_action(move |app, window, _| {
+                        app.update(|ctx| {
+                            let origin = ctx.window_bounds(&window).unwrap().origin();
+                            ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(origin,
+                                pathfinder_geometry::vector::vec2f(1200., 800.)));
+                            ctx.set_zoom_factor(1.25);
+                            let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                            Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                            ResizableData::as_ref(ctx).get_all_handles(window).unwrap().left_panel_width.lock().unwrap().set_size(width as f32);
+                            crate::agent_usage::AgentUsage::handle(ctx).update(ctx, |model, ctx| model.capture_fixture(state, ctx));
+                        });
+                        let tools = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                        tools.update(app, |tools, ctx| tools.handle_action_with_force_open(&LeftPanelAction::Collaboration, true, ctx));
+                        let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                        panel.update(app, |panel, ctx| {
+                            panel.worktree_layout_checkpoint("team", ctx);
+                            panel.worktree_mode = worktree;
+                            panel.usage_scroll = Default::default();
+                            if state == "overflow" { panel.scroll.scroll_by(800.0.into_pixels()); }
+                            ctx.notify();
+                        });
+                    }).add_named_assertion("usage fixture preserves terminal draft and account count", move |app, window| {
+                        warpui::async_assert!(app.read(|ctx| crate::agent_usage::AgentUsage::as_ref(ctx).accounts.len()
+                            == if state == "empty" { 0 } else if state == "overflow" { 8 } else { 3 })
+                            && checkpoint_draft(app, window) == "unsent collaboration draft")
+                    }).with_take_screenshot(filename));
+                    if state == "available" {
+                        driver = driver.with_step(TestStep::new("focus change retains global usage account state").with_action(|app, window, _| {
+                            let root = app.root_view::<RootView>(window).unwrap();
+                            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::FocusLeftPanel, ctx));
+                        }).add_named_assertion("focus keeps configured accounts and cached percentages", |app, _| {
+                            warpui::async_assert!(app.read(|ctx| {
+                                let usage = crate::agent_usage::AgentUsage::as_ref(ctx);
+                                usage.accounts.len() == 3 && usage.readings.len() == 3
+                                    && usage.readings.get(&uuid::Uuid::from_u128(1).to_string())
+                                        .is_some_and(|reading| reading.as_ref().is_ok_and(|reading| reading.windows.first().is_some_and(|window| window.used == 37.)))
+                            }))
+                        }));
+                    }
+                    if state == "overflow" {
+                        let filename = format!("usage-{label}-{width}-{worktree}-scrolled.png");
+                        filenames.push(filename.clone());
+                        driver = driver.with_step(TestStep::new(&filename).with_action(|app, window, _| {
+                            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                            panel.update(app, |panel, ctx| { panel.usage_scroll.scroll_by(256.0.into_pixels()); ctx.notify(); });
+                        }).add_named_assertion("usage scroll advances independently", |app, window| {
+                            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                            warpui::async_assert!(panel.read(app, |panel, _| panel.usage_scroll.scroll_start().as_f32() > 0.))
+                        }).with_take_screenshot(filename));
+                    }
+                }
+            }
+        }
+    }
+    driver = driver.with_step(TestStep::new("restore empty usage fixture").with_action(|app, _, _| {
+        app.update(|ctx| crate::agent_usage::AgentUsage::handle(ctx).update(ctx, |model, ctx| model.capture_fixture("empty", ctx)));
+    }));
     driver = driver.with_step(
         TestStep::new("open native communication settings").with_action(|app, window, _| {
             let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
@@ -4891,6 +4972,32 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     })
                     .with_take_screenshot(filename),
             );
+        }
+    }
+    for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for width in [800, 1200] {
+            let filename = format!("settings-usage-{label}-{width}.png");
+            filenames.push(filename.clone());
+            let theme = theme.clone();
+            driver = driver.with_step(TestStep::new(&filename).with_action(move |app, window, _| {
+                app.update(|ctx| {
+                    let origin = ctx.window_bounds(&window).unwrap().origin();
+                    ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(origin,
+                        pathfinder_geometry::vector::vec2f(width as f32, 800.)));
+                    ctx.set_zoom_factor(1.25);
+                    let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                    Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                    crate::agent_usage::AgentUsage::handle(ctx).update(ctx, |model, ctx| model.capture_fixture("available", ctx));
+                });
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ShowSettingsPageWithSearch {
+                    search_query: "data usage".into(), section: Some(crate::settings_view::SettingsSection::Features),
+                }, ctx));
+            }).add_named_assertion("native usage settings exists", |app, window| {
+                warpui::async_assert!(app.views_of_type::<crate::settings_view::agent_usage::UsageSettingsView>(window)
+                    .is_some_and(|views| !views.is_empty()))
+            }).with_take_screenshot(filename));
         }
     }
     driver = driver.with_step(TestStep::new("open native About update settings").with_action(|app, window, _| {

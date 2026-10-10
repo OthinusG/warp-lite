@@ -24,6 +24,11 @@
   independent 1.5.1 checkpoint. Apply shared UI fixes to both checkpoints; keep
   Data usage out of 1.5.1. Retain required tagged packaging checks, but skip a
   redundant intermediate native walkthrough. Companion stays 4.0.0 if unchanged.
+- Owner persistence requirement: usage accounts/visibility and credentials are
+  application-wide, independent of project/worktree/tab/pane focus. Persist
+  metadata locally and credentials through OS secure storage; cache readings in
+  the application singleton. Restart restores accounts and fetches fresh usage.
+  Workspace/panel context resets must never clear the usage model.
 
 ## 1.5.0 release authorization — 2026-10-10
 

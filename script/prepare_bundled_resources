@@ -73,6 +73,7 @@ ADDITIONAL_LICENSES=(
     "rudder-sdk-rust|MIT|app/src/server/telemetry/LICENSE-RUDDER-SDK-RUST.txt"
     "Windows Terminal|MIT|app/assets/windows/LICENSE-WINDOWS-TERMINAL"
     "GitHub Desktop|MIT|app/src/code_review/GITHUB-DESKTOP-LICENSE"
+    "Orca usage adapters|MIT|docs/ORCA-LICENSE"
 )
 
 # Build the third-party licenses file unless the NO_LICENSES envvar is set.
