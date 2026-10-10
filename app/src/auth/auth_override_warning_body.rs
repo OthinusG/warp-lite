@@ -154,7 +154,7 @@ impl AuthOverrideWarningBody {
             AuthOverrideConfirmationStep::Initial => {
                 let description = Container::new(
                     ui_builder
-                        .paragraph(AUTH_OVERRIDE_DESCRIPTION)
+                        .paragraph(warpui::localization::text(AUTH_OVERRIDE_DESCRIPTION))
                         .with_style(muted_styles)
                         .build()
                         .finish(),
@@ -167,7 +167,7 @@ impl AuthOverrideWarningBody {
                         .with_child(
                             ui_builder
                                 .link(
-                                    AUTH_OVERRIDE_BULK_EXPORT_BUTTON_LABEL.into(),
+                                    warpui::localization::text(AUTH_OVERRIDE_BULK_EXPORT_BUTTON_LABEL).into(),
                                     None,
                                     Some(Box::new(|ctx| {
                                         ctx.dispatch_typed_action(
@@ -184,7 +184,7 @@ impl AuthOverrideWarningBody {
                         )
                         .with_child(
                             ui_builder
-                                .span(AUTH_OVERRIDE_BULK_EXPORT_DESCRIPTION)
+                                .span(warpui::localization::text(AUTH_OVERRIDE_BULK_EXPORT_DESCRIPTION))
                                 .with_style(muted_styles)
                                 .build()
                                 .finish(),
@@ -200,7 +200,7 @@ impl AuthOverrideWarningBody {
             AuthOverrideConfirmationStep::ConfirmChangeUser => {
                 let confirmation = Container::new(
                     ui_builder
-                        .paragraph(AUTH_OVERRIDE_CONFIRMATION_WARNING)
+                        .paragraph(warpui::localization::text(AUTH_OVERRIDE_CONFIRMATION_WARNING))
                         .with_style(muted_styles)
                         .build()
                         .finish(),
@@ -285,7 +285,7 @@ impl AuthOverrideWarningBody {
                 Some(click_button_style),
                 None,
             )
-            .with_centered_text_label(AUTH_OVERRIDE_CANCEL_BUTTON_LABEL.into())
+            .with_centered_text_label(warpui::localization::text(AUTH_OVERRIDE_CANCEL_BUTTON_LABEL).into())
             .build()
             .on_click(move |ctx, _, _| {
                 ctx.dispatch_typed_action(AuthOverrideWarningBodyAction::Close);
@@ -311,7 +311,7 @@ impl AuthOverrideWarningBody {
                 Some(outline_click_button_style),
                 None,
             )
-            .with_centered_text_label(AUTH_OVERRIDE_CONTINUE_BUTTON_LABEL.into())
+            .with_centered_text_label(warpui::localization::text(AUTH_OVERRIDE_CONTINUE_BUTTON_LABEL).into())
             .build()
             .on_click(move |ctx, _, _| {
                 ctx.dispatch_typed_action(continue_action);

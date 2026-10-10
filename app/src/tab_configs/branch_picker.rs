@@ -124,7 +124,7 @@ impl BranchPicker {
             dropdown.set_disabled(ctx);
             // Show loading text in the dropdown top bar so the modal
             // doesn't shift layout while the fetch is in-flight.
-            let placeholder = DropdownItem::new(LOADING_PLACEHOLDER.to_string(), String::new());
+            let placeholder = DropdownItem::new(warpui::localization::text(LOADING_PLACEHOLDER).to_string(), String::new());
             dropdown.set_items(vec![placeholder], ctx);
             dropdown.set_selected_by_name(LOADING_PLACEHOLDER, ctx);
         });

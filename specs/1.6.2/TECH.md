@@ -127,3 +127,8 @@ names and branch-name examples stay verbatim. Linux desktop updater UI is
 explicitly excluded; its implementation is outside this release's desktop scope.
 The macOS backend initializes application settings before building its menu bar,
 so the selected locale is available when native menu labels are constructed.
+
+Toast notifications and constant-based labels, including commit/find/keybinding
+placeholders, theme dialogs, prompt setup and settings import, are localized only
+at display consumers. Constant declarations retain their original values. Pane
+kind badges and fallback titles translate fixed kinds; user titles stay literal.

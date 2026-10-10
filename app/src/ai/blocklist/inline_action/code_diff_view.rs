@@ -551,14 +551,14 @@ impl CodeDiffView {
             .unwrap_or_default();
 
             let accept_item = MenuItemFields::new_with_label(
-                REQUESTED_EDIT_ACCEPT_LABEL,
+                warpui::localization::text(REQUESTED_EDIT_ACCEPT_LABEL),
                 accept_keystroke.as_str(),
             )
             .with_on_select_action(CodeDiffViewAction::TryAccept)
             .into_item();
 
             let auto_item = MenuItemFields::new_with_label(
-                REQUESTED_EDIT_ACCEPT_AND_AUTOEXECUTE_LABEL,
+                warpui::localization::text(REQUESTED_EDIT_ACCEPT_AND_AUTOEXECUTE_LABEL),
                 auto_keystroke.as_str(),
             )
             .with_on_select_action(CodeDiffViewAction::AcceptAndAutoExecute)
@@ -817,7 +817,7 @@ impl CodeDiffView {
         );
 
         let edit_button = CompactibleActionButton::new(
-            REQUESTED_EDIT_EDIT_LABEL.to_string(),
+            warpui::localization::text(REQUESTED_EDIT_EDIT_LABEL).to_string(),
             Some(KeystrokeSource::Binding(EDIT_REQUESTED_EDIT_NAME)),
             ButtonSize::Small,
             CodeDiffViewAction::Edit,
@@ -827,7 +827,7 @@ impl CodeDiffView {
         );
 
         let minimize_button = CompactibleActionButton::new(
-            REQUESTED_EDIT_MINIMIZE_LABEL.to_string(),
+            warpui::localization::text(REQUESTED_EDIT_MINIMIZE_LABEL).to_string(),
             Some(KeystrokeSource::Fixed(
                 MINIMIZE_REQUESTED_EDIT_KEYSTROKE.clone(),
             )),
@@ -839,7 +839,7 @@ impl CodeDiffView {
         );
 
         let iterate_with_agent_button = CompactibleActionButton::new(
-            SUGGESTED_EDIT_ITERATE_WITH_AGENT_LABEL.to_string(),
+            warpui::localization::text(SUGGESTED_EDIT_ITERATE_WITH_AGENT_LABEL).to_string(),
             Some(KeystrokeSource::Binding(SET_INPUT_MODE_AGENT_ACTION_NAME)),
             ButtonSize::Small,
             CodeDiffViewAction::IterateOnPassiveDiffWithAgent,

@@ -3505,7 +3505,7 @@ impl TypedPane<'_> {
             || self.warp_drive_object_type().is_some()
     }
     fn kind_label(&self) -> &'static str {
-        match self {
+        warpui::localization::text(match self {
             TypedPane::Terminal(_) => "Terminal",
             TypedPane::Code(_) => "Code",
             TypedPane::CodeDiff => "Code Diff",
@@ -3519,7 +3519,7 @@ impl TypedPane<'_> {
             TypedPane::AIDocument => "Plan",
             TypedPane::ExecutionProfileEditor => "Execution Profile",
             TypedPane::Other => "Other",
-        }
+        })
     }
 
     fn badge(&self, app: &AppContext) -> Option<String> {

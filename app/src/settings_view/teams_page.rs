@@ -2615,7 +2615,7 @@ impl TeamsWidget {
                             appearance
                                 .ui_builder()
                                 .link(
-                                    DELINQUENT_ADMIN_SELF_SERVE_LINE_2_LINK_TEXT.into(),
+                                    warpui::localization::text(DELINQUENT_ADMIN_SELF_SERVE_LINE_2_LINK_TEXT).into(),
                                     None,
                                     Some(Box::new(move |ctx| {
                                         ctx.dispatch_typed_action(
@@ -3955,7 +3955,7 @@ impl TeamsWidget {
                 ButtonVariant::Accent,
                 self.mouse_state_handles.create_team_button.clone(),
             )
-            .with_centered_text_label(CREATE_TEAM_BUTTON_LABEL.to_owned())
+            .with_centered_text_label(warpui::localization::text(CREATE_TEAM_BUTTON_LABEL).to_owned())
             .with_style(UiComponentStyles {
                 font_color: Some(
                     appearance
@@ -4079,7 +4079,7 @@ impl SettingsWidget for TeamsWidget {
         } else {
             appearance
                 .ui_builder()
-                .span(OFFLINE_TEXT.to_string())
+                .span(warpui::localization::text(OFFLINE_TEXT).to_string())
                 .build()
                 .finish()
         };

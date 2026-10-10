@@ -1008,7 +1008,7 @@ impl View for SettingsImportView {
 
         if matches!(self.state, State::Loading) {
             return Container::new(
-                Text::new(LOADING_TEXT, font_family, font_size)
+                Text::new(warpui::localization::text(LOADING_TEXT), font_family, font_size)
                     .with_color(font_color.into_solid())
                     .finish(),
             )
@@ -1022,7 +1022,7 @@ impl View for SettingsImportView {
             Flex::column()
                 .with_child(
                     Container::new(
-                        Text::new(WELCOME_TEXT, font_family, font_size)
+                        Text::new(warpui::localization::text(WELCOME_TEXT), font_family, font_size)
                             .with_color(font_color.into_solid())
                             .with_style(Properties::default().weight(Weight::Bold))
                             .finish(),

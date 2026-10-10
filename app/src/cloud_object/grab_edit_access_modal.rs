@@ -53,7 +53,7 @@ impl GrabEditAccessModal {
         let theme = appearance.theme();
         let ui_builder = appearance.ui_builder();
 
-        let description = Text::new(EDIT_ANYWAY_TEXT, appearance.ui_font_family(), 13.)
+        let description = Text::new(warpui::localization::text(EDIT_ANYWAY_TEXT), appearance.ui_font_family(), 13.)
             .with_style(Properties {
                 style: Style::Normal,
                 weight: Weight::Bold,
@@ -81,7 +81,7 @@ impl GrabEditAccessModal {
                         ButtonVariant::Basic,
                         self.mouse_state_handles.cancel_button.clone(),
                     )
-                    .with_text_label(CANCEL_CTA_LABEL.to_string())
+                    .with_text_label(warpui::localization::text(CANCEL_CTA_LABEL).to_string())
                     .build()
                     .on_click(|ctx, _, _| {
                         ctx.dispatch_typed_action(GrabEditAccessModalAction::Close)
@@ -98,7 +98,7 @@ impl GrabEditAccessModal {
                     ButtonVariant::Warn,
                     self.mouse_state_handles.edit_anyway_button.clone(),
                 )
-                .with_text_label(EDIT_ANYWAY_CTA_LABEL.to_string())
+                .with_text_label(warpui::localization::text(EDIT_ANYWAY_CTA_LABEL).to_string())
                 .build()
                 .on_click(|ctx, _, _| {
                     ctx.dispatch_typed_action(GrabEditAccessModalAction::GrabEditAccess)

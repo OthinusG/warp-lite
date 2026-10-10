@@ -1483,7 +1483,7 @@ impl SettingsWidget for AppAnalyticsWidget {
             Flex::row()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_child(render_body_item_label::<PrivacyPageAction>(
-                    TELEMETRY_TITLE.into(),
+                    warpui::localization::text(TELEMETRY_TITLE).into(),
                     None,
                     None,
                     LocalOnlyIconState::Hidden,
@@ -1494,7 +1494,7 @@ impl SettingsWidget for AppAnalyticsWidget {
                 .finish()
         } else {
             render_body_item_label::<PrivacyPageAction>(
-                TELEMETRY_TITLE.into(),
+                warpui::localization::text(TELEMETRY_TITLE).into(),
                 None,
                 None,
                 LocalOnlyIconState::Hidden,
@@ -1558,7 +1558,7 @@ impl SettingsWidget for AppAnalyticsWidget {
         if !is_on_paid_plan {
             column.add_child(
                 ui_builder
-                    .paragraph(TELEMETRY_FREE_TIER_NOTE)
+                    .paragraph(warpui::localization::text(TELEMETRY_FREE_TIER_NOTE))
                     .with_style(UiComponentStyles {
                         font_color: Some(description_text_color),
                         margin: Some(
@@ -1881,7 +1881,7 @@ impl SettingsWidget for DataManagementWidget {
         let ui_builder = appearance.ui_builder();
         Flex::column()
             .with_child(render_body_item::<PrivacyPageAction>(
-                DATA_MANAGEMENT_TITLE.into(),
+                warpui::localization::text(DATA_MANAGEMENT_TITLE).into(),
                 None,
                 // Not rendering a setting, so no need to show local only icon state.
                 LocalOnlyIconState::Hidden,
@@ -1892,7 +1892,7 @@ impl SettingsWidget for DataManagementWidget {
             ))
             .with_child(
                 ui_builder
-                    .paragraph(DATA_MANAGEMENT_DESCRIPTION)
+                    .paragraph(warpui::localization::text(DATA_MANAGEMENT_DESCRIPTION))
                     .with_style(UiComponentStyles {
                         font_color: Some(
                             appearance
@@ -1915,7 +1915,7 @@ impl SettingsWidget for DataManagementWidget {
                     appearance
                         .ui_builder()
                         .link(
-                            DATA_MANAGEMENT_LINK_TEXT.into(),
+                            warpui::localization::text(DATA_MANAGEMENT_LINK_TEXT).into(),
                             None,
                             Some(Box::new(|ctx| {
                                 ctx.dispatch_typed_action(
@@ -1956,7 +1956,7 @@ impl SettingsWidget for PrivacyPolicyWidget {
     ) -> Box<dyn Element> {
         Flex::column()
             .with_child(render_body_item::<PrivacyPageAction>(
-                PRIVACY_POLICY_TITLE.into(),
+                warpui::localization::text(PRIVACY_POLICY_TITLE).into(),
                 None,
                 // Not rendering a setting, so no need to show local only icon state.
                 LocalOnlyIconState::Hidden,
@@ -1970,7 +1970,7 @@ impl SettingsWidget for PrivacyPolicyWidget {
                     appearance
                         .ui_builder()
                         .link(
-                            PRIVACY_POLICY_LINK_TEXT.into(),
+                            warpui::localization::text(PRIVACY_POLICY_LINK_TEXT).into(),
                             Some(PRIVACY_POLICY_URL.into()),
                             None,
                             self.link_mouse_state.clone(),

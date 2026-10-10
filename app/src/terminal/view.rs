@@ -23428,7 +23428,7 @@ impl TerminalView {
         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
             toast_stack.add_ephemeral_toast(
                 DismissibleToast::error(
-                    "Can not invoke environment variable subshell in a non-local session"
+                    warpui::localization::text("Can not invoke environment variable subshell in a non-local session")
                         .to_owned(),
                 ),
                 window_id,
@@ -23566,7 +23566,7 @@ impl TerminalView {
         if shell_type == ShellType::PowerShell {
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 let toast =
-                    DismissibleToast::error("PowerShell subshells not supported".to_owned());
+                    DismissibleToast::error(warpui::localization::text("PowerShell subshells not supported").to_owned());
                 toast_stack.add_ephemeral_toast(toast, window_id, ctx);
             });
             return;
@@ -25220,7 +25220,7 @@ impl TypedActionView for TerminalView {
                             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                                 toast_stack.add_ephemeral_toast(
                                     DismissibleToast::error(
-                                        "Bundled skills cannot be edited".to_string(),
+                                        warpui::localization::text("Bundled skills cannot be edited").to_string(),
                                     ),
                                     window_id,
                                     ctx,
@@ -25237,7 +25237,7 @@ impl TypedActionView for TerminalView {
                     ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         toast_stack.add_ephemeral_toast(
                             DismissibleToast::error(
-                                "Editing skills is not supported in this build".to_string(),
+                                warpui::localization::text("Editing skills is not supported in this build").to_string(),
                             ),
                             window_id,
                             ctx,

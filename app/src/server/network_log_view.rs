@@ -156,7 +156,7 @@ impl NetworkLogView {
         )
         .with_tooltip(move || {
             ui_builder
-                .tool_tip(REFRESH_TOOLTIP.to_string())
+                .tool_tip(warpui::localization::text(REFRESH_TOOLTIP).to_string())
                 .build()
                 .finish()
         })

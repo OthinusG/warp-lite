@@ -226,12 +226,12 @@ impl PromptAlertView {
         match state {
             PromptAlertState::NoConnection => {
                 text_fragments.push(FormattedTextFragment::plain_text(
-                    NO_CONNECTION_PRIMARY_TEXT,
+                    warpui::localization::text(NO_CONNECTION_PRIMARY_TEXT),
                 ));
             }
             PromptAlertState::TelemetryDisabledOnFreeTier => {
                 text_fragments.push(FormattedTextFragment::plain_text(
-                    TELEMETRY_DISABLED_PRIMARY_TEXT,
+                    warpui::localization::text(TELEMETRY_DISABLED_PRIMARY_TEXT),
                 ));
             }
             PromptAlertState::AnonymousUserRequestLimitSoftGate => {
@@ -241,19 +241,19 @@ impl PromptAlertView {
             }
             PromptAlertState::AnonymousUserRequestLimitHardGate => {
                 text_fragments.push(FormattedTextFragment::plain_text(
-                    ANONYMOUS_USER_REQUEST_LIMIT_HARD_GATE_PRIMARY_TEXT,
+                    warpui::localization::text(ANONYMOUS_USER_REQUEST_LIMIT_HARD_GATE_PRIMARY_TEXT),
                 ));
             }
             PromptAlertState::DelinquentDueToPaymentIssue => {
                 text_fragments.push(FormattedTextFragment::plain_text(
-                    DELINQUENT_DUE_TO_PAYMENT_ISSUE_PRIMARY_TEXT,
+                    warpui::localization::text(DELINQUENT_DUE_TO_PAYMENT_ISSUE_PRIMARY_TEXT),
                 ));
             }
             PromptAlertState::OveragesToggleableButNotEnabled
             | PromptAlertState::MonthlyOveragesSpendLimitReached
             | PromptAlertState::RequestLimitReached => {
                 text_fragments.push(FormattedTextFragment::plain_text(
-                    OUT_OF_REQUESTS_PRIMARY_TEXT,
+                    warpui::localization::text(OUT_OF_REQUESTS_PRIMARY_TEXT),
                 ));
             }
             PromptAlertState::NoAlert => {}
@@ -291,7 +291,7 @@ impl PromptAlertView {
                     UserWorkspaces::upgrade_link(user_id)
                 };
                 text_fragments.push(FormattedTextFragment::hyperlink(
-                    UPGRADE_TO_BUILD_ACTION_TEXT,
+                    warpui::localization::text(UPGRADE_TO_BUILD_ACTION_TEXT),
                     upgrade_url,
                 ));
                 text_fragments.push(FormattedTextFragment::plain_text("."));
@@ -319,7 +319,7 @@ impl PromptAlertView {
                     ));
                 } else {
                     text_fragments.push(FormattedTextFragment::plain_text(
-                        NON_ADMIN_CONTACT_ADMIN_TEXT,
+                        warpui::localization::text(NON_ADMIN_CONTACT_ADMIN_TEXT),
                     ));
                 }
             }
@@ -332,7 +332,7 @@ impl PromptAlertView {
                     ));
                 } else {
                     text_fragments.push(FormattedTextFragment::plain_text(
-                        NON_ADMIN_ASK_ADMIN_TO_ENABLE_OVERAGES_TEXT,
+                        warpui::localization::text(NON_ADMIN_ASK_ADMIN_TO_ENABLE_OVERAGES_TEXT),
                     ));
                 }
             }
@@ -345,7 +345,7 @@ impl PromptAlertView {
                     ));
                 } else {
                     text_fragments.push(FormattedTextFragment::plain_text(
-                        NON_ADMIN_ASK_ADMIN_TO_INCREASE_OVERAGES_TEXT,
+                        warpui::localization::text(NON_ADMIN_ASK_ADMIN_TO_INCREASE_OVERAGES_TEXT),
                     ));
                 }
             }
@@ -366,7 +366,7 @@ impl PromptAlertView {
                             .push(FormattedTextFragment::hyperlink(upgrade_text, upgrade_url));
                     } else {
                         text_fragments.push(FormattedTextFragment::hyperlink(
-                            CONTACT_SUPPORT_TEXT,
+                            warpui::localization::text(CONTACT_SUPPORT_TEXT),
                             "mailto:support@warp.dev".to_owned(),
                         ));
                     }

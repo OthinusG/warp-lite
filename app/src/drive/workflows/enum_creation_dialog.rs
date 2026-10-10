@@ -163,7 +163,7 @@ impl EnumCreationDialog {
                 };
 
                 let mut editor = EditorView::single_line(options, ctx);
-                editor.set_placeholder_text(NAME_PLACEHOLDER_TEXT, ctx);
+                editor.set_placeholder_text(warpui::localization::text(NAME_PLACEHOLDER_TEXT), ctx);
                 editor
             })
         };
@@ -549,7 +549,7 @@ impl EnumCreationDialog {
                 },
                 ctx,
             );
-            editor.set_placeholder_text(VARIANT_PLACEHOLDER_TEXT, ctx);
+            editor.set_placeholder_text(warpui::localization::text(VARIANT_PLACEHOLDER_TEXT), ctx);
             editor
         });
 
@@ -821,7 +821,7 @@ impl EnumCreationDialog {
                 1.,
                 appearance
                     .ui_builder()
-                    .span(STATIC_LABEL_TEXT.to_string())
+                    .span(warpui::localization::text(STATIC_LABEL_TEXT).to_string())
                     .with_style(UiComponentStyles {
                         font_size: Some(SECTION_FONT_SIZE),
                         ..Default::default()

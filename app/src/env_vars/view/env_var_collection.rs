@@ -751,7 +751,7 @@ impl EnvVarCollectionView {
                     crate::workspace::ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         toast_stack.add_ephemeral_toast(
                             DismissibleToast::error(
-                                "An error occurred while trying to invoke the env var".to_owned(),
+                                warpui::localization::text("An error occurred while trying to invoke the env var").to_owned(),
                             ),
                             window_id,
                             ctx,

@@ -73,7 +73,7 @@ impl View for OnboardingDriveSharingBlock {
         let font_size = appearance.monospace_font_size();
 
         let header = Container::new(
-            Text::new(TITLE_TEXT, font_family, font_size)
+            Text::new(warpui::localization::text(TITLE_TEXT), font_family, font_size)
                 .with_color(appearance.theme().accent().into_solid())
                 .with_style(Properties::default().weight(Weight::Bold))
                 .finish(),

@@ -72,7 +72,7 @@ impl OnboardingPromptBlock {
         Flex::column()
             .with_children([
                 Container::new(
-                    Text::new(LINE_ONE, font_family, font_size)
+                    Text::new(warpui::localization::text(LINE_ONE), font_family, font_size)
                         .with_color(font_color.into_solid())
                         .finish(),
                 )
@@ -81,8 +81,8 @@ impl OnboardingPromptBlock {
                 Container::new(
                     FormattedTextElement::new(
                         FormattedText::new([FormattedTextLine::Line(vec![
-                            FormattedTextFragment::plain_text(LINE_TWO),
-                            FormattedTextFragment::hyperlink(LINK_TEXT, LINK_DESTINATION),
+                            FormattedTextFragment::plain_text(warpui::localization::text(LINE_TWO)),
+                            FormattedTextFragment::hyperlink(warpui::localization::text(LINK_TEXT), LINK_DESTINATION),
                         ])]),
                         font_size,
                         font_family,
@@ -264,7 +264,7 @@ impl OnboardingPromptBlock {
                 .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CORNER_RADIUS_PIXELS)))
                 .finish()
         } else {
-            Text::new_inline(NO_PS1_TEXT, font_family, font_size)
+            Text::new_inline(warpui::localization::text(NO_PS1_TEXT), font_family, font_size)
                 .with_color(font_color.into_solid())
                 .finish()
         };
@@ -278,7 +278,7 @@ impl OnboardingPromptBlock {
         Flex::column()
             .with_child(
                 Container::new(
-                    Text::new_inline(HEADER_TEXT, font_family, font_size)
+                    Text::new_inline(warpui::localization::text(HEADER_TEXT), font_family, font_size)
                         .with_color(font_color.into_solid())
                         .finish(),
                 )
@@ -292,7 +292,7 @@ impl OnboardingPromptBlock {
                     Align::new(
                         Flex::row()
                             .with_children([
-                                Text::new_inline(CORRECTION_TEXT, font_family, font_size)
+                                Text::new_inline(warpui::localization::text(CORRECTION_TEXT), font_family, font_size)
                                     .with_color(
                                         font_color.with_opacity(CORRECTION_OPACITY).into_solid(),
                                     )
@@ -300,7 +300,7 @@ impl OnboardingPromptBlock {
                                 appearance
                                     .ui_builder()
                                     .link(
-                                        LINK_TEXT.to_string(),
+                                        warpui::localization::text(LINK_TEXT).to_string(),
                                         Some(LINK_DESTINATION.to_string()),
                                         None,
                                         self.mouse_state_handle_look_incorrect.clone(),
@@ -376,7 +376,7 @@ impl OnboardingPromptBlock {
         Flex::column()
             .with_child(
                 Container::new(
-                    Text::new_inline(HEADER_TEXT, font_family, appearance.ui_font_size())
+                    Text::new_inline(warpui::localization::text(HEADER_TEXT), font_family, appearance.ui_font_size())
                         .with_color(font_color.into_solid())
                         .finish(),
                 )

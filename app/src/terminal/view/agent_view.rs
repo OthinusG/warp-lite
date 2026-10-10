@@ -64,7 +64,7 @@ impl TerminalView {
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 toast_stack.add_ephemeral_toast(
                     DismissibleToast::error(
-                        "Cannot start a new conversation while agent is monitoring a command."
+                        warpui::localization::text("Cannot start a new conversation while agent is monitoring a command.")
                             .to_string(),
                     ),
                     window_id,

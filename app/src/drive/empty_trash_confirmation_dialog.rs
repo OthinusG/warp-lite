@@ -71,7 +71,7 @@ impl View for EmptyTrashConfirmationDialog {
         let confirm_button = appearance
             .ui_builder()
             .button(ButtonVariant::Accent, self.confirm_mouse_state.clone())
-            .with_centered_text_label(EMPTY_TRASH_CONFIRM_TEXT.into())
+            .with_centered_text_label(warpui::localization::text(EMPTY_TRASH_CONFIRM_TEXT).into())
             .with_style(button_style)
             .build()
             .with_cursor(Cursor::PointingHand)
@@ -83,7 +83,7 @@ impl View for EmptyTrashConfirmationDialog {
         let cancel_button = appearance
             .ui_builder()
             .button(ButtonVariant::Basic, self.cancel_mouse_state.clone())
-            .with_centered_text_label(CANCEL_TEXT.into())
+            .with_centered_text_label(warpui::localization::text(CANCEL_TEXT).into())
             .with_style(button_style)
             .build()
             .with_cursor(Cursor::PointingHand)

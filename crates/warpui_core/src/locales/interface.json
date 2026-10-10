@@ -15,13 +15,25 @@
     " + 另外 {overflow_count} 项",
     " + 另外 {overflow_count} 項"
   ],
+  " Ask a question...": [
+    " 提问…",
+    " 提問…"
+  ],
   " Encountered an incorrect input detection? ": [
     " 遇到错误的输入识别结果？ ",
     " 遇到錯誤的輸入辨識結果？ "
   ],
+  " If you have any questions about the referral program, please contact referrals@warp.dev.": [
+    " 如对推荐计划有任何疑问，请联系 referrals@warp.dev。",
+    " 如對推薦計畫有任何疑問，請聯絡 referrals@warp.dev。"
+  ],
   " Not the first time? See our ": [
     " 并非首次出现？请参阅我们的 ",
     " 並非首次出現？請參閱我們的 "
+  ],
+  " Type a response or click one above...": [
+    " 输入回答或点击上方选项…",
+    " 輸入回答或點選上方選項…"
   ],
   " and open": [
     "并打开",
@@ -95,6 +107,10 @@
     " 以获得更多 AI 使用额度。",
     " 以取得更多 AI 使用額度。"
   ],
+  " to import later.": [
+    " 以便稍后导入。",
+    " 以便稍後匯入。"
+  ],
   " to learn more.": [
     "了解更多。",
     "瞭解更多。"
@@ -155,6 +171,14 @@
     "*敏感信息不会发送至 Warpai 服务器。",
     "*敏感資訊不會傳送至 Warpai 伺服器。"
   ],
+  "+ Add directory…": [
+    "+ 添加目录…",
+    "+ 新增目錄…"
+  ],
+  "+ Add new repo...": [
+    "+ 添加新仓库…",
+    "+ 新增儲存庫…"
+  ],
   "+ Create API Key": [
     "+ 创建 API 密钥",
     "+ 建立 API 金鑰"
@@ -162,6 +186,18 @@
   "+ {hidden_branch_count} more": [
     "+ 另外 {hidden_branch_count} 项",
     "+ 另外 {hidden_branch_count} 項"
+  ],
+  ", ask a team admin to enable overages": [
+    "，请团队管理员启用超额使用",
+    "，請團隊管理員啟用超額使用"
+  ],
+  ", ask a team admin to increase overages": [
+    "，请团队管理员提高超额额度",
+    "，請團隊管理員提高超額額度"
+  ],
+  ", contact a team admin": [
+    "，联系团队管理员",
+    "，聯絡團隊管理員"
   ],
   ", deleted": [
     "，已删除",
@@ -182,6 +218,10 @@
   "@ at sign context menu terminal mode AI assistant": [
     "@ 符号 上下文 菜单 终端 模式 AI 助手",
     "@ 符號 上下文 選單 終端機 模式 AI 助理"
+  ],
+  "A command in this session is still running.": [
+    "此会话中仍有命令正在运行。",
+    "此工作階段中仍有命令正在執行。"
   ],
   "A new version of the Warpai plugin is available": [
     "Warpai 插件有新版本可用",
@@ -242,6 +282,10 @@
   "Access to ": [
     "使用 ",
     "使用 "
+  ],
+  "Access your tab configs here.": [
+    "在此访问标签页配置。",
+    "在此存取分頁設定。"
   ],
   "Activate next pane": [
     "激活下一个窗格",
@@ -310,6 +354,10 @@
   "Add diff set as context": [
     "将差异集添加为上下文",
     "將差異集新增為上下文"
+  ],
+  "Add directory color": [
+    "添加目录颜色",
+    "新增目錄顏色"
   ],
   "Add environment variables": [
     "添加环境变量",
@@ -399,6 +447,10 @@
     "Agent 字体",
     "Agent 字型"
   ],
+  "Agent harness": [
+    "Agent 运行工具",
+    "Agent 執行工具"
+  ],
   "Agent name to remove": [
     "要移除的 Agent 名称",
     "要移除的 Agent 名稱"
@@ -419,6 +471,10 @@
     "智能体协作模式",
     "智慧體協作模式"
   ],
+  "Aliases allow you to create short strings to execute workflows. Each alias can have different argument values and environment variables, and aliases are personal to you.": [
+    "别名是用于执行工作流的简短文本。每个别名可以有不同的参数值和环境变量，且仅属于你本人。",
+    "別名是用於執行工作流程的簡短文字。每個別名可以有不同的參數值與環境變數，且僅屬於你本人。"
+  ],
   "All": [
     "全部",
     "全部"
@@ -434,6 +490,10 @@
   "Allow": [
     "允许",
     "允許"
+  ],
+  "Allow automatic indexing": [
+    "允许自动建立索引",
+    "允許自動建立索引"
   ],
   "Allow the Warpai Agent to generate an outline of your codebase that can be used for context. No code is ever stored on our servers. ": [
     "允许 Warpai Agent 生成代码库概览，用于提供上下文。代码不会存储在我们的服务器上。 ",
@@ -475,6 +535,10 @@
     "无法删除后台智能体对话",
     "無法刪除背景智慧體對話"
   ],
+  "An error occurred while trying to invoke the env var": [
+    "调用环境变量时发生错误",
+    "呼叫環境變數時發生錯誤"
+  ],
   "Anyone with the link": [
     "任何拥有链接的人",
     "任何擁有連結的人"
@@ -506,6 +570,10 @@
   "Are you sure you want to skip login?": [
     "确定跳过登录吗？",
     "確定略過登入嗎？"
+  ],
+  "Are you sure you want to unshare this block?\n\nIt will no longer be accessible by link and will be permanently deleted from Warpai servers.": [
+    "确定取消共享此区块吗？\n\n通过链接将无法再访问此区块，它也将从 Warpai 服务器永久删除。",
+    "確定取消共享此區塊嗎？\n\n透過連結將無法再存取此區塊，它也將從 Warpai 伺服器永久刪除。"
   ],
   "Artifacts": [
     "产物",
@@ -563,6 +631,14 @@
     "异步查找",
     "非同步尋找"
   ],
+  "At Limit -": [
+    "已达限额 -",
+    "已達限額 -"
+  ],
+  "At any time, you may choose to delete your Warpai account permanently. You will no longer be able to use Warpai.": [
+    "你可以随时永久删除 Warpai 账号。删除后将无法继续使用 Warpai。",
+    "你可以隨時永久刪除 Warpai 帳號。刪除後將無法繼續使用 Warpai。"
+  ],
   "Attach Selected Block as Agent Context": [
     "将所选命令块附加为 Agent 上下文",
     "將所選命令區塊附加為 Agent 上下文"
@@ -575,6 +651,10 @@
     "附加为上下文",
     "附加為上下文"
   ],
+  "Attach context": [
+    "附加上下文",
+    "附加上下文"
+  ],
   "Attach file": [
     "附加文件",
     "附加檔案"
@@ -582,6 +662,10 @@
   "Attach to active session": [
     "附加到当前会话",
     "附加至目前工作階段"
+  ],
+  "Attached images were removed — the selected model does not support images.": [
+    "已移除附加图片，所选模型不支持图片。",
+    "已移除附加圖片，所選模型不支援圖片。"
   ],
   "Attempts and dependencies": [
     "尝试与依赖",
@@ -618,6 +702,10 @@
   "Auto-approve": [
     "自动批准",
     "自動核准"
+  ],
+  "Auto-approve all agent actions for this task": [
+    "自动批准 Agent 对此任务的所有操作",
+    "自動核准 Agent 對此任務的所有操作"
   ],
   "Auto-generate worktree branch name": [
     "自动生成工作树分支名称",
@@ -666,6 +754,10 @@
   "Automatically detect and spawn MCP servers from globally-scoped third-party AI agent configuration files (e.g. in your home directory). Servers detected inside a repository are never spawned automatically and must be enabled individually in the \"Detected from\" sections below. ": [
     "自动检测并启动来自第三方 AI Agent 全局配置文件（例如主目录中的配置）的 MCP 服务器。仓库中检测到的服务器不会自动启动，必须在下方“检测来源”区域单独启用。 ",
     "自動偵測並啟動來自第三方 AI Agent 全域設定檔（例如家目錄中的設定）的 MCP 伺服器。儲存庫中偵測到的伺服器不會自動啟動，必須在下方「偵測來源」區域個別啟用。 "
+  ],
+  "Automatically generate a theme based on extracted colors from an image (.png, .jpg).": [
+    "根据图片（.png、.jpg）中提取的颜色自动生成主题。",
+    "根據圖片（.png、.jpg）中擷取的色彩自動產生佈景主題。"
   ],
   "Automatically open links in desktop app whenever possible.": [
     "尽可能使用桌面应用自动打开链接。",
@@ -767,6 +859,10 @@
     "项目符号列表",
     "項目符號清單"
   ],
+  "Bundled skills cannot be edited": [
+    "无法编辑内置技能",
+    "無法編輯內建技能"
+  ],
   "Busy": [
     "忙碌",
     "忙碌"
@@ -787,6 +883,10 @@
     "调用网页工具",
     "呼叫網頁工具"
   ],
+  "Can not invoke environment variable subshell in a non-local session": [
+    "非本地会话无法调用环境变量子 Shell",
+    "非本機工作階段無法呼叫環境變數子 Shell"
+  ],
   "Cancel": [
     "取消",
     "取消"
@@ -795,9 +895,37 @@
     "取消摘要",
     "取消摘要"
   ],
+  "Cannot add multiple MCP servers while editing a single server.": [
+    "编辑单个 MCP 服务器时无法添加多个服务器。",
+    "編輯單一 MCP 伺服器時無法新增多個伺服器。"
+  ],
+  "Cannot attach context when terminal is running": [
+    "终端运行时无法附加上下文",
+    "終端執行時無法附加上下文"
+  ],
+  "Cannot attach diff while input is not available": [
+    "输入不可用时无法附加差异",
+    "輸入不可用時無法附加差異"
+  ],
   "Cannot detect diffs for this folder": [
     "无法检测此文件夹的差异",
     "無法偵測此資料夾的差異"
+  ],
+  "Cannot open a new terminal session": [
+    "无法打开新的终端会话",
+    "無法開啟新的終端工作階段"
+  ],
+  "Cannot send queries as a read-only viewer.": [
+    "只读查看者无法发送查询。",
+    "唯讀檢視者無法傳送查詢。"
+  ],
+  "Cannot start a new conversation while agent is monitoring a command.": [
+    "Agent 监控命令时无法开始新对话。",
+    "Agent 監控命令時無法開始新對話。"
+  ],
+  "Cannot switch conversations while agent is monitoring a command.": [
+    "Agent 监控命令时无法切换对话。",
+    "Agent 監控命令時無法切換對話。"
   ],
   "Canonical checkout root": [
     "规范检出目录根路径",
@@ -810,6 +938,10 @@
   "Case-insensitive completions and autosuggestions": [
     "补全和自动建议不区分大小写",
     "補完與自動建議不區分大小寫"
+  ],
+  "Certain restrictions apply.": [
+    "适用部分限制。",
+    "適用部分限制。"
   ],
   "Change git branch": [
     "切换 Git 分支",
@@ -878,6 +1010,10 @@
   "Choose a layout to open files in Warpai": [
     "选择在 Warpai 中打开文件的布局",
     "選擇在 Warpai 中開啟檔案的版面配置"
+  ],
+  "Choose agent model": [
+    "选择 Agent 模型",
+    "選取 Agent 模型"
   ],
   "Choose an AI execution profile": [
     "选择 AI 执行配置",
@@ -1043,6 +1179,10 @@
     "云端 Agent 运行",
     "雲端 Agent 執行"
   ],
+  "Cloud agent trial": [
+    "云端 Agent 试用",
+    "雲端 Agent 試用"
+  ],
   "Cloud agents require an environment that they'll run in to get their task done. Create your first environment below. You'll be able to edit the environment later, or add new environments when you need them.": [
     "云端智能体需要运行环境来完成任务。请在下方创建第一个环境，之后可随时编辑或添加环境。",
     "雲端智慧體需要執行環境來完成工作。請在下方建立第一個環境，之後可隨時編輯或新增環境。"
@@ -1050,6 +1190,10 @@
   "Code": [
     "代码",
     "程式碼"
+  ],
+  "Code Diff": [
+    "代码差异",
+    "程式碼差異"
   ],
   "Code Editor and Review": [
     "代码编辑器和审阅",
@@ -1126,6 +1270,10 @@
   "Comment imported from GitHub": [
     "从 GitHub 导入的评论",
     "從 GitHub 匯入的留言"
+  ],
+  "Comments sent to agent": [
+    "评论已发送给 Agent",
+    "評論已傳送給 Agent"
   ],
   "Commit": [
     "提交",
@@ -1215,6 +1363,10 @@
     "确认后将在已审查的映射中打开一个新的本地标签页。映射发生变化时将拒绝操作。",
     "確認後將在已審查的對應中開啟一個新的本機分頁。對應發生變更時將拒絕操作。"
   ],
+  "Congrats!": [
+    "恭喜！",
+    "恭喜！"
+  ],
   "Connect accounts in Settings": [
     "在设置中连接账号",
     "在設定中連結帳號"
@@ -1251,6 +1403,10 @@
     "上下文窗口用量",
     "上下文視窗用量"
   ],
+  "Continue": [
+    "继续",
+    "繼續"
+  ],
   "Continue conversation": [
     "继续对话",
     "繼續對話"
@@ -1275,6 +1431,14 @@
     "控制终端内运行的程序能否读写系统剪贴板。",
     "控制終端機內執行的程式能否讀寫系統剪貼簿。"
   ],
+  "Conversation forking failed.": [
+    "无法创建对话分支。",
+    "無法建立對話分支。"
+  ],
+  "Conversations cannot be deleted while in progress.": [
+    "无法删除进行中的对话。",
+    "無法刪除進行中的對話。"
+  ],
   "Coordinator": [
     "协调者",
     "協調者"
@@ -1282,6 +1446,10 @@
   "Coordinator unavailable. Restart Warpai to reconnect.": [
     "Coordinator 不可用。请重启 Warpai 以重新连接。",
     "Coordinator 無法使用。請重新啟動 Warpai 以重新連線。"
+  ],
+  "Copied branch name": [
+    "已复制分支名称",
+    "已複製分支名稱"
   ],
   "Copy": [
     "复制",
@@ -1423,6 +1591,10 @@
     "复制工作目录",
     "複製工作目錄"
   ],
+  "Could not automatically install plugin. Please click the chip again for manual installation steps.": [
+    "无法自动安装插件。请再次点击标签查看手动安装步骤。",
+    "無法自動安裝外掛程式。請再次點選標籤查看手動安裝步驟。"
+  ],
   "Could not change communication mode. Reconnect and try again.": [
     "无法切换通信模式。请重新连接后再试。",
     "無法切換通訊模式。請重新連線後再試。"
@@ -1439,6 +1611,10 @@
     "无法加载远程目录：{error}",
     "無法載入遠端目錄：{error}"
   ],
+  "Could not open a shared pane. Enable communication, refresh the mapping and confirm its current space and directory.": [
+    "无法打开共享面板。请启用通信、刷新映射，并确认当前空间和目录。",
+    "無法開啟共享面板。請啟用通訊、重新整理對應，並確認目前空間與目錄。"
+  ],
   "Could not save WSL communication settings.": [
     "无法保存 WSL 通信设置。",
     "無法儲存 WSL 通訊設定。"
@@ -1450,6 +1626,10 @@
   "Could not update the remote view ({code}). Last state is stale; change the view or refresh.": [
     "无法更新远程视图（{code}）。最后的状态已过期，请切换视图或刷新。",
     "無法更新遠端檢視（{code}）。最後的狀態已過期，請切換檢視或重新整理。"
+  ],
+  "Couldn't navigate to conversation.": [
+    "无法跳转到对话。",
+    "無法跳轉至對話。"
   ],
   "Crash reports assist with debugging and stability improvements.": [
     "崩溃报告有助于调试和改善稳定性。",
@@ -1567,6 +1747,10 @@
     "创建团队",
     "建立團隊"
   ],
+  "Create theme": [
+    "创建主题",
+    "建立佈景主題"
+  ],
   "Create your first tab config": [
     "创建第一个标签页配置",
     "建立第一個分頁設定"
@@ -1618,6 +1802,10 @@
   "Custom": [
     "自定义",
     "自訂"
+  ],
+  "Custom URI is invalid.": [
+    "自定义 URI 无效。",
+    "自訂 URI 無效。"
   ],
   "Custom directory": [
     "自定义目录",
@@ -1751,6 +1939,10 @@
     "删除规则",
     "刪除規則"
   ],
+  "Delete theme": [
+    "删除主题",
+    "刪除佈景主題"
+  ],
   "Delete to line end within an executing command": [
     "在执行中的命令内删除至行尾",
     "在執行中的命令內刪除至行尾"
@@ -1798,6 +1990,10 @@
   "Diff is too large to render": [
     "差异过大，无法显示",
     "差異過大，無法顯示"
+  ],
+  "Diff removed": [
+    "差异已移除",
+    "差異已移除"
   ],
   "Dim inactive panes": [
     "调暗非活动窗格",
@@ -2403,6 +2599,10 @@
     "编辑 Agent 工具栏",
     "編輯 Agent 工具列"
   ],
+  "Edit anyway": [
+    "仍然编辑",
+    "仍然編輯"
+  ],
   "Edit code and commands with Vim keybindings": [
     "使用 Vim 快捷键编辑代码和命令",
     "使用 Vim 快捷鍵編輯程式碼與指令"
@@ -2422,6 +2622,10 @@
   "Editing": [
     "编辑中",
     "編輯中"
+  ],
+  "Editing skills is not supported in this build": [
+    "此版本不支持编辑技能",
+    "此版本不支援編輯技能"
   ],
   "Eligible pool participants: {}": [
     "符合条件的池参与者：{}",
@@ -2543,6 +2747,10 @@
     "启用 焦点报告",
     "啟用 焦點回報"
   ],
+  "Enable In-band Generators for New Sessions": [
+    "为新会话启用带内生成器",
+    "為新工作階段啟用帶內產生器"
+  ],
   "Enable Input Hint Text": [
     "启用 输入提示文字",
     "啟用 輸入提示文字"
@@ -2582,6 +2790,10 @@
   "Enable Next Command": [
     "启用 下一条命令",
     "啟用 下一條命令"
+  ],
+  "Enable PTY Recording Mode (warp.pty.recording)": [
+    "启用 PTY 录制模式（warp.pty.recording）",
+    "啟用 PTY 錄製模式（warp.pty.recording）"
   ],
   "Enable Preserve Input Focus on Block Selection": [
     "启用 选择命令块时保留输入焦点",
@@ -2626,6 +2838,10 @@
   "Enable Shared Block Title Generation": [
     "启用 共享命令块标题生成",
     "啟用 共用命令區塊標題產生"
+  ],
+  "Enable Shell Debug Mode (-x) for New Sessions": [
+    "为新会话启用 Shell 调试模式（-x）",
+    "為新工作階段啟用 Shell 偵錯模式（-x）"
   ],
   "Enable Show Tooltip on Click on Links": [
     "启用 点击链接时显示提示",
@@ -2975,6 +3191,22 @@
     "请输入 1 到 3650 之间的整数天数",
     "請輸入 1 到 3650 之間的整數天數"
   ],
+  "Enter your prompt here... (e.g., 'Create a function to sort an array of objects by date' or 'Help me debug this React component').": [
+    "在此输入提示词…（例如“创建按日期排序对象数组的函数”或“帮助调试此 React 组件”）。",
+    "在此輸入提示詞…（例如「建立依日期排序物件陣列的函式」或「協助偵錯此 React 元件」）。"
+  ],
+  "Enterprise credit usage isn't fully available in this view yet. Contact a team admin for detailed usage reporting.": [
+    "此页面尚未提供完整的 Enterprise 额度使用情况。请联系团队管理员获取详细的使用报告。",
+    "此頁面尚未提供完整的 Enterprise 額度使用情況。請聯絡團隊管理員取得詳細的使用報告。"
+  ],
+  "Enterprise credit usage isn't fully available in this view yet. For the most accurate spend tracking, ": [
+    "此页面尚未提供完整的 Enterprise 额度使用情况。若要获取最准确的支出记录，请 ",
+    "此頁面尚未提供完整的 Enterprise 額度使用情況。若要取得最準確的支出記錄，請 "
+  ],
+  "Environment Variables": [
+    "环境变量",
+    "環境變數"
+  ],
   "Environment details": [
     "环境详情",
     "環境詳細資料"
@@ -2986,6 +3218,14 @@
   "Environment variables": [
     "环境变量",
     "環境變數"
+  ],
+  "Environments": [
+    "环境",
+    "環境"
+  ],
+  "Environments define where your ambient agents run. Set one up in minutes via GitHub (recommended), Warpai-assisted setup, or manual configuration.": [
+    "环境定义后台 Agent 的运行位置。你可以通过 GitHub（推荐）、Warpai 辅助设置或手动配置，在几分钟内完成设置。",
+    "環境定義背景 Agent 的執行位置。你可以透過 GitHub（推薦）、Warpai 輔助設定或手動設定，在幾分鐘內完成設定。"
   ],
   "Error": [
     "错误",
@@ -3003,6 +3243,10 @@
     "为命令错误添加下划线",
     "為指令錯誤加上底線"
   ],
+  "Evidence content is unavailable in its original local checkout. Refresh the reference or inspect its metadata; remote content is not downloaded automatically.": [
+    "原始本地检出目录中的证据内容不可用。请刷新引用或查看元数据；系统不会自动下载远程内容。",
+    "原始本機簽出目錄中的證據內容不可用。請重新整理參照或檢視中繼資料；系統不會自動下載遠端內容。"
+  ],
   "Example queries": [
     "查询示例",
     "查詢範例"
@@ -3010,6 +3254,14 @@
   "Executable path": [
     "可执行文件路径",
     "執行檔路徑"
+  ],
+  "Execution Profile": [
+    "执行配置",
+    "執行設定檔"
+  ],
+  "Execution host": [
+    "执行主机",
+    "執行主機"
   ],
   "Execution timeout in seconds (optional)": [
     "执行超时秒数（可选）",
@@ -3055,9 +3307,17 @@
     "导出",
     "匯出"
   ],
+  "Export Default Settings as CSV to home dir": [
+    "将默认设置导出为 CSV 到主目录",
+    "將預設設定匯出為 CSV 至家目錄"
+  ],
   "Export all Warpai Drive objects": [
     "导出所有 Warpai Drive 对象",
     "匯出所有 Warpai Drive 物件"
+  ],
+  "Export your data": [
+    "导出你的数据",
+    "匯出你的資料"
   ],
   "Extended cloud agents access": [
     "扩展云端 Agent 使用权限",
@@ -3067,9 +3327,29 @@
     "失败",
     "失敗"
   ],
+  "Failed to delete conversation. Please exit the agent view and try again.": [
+    "无法删除对话。请退出 Agent 视图后重试。",
+    "無法刪除對話。請退出 Agent 檢視後重試。"
+  ],
   "Failed to load blocks. Please try again.": [
     "无法加载命令块，请重试。",
     "無法載入命令區塊，請重試。"
+  ],
+  "Failed to load conversation data.": [
+    "无法加载对话数据。",
+    "無法載入對話資料。"
+  ],
+  "Failed to load conversation for forking.": [
+    "无法加载用于创建分支的对话。",
+    "無法載入用於建立分支的對話。"
+  ],
+  "Failed to load conversation.": [
+    "无法加载对话。",
+    "無法載入對話。"
+  ],
+  "Failed to prepare file download.": [
+    "无法准备文件下载。",
+    "無法準備檔案下載。"
   ],
   "Failed to start environment": [
     "无法启动环境",
@@ -3078,6 +3358,10 @@
   "Feedback": [
     "反馈",
     "意見回饋"
+  ],
+  "Fetching branches…": [
+    "正在获取分支…",
+    "正在取得分支…"
   ],
   "File": [
     "文件",
@@ -3091,6 +3375,10 @@
     "文件浏览器",
     "檔案總管"
   ],
+  "File issue": [
+    "提交问题",
+    "提交問題"
+  ],
   "File renamed without changes": [
     "文件已重命名，内容未变更",
     "檔案已重新命名，內容未變更"
@@ -3102,6 +3390,10 @@
   "Fill out the arguments in this workflow and copy it to run in your terminal session": [
     "填写工作流参数，然后复制到终端会话中运行",
     "填寫工作流程參數，然後複製至終端機工作階段中執行"
+  ],
+  "Filter block output": [
+    "筛选区块输出",
+    "篩選區塊輸出"
   ],
   "Find": [
     "查找",
@@ -3195,6 +3487,10 @@
     "折叠所选范围",
     "摺疊所選範圍"
   ],
+  "Folder": [
+    "文件夹",
+    "資料夾"
+  ],
   "Follow up with existing conversation": [
     "继续现有对话",
     "繼續現有對話"
@@ -3263,6 +3559,10 @@
     "开始使用",
     "開始使用"
   ],
+  "Get exclusive Warpai goodies when you refer someone*": [
+    "推荐好友即可获得 Warpai 专属礼品*",
+    "推薦好友即可取得 Warpai 專屬禮品*"
+  ],
   "Get started": [
     "开始使用",
     "開始使用"
@@ -3327,6 +3627,10 @@
     "正在 Grep 搜索 ",
     "正在 Grep 搜尋 "
   ],
+  "Group files into single editor pane": [
+    "将文件分组到同一编辑器面板",
+    "將檔案分組至同一編輯器面板"
+  ],
   "Harness": [
     "智能体执行器",
     "智慧體執行器"
@@ -3367,6 +3671,14 @@
     "帮助",
     "說明"
   ],
+  "Help improve Warpai": [
+    "帮助改进 Warpai",
+    "協助改善 Warpai"
+  ],
+  "Here are a few examples of how to leverage the power of AI in your terminal using": [
+    "以下示例展示如何在终端中使用 AI，借助",
+    "以下範例展示如何在終端中使用 AI，藉助"
+  ],
   "Hide search bar in vertical tab layout": [
     "在垂直标签页布局中隐藏搜索栏",
     "在垂直分頁配置中隱藏搜尋列"
@@ -3406,6 +3718,14 @@
   "Icon": [
     "图标",
     "圖示"
+  ],
+  "If you take edit controls, the current editor will be forced into view mode": [
+    "如果你接管编辑权限，当前编辑者将被切换为查看模式",
+    "如果你接管編輯權限，目前編輯者將被切換為檢視模式"
+  ],
+  "If you want to create an environment with repos, rerun this command and pass in file paths or GitHub links as arguments, e.g. \"/create-environment <filepath> <GitHub URL>\".": [
+    "要创建包含仓库的环境，请重新运行此命令，并将文件路径或 GitHub 链接作为参数传入，例如“/create-environment <filepath> <GitHub URL>”。",
+    "若要建立包含儲存庫的環境，請重新執行此命令，並將檔案路徑或 GitHub 連結作為參數傳入，例如「/create-environment <filepath> <GitHub URL>」。"
   ],
   "If you'd like to opt out of analytics and AI features,": [
     "如需关闭分析与 AI 功能，",
@@ -3455,6 +3775,10 @@
     "放大界面",
     "放大介面"
   ],
+  "Index codebase": [
+    "为代码库建立索引",
+    "為程式碼庫建立索引"
+  ],
   "Index new folder": [
     "索引新文件夹",
     "為新資料夾建立索引"
@@ -3462,6 +3786,10 @@
   "Index new folders by default": [
     "默认索引新文件夹",
     "預設索引新資料夾"
+  ],
+  "Indexing helps agents quickly understand context and provide targeted solutions. Code is never stored on the server.": [
+    "索引帮助 Agent 快速理解上下文并提供有针对性的解决方案。代码不会存储在服务器上。",
+    "索引協助 Agent 快速理解上下文並提供有針對性的解決方案。程式碼不會儲存在伺服器上。"
   ],
   "Infinitely scalable coding agent — run in local sessions or in the cloud.": [
     "无限扩展的编程 Agent，可在本地会话或云端运行。",
@@ -3615,9 +3943,17 @@
     "发起者：{} · 执行者：{} · 审查者：{}",
     "發起者：{} · 執行者：{} · 審查者：{}"
   ],
+  "It looks like you logged into a Warpai account through a web browser. If you continue, any personal Warpai drive objects and preferences from this anonymous session with be permanently deleted.": [
+    "你似乎通过浏览器登录了 Warpai 账号。如果继续，此匿名会话中的所有个人 Warpai Drive 对象和偏好设置将被永久删除。",
+    "你似乎透過瀏覽器登入了 Warpai 帳號。如果繼續，此匿名工作階段中的所有個人 Warpai Drive 物件與偏好設定將被永久刪除。"
+  ],
   "Items in the trash will be deleted forever after 30 days.": [
     "回收站中的项目将在 30 天后永久删除。",
     "垃圾桶中的項目將在 30 天後永久刪除。"
+  ],
+  "Iterate with agent": [
+    "与 Agent 继续迭代",
+    "與 Agent 繼續迭代"
   ],
   "Join our Slack community (opens external link)": [
     "加入 Slack 社区（打开外部链接）",
@@ -3631,6 +3967,10 @@
     "跳到最新 Agent 任务",
     "跳到最新 Agent 任務"
   ],
+  "Keep editing": [
+    "继续编辑",
+    "繼續編輯"
+  ],
   "Keybinding": [
     "快捷键",
     "快捷鍵"
@@ -3642,6 +3982,10 @@
   "Keys": [
     "按键",
     "按鍵"
+  ],
+  "Kick off a cloud agent": [
+    "启动云端 Agent",
+    "啟動雲端 Agent"
   ],
   "Kick off an agent task to view usage history here.": [
     "启动智能体任务后，可在此查看用量记录。",
@@ -3755,6 +4099,10 @@
     "告诉我们",
     "告訴我們"
   ],
+  "Let us know.": [
+    "告诉我们。",
+    "告訴我們。"
+  ],
   "Ligatures may reduce performance": [
     "连字可能降低性能",
     "連字可能降低效能"
@@ -3843,6 +4191,18 @@
     "注销",
     "登出"
   ],
+  "Look incorrect? ": [
+    "看起来不正确？ ",
+    "看起來不正確？ "
+  ],
+  "Looking for settings to import...": [
+    "正在查找可导入的设置…",
+    "正在尋找可匯入的設定…"
+  ],
+  "Looks like you're out of AI credits.": [
+    "你的 AI 额度似乎已用尽。",
+    "你的 AI 額度似乎已用盡。"
+  ],
   "Looks like you're out of credits. ": [
     "你的额度已用完。",
     "你的額度已用完。"
@@ -3930,6 +4290,10 @@
   "Manage suggested code banner settings": [
     "管理建议代码横幅设置",
     "管理建議程式碼橫幅設定"
+  ],
+  "Manage your data": [
+    "管理你的数据",
+    "管理你的資料"
   ],
   "Manual setup: Create a Slack or Linear integration with the Oz CLI": [
     "手动设置：使用 Oz CLI 创建 Slack 或 Linear 集成",
@@ -4079,6 +4443,10 @@
     "移至段落末尾",
     "移至段落結尾"
   ],
+  "Move to group": [
+    "移到分组",
+    "移至群組"
+  ],
   "Move to line end": [
     "移至行尾",
     "移至行尾"
@@ -4122,6 +4490,10 @@
   "Name (optional)": [
     "名称（可选）",
     "名稱（選填）"
+  ],
+  "Name can only contain letters, numbers, hyphens, and underscores": [
+    "名称只能包含字母、数字、连字符和下划线",
+    "名稱只能包含字母、數字、連字號與底線"
   ],
   "Navigate to a repo and initialize it for coding": [
     "进入仓库并初始化开发环境",
@@ -4175,6 +4547,10 @@
     "新建智能体",
     "新增智慧體"
   ],
+  "New argument": [
+    "新参数",
+    "新參數"
+  ],
   "New conversation": [
     "新建对话",
     "新增對話"
@@ -4187,9 +4563,17 @@
     "新建环境",
     "新增環境"
   ],
+  "New environment variables": [
+    "新建环境变量",
+    "新增環境變數"
+  ],
   "New file": [
     "新建文件",
     "新增檔案"
+  ],
+  "New folder": [
+    "新建文件夹",
+    "新增資料夾"
   ],
   "New group with tab": [
     "为此标签页新建分组",
@@ -4198,6 +4582,14 @@
   "New login detected": [
     "检测到新登录",
     "偵測到新的登入"
+  ],
+  "New notebook": [
+    "新建笔记本",
+    "新增筆記本"
+  ],
+  "New prompt": [
+    "新建提示词",
+    "新增提示詞"
   ],
   "New recipient agent name": [
     "新的接收 Agent 名称",
@@ -4231,6 +4623,10 @@
     "新窗口",
     "新視窗"
   ],
+  "New workflow": [
+    "新建工作流",
+    "新增工作流程"
+  ],
   "New worktree": [
     "新建工作树",
     "新增工作樹"
@@ -4251,6 +4647,10 @@
     "下一页预约",
     "下一頁預約"
   ],
+  "Next, let’s set up your prompt. Warpai has a custom prompt builder or you can select PS1 to honor your pre-existing prompt configuration.": [
+    "接下来设置提示符。Warpai 提供自定义提示符构建器，你也可以选择 PS1 沿用已有的提示符配置。",
+    "接下來設定提示字元。Warpai 提供自訂提示字元建構器，你也可以選擇 PS1 沿用既有的提示字元設定。"
+  ],
   "Nice work on finishing the welcome tips!": [
     "你已完成欢迎提示！",
     "你已完成歡迎提示！"
@@ -4258,6 +4658,10 @@
   "No API Keys": [
     "没有 API 密钥",
     "沒有 API 金鑰"
+  ],
+  "No MCP Server specified.": [
+    "未指定 MCP 服务器。",
+    "未指定 MCP 伺服器。"
   ],
   "No MCP server selected": [
     "未选择 MCP 服务器",
@@ -4295,6 +4699,10 @@
     "没有匹配搜索条件的环境。",
     "沒有符合搜尋條件的環境。"
   ],
+  "No existing prompt.": [
+    "没有现有提示符。",
+    "沒有現有提示字元。"
+  ],
   "No file selected": [
     "未选择文件",
     "尚未選取檔案"
@@ -4322,6 +4730,10 @@
   "No installed managed CLI agents were found.": [
     "未找到已安装的受管理 CLI 智能体。",
     "找不到已安裝的受管理 CLI 智慧體。"
+  ],
+  "No internet connection": [
+    "没有互联网连接",
+    "沒有網際網路連線"
   ],
   "No matches": [
     "无匹配项",
@@ -4415,6 +4827,10 @@
     "此页没有任务。",
     "此頁沒有工作。"
   ],
+  "No terminal pane open. Open a new pane to attach as context.": [
+    "没有打开的终端面板。请打开新面板以附加为上下文。",
+    "沒有開啟的終端面板。請開啟新面板以附加為上下文。"
+  ],
   "No tools available": [
     "没有可用工具",
     "沒有可用工具"
@@ -4446,6 +4862,10 @@
   "Note that AI credits made near your chosen limit may exceed it by a few dollars.": [
     "接近所选上限时产生的 AI 消费可能使最终费用超过上限几美元。",
     "接近所選上限時產生的 AI 消費，可能使最終費用超過上限數美元。"
+  ],
+  "Notebook": [
+    "笔记本",
+    "筆記本"
   ],
   "Notebook font size": [
     "笔记本字号",
@@ -4486,6 +4906,10 @@
   "On low-DPI displays": [
     "在低 DPI 显示器上",
     "在低 DPI 顯示器上"
+  ],
+  "On the free tier, analytics must be enabled to use AI features.": [
+    "免费套餐必须启用分析才能使用 AI 功能。",
+    "免費方案必須啟用分析才能使用 AI 功能。"
   ],
   "Once you add a MCP server, it will be shown here.": [
     "添加 MCP 服务器后，它会显示在这里。",
@@ -4811,9 +5235,17 @@
     "Oz 文档",
     "Oz 文件"
   ],
+  "PATH required to launch MCP server. Please open a new terminal session to autopopulate PATH.": [
+    "启动 MCP 服务器需要 PATH。请打开新的终端会话以自动填充 PATH。",
+    "啟動 MCP 伺服器需要 PATH。請開啟新的終端工作階段以自動填入 PATH。"
+  ],
   "PERMISSIONS": [
     "权限",
     "權限"
+  ],
+  "PR successfully created.": [
+    "PR 创建成功。",
+    "PR 建立成功。"
   ],
   "Pane title as": [
     "窗格标题显示",
@@ -4911,6 +5343,10 @@
     "插件更新说明",
     "外掛程式更新說明"
   ],
+  "PowerShell subshells not supported": [
+    "不支持 PowerShell 子 Shell",
+    "不支援 PowerShell 子 Shell"
+  ],
   "Prefer rendering new windows with integrated GPU (low power)": [
     "优先使用集成 GPU 渲染新窗口（低功耗）",
     "優先使用整合式 GPU 算繪新視窗（低耗電）"
@@ -5003,6 +5439,10 @@
     "隐私设置",
     "隱私設定"
   ],
+  "Privacy policy": [
+    "隐私政策",
+    "隱私權政策"
+  ],
   "Profiles": [
     "配置文件",
     "設定檔"
@@ -5030,6 +5470,10 @@
   "Project path is unavailable": [
     "项目路径不可用",
     "專案路徑無法使用"
+  ],
+  "Prompt": [
+    "提示词",
+    "提示詞"
   ],
   "Provided API key is not valid": [
     "提供的 API 密钥无效",
@@ -5094,6 +5538,10 @@
   "Re-generate AGENTS.md file": [
     "重新生成 AGENTS.md 文件",
     "重新產生 AGENTS.md 檔案"
+  ],
+  "Read Warpai's privacy policy": [
+    "阅读 Warpai 隐私政策",
+    "閱讀 Warpai 隱私權政策"
   ],
   "Read all changelogs": [
     "查看所有更新记录",
@@ -5219,6 +5667,10 @@
     "远程审查不可用：{error}。请检查远程主机上的 Git 和 Warpai Companion。",
     "遠端審查無法使用：{error}。請檢查遠端主機上的 Git 與 Warpai Companion。"
   ],
+  "Remote control link copied.": [
+    "已复制远程控制链接。",
+    "已複製遠端控制連結。"
+  ],
   "Remote file operation failed: {error}. Refresh before retrying.": [
     "远程文件操作失败：{error}。请刷新后重试。",
     "遠端檔案操作失敗：{error}。請重新整理後重試。"
@@ -5306,6 +5758,10 @@
   "Reopen closed session": [
     "重新打开已关闭的会话",
     "重新開啟已關閉的工作階段"
+  ],
+  "Replace": [
+    "替换",
+    "取代"
   ],
   "Replace all": [
     "全部替换",
@@ -5407,6 +5863,10 @@
     "调整窗格 > 上移分隔线",
     "調整窗格 > 上移分隔線"
   ],
+  "Restart": [
+    "重新启动",
+    "重新啟動"
+  ],
   "Restart Warpai AI": [
     "重启 Warpai AI",
     "重新啟動 Warpai AI"
@@ -5422,6 +5882,10 @@
   "Restore": [
     "恢复",
     "復原"
+  ],
+  "Restore default": [
+    "恢复默认值",
+    "還原預設值"
   ],
   "Restore environment variables from trash": [
     "从回收站还原环境变量",
@@ -5439,6 +5903,10 @@
     "从回收站还原工作流",
     "從垃圾桶還原工作流程"
   ],
+  "Restricted due to payment issue": [
+    "因付款问题而受限",
+    "因付款問題而受限"
+  ],
   "Result and review": [
     "结果与审查",
     "結果與審查"
@@ -5454,6 +5922,10 @@
   "Retry": [
     "重试",
     "重試"
+  ],
+  "Retry sync": [
+    "重试同步",
+    "重試同步"
   ],
   "Retry with override": [
     "覆盖并重试",
@@ -5551,6 +6023,14 @@
     "规则",
     "規則"
   ],
+  "Rules": [
+    "规则",
+    "規則"
+  ],
+  "Rules enhance the agent by providing structured guidelines that help maintain consistency, enforce best practices, and adapt to specific workflows, including codebases or broader tasks.": [
+    "规则为 Agent 提供结构化指引，帮助保持一致性、遵循最佳实践，并适应代码库或更广泛任务等不同工作流。",
+    "規則為 Agent 提供結構化指引，協助保持一致性、遵循最佳實務，並適應程式碼庫或更廣泛任務等不同工作流程。"
+  ],
   "Rules help the Warpai Agent follow your conventions, whether for codebases or specific workflows. ": [
     "规则可帮助 Warpai Agent 遵循你的规范，适用于代码库或特定工作流。 ",
     "規則可協助 Warpai Agent 遵循你的規範，適用於程式碼庫或特定工作流程。 "
@@ -5598,6 +6078,10 @@
   "Sample Process": [
     "采样进程",
     "取樣程序"
+  ],
+  "Sampling process for 3 seconds...": [
+    "正在采样进程，持续 3 秒…",
+    "正在取樣程序，持續 3 秒…"
   ],
   "Save": [
     "保存",
@@ -5711,6 +6195,10 @@
     "搜索 MCP 服务器",
     "搜尋 MCP 伺服器"
   ],
+  "Search by name or by keys (ex. \"cmd d\")": [
+    "按名称或按键搜索（例如“cmd d”）",
+    "依名稱或按鍵搜尋（例如「cmd d」）"
+  ],
   "Search diff sets or branches to compare…": [
     "搜索要比较的差异集或分支…",
     "搜尋要比較的差異集或分支…"
@@ -5723,6 +6211,10 @@
     "在文件中搜索",
     "在檔案中搜尋"
   ],
+  "Search models": [
+    "搜索模型",
+    "搜尋模型"
+  ],
   "Search or use arrow up and arrow down keys to navigate and find a workflow. Use enter to confirm the workflow and esc to quit.": [
     "搜索或使用上下方向键查找工作流。按 Enter 确认工作流，按 Esc 退出。",
     "搜尋或使用上下方向鍵尋找工作流程。按 Enter 確認工作流程，按 Esc 退出。"
@@ -5730,6 +6222,10 @@
   "Search repos": [
     "搜索仓库",
     "搜尋儲存庫"
+  ],
+  "Search rules": [
+    "搜索规则",
+    "搜尋規則"
   ],
   "Search sessions, agents, files...": [
     "搜索会话、智能体和文件…",
@@ -5742,6 +6238,10 @@
   "Search text must fit 256 bytes": [
     "搜索文本不得超过 256 字节",
     "搜尋文字不得超過 256 位元組"
+  ],
+  "Secret command": [
+    "敏感命令",
+    "敏感命令"
   ],
   "Secret redaction": [
     "敏感信息脱敏",
@@ -5786,6 +6286,10 @@
   "Select a git repository to enable worktree support": [
     "选择 Git 仓库以启用工作树支持",
     "選取 Git 儲存庫以啟用工作樹支援"
+  ],
+  "Select a settings profile to import:": [
+    "选择要导入的设置配置：",
+    "選取要匯入的設定檔："
   ],
   "Select a terminal project. For remote collaboration, use ssh user@host, then cd into the project. SSH setup explains installation and shell integration.": [
     "请选择一个终端项目。远程协作请先使用 ssh user@host 连接，再 cd 到项目目录。SSH 设置中提供安装与 Shell 集成说明。",
@@ -6027,6 +6531,22 @@
     "共享命令块",
     "共用命令區塊"
   ],
+  "Shared participation was not admitted. Refresh the workspace mapping and confirm a new pane; this terminal has no shared communication access.": [
+    "共享参与未获准。请刷新工作区映射并确认新面板；此终端没有共享通信权限。",
+    "共享參與未獲准。請重新整理工作區對應並確認新面板；此終端沒有共享通訊權限。"
+  ],
+  "Sharing in Warpai Drive": [
+    "在 Warpai Drive 中共享",
+    "在 Warpai Drive 中共享"
+  ],
+  "Shell prompt (PS1)": [
+    "Shell 提示符（PS1）",
+    "Shell 提示字元（PS1）"
+  ],
+  "Shift + ctrl + space a block or text selection to ask Warpai AI.": [
+    "按 Shift+Ctrl+Space，将区块或所选文本交给 Warpai AI 提问。",
+    "按 Shift+Ctrl+Space，將區塊或所選文字交給 Warpai AI 提問。"
+  ],
   "Shortcut": [
     "快捷键",
     "快速鍵"
@@ -6043,6 +6563,14 @@
     "显示历史记录",
     "顯示歷史記錄"
   ],
+  "Show In-band Command Blocks": [
+    "显示带内命令区块",
+    "顯示帶內命令區塊"
+  ],
+  "Show Initialization Block": [
+    "显示初始化区块",
+    "顯示初始化區塊"
+  ],
   "Show Jump to Bottom of Block button": [
     "显示跳到命令块底部按钮",
     "顯示跳到命令區塊底部按鈕"
@@ -6058,6 +6586,10 @@
   "Show Warpai network log": [
     "显示 Warpai 网络日志",
     "顯示 Warpai 網路記錄"
+  ],
+  "Show Warpified SSH Blocks": [
+    "显示已启用 Warpify 的 SSH 区块",
+    "顯示已啟用 Warpify 的 SSH 區塊"
   ],
   "Show a button in the top right of the window to toggle the code review panel.": [
     "在窗口右上角显示切换代码审查面板的按钮。",
@@ -6086,6 +6618,10 @@
   "Show code review button": [
     "显示代码审查按钮",
     "顯示程式碼審查按鈕"
+  ],
+  "Show context lines around matches": [
+    "显示匹配项周围的上下文行",
+    "顯示符合項目周圍的上下文行"
   ],
   "Show credit usage details": [
     "显示额度使用详情",
@@ -6195,6 +6731,10 @@
     "注册",
     "註冊"
   ],
+  "Sign up to participate in Warpai's referral program": [
+    "注册以参与 Warpai 推荐计划",
+    "註冊以參與 Warpai 推薦計畫"
+  ],
   "Skip": [
     "跳过",
     "略過"
@@ -6267,6 +6807,10 @@
     "向上拆分窗格",
     "向上分割窗格"
   ],
+  "Staging API call failed. Did your IP address change?": [
+    "预发布环境 API 调用失败。你的 IP 地址是否发生了变化？",
+    "預發佈環境 API 呼叫失敗。你的 IP 位址是否發生了變更？"
+  ],
   "Stale": [
     "已过期",
     "已過期"
@@ -6306,6 +6850,10 @@
   "Start by {} · execution deadline {} · review deadline {}": [
     "开始期限 {} · 执行期限 {} · 审查期限 {}",
     "開始期限 {} · 執行期限 {} · 審查期限 {}"
+  ],
+  "Start remote control": [
+    "启动远程控制",
+    "啟動遠端控制"
   ],
   "Started agent ": [
     "已启动 Agent ",
@@ -6591,6 +7139,10 @@
     "文字编辑",
     "文字編輯"
   ],
+  "The /open-file command is only available for local sessions": [
+    "/open-file 命令仅适用于本地会话",
+    "/open-file 命令僅適用於本機工作階段"
+  ],
   "The AWS CLI is required to authenticate with your organization's AWS Bedrock. Install it to continue.": [
     "需要 AWS CLI 才能通过组织的 AWS Bedrock 认证。请安装后继续。",
     "需要 AWS CLI 才能透過組織的 AWS Bedrock 驗證。請安裝後繼續。"
@@ -6631,6 +7183,18 @@
     "所选硬件可能不支持透明窗口。",
     "所選硬體可能不支援透明視窗。"
   ],
+  "The selected model does not support images as context": [
+    "所选模型不支持将图片用作上下文",
+    "所選模型不支援將圖片用作上下文"
+  ],
+  "The selected model does not support images as context.": [
+    "所选模型不支持将图片用作上下文。",
+    "所選模型不支援將圖片用作上下文。"
+  ],
+  "The tmux ssh wrapper works in many situations where the default one does not, but may require you to hit a button to warpify. Takes effect in new tabs.": [
+    "tmux SSH 包装器可处理默认包装器无法处理的许多情况，但可能需要点击按钮启用 Warpify。此设置在新标签页中生效。",
+    "tmux SSH 包裝器可處理預設包裝器無法處理的許多情況，但可能需要點選按鈕啟用 Warpify。此設定在新分頁中生效。"
+  ],
   "Theme chooser. Unfortunately, theme chooser window isn't compatible with screen readers yet.": [
     "主题选择器。目前主题选择器窗口尚不兼容屏幕阅读器。",
     "主題選擇器。目前主題選擇器視窗尚不相容螢幕閱讀器。"
@@ -6647,6 +7211,10 @@
     "正在思考…",
     "正在思考…"
   ],
+  "This MCP server contains secrets. Visit Settings > Privacy to modify your secret redaction settings.": [
+    "此 MCP 服务器包含敏感信息。请前往“设置 > 隐私”修改敏感信息脱敏设置。",
+    "此 MCP 伺服器包含敏感資訊。請前往「設定 > 隱私」修改敏感資訊遮蔽設定。"
+  ],
   "This Mac": [
     "此 Mac",
     "此 Mac"
@@ -6654,6 +7222,10 @@
   "This Windows PC": [
     "此 Windows 电脑",
     "此 Windows 電腦"
+  ],
+  "This cannot be undone.": [
+    "此操作无法撤销。",
+    "此操作無法復原。"
   ],
   "This change will take effect in new sessions": [
     "此更改将在新会话中生效",
@@ -6671,9 +7243,25 @@
     "此菜单可帮助你切换 Node.js 版本，但需要先安装 nvm。",
     "此選單可協助你切換 Node.js 版本，但需要先安裝 nvm。"
   ],
+  "This notebook cannot be saved because its content contains secrets": [
+    "此笔记本内容包含敏感信息，无法保存",
+    "此筆記本內容包含敏感資訊，無法儲存"
+  ],
+  "This notebook cannot be saved because its title contains secrets": [
+    "此笔记本标题包含敏感信息，无法保存",
+    "此筆記本標題包含敏感資訊，無法儲存"
+  ],
+  "This option is enforced by your organization's settings and cannot be customized.": [
+    "此选项由组织设置强制执行，无法自定义。",
+    "此選項由組織設定強制執行，無法自訂。"
+  ],
   "This pane changed checkout. Its shared native connection is unavailable in this directory; open a fresh pane for the reviewed workspace.": [
     "此窗格已切换检出目录。共享的原生连接在此目录中不可用；请为已审查的工作区打开新窗格。",
     "此窗格已切換簽出目錄。共用的原生連線在此目錄中無法使用；請為已審查的工作區開啟新窗格。"
+  ],
+  "This plan is already in context.": [
+    "此计划已在上下文中。",
+    "此計畫已在上下文中。"
   ],
   "This secret key is shown only once. Copy and store it securely.": [
     "此密钥仅显示一次，请复制并妥善保存。",
@@ -6691,6 +7279,14 @@
     "此建议正在另一个标签页中编辑。",
     "此建議正在另一個分頁中編輯。"
   ],
+  "This will permanently delete the theme.": [
+    "这将永久删除此主题。",
+    "這將永久刪除此佈景主題。"
+  ],
+  "This workflow is no longer available.": [
+    "此工作流已不可用。",
+    "此工作流程已不可用。"
+  ],
   "Timeout must be a whole number of seconds": [
     "超时必须为整数秒数",
     "逾時必須為整數秒數"
@@ -6699,6 +7295,10 @@
     "超时必须大于零",
     "逾時必須大於零"
   ],
+  "Title (optional)": [
+    "标题（可选）",
+    "標題（選填）"
+  ],
   "To continue using AI, please upgrade your plan.": [
     "请升级套餐以继续使用 AI。",
     "請升級方案以繼續使用 AI。"
@@ -6706,6 +7306,10 @@
   "To exclude specific files or directories from indexing, add them to the .warpindexingignore file in your repository directory. These files will still be accessible to AI features, but they won't be included in codebase embeddings.": [
     "要从索引中排除特定文件或目录，请将它们添加到仓库目录中的 .warpindexingignore 文件。这些文件仍可供 AI 功能访问，但不会包含在代码库嵌入中。",
     "若要從索引中排除特定檔案或目錄，請將它們新增至儲存庫目錄中的 .warpindexingignore 檔案。這些檔案仍可供 AI 功能存取，但不會包含在程式碼庫嵌入中。"
+  ],
+  "To use AI features,": [
+    "要使用 AI 功能，",
+    "若要使用 AI 功能，"
   ],
   "To use AI features, please create an account.": [
     "请创建账户以使用 AI 功能。",
@@ -6863,6 +7467,10 @@
     "切换垂直标签页面板",
     "切換垂直分頁面板"
   ],
+  "Too many attachments for this conversation.": [
+    "此对话的附件过多。",
+    "此對話的附件過多。"
+  ],
   "Toolbar layout": [
     "工具栏布局",
     "工具列配置"
@@ -6903,6 +7511,10 @@
     "尝试使用 nvm 安装版本",
     "嘗試使用 nvm 安裝版本"
   ],
+  "Try it out!": [
+    "试试吧！",
+    "試試看！"
+  ],
   "Turn notifications off": [
     "关闭通知",
     "關閉通知"
@@ -6914,6 +7526,10 @@
   "Type": [
     "类型",
     "類型"
+  ],
+  "Type '#' for AI command suggestions": [
+    "输入“#”获取 AI 命令建议",
+    "輸入「#」取得 AI 命令建議"
   ],
   "Type ALLOW OVERLAP": [
     "输入 ALLOW OVERLAP",
@@ -6938,6 +7554,10 @@
   "Type RELEASE RESERVATION; this does not stop writes": [
     "输入 RELEASE RESERVATION；这不会停止写入",
     "輸入 RELEASE RESERVATION；這不會停止寫入"
+  ],
+  "Type a commit message": [
+    "输入提交说明",
+    "輸入提交說明"
   ],
   "Type owner/repo and press Enter to add, or select from dropdown.": [
     "输入 owner/repo 并按 Enter 添加，或从下拉菜单选择。",
@@ -6983,6 +7603,10 @@
     "卸载 Oz CLI 命令",
     "解除安裝 Oz CLI 命令"
   ],
+  "Unlock smarter, more consistent responses by letting the Agent understand your codebase and generate rules for it. You can also do this at any point by running /init": [
+    "让 Agent 理解你的代码库并生成规则，从而获得更智能、更一致的回答。你也可以随时运行 /init 完成此操作。",
+    "讓 Agent 理解你的程式碼庫並產生規則，從而取得更智慧、更一致的回答。你也可以隨時執行 /init 完成此操作。"
+  ],
   "Unpin current tab": [
     "取消固定当前标签页",
     "取消釘選目前分頁"
@@ -7010,6 +7634,10 @@
   "Update Agent": [
     "更新智能体",
     "更新智慧體"
+  ],
+  "Update Warpai": [
+    "更新 Warpai",
+    "更新 Warpai"
   ],
   "Update Warpai manually": [
     "手动更新 Warpai",
@@ -7058,6 +7686,10 @@
   "Upgrade to the Build plan": [
     "升级到 Build 套餐",
     "升級至 Build 方案"
+  ],
+  "Usage reporting is currently limited": [
+    "使用情况报告目前受限",
+    "使用情況報告目前受限"
   ],
   "Use Audible Bell": [
     "使用提示音",
@@ -7131,6 +7763,18 @@
     "离线使用 Warpai",
     "離線使用 Warpai"
   ],
+  "Variables": [
+    "变量",
+    "變數"
+  ],
+  "Variant": [
+    "选项",
+    "選項"
+  ],
+  "Variants": [
+    "选项列表",
+    "選項清單"
+  ],
   "Version": [
     "版本",
     "版本"
@@ -7159,6 +7803,10 @@
     "查看你创建的智能体任务",
     "檢視你建立的智慧體工作"
   ],
+  "View all": [
+    "查看全部",
+    "檢視全部"
+  ],
   "View all available system fonts": [
     "查看所有可用系统字体",
     "查看所有可用系統字型"
@@ -7174,6 +7822,10 @@
   "View changelog": [
     "查看更新日志",
     "檢視版本記錄"
+  ],
+  "View details on overage usage": [
+    "查看超额使用详情",
+    "檢視超額使用詳情"
   ],
   "View in GitHub": [
     "在 GitHub 中查看",
@@ -7215,6 +7867,10 @@
     "视图选项",
     "檢視選項"
   ],
+  "View plans": [
+    "查看套餐",
+    "檢視方案"
+  ],
   "View privacy policy (opens external link)": [
     "查看隐私政策（打开外部链接）",
     "查看隱私權政策（開啟外部連結）"
@@ -7222,6 +7878,10 @@
   "View pull request": [
     "查看拉取请求",
     "檢視提取請求"
+  ],
+  "View status": [
+    "查看状态",
+    "檢視狀態"
   ],
   "View this run in the Oz web app": [
     "在 Oz 网页应用中查看此次运行",
@@ -7246,6 +7906,10 @@
   "Visit docs": [
     "查看文档",
     "檢視文件"
+  ],
+  "Visit the data management page": [
+    "访问数据管理页面",
+    "造訪資料管理頁面"
   ],
   "Visit the repo": [
     "访问仓库",
@@ -7327,6 +7991,10 @@
     "Warpai 目前不支持你的默认 Shell，将改用 zsh。   ",
     "Warpai 目前不支援你的預設 Shell，將改用 zsh。   "
   ],
+  "Warpai doesn't have permission to send desktop notifications.": [
+    "Warpai 没有发送桌面通知的权限。",
+    "Warpai 沒有傳送桌面通知的權限。"
+  ],
   "Warpai is now open-source": [
     "Warpai 现已开源",
     "Warpai 現已開放原始碼"
@@ -7347,9 +8015,21 @@
     "Warpai 将各 CLI 编程 Agent 的通知汇集到统一通知中心，适用于各种 Agent 和运行工具。 ",
     "Warpai 將各 CLI 程式設計 Agent 的通知匯集至統一通知中心，適用於各種 Agent 與執行工具。 "
   ],
+  "Warpai prompt": [
+    "Warpai 提示符",
+    "Warpai 提示字元"
+  ],
+  "Warpai terminal prompt": [
+    "Warpai 终端提示符",
+    "Warpai 終端提示字元"
+  ],
   "Warpai will prevent use of premium models when this dollar limit is reached. Resets on a monthly basis.": [
     "达到此美元上限后，Warpai 将停止使用高级模型。额度每月重置。",
     "達到此美元上限後，Warpai 將停止使用進階模型。額度每月重設。"
+  ],
+  "Warpai works with many custom prompts like oh-my-zsh, Starship, Powerlevel10K. ": [
+    "Warpai 支持 oh-my-zsh、Starship、Powerlevel10K 等多种自定义提示符。 ",
+    "Warpai 支援 oh-my-zsh、Starship、Powerlevel10K 等多種自訂提示字元。 "
   ],
   "Warpai {tag} is available": [
     "Warpai {tag} 已可用",
@@ -7379,6 +8059,10 @@
     "我们正积极改善 Warpai 中 SSH 的稳定性。请考虑 ",
     "我們正積極改善 Warpai 中 SSH 的穩定性。請考慮 "
   ],
+  "We may collect certain console interactions to improve Warp's AI capabilities. You can opt out any time.": [
+    "我们可能收集部分终端交互，以改进 Warp 的 AI 能力。你可以随时退出。",
+    "我們可能收集部分終端互動，以改善 Warp 的 AI 能力。你可以隨時退出。"
+  ],
   "We've built a native console that allows you to view all communications from Warpai to external servers to ensure you feel comfortable that your work is always kept safe.": [
     "内置控制台可查看 Warpai 与外部服务器的所有通信，帮助你确认工作数据的安全。",
     "內建主控台可查看 Warpai 與外部伺服器的所有通訊，協助你確認工作資料的安全。"
@@ -7394,6 +8078,10 @@
   "What's new": [
     "新功能",
     "新功能"
+  ],
+  "What's new in Oz": [
+    "Oz 新功能",
+    "Oz 新功能"
   ],
   "When a command takes longer than": [
     "当命令执行时间超过",
@@ -7455,6 +8143,10 @@
     "Wispr Flow",
     "Wispr Flow"
   ],
+  "Workflow": [
+    "工作流",
+    "工作流程"
+  ],
   "Workflows": [
     "工作流",
     "工作流程"
@@ -7491,6 +8183,10 @@
     "仅允许写入",
     "僅允許寫入"
   ],
+  "Yes, empty trash": [
+    "确认清空回收站",
+    "確認清空垃圾桶"
+  ],
   "Yes, skip login": [
     "是，跳过登录",
     "是，略過登入"
@@ -7498,6 +8194,18 @@
   "You (default reviewer)": [
     "你（默认审查者）",
     "你（預設審查者）"
+  ],
+  "You are offline.": [
+    "你已离线。",
+    "你已離線。"
+  ],
+  "You are offline. Some files will be read only.": [
+    "你已离线。部分文件将为只读。",
+    "你已離線。部分檔案將為唯讀。"
+  ],
+  "You are offline. Some rules will be read only.": [
+    "你已离线。部分规则将为只读。",
+    "你已離線。部分規則將為唯讀。"
   ],
   "You can enable notifications through the command palette.": [
     "你可以通过命令面板启用通知。",
@@ -7918,6 +8626,14 @@
   "e.g. \"YOLO code\"": [
     "例如“YOLO code”",
     "例如「YOLO code」"
+  ],
+  "e.g. Never use unwrap in Rust": [
+    "例如，绝不在 Rust 中使用 unwrap",
+    "例如，絕不在 Rust 中使用 unwrap"
+  ],
+  "e.g. Rust rules": [
+    "例如 Rust 规则",
+    "例如 Rust 規則"
   ],
   "e.g. cd my-repo && pip install -r requirements.txt": [
     "例如 cd my-repo && pip install -r requirements.txt",
@@ -8435,6 +9151,10 @@
     "故障排查文档",
     "疑難排解文件"
   ],
+  "turn it back on": [
+    "重新启用",
+    "重新啟用"
+  ],
   "unavailable": [
     "不可用",
     "無法使用"
@@ -8451,6 +9171,14 @@
     "未指定",
     "未指定"
   ],
+  "update your payment information": [
+    "更新你的付款信息",
+    "更新你的付款資訊"
+  ],
+  "upgrade": [
+    "升级",
+    "升級"
+  ],
   "version update": [
     "版本 更新",
     "版本 更新"
@@ -8466,6 +9194,10 @@
   "vim mode keybindings": [
     "Vim 模式 快捷键",
     "Vim 模式 快速鍵"
+  ],
+  "visit the admin panel": [
+    "访问管理面板",
+    "造訪管理面板"
   ],
   "voice agent oz ai a.i. speech input natural language talk english": [
     "语音 Agent AI 输入 自然语言 说话 英语",

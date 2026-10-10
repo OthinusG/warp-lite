@@ -113,7 +113,7 @@ impl InitEnvironmentBlock {
         // Add help text if we don't have any repos to make it clearer
         if self.repos.is_empty() && !self.use_current_dir {
             let help_text = Text::new(
-                NO_REPOS_HELP_TEXT,
+                warpui::localization::text(NO_REPOS_HELP_TEXT),
                 appearance.ui_font_family(),
                 appearance.monospace_font_size() - 2.,
             )

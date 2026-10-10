@@ -2473,7 +2473,7 @@ impl Workspace {
         .finish();
 
         let text = Text::new_inline(
-            SESSION_CONFIG_TAB_CONFIG_CHIP_TEXT.to_string(),
+            warpui::localization::text(SESSION_CONFIG_TAB_CONFIG_CHIP_TEXT).to_string(),
             appearance.ui_font_family(),
             12.,
         )
@@ -2532,7 +2532,7 @@ impl Workspace {
                     me.shown_staging_banner_count += 1;
                     me.toast_stack.update(ctx, |toast_stack, ctx| {
                         let toast = DismissibleToast::error(
-                            "Staging API call failed. Did your IP address change?".to_string(),
+                            warpui::localization::text("Staging API call failed. Did your IP address change?").to_string(),
                         )
                         .with_object_id("staging_access_blocked_toast".to_string());
                         toast_stack.add_ephemeral_toast(toast, ctx);
@@ -4296,7 +4296,7 @@ impl Workspace {
                     log::error!("Failed to load conversation from server");
                     me.toast_stack.update(ctx, |view, ctx| {
                         let new_toast = DismissibleToast::error(
-                            "Failed to load conversation data.".to_string(),
+                            warpui::localization::text("Failed to load conversation data.").to_string(),
                         );
                         view.add_ephemeral_toast(new_toast, ctx);
                     });
@@ -4460,7 +4460,7 @@ impl Workspace {
         ));
 
         self.toast_stack.update(ctx, |toast_stack, ctx| {
-            let toast = DismissibleToast::default("Remote control link copied.".to_string());
+            let toast = DismissibleToast::default(warpui::localization::text("Remote control link copied.").to_string());
             toast_stack.add_ephemeral_toast(toast, ctx);
         });
     }
@@ -10867,7 +10867,7 @@ impl Workspace {
 
                 self.toast_stack.update(ctx, |view, ctx| {
                     let new_toast =
-                        DismissibleToast::error("Looks like you're out of AI credits.".into())
+                        DismissibleToast::error(warpui::localization::text("Looks like you're out of AI credits.").into())
                             .with_link(
                                 ToastLink::new(warpui::localization::text("Upgrade for more credits.").into())
                                     .with_href(upgrade_link),
@@ -12842,7 +12842,7 @@ impl Workspace {
                     ctx.notify();
                 });
                 WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    let toast = DismissibleToast::error("Failed to load conversation.".to_owned());
+                    let toast = DismissibleToast::error(warpui::localization::text("Failed to load conversation.").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
                 return;
@@ -12895,7 +12895,7 @@ impl Workspace {
             let Some(conversation) = conversation else {
                 log::warn!("Failed to load conversation {conversation_id}");
                 WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    let toast = DismissibleToast::error("Failed to load conversation.".to_owned());
+                    let toast = DismissibleToast::error(warpui::localization::text("Failed to load conversation.").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
                 // Close the loading pane
@@ -12964,7 +12964,7 @@ impl Workspace {
             let Some(conversation) = conversation else {
                 log::warn!("Failed to load conversation {conversation_id}");
                 WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    let toast = DismissibleToast::error("Failed to load conversation.".to_owned());
+                    let toast = DismissibleToast::error(warpui::localization::text("Failed to load conversation.").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
                 // Close the loading tab
@@ -13068,7 +13068,7 @@ impl Workspace {
                 log::error!("Failed to load Oz conversation {conversation_id} for forking.");
                 WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     let toast = DismissibleToast::error(
-                        "Failed to load conversation for forking.".to_owned(),
+                        warpui::localization::text("Failed to load conversation for forking.").to_owned(),
                     );
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
@@ -13096,7 +13096,7 @@ impl Workspace {
                     log::error!("Conversation forking failed. {e}.");
                     WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         let toast =
-                            DismissibleToast::error("Conversation forking failed.".to_owned());
+                            DismissibleToast::error(warpui::localization::text("Conversation forking failed.").to_owned());
                         toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                     });
                     return;
@@ -13577,7 +13577,7 @@ impl Workspace {
                         let url = NOTIFICATIONS_TROUBLESHOOT_URL.to_string();
                         view.toast_stack.update(ctx, |toast_stack, ctx| {
                             let toast = DismissibleToast::error(
-                                "Warpai doesn't have permission to send desktop notifications.".to_string(),
+                                warpui::localization::text("Warpai doesn't have permission to send desktop notifications.").to_string(),
                             )
                             .with_link(ToastLink::new(warpui::localization::text("Troubleshoot notifications").to_string()).with_href(url));
                             toast_stack.add_persistent_toast(toast, ctx);
@@ -16076,7 +16076,7 @@ impl Workspace {
             let window_id = ctx.window_id();
             WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 let toast = DismissibleToast::default(
-                    "No terminal pane open. Open a new pane to attach as context.".to_owned(),
+                    warpui::localization::text("No terminal pane open. Open a new pane to attach as context.").to_owned(),
                 );
                 toast_stack.add_ephemeral_toast(toast, window_id, ctx);
             });
@@ -16096,7 +16096,7 @@ impl Workspace {
                 let window_id = ctx.window_id();
                 WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     let toast =
-                        DismissibleToast::default("This plan is already in context.".to_owned());
+                        DismissibleToast::default(warpui::localization::text("This plan is already in context.").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
                 return;
@@ -16178,7 +16178,7 @@ impl Workspace {
             // RequireExisting or OpenIfNone. In those cases, show a toast and no-op.
             self.toast_stack.update(ctx, |toast_stack, ctx| {
                 let mut toast = DismissibleToast::error(
-                    "A command in this session is still running.".to_string(),
+                    warpui::localization::text("A command in this session is still running.").to_string(),
                 );
                 if let Some(id) = object_id {
                     toast = toast.with_object_id(id.uid());
@@ -16201,7 +16201,7 @@ impl Workspace {
         if !ContextFlag::CreateNewSession.is_enabled() {
             self.toast_stack.update(ctx, |toast_stack, ctx| {
                 let toast =
-                    DismissibleToast::error("Cannot open a new terminal session".to_string());
+                    DismissibleToast::error(warpui::localization::text("Cannot open a new terminal session").to_string());
                 toast_stack.add_ephemeral_toast(toast, ctx);
             });
             return None;
@@ -16435,7 +16435,7 @@ impl Workspace {
                                     self.toast_stack.update(ctx, |view, ctx| {
                                         view.add_ephemeral_toast(
                                             DismissibleToast::error(
-                                                "This workflow is no longer available.".to_string(),
+                                                warpui::localization::text("This workflow is no longer available.").to_string(),
                                             ),
                                             ctx,
                                         );
@@ -20299,7 +20299,7 @@ impl Workspace {
                     Flex::row()
                         .with_child(
                             Text::new_inline(
-                                UPDATE_READY_TEXT,
+                                warpui::localization::text(UPDATE_READY_TEXT),
                                 appearance.ui_font_family(),
                                 PILL_FONT_SIZE,
                             )
@@ -22045,13 +22045,13 @@ impl TypedActionView for Workspace {
             CollaborationAdmissionFailed => {
                 self.toast_stack.update(ctx, |stack, ctx| {
                     stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
-                        "Shared participation was not admitted. Refresh the workspace mapping and confirm a new pane; this terminal has no shared communication access.".into()), ctx);
+                        warpui::localization::text("Shared participation was not admitted. Refresh the workspace mapping and confirm a new pane; this terminal has no shared communication access.").into()), ctx);
                 });
             }
             CollaborationEvidenceUnavailable => {
                 self.toast_stack.update(ctx, |stack, ctx| {
                     stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
-                        "Evidence content is unavailable in its original local checkout. Refresh the reference or inspect its metadata; remote content is not downloaded automatically.".into()), ctx);
+                        warpui::localization::text("Evidence content is unavailable in its original local checkout. Refresh the reference or inspect its metadata; remote content is not downloaded automatically.").into()), ctx);
                 });
             }
             OpenCollaborationWorkspace {
@@ -22093,7 +22093,7 @@ impl TypedActionView for Workspace {
                     } else {
                         self.toast_stack.update(ctx, |stack, ctx| {
                             stack.add_ephemeral_toast(crate::view_components::DismissibleToast::error(
-                                "Could not open a shared pane. Enable communication, refresh the mapping and confirm its current space and directory.".into()), ctx);
+                                warpui::localization::text("Could not open a shared pane. Enable communication, refresh the mapping and confirm its current space and directory.").into()), ctx);
                         });
                     }
                 }
@@ -23728,7 +23728,7 @@ impl TypedActionView for Workspace {
 
                 self.toast_stack.update(ctx, |view, ctx| {
                     view.add_ephemeral_toast(
-                        DismissibleToast::default("Sampling process for 3 seconds...".to_string()),
+                        DismissibleToast::default(warpui::localization::text("Sampling process for 3 seconds...").to_string()),
                         ctx,
                     );
                 });
@@ -23956,7 +23956,7 @@ impl TypedActionView for Workspace {
                         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                             toast_stack.add_ephemeral_toast(
                                 DismissibleToast::error(
-                                    "Failed to delete conversation. Please exit the agent view and try again.".to_string(),
+                                    warpui::localization::text("Failed to delete conversation. Please exit the agent view and try again.").to_string(),
                                 ),
                                 window_id,
                                 ctx,

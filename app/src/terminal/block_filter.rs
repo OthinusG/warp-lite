@@ -187,7 +187,7 @@ impl BlockFilterEditor {
                 },
                 ctx,
             );
-            editor.set_placeholder_text(FILTER_BLOCK_PLACEHOLDER_TEXT, ctx);
+            editor.set_placeholder_text(warpui::localization::text(FILTER_BLOCK_PLACEHOLDER_TEXT), ctx);
             editor
         });
 
@@ -634,7 +634,7 @@ impl View for BlockFilterEditor {
                 if state.is_hovered() {
                     let tool_tip = appearance
                         .ui_builder()
-                        .tool_tip(CONTEXT_LINE_EDITOR_TOOLTIP_LABEL.to_string())
+                        .tool_tip(warpui::localization::text(CONTEXT_LINE_EDITOR_TOOLTIP_LABEL).to_string())
                         .build()
                         .finish();
                     stack.add_positioned_child(

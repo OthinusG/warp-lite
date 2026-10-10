@@ -396,7 +396,7 @@ impl TypedActionView for AgentViewEntryBlock {
                         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                             toast_stack.add_ephemeral_toast(
                                 DismissibleToast::error(
-                                    "Couldn't navigate to conversation.".to_string(),
+                                    warpui::localization::text("Couldn't navigate to conversation.").to_string(),
                                 ),
                                 window_id,
                                 ctx,

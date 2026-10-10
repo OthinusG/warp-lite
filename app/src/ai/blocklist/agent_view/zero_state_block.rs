@@ -1033,7 +1033,7 @@ fn render_oz_updates(props: OzUpdatesProps<'_>, app: &AppContext) -> Option<Box<
                         .with_child(
                             Container::new(
                                 Text::new(
-                                    OZ_UPDATES_SECTION_HEADER,
+                                    warpui::localization::text(OZ_UPDATES_SECTION_HEADER),
                                     appearance.ui_font_family(),
                                     appearance.monospace_font_size() - 2.,
                                 )

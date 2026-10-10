@@ -823,7 +823,7 @@ impl NotebookView {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
                         DismissibleToast::error(
-                            "This notebook cannot be saved because its content contains secrets"
+                            warpui::localization::text("This notebook cannot be saved because its content contains secrets")
                                 .to_string(),
                         ),
                         window_id,
@@ -1730,7 +1730,7 @@ impl NotebookView {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
                         DismissibleToast::error(
-                            "This notebook cannot be saved because its title contains secrets"
+                            warpui::localization::text("This notebook cannot be saved because its title contains secrets")
                                 .to_string(),
                         ),
                         window_id,
@@ -2124,7 +2124,7 @@ impl NotebookView {
                                     .build()
                                     .finish()
                             })
-                            .with_text_label(REFRESH_BUTTON_TEXT.to_string())
+                            .with_text_label(warpui::localization::text(REFRESH_BUTTON_TEXT).to_string())
                             .build()
                             .on_click(|ctx, _, _| {
                                 ctx.dispatch_typed_action(

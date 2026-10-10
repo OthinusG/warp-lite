@@ -88,7 +88,7 @@ pub fn render_agent_mode_setup_banner(
                 color_override: Some(appearance.theme().active_ui_text_color().into_solid()),
             }),
             content: Some(vec![Text::new(
-                SPEEDBUMP_TEXT,
+                warpui::localization::text(SPEEDBUMP_TEXT),
                 appearance.ui_font_family(),
                 appearance.monospace_font_size() - 2.,
             )

@@ -114,7 +114,7 @@ impl RepoPicker {
                     let mouse_state_clone = mouse_state.clone();
                     Hoverable::new(mouse_state_clone, move |_| {
                         Container::new(
-                            Text::new_inline(ADD_NEW_REPO_LABEL, font_family, font_size)
+                            Text::new_inline(warpui::localization::text(ADD_NEW_REPO_LABEL), font_family, font_size)
                                 .with_color(text_color.into())
                                 .finish(),
                         )

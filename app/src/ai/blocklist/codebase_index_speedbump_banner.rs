@@ -117,7 +117,7 @@ impl CodebaseIndexSpeedbumpBannerState {
         col.add_child(title);
 
         let body = ui_builder
-            .span(SPEEDBUMP_TEXT)
+            .span(warpui::localization::text(SPEEDBUMP_TEXT))
             .with_style(UiComponentStyles {
                 font_color: Some(blended_colors::text_sub(theme, theme.surface_1())),
                 font_size: Some(appearance.ui_font_size()),
@@ -194,7 +194,7 @@ impl CodebaseIndexSpeedbumpBannerState {
                 .finish();
 
             let checkbox_text = ui_builder
-                .span(ALLOW_SETTINGS_TEXT)
+                .span(warpui::localization::text(ALLOW_SETTINGS_TEXT))
                 .with_style(UiComponentStyles {
                     font_color: Some(blended_colors::text_disabled(theme, theme.surface_1())),
                     font_size: Some(appearance.ui_font_size()),
@@ -229,7 +229,7 @@ impl CodebaseIndexSpeedbumpBannerState {
                                     ButtonVariant::Outlined,
                                     self.dont_show_again_mouse_state.clone(),
                                 )
-                                .with_text_label(DISMISS_FOREVER_BUTTON_TEXT.to_string())
+                                .with_text_label(warpui::localization::text(DISMISS_FOREVER_BUTTON_TEXT).to_string())
                                 .with_style(UiComponentStyles {
                                     font_color: Some(appearance.theme().foreground().into_solid()),
                                     font_size: Some(appearance.ui_font_size()),
@@ -264,7 +264,7 @@ impl CodebaseIndexSpeedbumpBannerState {
                                     ButtonVariant::Outlined,
                                     self.allow_button_mouse_state.clone(),
                                 )
-                                .with_text_label(ALLOW_BUTTON_TEXT.to_string())
+                                .with_text_label(warpui::localization::text(ALLOW_BUTTON_TEXT).to_string())
                                 .with_style(UiComponentStyles {
                                     font_color: Some(appearance.theme().foreground().into_solid()),
                                     font_size: Some(appearance.ui_font_size()),
@@ -301,7 +301,7 @@ impl CodebaseIndexSpeedbumpBannerState {
                                     ButtonVariant::Outlined,
                                     self.view_status_button_mouse_state.clone(),
                                 )
-                                .with_text_label(VIEW_STATUS_BUTTON_TEXT.to_string())
+                                .with_text_label(warpui::localization::text(VIEW_STATUS_BUTTON_TEXT).to_string())
                                 .with_style(UiComponentStyles {
                                     font_color: Some(appearance.theme().foreground().into_solid()),
                                     font_size: Some(appearance.ui_font_size()),

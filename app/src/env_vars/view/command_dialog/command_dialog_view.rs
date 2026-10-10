@@ -73,7 +73,7 @@ impl EnvVarCommandDialog {
                 };
 
                 let mut editor = EditorView::single_line(options, ctx);
-                editor.set_placeholder_text(NAME_PLACEHOLDER_TEXT, ctx);
+                editor.set_placeholder_text(warpui::localization::text(NAME_PLACEHOLDER_TEXT), ctx);
                 editor
             })
         };
@@ -101,7 +101,7 @@ impl EnvVarCommandDialog {
                 };
 
                 let mut editor = EditorView::new(options, ctx);
-                editor.set_placeholder_text(COMMAND_PLACEHOLDER_TEXT, ctx);
+                editor.set_placeholder_text(warpui::localization::text(COMMAND_PLACEHOLDER_TEXT), ctx);
                 editor
             })
         };
@@ -257,7 +257,7 @@ impl EnvVarCommandDialog {
         Container::new(
             appearance
                 .ui_builder()
-                .span(SECRET_SPAN)
+                .span(warpui::localization::text(SECRET_SPAN))
                 .with_style(UiComponentStyles {
                     font_size: Some(SPAN_FONT_SIZE),
                     ..Default::default()

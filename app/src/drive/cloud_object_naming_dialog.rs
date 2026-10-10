@@ -264,7 +264,7 @@ impl CloudObjectNamingDialog {
                                 padding: Some(Coords::uniform(BUTTON_PADDING)),
                                 ..Default::default()
                             })
-                            .with_text_label(CANCEL_BUTTON_TEXT.into())
+                            .with_text_label(warpui::localization::text(CANCEL_BUTTON_TEXT).into())
                             .build()
                             .with_cursor(Cursor::PointingHand)
                             .on_click(move |ctx, _, _| {

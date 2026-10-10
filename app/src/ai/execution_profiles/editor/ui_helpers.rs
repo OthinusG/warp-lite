@@ -794,7 +794,7 @@ pub fn wrap_disabled_with_workspace_override_tooltip(
         if state.is_hovered() {
             let tooltip = appearance
                 .ui_builder()
-                .tool_tip(WORKSPACE_OVERRIDE_TOOLTIP_MESSAGE.to_string())
+                .tool_tip(warpui::localization::text(WORKSPACE_OVERRIDE_TOOLTIP_MESSAGE).to_string())
                 .build()
                 .finish();
 

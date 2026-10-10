@@ -121,7 +121,7 @@ BINDING_DISPLAY = re.compile(
 
 DISPLAY = re.compile(
     r"(?:Text::new(?:_inline)?|FormattedTextElement::from_str|CustomMenuItem::new"
-    r"|ToastLink::new|FormattedTextFragment::(?:plain_text|hyperlink)|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
+    r"|DismissibleToast::(?:default|error|warning)|ToastLink::new|FormattedTextFragment::(?:plain_text|hyperlink)|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
     r"|ActionButton::new|render_page_title|AccessibilityContent::new"
     r"|(?:build_sub_header|render_sub_header_with_description|render_dropdown_item)\(\s*appearance\s*,"
     r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"

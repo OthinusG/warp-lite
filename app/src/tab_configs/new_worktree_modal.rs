@@ -522,7 +522,7 @@ impl View for NewWorktreeModal {
                 body.add_child(
                     Container::new(
                         Text::new_inline(
-                            INVALID_BRANCH_NAME_ERROR.to_string(),
+                            warpui::localization::text(INVALID_BRANCH_NAME_ERROR).to_string(),
                             appearance.ui_font_family(),
                             ERROR_FONT_SIZE,
                         )

@@ -146,7 +146,7 @@ impl CodeEditorFind {
                 },
                 ctx,
             );
-            editor.set_placeholder_text(FIND_PLACEHOLDER_TEXT, ctx);
+            editor.set_placeholder_text(warpui::localization::text(FIND_PLACEHOLDER_TEXT), ctx);
             editor
         });
 
@@ -163,7 +163,7 @@ impl CodeEditorFind {
                 },
                 ctx,
             );
-            replace_editor.set_placeholder_text(REPLACE_PLACEHOLDER_TEXT, ctx);
+            replace_editor.set_placeholder_text(warpui::localization::text(REPLACE_PLACEHOLDER_TEXT), ctx);
             replace_editor
         });
 

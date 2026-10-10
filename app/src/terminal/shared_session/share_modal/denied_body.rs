@@ -58,7 +58,7 @@ impl View for DeniedBody {
         let button = appearance
             .ui_builder()
             .button(ButtonVariant::Accent, self.button_mouse_state.clone())
-            .with_centered_text_label(VIEW_PLANS_TEXT.to_owned())
+            .with_centered_text_label(warpui::localization::text(VIEW_PLANS_TEXT).to_owned())
             .with_style(style::button_styles())
             .build()
             .with_cursor(Cursor::PointingHand)

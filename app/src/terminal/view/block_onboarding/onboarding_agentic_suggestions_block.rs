@@ -597,7 +597,7 @@ impl OnboardingAgenticSuggestionsBlock {
         Flex::column()
             .with_children(vec![
                 Container::new(
-                    Text::new(WELCOME_TEXT_LINE_ONE, font_family, font_size)
+                    Text::new(warpui::localization::text(WELCOME_TEXT_LINE_ONE), font_family, font_size)
                         .with_color(font_color.into_solid())
                         .finish(),
                 )
@@ -605,7 +605,7 @@ impl OnboardingAgenticSuggestionsBlock {
                 .finish(),
                 FormattedTextElement::new(
                     FormattedText::new([FormattedTextLine::Line(vec![
-                        FormattedTextFragment::plain_text(WELCOME_TEXT_LINE_TWO_PART_ONE),
+                        FormattedTextFragment::plain_text(warpui::localization::text(WELCOME_TEXT_LINE_TWO_PART_ONE)),
                         FormattedTextFragment::weighted(
                             WELCOME_TEXT_LINE_TWO_PART_TWO,
                             Some(CustomWeight::Bold),

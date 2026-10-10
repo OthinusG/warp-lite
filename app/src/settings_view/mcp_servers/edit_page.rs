@@ -541,7 +541,7 @@ impl MCPServersEditPageView {
             let window_id = ctx.window_id();
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 toast_stack.add_ephemeral_toast(
-                    DismissibleToast::error("This MCP server contains secrets. Visit Settings > Privacy to modify your secret redaction settings.".to_string()),
+                    DismissibleToast::error(warpui::localization::text("This MCP server contains secrets. Visit Settings > Privacy to modify your secret redaction settings.").to_string()),
                     window_id,
                     ctx,
                 );
@@ -601,7 +601,7 @@ impl MCPServersEditPageView {
             let window_id = ctx.window_id();
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 toast_stack.add_ephemeral_toast(
-                    DismissibleToast::error("No MCP Server specified.".to_string()),
+                    DismissibleToast::error(warpui::localization::text("No MCP Server specified.").to_string()),
                     window_id,
                     ctx,
                 );
@@ -615,7 +615,7 @@ impl MCPServersEditPageView {
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 toast_stack.add_ephemeral_toast(
                     DismissibleToast::error(
-                        "Cannot add multiple MCP servers while editing a single server."
+                        warpui::localization::text("Cannot add multiple MCP servers while editing a single server.")
                             .to_string(),
                     ),
                     window_id,
@@ -898,7 +898,7 @@ impl TypedActionView for MCPServersEditPageView {
                         let window_id = ctx.window_id();
                         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                             toast_stack.add_ephemeral_toast(
-                                DismissibleToast::error("No MCP Server specified.".to_string()),
+                                DismissibleToast::error(warpui::localization::text("No MCP Server specified.").to_string()),
                                 window_id,
                                 ctx,
                             );

@@ -2966,7 +2966,7 @@ impl Input {
                     ToastStack::handle(ctx).update(ctx, |ts, ctx| {
                         ts.add_ephemeral_toast(
                             DismissibleToast::error(
-                                "Attached images were removed — the selected model does not support images.".to_string(),
+                                warpui::localization::text("Attached images were removed — the selected model does not support images.").to_string(),
                             ),
                             window_id,
                             ctx,
@@ -5584,7 +5584,7 @@ impl Input {
             let show_hint = *InputSettings::as_ref(ctx).show_hint_text;
             self.editor.update(ctx, |editor, ctx| {
                 if show_hint {
-                    editor.set_placeholder_text(CLOUD_MODE_V2_HINT_TEXT, ctx);
+                    editor.set_placeholder_text(warpui::localization::text(CLOUD_MODE_V2_HINT_TEXT), ctx);
                 } else {
                     editor.clear_placeholder_text(ctx);
                 }
@@ -5634,7 +5634,7 @@ impl Input {
                 });
             } else {
                 self.editor.update(ctx, |editor, ctx| {
-                    editor.set_placeholder_text(AI_COMMAND_SEARCH_HINT_TEXT, ctx);
+                    editor.set_placeholder_text(warpui::localization::text(AI_COMMAND_SEARCH_HINT_TEXT), ctx);
                 });
             }
         } else {
@@ -12241,7 +12241,7 @@ impl Input {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
                         DismissibleToast::error(
-                            "Cannot send queries as a read-only viewer.".to_string(),
+                            warpui::localization::text("Cannot send queries as a read-only viewer.").to_string(),
                         ),
                         window_id,
                         ctx,
@@ -12599,7 +12599,7 @@ impl Input {
                     ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         toast_stack.add_ephemeral_toast(
                             DismissibleToast::error(
-                                "Too many attachments for this conversation.".to_string(),
+                                warpui::localization::text("Too many attachments for this conversation.").to_string(),
                             ),
                             window_id,
                             ctx,
@@ -13849,7 +13849,7 @@ impl TypedActionView for Input {
                     ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                         toast_stack.add_ephemeral_toast(
                             DismissibleToast::error(
-                                "Cannot start a new conversation while agent is monitoring a command.".to_string()
+                                warpui::localization::text("Cannot start a new conversation while agent is monitoring a command.").to_string()
                             ),
                             window_id,
                             ctx,

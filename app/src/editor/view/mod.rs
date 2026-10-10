@@ -4993,7 +4993,7 @@ impl EditorView {
                             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                                 toast_stack.add_ephemeral_toast(
                                     DismissibleToast::error(
-                                        "The selected model does not support images as context."
+                                        warpui::localization::text("The selected model does not support images as context.")
                                             .to_string(),
                                     ),
                                     window_id,
@@ -5099,7 +5099,7 @@ impl EditorView {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
                         DismissibleToast::error(
-                            "The selected model does not support images as context".to_owned(),
+                            warpui::localization::text("The selected model does not support images as context").to_owned(),
                         ),
                         window_id,
                         ctx,
@@ -5214,7 +5214,7 @@ impl EditorView {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
                         DismissibleToast::error(
-                            "The selected model does not support images as context".to_owned(),
+                            warpui::localization::text("The selected model does not support images as context").to_owned(),
                         ),
                         window_id,
                         ctx,

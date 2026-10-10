@@ -85,7 +85,7 @@ impl View for TelemetryBanner {
                                 .finish(),
                         )
                         .with_child(
-                            Text::new(DESCRIPTION, ui_builder.ui_font_family(), 12.)
+                            Text::new(warpui::localization::text(DESCRIPTION), ui_builder.ui_font_family(), 12.)
                                 .with_color(theme.nonactive_ui_text_color().into_solid())
                                 .soft_wrap(true)
                                 .finish(),

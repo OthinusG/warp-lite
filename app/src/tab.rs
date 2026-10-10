@@ -678,7 +678,7 @@ impl TabData {
             );
         }
         if show_move_to_group {
-            menu_items.push(MenuItemFields::new_submenu(MOVE_TO_GROUP_LABEL).into_item());
+            menu_items.push(MenuItemFields::new_submenu(warpui::localization::text(MOVE_TO_GROUP_LABEL)).into_item());
         }
         if show_remove_from_group {
             menu_items.push(

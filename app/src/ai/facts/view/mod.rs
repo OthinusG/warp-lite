@@ -209,7 +209,7 @@ impl AIFactView {
                         Container::new(
                             appearance
                                 .ui_builder()
-                                .wrappable_text(OFFLINE_TEXT, true)
+                                .wrappable_text(warpui::localization::text(OFFLINE_TEXT), true)
                                 .build()
                                 .finish(),
                         )
