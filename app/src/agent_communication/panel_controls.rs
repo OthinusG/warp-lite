@@ -496,7 +496,7 @@ impl CollaborationPanel {
                         if selected { " · Coordinator" } else { "" }))).finish()).finish());
                 if expanded {
                     for task in snapshot.tasks.iter().filter(|task| task.assignee == candidate.agent.id) {
-                        body.add_child(note(appearance, format!("{} · {}", task.state, task.description)));
+                        body.add_child(note(appearance, format!("{} · {}", warpui::localization::text(&task.state), task.description)));
                     }
                 }
             }
@@ -675,7 +675,7 @@ impl CollaborationPanel {
         for &index in indexes {
             let mut choices = vec![(if index == 7 { "You (default reviewer)" } else if index == 3 { "No prerequisites" } else { "Select Agent" }.to_owned(), String::new())];
             if index == 3 {
-                choices.extend(snapshot.tasks.iter().map(|task| (format!("{} · {}", task.description, task.state), task.id.clone())));
+                choices.extend(snapshot.tasks.iter().map(|task| (format!("{} · {}", task.description, warpui::localization::text(&task.state)), task.id.clone())));
             } else {
                 choices.extend(peers.iter().map(|(id, label)| (format!("{label} · {}", id.chars().take(8).collect::<String>()), id.clone())));
             }
@@ -732,7 +732,7 @@ impl CollaborationPanel {
                     anyhow::ensure!(page.project == project, "Selection scope changed");
                     icons.extend(page.agents.iter().filter(|row| row.online).map(|row| (row.agent.id.clone(), crate::agent_usage::agent_icon(&row.agent.program))));
                     peers.extend(page.agents.into_iter().filter(|row| row.online).map(|row| (row.agent.id, row.agent.name)));
-                    tasks.extend(page.tasks.into_iter().map(|task| (task.id, format!("{} · {}", task.description, task.state))));
+                    tasks.extend(page.tasks.into_iter().map(|task| (task.id, format!("{} · {}", task.description, warpui::localization::text(&task.state)))));
                     let complete = page.agent_cursor.is_none() && page.task_cursor.is_none();
                     query.agent_after = page.agent_cursor.or(query.agent_after);
                     query.task_after = page.task_cursor.or(query.task_after);

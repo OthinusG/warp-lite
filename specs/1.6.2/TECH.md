@@ -95,3 +95,8 @@ tokens (ALLOW OVERLAP, RELEASE RESERVATION, DELETE HISTORY). Companion response
 status text is translated on the host without changing Companion 4.0.0 payloads.
 Heading icons recognize their translated titles and have a focused three-locale
 regression check. Font weight dropdown creation and selection use identical labels.
+
+Task state labels are translated at the task detail, task list, worktree expansion
+and task selector boundaries. Query state values and comparisons retain their
+protocol identity; user descriptions and task IDs remain unchanged. Catalog tests
+cover every current task lifecycle state in all three interface languages.

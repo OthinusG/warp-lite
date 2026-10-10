@@ -990,7 +990,7 @@ impl CollaborationPanel {
             fixture.sections.extend([
                 Section {
                     title: {
-                        let __warpai_locale_argument_0 = &(task.state);
+                        let __warpai_locale_argument_0 = &(warpui::localization::text(&task.state));
                         warpui::localization::format_text(
                             "Task · {}",
                             &[("0", format!("{__warpai_locale_argument_0}").as_str())],
@@ -1839,7 +1839,7 @@ impl View for CollaborationPanel {
                                 .with_custom_label(
                                     builder
                                         .span(if task.description.is_empty() {
-                                            "Open task".to_owned()
+                                            warpui::localization::text("Open task").to_owned()
                                         } else {
                                             task.description.clone()
                                         })
@@ -1857,7 +1857,7 @@ impl View for CollaborationPanel {
                             builder
                                 .span(format!(
                                     "{} · {}",
-                                    task.state,
+                                    warpui::localization::text(&task.state),
                                     snapshot.participant_label(&task.assignee)
                                 ))
                                 .with_soft_wrap()
@@ -1874,9 +1874,9 @@ impl View for CollaborationPanel {
                                             &[("0", format!("{__warpai_locale_argument_0}").as_str())],
                                         )
                                     },
-                                    None => "Selected for integration".into(),
+                                    None => warpui::localization::text("Selected for integration").into(),
                                 },
-                                None => "Reviewed · awaiting Coordinator integration choice".into(),
+                                None => warpui::localization::text("Reviewed · awaiting Coordinator integration choice").into(),
                             }));
                         }
                     }

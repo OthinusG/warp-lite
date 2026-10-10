@@ -147,7 +147,7 @@ consult it only when a specific historical question requires it.
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
   1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
   Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
-  Capture each locale in isolated profiles; retain internal IDs and user content.
+  Capture locales in isolated profiles; translate task states, preserve IDs/content.
   Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.

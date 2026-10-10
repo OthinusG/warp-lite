@@ -6443,6 +6443,10 @@
     "关于 版本 更新 检查 启动 发布",
     "關於 版本 更新 檢查 啟動 發行"
   ],
+  "accepted": [
+    "已验收",
+    "已驗收"
+  ],
   "account sign up": [
     "账号 注册",
     "帳號 註冊"
@@ -6519,9 +6523,17 @@
     "光标闪烁",
     "游標閃爍"
   ],
+  "blocked": [
+    "受阻",
+    "受阻"
+  ],
   "branch {value}": [
     "分支 {value}",
     "分支 {value}"
+  ],
+  "cancel_requested": [
+    "已请求取消",
+    "已請求取消"
   ],
   "cancelled": [
     "已取消",
@@ -6679,9 +6691,17 @@
     "展开别名",
     "展開別名"
   ],
+  "expired": [
+    "已过期",
+    "已過期"
+  ],
   "extra meta key alt option": [
     "额外 Meta 键 Alt Option",
     "額外 Meta 鍵 Alt Option"
+  ],
+  "failed": [
+    "失败",
+    "失敗"
   ],
   "focus follows mouse": [
     "焦点跟随鼠标",
@@ -6915,6 +6935,10 @@
     "提示符 终端 shell 自定义",
     "提示符 終端機 shell 自訂"
   ],
+  "queued": [
+    "排队中",
+    "排隊中"
+  ],
   "quit all windows closed": [
     "所有窗口关闭后退出",
     "所有視窗關閉後結束"
@@ -6942,6 +6966,10 @@
   "restore session window tab pane startup": [
     "恢复会话 窗口 标签页 窗格 启动",
     "還原工作階段 視窗 分頁 窗格 啟動"
+  ],
+  "running": [
+    "运行中",
+    "執行中"
   ],
   "scroll reporting": [
     "滚动报告",
@@ -7010,6 +7038,10 @@
   "sticky command block header snackbar": [
     "固定 命令块 标题 提示条",
     "固定 命令區塊 標題 提示列"
+  ],
+  "submitted": [
+    "已提交",
+    "已提交"
   ],
   "suggest command corrections": [
     "命令纠正建议",

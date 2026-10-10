@@ -160,6 +160,33 @@ mod tests {
     }
 
     #[test]
+    fn task_state_labels_translate_without_changing_protocol_values() {
+        for state in [
+            "queued",
+            "blocked",
+            "running",
+            "submitted",
+            "accepted",
+            "failed",
+            "expired",
+            "cancel_requested",
+            "cancelled",
+        ] {
+            assert_eq!(text_in(Language::English, state), state);
+            for language in [Language::SimplifiedChinese, Language::TraditionalChinese] {
+                assert_ne!(text_in(language, state), state);
+                let rendered =
+                    format_text_in(language, "Task · {}", &[("0", text_in(language, state))]);
+                assert!(rendered.contains(text_in(language, state)));
+            }
+        }
+        assert_eq!(
+            text_in(Language::SimplifiedChinese, "custom-task-description"),
+            "custom-task-description"
+        );
+    }
+
+    #[test]
     fn dynamic_action_descriptions_translate_before_title_casing() {
         assert_eq!(
             titlecase::titlecase(text_in(Language::SimplifiedChinese, "move tab up")),
