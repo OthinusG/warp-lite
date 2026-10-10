@@ -36,3 +36,6 @@ git -c core.hooksPath= -c user.name='Owned WSL Fixture' -c user.email=fixture@ex
 printf 'outside' > /home/warpai-test/outside
 /home/warpai-test/.config/.warpai/bin/warpai-companion --version
 GUEST
+install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-companion /home/warpai-other/.config/.warpai/bin/warpai-companion
+chown -R warpai-other:warpai-other /home/warpai-other/.config
+chmod 700 /home/warpai-other/.config /home/warpai-other/.config/.warpai
