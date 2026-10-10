@@ -36,6 +36,8 @@ concurrency:
 jobs:
   protocol:
     runs-on: windows-latest
+    env:
+      GIT_RELEASE_TAG: v1.6.0
     timeout-minutes: 180
     defaults:
       run:
@@ -108,6 +110,9 @@ jobs:
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
           cargo test -p warpai --lib terminal_ssh_session_ --locked
           cargo test -p warpai --lib wsl_selection_ --locked
+          cargo test -p warpai --lib agent_communication::wsl_settings::tests --locked
+          cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
+          cargo test -p warpai --lib windows_bootstrap_reports_native_shell_pid --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
@@ -122,23 +127,23 @@ jobs:
         if: ${{ inputs.wsl_acceptance }}
         uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
         with:
-          distribution: Ubuntu-24.04
+          distribution: Ubuntu-22.04
           wsl-version: 2
           set-as-default: 'false'
           wsl-shell-user: root
           additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git git-lfs curl
       - name: Build source-matched Linux Companion inside Windows WSL
         if: ${{ inputs.wsl_acceptance }}
-        shell: wsl-bash_Ubuntu-24.04 {0}
+        shell: wsl-bash_Ubuntu-22.04 {0}
         run: GITHUB_ACTIONS=true bash script/verify-wsl-workspace.sh
       - name: Verify native Windows-to-WSL workspace
         if: ${{ inputs.wsl_acceptance }}
         shell: pwsh
         env:
-          WARP_TEST_WSL_DISTRIBUTION: Ubuntu-24.04
+          WARP_TEST_WSL_DISTRIBUTION: Ubuntu-22.04
           WARP_TEST_WSL_USER: warpai-test
           WARP_TEST_WSL_ROOT: /home/warpai-test/project spaces 多语言
-          WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/.warpai/bin/warpai-companion
+          WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion
         run: |
           cargo test -p warp-agent-bus --test wsl_workspace --locked -- --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'Real WSL workspace acceptance failed' }
@@ -152,6 +157,10 @@ jobs:
         run: |
           cargo build -p warpai --bin warpai --features "release_bundle,gui,nld_improvements" --locked
           if ($LASTEXITCODE -ne 0) { throw "Native review compilation failed" }
+          if ('${{ inputs.wsl_acceptance }}' -eq 'true') {
+            New-Item -ItemType Directory -Force target/debug/resources | Out-Null
+            Copy-Item target/wsl-bundle/wsl-companion.tar.gz* target/debug/resources/
+          }
           # The debug executable needs the same native runtime files as the portable package.
           foreach ($dll in @('conpty.dll', 'dxcompiler.dll', 'dxil.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
             $source = "app/assets/windows/x64/$dll"
@@ -174,6 +183,15 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Verify bundled WSL installation and removal isolation
+        if: ${{ inputs.wsl_acceptance && (inputs.capture_ui || inputs.native_windows_only) }}
+        shell: pwsh
+        env:
+          WARP_TEST_WSL_DISTRIBUTION: Ubuntu-22.04
+          WARP_TEST_WSL_BUNDLE: ${{ github.workspace }}/target/wsl-bundle
+        run: |
+          cargo test -p warpai --lib bundled_wsl_install_reinstall_uninstall_preserves_ssh --locked -- --ignored --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled WSL installation acceptance failed' }
       - name: Capture Windows static collaboration UI
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         timeout-minutes: 7
@@ -183,10 +201,10 @@ jobs:
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion.exe
         run: |
           if ('${{ inputs.wsl_acceptance }}' -eq 'true') {
-            $env:WARP_TEST_WSL_DISTRIBUTION = 'Ubuntu-24.04'
+            $env:WARP_TEST_WSL_DISTRIBUTION = 'Ubuntu-22.04'
             $env:WARP_TEST_WSL_USER = 'warpai-test'
             $env:WARP_TEST_WSL_ROOT = '/home/warpai-test/project spaces 多语言'
-            $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/.warpai/bin/warpai-companion'
+            $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion'
           }
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/.warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
@@ -205,7 +223,7 @@ jobs:
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
           $expectedImages = $fixtureCount * 8 + 170
-          if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 3 }
+          if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 6 }
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
@@ -274,7 +292,7 @@ jobs:
         run: |
           cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warpai --lib collaboration_ --locked
-          cargo test -p warpai --lib agent_communication::setup::tests::legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers --locked
+          cargo test -p warp-agent-bus --lib setup::tests::legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers --locked
           cargo test -p warpai --lib native_intent_requires_explicit_fields_and_typed_override --locked
           cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked

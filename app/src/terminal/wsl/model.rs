@@ -24,6 +24,13 @@ pub(crate) struct Distribution {
     uuid: String,
     pub name: String,
     pub is_default: bool,
+    pub version: Option<u32>,
+}
+
+impl Distribution {
+    pub(crate) fn supports_communication(&self) -> bool {
+        self.version == Some(2)
+    }
 }
 
 impl WslInfo {
@@ -91,6 +98,7 @@ impl WslInfo {
                 }
 
                 Some(Distribution {
+                    version: distribution_key.get_u32("Version").ok(),
                     name,
                     is_default: default_distribution_uuid
                         .as_ref()
@@ -105,6 +113,22 @@ impl WslInfo {
         }
 
         Ok(distributions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn communication_requires_wsl2_execution_mode() {
+        for (version, supported) in [(None, false), (Some(1), false), (Some(2), true), (Some(3), false)] {
+            let distribution = Distribution {
+                uuid: "fixture".into(), name: "Custom Linux 多语言".into(),
+                is_default: false, version,
+            };
+            assert_eq!(distribution.supports_communication(), supported);
+        }
     }
 }
 

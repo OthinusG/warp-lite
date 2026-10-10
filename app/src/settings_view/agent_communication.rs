@@ -28,22 +28,88 @@ pub enum Action {
     Select(String),
     Refresh,
     UninstallAll,
+    #[cfg(windows)]
+    WslEnable,
+    #[cfg(windows)]
+    WslSelect(Option<crate::agent_communication::wsl_settings::Target>),
+    #[cfg(windows)]
+    WslAgent(String),
+    #[cfg(windows)]
+    WslRefresh,
+    #[cfg(windows)]
+    WslRemoveAll,
+    #[cfg(windows)]
+    WslCompanion,
 }
 pub struct CommunicationSettingsView {
     switch: SwitchStateHandle,
     refresh: MouseStateHandle,
     uninstall_all: MouseStateHandle,
     checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
+    #[cfg(windows)]
+    wsl_switch: SwitchStateHandle,
+    #[cfg(windows)]
+    wsl_distribution: ViewHandle<crate::view_components::Dropdown<Action>>,
+    #[cfg(windows)]
+    wsl_maintenance: [MouseStateHandle; 2],
+    #[cfg(windows)]
+    wsl_companion: MouseStateHandle,
 }
 impl CommunicationSettingsView {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
-        ctx.observe(&AgentCommunication::handle(ctx), |_, _, ctx| ctx.notify());
-        Self {
+        #[cfg(windows)]
+        let wsl_distribution = ctx.add_typed_action_view(|ctx| {
+            let mut dropdown = crate::view_components::Dropdown::new(ctx);
+            dropdown.set_top_bar_max_width(260.);
+            dropdown
+        });
+        ctx.observe(&AgentCommunication::handle(ctx), |_view, _, ctx| {
+            #[cfg(windows)]
+            _view.update_wsl_dropdown(ctx);
+            ctx.notify();
+        });
+        #[cfg(windows)]
+        {
+            AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                if model.wsl.preferences.enabled { model.configure_wsl(None, None, ctx); }
+            });
+        }
+        let view = Self {
             switch: Default::default(),
             refresh: Default::default(),
             uninstall_all: Default::default(),
             checkboxes: Default::default(),
+            #[cfg(windows)]
+            wsl_switch: Default::default(),
+            #[cfg(windows)]
+            wsl_distribution,
+            #[cfg(windows)]
+            wsl_maintenance: Default::default(),
+            #[cfg(windows)]
+            wsl_companion: Default::default(),
+        };
+        #[cfg(windows)]
+        view.update_wsl_dropdown(ctx);
+        view
+    }
+
+    #[cfg(windows)]
+    fn update_wsl_dropdown(&self, ctx: &mut ViewContext<Self>) {
+        use crate::view_components::DropdownItem;
+        let settings = &AgentCommunication::as_ref(ctx).wsl;
+        let selected = settings.selected_target();
+        let mut items = vec![DropdownItem::new("Select logged-in WSL account", Action::WslSelect(None))];
+        let busy = settings.busy;
+        let mut index = 0;
+        for target in &settings.targets {
+            if selected == Some(target) { index = items.len(); }
+            items.push(DropdownItem::new(target.label(), Action::WslSelect(Some(target.clone()))));
         }
+        self.wsl_distribution.update(ctx, |dropdown, ctx| {
+            dropdown.set_items(items, ctx);
+            dropdown.set_selected_by_index(index, ctx);
+            if busy { dropdown.set_disabled(ctx); } else { dropdown.set_enabled(ctx); }
+        });
     }
 }
 impl Entity for CommunicationSettingsView {
@@ -57,6 +123,20 @@ impl TypedActionView for CommunicationSettingsView {
             Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
             Action::Refresh => model.configure(None, None, ctx),
             Action::UninstallAll => model.uninstall_all(ctx),
+            #[cfg(windows)]
+            Action::WslEnable => model.configure_wsl(Some(!model.wsl.preferences.enabled), None, ctx),
+            #[cfg(windows)]
+            Action::WslSelect(target) => {
+                if let Some(target) = target { model.configure_wsl(None, Some(target.clone()), ctx); }
+            }
+            #[cfg(windows)]
+            Action::WslAgent(command) => model.select_wsl_agent(command.clone(), ctx),
+            #[cfg(windows)]
+            Action::WslRefresh => model.maintain_wsl(false, ctx),
+            #[cfg(windows)]
+            Action::WslRemoveAll => model.maintain_wsl(true, ctx),
+            #[cfg(windows)]
+            Action::WslCompanion => model.install_wsl_companion(ctx),
         });
     }
 }
@@ -195,6 +275,68 @@ impl View for CommunicationSettingsView {
                 .finish(),
             );
         }
+        #[cfg(windows)]
+        {
+            let wsl_switch = builder.switch(self.wsl_switch.clone()).check(model.wsl.preferences.enabled);
+            let wsl_switch = if model.wsl.busy { wsl_switch.disable() } else { wsl_switch };
+            body.add_child(render_body_item::<Action>(
+                "WSL communication".into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
+                wsl_switch.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslEnable)).finish(),
+                Some("Log into WSL in a Warpai terminal before configuring communication.".into()),
+            ));
+            if model.wsl.preferences.enabled {
+                body.add_child(render_body_item::<Action>(
+                    "WSL account".into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
+                    ChildView::new(&self.wsl_distribution).finish(), None,
+                ));
+                if model.wsl.targets.is_empty() {
+                    body.add_child(secondary_text(appearance, "No logged-in WSL 2 accounts. Open a WSL terminal in Warpai first.".into(), None));
+                }
+                if model.wsl.selected_target().is_some() {
+                    let checkbox = builder.checkbox(self.wsl_companion.clone(), None)
+                        .check(model.wsl.companion_installed == Some(true));
+                    let checkbox = if model.wsl.busy || model.wsl.companion_installed.is_none() { checkbox.disabled() } else { checkbox };
+                    body.add_child(build_toggle_element(
+                        render_body_item_label_with_icon::<Action>("Install WSL Companion".into(), crate::agent_usage::agent_icon("custom"), None, None,
+                            LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
+                        checkbox.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslCompanion)).finish(),
+                        appearance, Some("Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.".into()),
+                    ));
+                }
+                for (command, _) in &model.wsl.agents {
+                    body.add_child(render_body_item_label_with_icon::<Action>(
+                        command.clone(), crate::agent_usage::agent_icon(command), None, None,
+                        LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
+                    ));
+                }
+                for row in &model.wsl.available {
+                    let state = self.checkboxes.borrow_mut().entry(format!("wsl:{}", row.command)).or_default().clone();
+                    let checkbox = builder.checkbox(state, None)
+                        .check(model.wsl.guest_preferences.selected.get(&row.command).is_some_and(|entry| entry.active));
+                    let checkbox = if model.wsl.busy || row.installed.is_none() { checkbox.disabled() } else { checkbox };
+                    let command = row.command.clone();
+                    body.add_child(build_toggle_element(
+                        render_body_item_label_with_icon::<Action>(row.command.clone(), crate::agent_usage::agent_icon(&row.program), None, None,
+                            LocalOnlyIconState::Hidden, if model.wsl.busy || row.installed.is_none() { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
+                        checkbox.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::WslAgent(command.clone()))).finish(),
+                        appearance, Some(row.status.clone()),
+                    ));
+                }
+                if !model.wsl.status.is_empty() {
+                    body.add_child(secondary_text(appearance, model.wsl.status.clone(), None));
+                }
+                if model.wsl.selected_target().is_some() {
+                    for (index, label, action) in [(0, "Rescan agents", Action::WslRefresh), (1, "Remove Warpai MCP from all agents", Action::WslRemoveAll)] {
+                        let button = builder.button(ButtonVariant::Secondary, self.wsl_maintenance[index].clone())
+                            .with_text_label(label.into());
+                        let button = if model.wsl.busy { button.disabled() } else { button };
+                        body.add_child(Container::new(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish())
+                            .with_margin_top(8.).finish());
+                    }
+                    body.add_child(secondary_text(appearance, "Applies only to this WSL account.".into(), None));
+                }
+            }
+        }
         Container::new(body.finish())
             .with_margin_bottom(16.)
             .finish()
@@ -204,7 +346,8 @@ pub struct CommunicationWidget(pub ViewHandle<CommunicationSettingsView>);
 impl SettingsWidget for CommunicationWidget {
     type View = FeaturesPageView;
     fn search_terms(&self) -> &str {
-        "agent communication collaboration mcp bridge"
+        if cfg!(windows) { "agent communication collaboration mcp bridge wsl distribution" }
+        else { "agent communication collaboration mcp bridge" }
     }
     fn render(&self, _: &FeaturesPageView, _: &Appearance, _: &AppContext) -> Box<dyn Element> {
         ChildView::new(&self.0).finish()

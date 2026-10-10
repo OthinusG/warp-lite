@@ -44,6 +44,9 @@ mod tab_metadata;
 mod testing;
 mod tooltips;
 pub mod use_agent_footer;
+#[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+#[path = "view/wsl_peer.rs"]
+mod wsl_peer;
 mod zero_state_block;
 
 use warpui::clipboard_utils::get_image_filepaths_from_paths;
@@ -2418,6 +2421,8 @@ struct LocalSessionCanonicalPwdCache {
 }
 
 pub struct TerminalView {
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    wsl_peer: wsl_peer::State,
     pub model: Arc<FairMutex<TerminalModel>>,
     view_handle: WeakViewHandle<Self>,
     #[cfg(all(
@@ -4159,6 +4164,8 @@ impl TerminalView {
             codex_mcp_launch_generation: 0,
             #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
             codex_mcp_launch: None,
+            #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+            wsl_peer: Default::default(),
             size_info: size_info.into(),
             snackbar_header_state: Default::default(),
             colors,
@@ -7733,6 +7740,8 @@ impl TerminalView {
         }
 
         let bytes = data.into();
+        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        self.record_wsl_peer_input(&bytes, ctx);
         #[cfg(all(
             feature = "local_tty",
             not(feature = "remote_tty"),
@@ -19583,8 +19592,6 @@ impl TerminalView {
             InputEvent::PageUp => self.page_up(ctx),
             InputEvent::PageDown => self.page_down(ctx),
             InputEvent::ExecuteCommand(event) => {
-                #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
-                if self.adapt_wsl_agent_launch(event, ctx) { return; }
                 #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
                 if self.adapt_codex_mcp_launch(event, ctx) {
                     return;

@@ -452,6 +452,16 @@ impl CollaborationPanel {
         crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
     }
 
+    fn communication_enabled(&self, app: &warpui::AppContext) -> bool {
+        let model = super::AgentCommunication::as_ref(app);
+        #[cfg(windows)]
+        if let Some(SshConnection::Wsl { distribution, user }) = &self.remote_connection {
+            return model.wsl.preferences.enabled && model.wsl.targets.iter().any(|target|
+                &target.distribution == distribution && &target.user == user);
+        }
+        model.preferences.enabled
+    }
+
     fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
         #[cfg(debug_assertions)]
         if let Some(profile) = self
@@ -589,7 +599,7 @@ impl CollaborationPanel {
             self.remote = selected.as_ref().map(|(profile, _)| profile.clone());
             self.remote_connection = selected.map(|(_, connection)| connection);
         }
-        let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
+        let enabled = self.communication_enabled(ctx);
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
             self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.close(ctx));
@@ -615,6 +625,8 @@ impl CollaborationPanel {
         let Some((directory, terminal)) = context.clone() else {
             let status = if enabled {
                 "Select a terminal project. For remote collaboration, use ssh user@host, then cd into the project. SSH setup explains installation and shell integration."
+            } else if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) {
+                "Enable WSL communication and select this distribution in Settings > Features."
             } else {
                 "Communication is off. Enable it in Settings > Features > Agent communication."
             };
@@ -672,7 +684,7 @@ impl CollaborationPanel {
         }, move |panel, result: anyhow::Result<Snapshot>, ctx| {
             panel.in_flight = false;
             if !panel.visible || panel.generation != generation || panel.context != context || panel.current_context(ctx) != context
-                || !super::AgentCommunication::as_ref(ctx).preferences.enabled {
+                || !panel.communication_enabled(ctx) {
                 return;
             }
             match result {
@@ -743,12 +755,14 @@ impl CollaborationPanel {
                     if panel.remote.is_some() {
                         panel.remote_failed = error.downcast_ref::<warp_agent_bus::DomainError>().is_none();
                         panel.status = if panel.remote_failed {
-                            match error.downcast_ref::<warp_agent_bus::ssh_remote::ConnectionError>() {
+                            if panel.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) {
+                                "WSL workspace unavailable. Check the selected Linux account and its dedicated WSL Companion, then reconnect.".into()
+                            } else { match error.downcast_ref::<warp_agent_bus::ssh_remote::ConnectionError>() {
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::CompanionUnavailable) => "Warpai Companion is missing or cannot run. Install the Companion package in the selected environment, then reconnect.".into(),
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::SshAuthenticationUnavailable) => "The companion connection requires system OpenSSH authentication. Unlock your SSH key agent, then reconnect. Warpai does not store SSH passwords.".into(),
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::IncompatibleVersion) => "Warpai Companion is incompatible. Update Companion in the selected environment, then reconnect.".into(),
                                 _ => format!("SSH project unavailable ({code}). Last received state is stale. Check the terminal connection, then reconnect."),
-                            }
+                            } }
                         } else {
                             format!("Could not update the remote view ({code}). Last state is stale; change the view or refresh.")
                         };
@@ -1200,7 +1214,7 @@ impl TypedActionView for CollaborationPanel {
                 Action::CopyHistory => {
                     if self.connected
                         && self.current_context(ctx) == self.context
-                        && super::AgentCommunication::as_ref(ctx).preferences.enabled
+                        && self.communication_enabled(ctx)
                     {
                         if let Some(snapshot) = &self.snapshot {
                             if let Some(history) = &snapshot.history {
@@ -1216,6 +1230,13 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::RemoteSetup => {
+                    #[cfg(windows)]
+                    if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) {
+                        ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::ShowSettingsPageWithSearch {
+                            search_query:"wsl".into(), section:Some(crate::settings_view::SettingsSection::Features),
+                        });
+                        return;
+                    }
                     let active = crate::workspace::ActiveSession::as_ref(ctx);
                     let anchor = self
                         .remote
@@ -1321,7 +1342,7 @@ impl TypedActionView for CollaborationPanel {
                     let context = self.context.clone();
                     let evidence_id = id.clone();
                     ctx.spawn(async move { broker.local_evidence_file(&project, &evidence_id) }, move |panel, result, ctx| {
-                        if panel.current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !super::AgentCommunication::as_ref(ctx).preferences.enabled { return; }
+                        if panel.current_context(ctx) != context || panel.context != context || panel.query.selected_task.as_ref() != Some(&task_id) || !panel.communication_enabled(ctx) { return; }
                         match result {
                             Ok(full_path) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::OpenFileInNewTab { full_path, line_and_column: None }),
                             Err(_) => ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::CollaborationEvidenceUnavailable),
@@ -1575,7 +1596,7 @@ impl View for CollaborationPanel {
             .with_run_spacing(GAP_TIGHT);
         if !self.preview && self.remote.is_some() {
             for (index, label, action) in [
-                (0, "SSH setup", Action::RemoteSetup),
+                (0, if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) { "WSL setup" } else { "SSH setup" }, Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
             ] {
                 let variant = if index == 0 {
@@ -1587,7 +1608,7 @@ impl View for CollaborationPanel {
                     .button(variant, self.remote_buttons[index].clone())
                     .with_text_label(label.into());
                 let button = if (index != 1 && self.form.is_some())
-                    || !super::AgentCommunication::as_ref(app).preferences.enabled
+                    || !self.communication_enabled(app)
                 {
                     button.disabled()
                 } else {
@@ -5079,9 +5100,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }));
     #[cfg(windows)]
     if std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
-        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png"].map(str::to_owned));
+        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "settings-wsl-communication.png"].map(str::to_owned));
         driver = driver.with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, _| {
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());
+            app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.wsl.preferences.enabled = true;
+                model.wsl.preferences.distribution = Some(std::env::var("WARP_TEST_WSL_DISTRIBUTION").unwrap());
+                model.wsl.preferences.user = Some(std::env::var("WARP_TEST_WSL_USER").unwrap());
+                ctx.notify();
+            }));
             let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -5091,7 +5118,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             });
                     terminal.update(app, |terminal, _| {
                         use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue};
-                        let command = "wsl --distribution Ubuntu-24.04".to_owned();
+                        let command = format!("wsl --distribution {}", std::env::var("WARP_TEST_WSL_DISTRIBUTION").unwrap());
                         let mut model = terminal.model.lock();
                         model.block_list_mut().active_block_mut().start();
                         for character in command.chars() {
@@ -5167,7 +5194,50 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             warpui::async_assert!(panel.read(app, |panel, _| panel.visible && panel.connected
                 && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. }))))
-        }).with_take_screenshot("live-wsl-collaboration.png"));
+        }).with_take_screenshot("live-wsl-collaboration.png"))
+        .with_step(TestStep::new("open WSL Markdown in existing Explorer").with_action(|app, window, _| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
+            let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
+            tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("preview.md", ctx));
+        }).add_named_assertion("WSL Markdown and guest image loaded", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::notebooks::file::FileNotebookView>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx| view.wsl_checkpoint_ready(ctx)))))
+        }).with_take_screenshot("live-wsl-markdown-preview.png"))
+        .with_step(TestStep::new("open original Review on WSL").with_action(|app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| {
+                if workspace.is_left_panel_open(ctx) { workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx); }
+                if !workspace.active_tab_pane_group().as_ref(ctx).right_panel_open {
+                    workspace.handle_action(&WorkspaceAction::ToggleRightPanel, ctx);
+                }
+            });
+        }).add_named_assertion("original Review retains WSL project authority", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::code_review::code_review_view::CodeReviewView>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx|
+                    view.diff_state_model().as_ref(ctx).ssh_files().is_some_and(|files|
+                        files.connection.is_wsl() && files.canonical_root == std::env::var("WARP_TEST_WSL_ROOT").unwrap())
+                    && view.loaded_diff_stats().is_some_and(|stats| stats.files_changed > 0)))))
+        }).with_take_screenshot("live-wsl-file-review.png"))
+        .with_step(TestStep::new("show current-account WSL MCP settings").with_action(|app, window, _| {
+            app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.refresh_wsl_targets(ctx);
+                model.maintain_wsl(false, ctx);
+            }));
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ShowSettingsPageWithSearch {
+                search_query: "agent communication".into(), section: Some(crate::settings_view::SettingsSection::Features),
+            }, ctx));
+        }).add_named_assertion("WSL settings detect installed bundled component for logged-in account", |app, _| {
+            warpui::async_assert!(app.read(|ctx| {
+                let settings = &super::AgentCommunication::as_ref(ctx).wsl;
+                !settings.busy && settings.account.as_deref() == Some("warpai-test")
+                    && settings.companion_installed == Some(true)
+                    && settings.selected_target().is_some_and(|target| target.user == "warpai-test")
+            }))
+        }).with_take_screenshot("settings-wsl-communication.png"));
     }
     let driver = driver.with_on_finish(move |app, window, data| {
         // Keep the original failing step; missing later screenshots must not mask it.

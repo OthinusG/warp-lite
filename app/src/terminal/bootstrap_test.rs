@@ -2,6 +2,29 @@ use super::*;
 
 struct TestAssetProvider;
 
+#[cfg(windows)]
+#[test]
+fn windows_bootstrap_reports_native_shell_pid() {
+    struct Assets;
+    impl AssetProvider for Assets {
+        fn get(&self, path: &str) -> anyhow::Result<Cow<'_, [u8]>> {
+            let script = match path {
+                "bundled/bootstrap/bash_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/bash_init_subshell.sh"),
+                "bundled/bootstrap/zsh_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/zsh_init_subshell.sh"),
+                "bundled/bootstrap/fish_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/fish_init_subshell.sh"),
+                _ => anyhow::bail!("Unknown fixture asset"),
+            };
+            Ok(Cow::Borrowed(script.as_bytes()))
+        }
+    }
+    for shell in ["bash", "zsh", "fish"] {
+        let script = load_script(&format!("bundled/bootstrap/{shell}_init_subshell.sh"), &Assets);
+        let pid = if shell == "fish" { "$fish_pid" } else { "$$" };
+        assert!(script.contains(&format!(r#"\"shell_pid\": {pid}"#)));
+        assert!(!script.contains("export WARP_SESSION_ID"));
+    }
+}
+
 impl AssetProvider for TestAssetProvider {
     fn get(&self, path: &str) -> anyhow::Result<Cow<'_, [u8]>> {
         let content = match path {

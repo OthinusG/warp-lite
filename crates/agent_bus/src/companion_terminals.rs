@@ -111,6 +111,11 @@ impl Terminals {
         if sessions.len() >= MAX_SESSIONS {
             return Err(Error::ManagedCapacityExceeded);
         }
+        #[cfg(not(feature = "wsl_companion"))]
+        if request.working_directory.is_some() { return Err(Error::ManagedFeatureUnavailable); }
+        #[cfg(not(feature = "wsl_companion"))]
+        let working_directory = root.to_owned();
+        #[cfg(feature = "wsl_companion")]
         let working_directory = match request.working_directory.as_deref() {
             Some(directory) if directory.len() <= 4096 && !directory.contains('\0')
                 && Path::new(directory).is_absolute() => {

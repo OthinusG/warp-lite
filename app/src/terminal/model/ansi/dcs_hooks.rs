@@ -621,6 +621,9 @@ pub struct SSHValue {
 /// the shell ready to execute the bootstrap script.
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct InitShellValue {
+    #[cfg(windows)]
+    #[serde(default)]
+    pub shell_pid: Option<u32>,
     pub session_id: SessionId,
 
     pub shell: String,

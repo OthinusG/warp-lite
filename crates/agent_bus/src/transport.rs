@@ -97,7 +97,7 @@ struct Live {
     expired: bool,
 }
 /// A run-scoped delivery claim. PTY submission never acknowledges the underlying message.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wake {
     pub terminal: String,
     pub run: String,
@@ -618,6 +618,21 @@ impl Broker {
                     if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
                     live.last_input = Instant::now(); live.observed = live.last_input;
                 }
+            }
+        }
+    }
+    /// Remote editors send edit epochs and guards, never their draft text.
+    #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+    pub fn native_input(&self, terminal: &str, submitted: bool, cancelled: bool) {
+        if let Some(broker) = self.forwarded(terminal) { broker.native_input(terminal, submitted, cancelled); return; }
+        if let Ok(mut state) = self.shared.state.lock() {
+            if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
+                live.generation += 1;
+                live.initial_prompt = false;
+                live.last_input = Instant::now();
+                if cancelled { live.paused = true; live.activity = Activity::Cancelled; live.ready = None; }
+                else if submitted { live.paused = false; live.activity = Activity::Working; live.ready = None; }
+                if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
             }
         }
     }

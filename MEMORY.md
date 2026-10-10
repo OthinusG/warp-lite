@@ -25,7 +25,7 @@ consult it only when a specific historical question requires it.
 
 - Baseline: published Warpai 1.5.0 / Companion 4.0.0; its audit was explicitly
   ended. The owner now authorizes sequential publication of 1.5.1, then 1.5.5.
-  Add no telemetry. 1.6.0 waits for further owner instructions; do not start it.
+  Add no telemetry. 1.6.0 is now authorized for the WSL revision; no telemetry.
 - b.txt has eight items (duplicate 7): first seven UI items are 1.5.1; Data usage
   is 1.5.5. Companion stays 4.0.0. Contract:
   [PATCHES-1.5.1-1.5.5.md](specs/agent-communication-v2/PATCHES-1.5.1-1.5.5.md).
@@ -45,7 +45,7 @@ consult it only when a specific historical question requires it.
 - 1.5.5 is tagged at fc6f3487, including corrected captures at 61d50dbe.
   Runs 38025511405 / 38028454517 passed; 1.5.5 is public.
   Retain all five installers and checksum receipts.
-- WSL 1.5.8 descends from both immutable patch tags; retain their full UI/usage
+- WSL 1.6.0 descends from both immutable patch tags; retain their full UI/usage
   changes. Worktree: /private/tmp/warpai-wsl-1.5.8, feature/wsl-1.5.8.
 
 ## Project, worktree and Agent ownership
@@ -108,12 +108,13 @@ consult it only when a specific historical question requires it.
 
 ## SSH, task integrity and files
 
-- Owner approved direct WSL: Warpai 1.5.8 / Companion 5.0.0, Windows-only validation
-  including real WSL2. Reuse remote workspace; SSH keeps SFTP, WSL adds bounded
-  stdio chunks. WSL client/UI compile only on Windows; shared Linux Companion
-  handlers remain portable. Windows builds/tests passed; guest source export needs
-  git-lfs. Contract: specs/wsl-1.5.8/TECH.md. WSL acceptance pending.
-
+- App 1.6.0 targets macOS/Windows; macOS keeps 1.5.5 functionality. Both SSH
+  and WSL Companion versions are 4.0.0; WSL remains a separate Windows-bundled
+  guest binary/path. Windows-only MCP settings list logged-in WSL 2 accounts,
+  with one installation checkbox and distro/user-scoped Rescan/Remove all.
+  Native Codex may add --no-daemon; no Companion wrapper or host MCP injection.
+  Native wake/guards/exit and bundled setup are implemented; Windows acceptance
+  is pending. Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),
   [Worktree contract](specs/agent-communication-v2/WORKTREE-COLLABORATION.md).

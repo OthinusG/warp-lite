@@ -338,12 +338,19 @@ fn load_script(file_path: &str, assets: &dyn AssetProvider) -> String {
         .get(file_path)
         .unwrap_or_else(|_| panic!("Failed to retrieve {file_path} from assets"));
 
-    std::str::from_utf8(&script_bytes)
+    let script = std::str::from_utf8(&script_bytes)
         .expect("InitShell script should be utf8 encoded.")
         .trim_start_matches(BYTE_ORDER_MARK)
         .lines()
         .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
-        .join(";")
+        .join(";");
+    #[cfg(windows)]
+    let script = script.replace(
+        r#"\"session_id\": $WARP_SESSION_ID"#,
+        &format!(r#"\"session_id\": $WARP_SESSION_ID, \"shell_pid\": {}"#,
+            if file_path.contains("fish_") { "$fish_pid" } else { "$$" }),
+    );
+    script
 }
 
 #[cfg(test)]

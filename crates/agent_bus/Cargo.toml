@@ -5,7 +5,13 @@ edition = "2021"
 publish.workspace = true
 license.workspace = true
 
+[features]
+wsl_companion = []
+
 [dependencies]
+serde_yaml.workspace = true
+toml = "0.8.13"
+toml_edit.workspace = true
 anyhow.workspace = true
 base64.workspace = true
 dirs.workspace = true
@@ -39,6 +45,11 @@ path = "src/main.rs"
 [[bin]]
 name = "warpai-companion"
 path = "src/companion_main.rs"
+
+[[bin]]
+name = "warpai-wsl-companion"
+path = "src/wsl_companion_main.rs"
+required-features = ["wsl_companion"]
 
 [dev-dependencies]
 serde_yaml.workspace = true

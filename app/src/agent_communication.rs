@@ -1,5 +1,7 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 mod codex_launch;
+#[cfg(windows)]
+pub(crate) mod wsl_settings;
 mod legacy_remote_credentials;
 pub(crate) mod panel;
 pub(crate) mod setup;
@@ -33,6 +35,8 @@ pub(crate) struct AgentCommunication {
     pub(crate) available: Vec<setup::Available>,
     pub(crate) busy: bool,
     pub(crate) status: String,
+    #[cfg(windows)]
+    pub(crate) wsl: wsl_settings::WslSettings,
     preferences_path: PathBuf,
     pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
     notified: HashMap<String, String>,
@@ -50,6 +54,8 @@ impl AgentCommunication {
             available: Vec::new(),
             busy: false,
             status: String::new(),
+            #[cfg(windows)]
+            wsl: Default::default(),
             preferences_path: PathBuf::new(),
             pending: None,
             notified: HashMap::new(),
@@ -179,6 +185,8 @@ impl AgentCommunication {
             available: vec![],
             busy: false,
             status: String::new(),
+            #[cfg(windows)]
+            wsl: wsl_settings::WslSettings::load(directory.join("wsl-communication-settings.json")),
             preferences_path,
             pending: None,
             notified: HashMap::new(),
@@ -464,6 +472,15 @@ impl AgentCommunication {
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(250)), |model, _, ctx| {
+            #[cfg(windows)]
+            {
+                model.refresh_wsl_targets(ctx);
+                let enabled = model.wsl.preferences.enabled;
+                let targets = model.wsl.targets.clone();
+                for view in wsl_settings::logged_in_views(ctx) {
+                    view.update(ctx, |view, ctx| view.poll_wsl_peer_work(enabled, &targets, ctx));
+                }
+            }
             if let Some(result) = model
                 .pending
                 .as_ref()

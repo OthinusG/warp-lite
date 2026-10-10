@@ -133,6 +133,7 @@ async fn disconnect_cleans_staging_through_the_framed_service() {
             &Uuid::new_v4().to_string(),
             std::sync::Arc::new(terminals::Terminals::default()),
             tasks,
+            None,
         )
         .await
     });
@@ -204,6 +205,7 @@ async fn fragmented_invalid_and_oversized_control_frames_have_no_partial_effects
                 &Uuid::new_v4().to_string(),
                 std::sync::Arc::new(terminals::Terminals::default()),
                 tasks,
+                None,
             )
             .await
         });
@@ -1148,6 +1150,7 @@ fn git_review_handles_unborn_rename_delete_binary_conflict_and_worktree() {
 }
 
 #[test]
+#[cfg(feature = "wsl_companion")]
 fn wsl_chunks_preserve_binary_bytes_and_reject_foreign_direction_offsets_and_partial_commit() {
     let mut fixture = Fixture::new();
     let original = vec![0xFF; files::MAX_CHUNK_BYTES + 7];

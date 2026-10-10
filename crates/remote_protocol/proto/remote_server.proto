@@ -55,6 +55,7 @@ message ManagedRequest {
     TerminalControl terminal_control = 5;
     ProjectTasksRequest project_tasks = 7;
     ProjectFilesRequest project_files = 8;
+    GuestMcpBind guest_mcp_bind = 9;
   }
 }
 message ManagedResponse {
@@ -66,7 +67,21 @@ message ManagedResponse {
     TerminalState terminal_state = 5;
     ProjectTasksResult project_tasks = 7;
     ProjectFilesResult project_files = 8;
+    GuestMcpBound guest_mcp_bound = 9;
   }
+}
+// WSL guest-only admission; peer ancestry is verified by the private Linux service.
+message GuestMcpBind {
+  ManagedFence fence = 1;
+  uint32 agent_pid = 2;
+  string program = 3;
+}
+message GuestMcpBound {
+  ManagedFence fence = 1;
+  string endpoint = 2;
+  string terminal = 3;
+  string capability = 4;
+  string run = 5;
 }
 message ManagedInitialize { uint32 protocol_major = 1; }
 message ManagedFence {

@@ -148,6 +148,8 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         let stream = tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
                 if slots.available_permits() != 32 || terminals.active() { idle_since = Instant::now(); }
+                #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+                if tasks.guests.reap_and_active() { idle_since = Instant::now(); }
                 if idle_since.elapsed() >= Duration::from_secs(60) { break; }
                 continue;
             }
@@ -168,12 +170,16 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
             continue;
         };
         let directory = directory.clone();
+        #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+        let peer_pid = stream.peer_cred()?.pid().and_then(|pid| u32::try_from(pid).ok());
+        #[cfg(not(all(feature = "wsl_companion", target_os = "linux")))]
+        let peer_pid = None;
         let boot = boot.clone();
         let terminals = terminals.clone();
         let tasks = tasks.clone();
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot, terminals, tasks).await;
+            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid).await;
         });
     }
     #[cfg(unix)]

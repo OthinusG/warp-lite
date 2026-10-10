@@ -118,6 +118,20 @@ jobs:
           cargo-about --version
           Get-Command ISCC
 
+      - name: Prepare Windows-owned WSL payload build
+        if: steps.check-release.outputs.should_build == 'true' && hashFiles('script/companion/package-wsl.py') != ''
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364
+        with:
+          distribution: Ubuntu-22.04
+          wsl-version: 2
+          set-as-default: 'false'
+          wsl-shell-user: root
+          additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git git-lfs curl python3
+      - name: Build tagged bundled WSL Companion on Windows
+        if: steps.check-release.outputs.should_build == 'true' && hashFiles('script/companion/package-wsl.py') != ''
+        shell: wsl-bash_Ubuntu-22.04 {0}
+        run: GITHUB_ACTIONS=true bash script/verify-wsl-workspace.sh
+
       - name: Build and package Windows x64 artifacts
         if: steps.check-release.outputs.should_build == 'true'
         shell: pwsh

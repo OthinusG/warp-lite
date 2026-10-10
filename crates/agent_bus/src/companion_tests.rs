@@ -189,10 +189,12 @@ fn companion_opens_native_project_and_fences_every_attachment() {
         [
             "project_open",
             "managed_agent",
+            #[cfg(feature = "wsl_companion")]
             "managed_launch_cwd",
             "project_tasks",
             "project_mcp",
             "project_files",
+            #[cfg(feature = "wsl_companion")]
             "project_file_chunks",
             "project_git_review",
             "worktree_collaboration",

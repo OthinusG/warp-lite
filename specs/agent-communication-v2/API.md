@@ -1,5 +1,17 @@
 # SSH Agent Communication API
 
+## Native WSL terminal delivery
+
+Windows and the opt-in Linux WSL service support `GuestNative` on the existing
+fenced ProjectTasks channel; default SSH services reject it. `NativeRequest`
+contains a confirmed Linux shell PID and observe/claim/validate/finish action.
+The service matches canonical checkout, shell/Agent PID start times and exact
+run. `NativeState` contains run/program and a serialized Broker wake claim.
+Observe carries only edit epochs, draft/approval flags and optional native
+readiness; never draft text or credentials. A settings selection is not authority
+to access another guest account. No scoped wrapper or nested command is accepted.
+Validate precedes delayed Enter; finish records submission, not acknowledgement.
+
 ## Worktree orchestration contract (2026-10-08)
 
 `PanelQuery.worktree` selects a read projection and never changes permissions.
@@ -186,8 +198,8 @@ describe the selected team/checkout. Each participant row may carry its own
 selection and pagination cursors. File requests, SFTP roots and ManagedFence are
 unchanged. See [the acceptance contract](WORKTREE-COLLABORATION.md).
 
-## Direct local WSL extension (1.5.8 / Companion 5.0.0)
+## Direct local WSL extension (1.6.0 / Companion 4.0.0)
 
 The additive file-chunk fields/actions and capability are specified in
-[the WSL contract](../wsl-1.5.8/TECH.md). Protocol major remains 1.
+[the WSL contract](../wsl-1.6.0/TECH.md). Protocol major remains 1.
 SSH clients retain SFTP; WSL requires project_file_chunks before file access.

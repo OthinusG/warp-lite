@@ -18,7 +18,8 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     let snapshot = files.list(&root, 1).await.unwrap();
     assert!(!snapshot.entries.is_empty());
     let mut other_profile = profile.clone();
-    other_profile.companion_path = "/home/warpai-other/.config/.warpai/bin/warpai-companion".into();
+    other_profile.remote_root = "/home/warpai-other/project".into();
+    other_profile.companion_path = "/home/warpai-other/.config/.warpai/wsl/bin/warpai-wsl-companion".into();
     let mut other_account = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
     let original_account = connection.connect(&profile).await.unwrap();
     assert_ne!(other_account.account_id, original_account.account_id);
@@ -64,48 +65,96 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert!(seen);
     client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id,
         run_id: state.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
-    let agent = client.terminal_launch(TerminalLaunch {
-        fence: client.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
-        executable: "/home/warpai-test/managed-agent-fixture".into(),
-        arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"].map(str::to_owned).to_vec(),
-        columns: 240, rows: 24, agent_program: Some("fixture".into()), working_directory: None,
-    }).await.unwrap();
-    let mut registered = false;
-    for _ in 0..450 {
-        let reply = client.terminal_control(TerminalControl { fence: client.fence().cloned(),
-            session_id: agent.session_id.clone(), run_id: agent.run_id.clone(),
-            action: TerminalAction::TerminalRead as i32, ..Default::default() }).await.unwrap();
-        if String::from_utf8_lossy(&reply.output).contains(&format!("MCP_NATIVE_RUN={}", agent.run_id)) {
-            registered = true; break;
+    // Ordinary Linux Agent in its shell, never Companion TerminalLaunch or Agent wrapper.
+    let mut native = tokio::process::Command::new("wsl.exe")
+        .args(["--distribution", &distribution, "--user", &user, "--exec", "python3",
+            "/home/warpai-test/native-agent-fixture.py", "--terminal", &profile.companion_path, &root])
+        .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null()).kill_on_drop(true).spawn().unwrap();
+    let metadata_path = format!("{root}/native-session.json");
+    let mut metadata = None;
+    for _ in 0..100 {
+        if let Ok((path, _)) = files.download(&metadata_path).await {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&std::fs::read(path).unwrap()) {
+                metadata = Some(value); break;
+            }
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-    assert!(registered, "WSL Agent must complete native MCP registration");
-    use warp_agent_bus::{companion::TaskCommand, transport::PanelQuery, ControllerOperation};
+    let shell_pid = metadata.expect("Ordinary guest MCP must register")["shell_pid"].as_u64().unwrap() as u32;
+    use warp_agent_bus::{companion::TaskCommand, transport::PanelQuery, ControllerOperation,
+        wsl_setup::{NativeAction, NativeRequest, NativeState}};
+    let observe = |draft, blocked, epoch, submitted, cancelled| TaskCommand::GuestNative(NativeRequest {
+        shell_pid, action: NativeAction::Observe { draft, blocked, input_epoch: epoch,
+            submitted, cancelled, native_ready: None },
+    });
+    let native_command = |action| TaskCommand::GuestNative(NativeRequest { shell_pid, action });
+    let state = client.project_tasks(&observe(false, false, 0, false, false), 1).await.unwrap();
+    let run = state["value"]["run"].as_str().expect("Native process-owned run").to_owned();
     let panel = TaskCommand::Panel(PanelQuery { worktree: true, ..Default::default() });
     let mut observer = connection.connect(&profile).await.unwrap();
     let before = observer.project_tasks(&panel, 1).await.unwrap();
     let candidate = before["value"]["candidates"].as_array().unwrap().iter()
-        .find(|candidate| candidate["run"].as_str() == Some(&agent.run_id)).expect("Live guest candidate");
+        .find(|candidate| candidate["run"].as_str() == Some(run.as_str())).expect("Live native guest candidate");
+    let agent_id = candidate["agent"]["id"].as_str().unwrap().to_owned();
     let selected = observer.project_tasks(&TaskCommand::Controller(ControllerOperation::WorktreeCoordinator {
-        root: root.clone(), agent: candidate["agent"]["id"].as_str().unwrap().into(),
-        run: agent.run_id.clone(), request_id: uuid::Uuid::new_v4().to_string(),
+        root: root.clone(), agent: agent_id.clone(), run: run.clone(), request_id: uuid::Uuid::new_v4().to_string(),
     }), 2).await.unwrap();
     assert!(selected.get("error").is_none(), "{selected}");
     assert_eq!(observer.project_tasks(&panel, 3).await.unwrap()["value"]["coordinator_online"], true);
     drop(observer);
     let mut observer = connection.connect(&profile).await.unwrap();
-    assert_eq!(observer.project_tasks(&panel, 4).await.unwrap()["value"]["coordinator_online"], true);
-    client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: agent.session_id,
-        run_id: agent.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
+    let refreshed = observer.project_tasks(&panel, 4).await.unwrap();
+    assert_eq!(refreshed["value"]["coordinator_online"], true);
+    let scope = refreshed["value"]["collaboration_scope"].as_str().unwrap().to_owned();
+    let message = observer.project_tasks(&TaskCommand::Scoped { scope, command: Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::AgentSend { to: agent_id, body: "Native fixture work".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }
+    )) }, 5).await.unwrap();
+    assert!(message.get("error").is_none(), "{message}");
+    assert!(client.project_tasks(&observe(true, true, 1, false, false), 6).await.unwrap()["value"]["wake"].is_null());
+    client.project_tasks(&observe(false, false, 2, false, false), 7).await.unwrap();
+    async fn next_wake(client: &mut HostClient, command: &TaskCommand) -> warp_agent_bus::transport::Wake {
+        for generation in 8..108 {
+            let value = client.project_tasks(command, generation).await.unwrap();
+            let state: NativeState = serde_json::from_value(value["value"].clone()).unwrap();
+            if let Some(wake) = state.wake { return wake; }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        panic!("Ready native Agent must receive queued work")
+    }
+    let wake = next_wake(&mut client, &observe(false, false, 2, false, false)).await;
+    assert_eq!(client.project_tasks(&native_command(NativeAction::Claim { wake: wake.clone() }), 109).await.unwrap()["value"]["valid"], true);
+    // Manual editing and cancellation invalidate an already claimed delayed Enter.
+    client.project_tasks(&observe(true, false, 3, false, true), 110).await.unwrap();
+    assert_eq!(client.project_tasks(&native_command(NativeAction::Validate { wake: wake.clone() }), 111).await.unwrap()["value"]["valid"], false);
+    client.project_tasks(&native_command(NativeAction::Finish { wake, submitted: false }), 112).await.unwrap();
+    client.project_tasks(&observe(false, false, 4, true, false), 113).await.unwrap();
+    use tokio::io::AsyncWriteExt;
+    native.stdin.as_mut().unwrap().write_all(b"OWNED_READY\n").await.unwrap();
+    let wake = next_wake(&mut client, &observe(false, false, 4, false, false)).await;
+    assert_eq!(client.project_tasks(&native_command(NativeAction::Claim { wake: wake.clone() }), 114).await.unwrap()["value"]["valid"], true);
+    assert_eq!(client.project_tasks(&native_command(NativeAction::Validate { wake: wake.clone() }), 115).await.unwrap()["value"]["valid"], true);
+    native.stdin.as_mut().unwrap().write_all(format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox.\n", wake.message_id).as_bytes()).await.unwrap();
+    client.project_tasks(&native_command(NativeAction::Finish { wake, submitted: true }), 116).await.unwrap();
+    let mut delivered = false;
+    for _ in 0..100 {
+        let (path, _) = files.download(&metadata_path).await.unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        if value["wakes"] == 1 { delivered = true; break; }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert!(delivered, "Ordinary Linux Agent must consume and acknowledge peer work through MCP");
+    drop(native.stdin.take());
+    tokio::time::timeout(std::time::Duration::from_secs(10), native.wait()).await.unwrap().unwrap();
     let mut cleared = false;
-    for generation in 5..55 {
+    for generation in 117..167 {
         if observer.project_tasks(&panel, generation).await.unwrap()["value"]["coordinator_online"] == false {
             cleared = true; break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-    assert!(cleared, "Only actual Agent exit clears Coordinator liveness");
+    assert!(cleared, "Only actual native Agent exit clears Coordinator liveness");
     files.disconnect();
     files.reconnect().await.unwrap();
     assert_eq!(files.download(&path).await.unwrap().1, updated);

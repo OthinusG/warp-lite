@@ -158,7 +158,7 @@ integration. Retain the existing upstream remote backend for its current callers
 
 SSH file-content transfer must use **SFTP over SSH**, as required by `AGENTS.md`.
 Direct local WSL uses the separately authorized bounded stdio chunk contract in
-[WSL 1.5.8](../wsl-1.5.8/TECH.md); it retains the same staged-save checks.
+[WSL 1.6.0](../wsl-1.6.0/TECH.md); it retains the same staged-save checks.
 Reuse system OpenSSH authentication and the selected transport. Existing SFTP
 upload helpers are transport references, not a directory-listing implementation:
 do not parse human-readable `ls` output or interpolate filenames into a shell.

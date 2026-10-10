@@ -1,4 +1,7 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
+pub mod setup;
+#[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+pub mod wsl_setup;
 pub mod installation;
 pub mod launch;
 pub mod mcp;

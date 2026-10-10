@@ -51,37 +51,6 @@ impl TerminalView {
             .unwrap_or(command)
     }
 
-    #[cfg(windows)]
-    pub(crate) fn adapt_wsl_agent_launch(&mut self, event: &ExecuteCommandEvent, ctx: &mut ViewContext<Self>) -> bool {
-        let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
-        if !session.is_wsl() || session.ssh_arguments().is_some() || session.is_legacy_ssh_session()
-            || !AgentCommunication::as_ref(ctx).preferences.enabled { return false; }
-        let Some(words) = shlex::split(&event.command) else { return false; };
-        let Some(command) = words.first() else { return false; };
-        let Some(agent) = enum_iterator::all::<crate::terminal::CLIAgent>()
-            .find(|agent| agent.command_prefixes().contains(&command.as_str())) else { return false; };
-        if !agent.accepts_peer_prompt(&event.command)
-            || session.alias_value(command).is_some() || session.abbreviation_value(command).is_some()
-            || session.function_names().any(|name| name == command.as_str())
-            || words.iter().any(|word| matches!(word.as_str(), ";" | "&&" | "||" | "|" | "&")) { return false; }
-        let Some(root) = self.pwd().filter(|path| path.starts_with('/')) else { return false; };
-        let Some(home) = session.home_dir() else { return false; };
-        let Ok((companion, _)) = warp_agent_bus::installation::companion_path(home, "Linux") else { return false; };
-        let shell = session.shell().shell_type();
-        let executable = match shell {
-            ShellType::Bash | ShellType::Zsh => format!("\"$(command -v {})\"", shell_quote_arg(command, shell)),
-            ShellType::Fish => format!("(command -s {})", shell_quote_arg(command, shell)),
-            _ => return false,
-        };
-        let tail = event.command.trim_start().strip_prefix(command.as_str()).unwrap();
-        let adapted = format!("{} agent {} {} {}{tail}", shell_quote_arg(&companion, shell),
-            shell_quote_arg(&root, shell), shell_quote_arg(agent.command_prefix(), shell), executable);
-        self.codex_mcp_launch = Some((event.command.trim().to_owned(), adapted.clone()));
-        let mut event = event.clone(); event.command = adapted;
-        self.execute_input_command(&event, ctx);
-        true
-    }
-
     pub(crate) fn adapt_codex_mcp_launch(
         &mut self,
         event: &ExecuteCommandEvent,
@@ -99,9 +68,14 @@ impl TerminalView {
         let Some(words) = shlex::split(trimmed) else {
             return false;
         };
-        if words.first().map(String::as_str) != Some("codex")
-            || !self.session_is_local(event.session_id, ctx)
-        {
+        if words.first().map(String::as_str) != Some("codex") {
+            return false;
+        }
+        #[cfg(windows)]
+        if self.adapt_wsl_codex_launch(event, &words, ctx) {
+            return true;
+        }
+        if !self.session_is_local(event.session_id, ctx) {
             return false;
         }
         let settings = AgentCommunication::as_ref(ctx);
@@ -191,12 +165,131 @@ impl TerminalView {
         );
         true
     }
+
+    #[cfg(windows)]
+    fn adapt_wsl_codex_launch(
+        &mut self,
+        event: &ExecuteCommandEvent,
+        words: &[String],
+        ctx: &mut ViewContext<Self>,
+    ) -> bool {
+        let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else {
+            return false;
+        };
+        let Some(target) = super::wsl_settings::Target::from_session(&session) else {
+            return false;
+        };
+        if self.active_block_session_id() != Some(event.session_id)
+            || session.alias_value("codex").is_some()
+            || session.abbreviation_value("codex").is_some()
+            || session.function_names().any(|name| name == "codex")
+        {
+            return false;
+        }
+        let settings = &AgentCommunication::as_ref(ctx).wsl;
+        if !settings.preferences.enabled || !settings.targets.contains(&target) {
+            return false;
+        }
+        let Some(shell) = self.active_session_shell_type(ctx) else {
+            return false;
+        };
+        let generation = self.codex_mcp_launch_generation;
+        let directory = self.model.lock().active_block_metadata()
+            .current_working_directory().map(str::to_owned);
+        let event = event.clone();
+        let words = words.to_vec();
+        let selected = target.clone();
+        // Read the launching account, independently of which account is selected in settings.
+        ctx.spawn(async move {
+            super::wsl_settings::guest_setup(&target, warp_agent_bus::wsl_setup::Request {
+                action: warp_agent_bus::wsl_setup::Action::Rescan,
+                commands: vec![("codex".into(), "codex".into())],
+            }).await
+        }, move |view, result, ctx| {
+            if view.codex_mcp_launch_generation != generation { return; }
+            let current_directory = view.model.lock().active_block_metadata()
+                .current_working_directory().map(str::to_owned);
+            if view.active_block_session_id() != Some(event.session_id)
+                || current_directory != directory
+                || view.is_long_running()
+                || view.sessions_model().as_ref(ctx).get(event.session_id)
+                    .and_then(|session| super::wsl_settings::Target::from_session(&session))
+                    .as_ref() != Some(&selected)
+            {
+                view.show_persistent_toast("Codex launch canceled because the terminal changed.".into(), ToastFlavor::Default, ctx);
+                return;
+            }
+            let settings = &AgentCommunication::as_ref(ctx).wsl;
+            if !settings.preferences.enabled || !settings.targets.contains(&selected) {
+                view.execute_input_command(&event, ctx);
+                return;
+            }
+            let response = match result {
+                Ok(response) => response,
+                Err(_) => {
+                    view.show_persistent_toast("Could not verify WSL Codex MCP. Check communication settings for this account.".into(), ToastFlavor::Default, ctx);
+                    view.execute_input_command(&event, ctx);
+                    return;
+                }
+            };
+            let options = response.available.iter()
+                .find(|entry| entry.program == "codex")
+                .and_then(|entry| entry.installed.as_ref())
+                .map(|entry| &entry.launch_options);
+            let Some(options) = options.filter(|options| {
+                response.preferences.programs().contains("codex")
+                    && options.0.contains_key("--no-daemon")
+                    && warp_agent_bus::session::codex_accepts_peer_prompt(&words[1..], options)
+            }) else {
+                view.execute_input_command(&event, ctx);
+                return;
+            };
+            // Guest vendor configuration owns MCP; only isolate this native invocation.
+            let command = adapted_command(&event.command, &["--no-daemon".into()], shell, options);
+            view.codex_mcp_launch = Some((event.command.trim().to_owned(), command.clone()));
+            let mut adapted = event;
+            adapted.command = command;
+            view.execute_input_command(&adapted, ctx);
+        });
+        true
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::Path;
+
+    #[cfg(windows)]
+    #[test]
+    fn guest_codex_adaptation_only_adds_native_foreground_flag() {
+        let options = warp_agent_bus::launch::LaunchOptions::from_help(
+            "codex",
+            "  --no-daemon  Embedded\n  -m, --model <MODEL>  Model",
+        );
+        for shell in [ShellType::Bash, ShellType::Zsh, ShellType::Fish] {
+            for command in [
+                "codex",
+                "codex resume --last",
+                "codex --no-daemon --yolo",
+                "codex --model \"$MODEL\" 'a prompt with spaces'",
+                "codex --model=--no-daemon",
+            ] {
+                let adapted = adapted_command(command, &["--no-daemon".into()], shell, &options);
+                let original = shlex::split(command).unwrap();
+                let arguments = shlex::split(&adapted).unwrap();
+                let inserted = usize::from(warp_agent_bus::session::codex_needs_no_daemon(
+                    &original[1..],
+                    &options,
+                ));
+                assert_eq!(&arguments[1 + inserted..], &original[1..]);
+                if inserted == 1 {
+                    assert_eq!(arguments[1], "--no-daemon");
+                }
+                assert!(adapted.ends_with(command.strip_prefix("codex").unwrap()));
+            }
+        }
+    }
 
     #[test]
     fn original_codex_arguments_and_expansion_are_preserved() {

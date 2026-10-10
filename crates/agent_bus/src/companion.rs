@@ -26,6 +26,9 @@ mod service;
 mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+#[path = "companion_guests.rs"]
+pub(crate) mod guests;
 pub(crate) use tasks::decode_result as decode_task_result;
 pub use tasks::Command as TaskCommand;
 
@@ -43,6 +46,7 @@ pub struct Companion {
     terminals: std::sync::Arc<terminals::Terminals>,
     tasks: std::sync::Arc<tasks::Projects>,
     files: files::Files,
+    peer_pid: Option<u32>,
 }
 
 impl Companion {
@@ -60,6 +64,7 @@ impl Companion {
             terminals: std::sync::Arc::new(terminals::Terminals::default()),
             tasks: std::sync::Arc::new(tasks::Projects::new(data_directory)),
             files: files::Files::new(data_directory),
+            peer_pid: None,
             identity,
         })
     }
@@ -114,10 +119,12 @@ impl Companion {
                     capabilities: vec![
                         "project_open".into(),
                         "managed_agent".into(),
+                        #[cfg(feature = "wsl_companion")]
                         "managed_launch_cwd".into(),
                         "project_tasks".into(),
                         "project_mcp".into(),
                         "project_files".into(),
+                        #[cfg(feature = "wsl_companion")]
                         "project_file_chunks".into(),
                         "project_git_review".into(),
                         "worktree_collaboration".into(),
@@ -182,6 +189,17 @@ impl Companion {
                 self.files
                     .execute(request, self.project.as_ref().unwrap())
                     .map(|result| managed_response::Result::ProjectFiles(Box::new(result)))
+            }
+            Some(managed_request::Operation::GuestMcpBind(request)) => {
+                self.check_project(request.fence.as_ref())?;
+                #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+                {
+                    self.tasks.guests.bind(&self.tasks, &self.fence, &self.project.as_ref().unwrap().root,
+                        self.peer_pid, request.agent_pid, &request.program)
+                        .map(managed_response::Result::GuestMcpBound)
+                }
+                #[cfg(not(all(feature = "wsl_companion", target_os = "linux")))]
+                { Err(ManagedErrorCode::ManagedFeatureUnavailable) }
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -291,11 +309,28 @@ pub async fn serve_account_service() -> Result<(), ProtocolError> {
     service::serve().await
 }
 
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {
+    guests::serve_mcp(program).await
+}
+
 fn data_directory() -> std::io::Result<PathBuf> {
-    Ok(dirs::data_local_dir()
+    let directory = dirs::data_local_dir()
         .ok_or_else(|| std::io::Error::other("Companion data directory unavailable"))?
         .join("warpai")
-        .join("remote"))
+        .join(if cfg!(feature = "wsl_companion") { "wsl-remote" } else { "remote" });
+    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+    let directory = {
+        let distribution = std::env::var("WSL_DISTRO_NAME")
+            .map_err(|_| std::io::Error::other("WSL distribution identity unavailable"))?;
+        directory.join(guests::distribution_namespace(&distribution)?)
+    };
+    Ok(directory)
+}
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+pub(crate) fn guest_preferences_path() -> std::io::Result<PathBuf> {
+    Ok(data_directory()?.join("mcp-settings.json"))
 }
 
 async fn serve_channel<S>(
@@ -304,6 +339,7 @@ async fn serve_channel<S>(
     boot: &str,
     terminals: std::sync::Arc<terminals::Terminals>,
     tasks: std::sync::Arc<tasks::Projects>,
+    peer_pid: Option<u32>,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -315,6 +351,7 @@ where
     companion.fence.service_boot_id = boot.into();
     companion.terminals = terminals;
     companion.tasks = tasks;
+    companion.peer_pid = peer_pid;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

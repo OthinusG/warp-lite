@@ -53,7 +53,7 @@ impl Activity {
 
 /// A bounded, memory-only native draft; never serialized or included in diagnostics.
 #[derive(Default)]
-pub(crate) struct Draft {
+pub struct Draft {
     text: String,
     unknown: bool,
 }

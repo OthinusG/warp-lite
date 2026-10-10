@@ -25,6 +25,7 @@ struct Transfer {
     directory: PathBuf,
     target: Option<String>,
     expected_hash: String,
+    #[cfg(feature = "wsl_companion")]
     chunk_size: Option<u64>,
 }
 impl Drop for Transfer {
@@ -98,6 +99,11 @@ impl Files {
             ..Default::default()
         };
         match action {
+            #[cfg(not(feature = "wsl_companion"))]
+            ProjectFileAction::ProjectFileReadChunk | ProjectFileAction::ProjectFileWriteChunk => {
+                return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+            }
+            #[cfg(feature = "wsl_companion")]
             ProjectFileAction::ProjectFileReadChunk | ProjectFileAction::ProjectFileWriteChunk => {
                 use std::io::{Seek, SeekFrom, Write};
                 let transfer = self.transfers.get_mut(&request.transfer_id)
@@ -299,6 +305,7 @@ impl Files {
                             directory,
                             target: None,
                             expected_hash: String::new(),
+                            #[cfg(feature = "wsl_companion")]
                             chunk_size: None,
                         };
                         let path = transfer.directory.join("content");
@@ -389,6 +396,7 @@ impl Files {
                     directory,
                     target: writing.then(|| request.path.clone()),
                     expected_hash: hash.clone(),
+                    #[cfg(feature = "wsl_companion")]
                     chunk_size: None,
                 };
                 let path = transfer.directory.join("content");
@@ -441,6 +449,7 @@ impl Files {
                 }
                 let mut staged = identity::private_file(&transfer.directory.join("content"))
                     .map_err(path_error)?;
+                #[cfg(feature = "wsl_companion")]
                 if transfer.chunk_size.is_some_and(|total| staged.metadata().map(|m| m.len()).ok() != Some(total)) {
                     return Err(ManagedErrorCode::ManagedInvalidInput);
                 }

@@ -466,6 +466,17 @@ impl HostClient {
     }
 
     /// Domain failure metadata is returned as `error`; lost writes retain the original intent.
+    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+    pub(crate) async fn guest_mcp_bind(&mut self, pid: u32, program: String) -> Result<GuestMcpBound, ConnectionError> {
+        match self.request(managed_request::Operation::GuestMcpBind(GuestMcpBind {
+            fence: self.fence.clone(), agent_pid: pid, program,
+        })).await? {
+            managed_response::Result::GuestMcpBound(binding) if binding.fence == self.fence => Ok(binding),
+            _ => Err(ConnectionError::StaleAttachment),
+        }
+    }
+
+    /// Domain failure metadata is returned as `error`; lost writes retain the original intent.
     pub async fn project_tasks(
         &mut self,
         command: &crate::companion::TaskCommand,

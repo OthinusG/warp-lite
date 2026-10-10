@@ -37,6 +37,11 @@ pub(crate) fn selected_ssh(
     }
     let session = active.session(window)?;
     let connection = session_connection(&session)?;
+    #[cfg(windows)]
+    if let SshConnection::Wsl { distribution, .. } = &connection {
+        if !crate::terminal::wsl::WslInfo::as_ref(app).distributions()
+            .any(|entry| entry.name == *distribution && entry.supports_communication()) { return None; }
+    }
     let host_info = session.host_info();
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         session.home_dir()?,
@@ -44,6 +49,10 @@ pub(crate) fn selected_ssh(
         else { host_info.os_category.as_deref()? },
     )
     .ok()?;
+    #[cfg(windows)]
+    let companion_path = if connection.is_wsl() {
+        warp_agent_bus::installation::wsl_companion_path(session.home_dir()?).ok()?
+    } else { companion_path };
     let profile = SshProfile {
         target: if connection.is_wsl() { "wsl".into() } else { session.hostname().into() },
         config_file: None,

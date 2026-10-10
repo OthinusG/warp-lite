@@ -750,12 +750,18 @@ impl TerminalView {
         not(feature = "remote_tty"),
         not(target_family = "wasm")
     ))]
-    fn peer_input_is_empty(&self, ctx: &AppContext) -> bool {
+    pub(super) fn peer_input_is_empty(&self, ctx: &AppContext) -> bool {
         use crate::terminal::cli_agent_sessions::CLIAgentSessionStatus;
         let Some(session) = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id) else {
             return false;
         };
-        if session.is_remote()
+        let mut remote = session.is_remote();
+        #[cfg(windows)]
+        if self.active_block_session_id().and_then(|id| self.sessions_model().as_ref(ctx).get(id))
+            .is_some_and(|shell| shell.is_wsl() && shell.ssh_arguments().is_none() && !shell.is_legacy_ssh_session()) {
+            remote = false;
+        }
+        if remote
             || !crate::agent_communication::accepts_peer_prompt(
                 &session.agent,
                 self.codex_original_command(&self.model.lock().block_list().active_block().command_to_string()),
@@ -807,6 +813,24 @@ impl TerminalView {
         let blocked = session
             .is_some_and(|session| matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
         (draft, blocked)
+    }
+
+    #[cfg(windows)]
+    pub(super) fn stage_wsl_peer_text(&mut self, agent: CLIAgent, text: String, ctx: &mut ViewContext<Self>) -> Duration {
+        let strategy = rich_input_submit_strategy(agent);
+        let mut bytes = text.into_bytes();
+        if matches!(strategy, RichInputSubmitStrategy::BracketedPaste | RichInputSubmitStrategy::BracketedPasteDelayedEnter) {
+            let mut paste = BRACKETED_PASTE_START.to_vec();
+            paste.extend(bytes);
+            paste.extend_from_slice(BRACKETED_PASTE_END);
+            bytes = paste;
+        }
+        self.write_to_pty(bytes, ctx);
+        match strategy {
+            RichInputSubmitStrategy::DelayedEnter => CLI_AGENT_PTY_WRITE_DELAY,
+            RichInputSubmitStrategy::BracketedPasteDelayedEnter => CLI_AGENT_BRACKETED_PASTE_ENTER_DELAY,
+            _ => Duration::ZERO,
+        }
     }
 
     /// Simulates clipboard image paste for each pending image attachment by

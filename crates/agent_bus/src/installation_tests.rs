@@ -1,6 +1,18 @@
 use super::*;
 
 #[test]
+fn wsl_installation_is_separate_from_ssh() {
+    let home = "/home/Guest Person/多语言/";
+    let path = wsl_companion_path(home).unwrap();
+    assert_eq!(path, "/home/Guest Person/多语言/.config/.warpai/wsl/bin/warpai-wsl-companion");
+    assert_ne!(path, companion_path(home, "Linux").unwrap().0);
+    for home in ["relative", "C:\\Users\\Guest", "/home/user\n", ""] {
+        assert!(wsl_companion_path(home).is_err());
+    }
+    assert_eq!(RELEASE_VERSION, "4.0.0");
+}
+
+#[test]
 fn private_git_runtime_is_required_for_installed_payloads() {
     let directory = tempfile::tempdir().unwrap();
     assert_eq!(

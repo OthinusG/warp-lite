@@ -578,6 +578,8 @@ impl HostInfo {
 /// part of the `BootstrappedEvent` payload.
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
+    #[cfg(windows)]
+    pub shell_pid: Option<u32>,
     pub session_id: SessionId,
     pub shell: Shell,
     pub launch_data: Option<ShellLaunchData>,
@@ -650,6 +652,8 @@ impl SessionInfo {
 
         SessionInfo {
             session_id: init_shell_value.session_id,
+            #[cfg(windows)]
+            shell_pid: init_shell_value.shell_pid,
             shell: Shell::new(shell_type, None, None, Default::default(), None),
             launch_data,
             user: init_shell_value.user,
@@ -777,6 +781,8 @@ impl SessionInfo {
 
         SessionInfo {
             session_id: self.session_id,
+            #[cfg(windows)]
+            shell_pid: self.shell_pid,
             shell: Shell::new(
                 shell_type,
                 bootstrapped_value.shell_version,
@@ -1050,6 +1056,11 @@ impl Session {
 
     pub fn wsl_distro_name(&self) -> Option<&str> {
         self.info.wsl_name()
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn wsl_shell_pid(&self) -> Option<u32> {
+        self.is_wsl().then_some(self.info.shell_pid).flatten().filter(|pid| *pid > 1)
     }
 
     pub fn is_msys2(&self) -> bool {
@@ -1625,6 +1636,8 @@ pub mod testing {
 
             Self {
                 session_id: SessionId::from(0),
+                #[cfg(windows)]
+                shell_pid: None,
                 shell: Shell::new(shell_type, None, None, Default::default(), None),
                 launch_data: None,
                 histfile: None,

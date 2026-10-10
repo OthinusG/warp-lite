@@ -258,6 +258,13 @@ impl FileNotebookView {
                         .is_ok_and(|cache| cache.is_file())
             })
     }
+    #[cfg(windows)]
+    pub(crate) fn wsl_checkpoint_ready(&self, app: &AppContext) -> bool {
+        self.ssh_checkpoint_ready(app) && self.file_state.local_path()
+            .and_then(|path| FileModel::as_ref(app).ssh_source(path))
+            .is_some_and(|source| source.files.connection.is_wsl())
+    }
+
     /// Create a new file notebook view, with no open file.
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
         let window_id = ctx.window_id();

@@ -67,6 +67,18 @@ if ($LASTEXITCODE -ne 0) {
     throw "prepare_bundled_resources.ps1 failed with exit code $LASTEXITCODE"
 }
 
+if ([version]$ProductVersion -ge [version]'1.6.0') {
+    foreach ($file in @('wsl-companion.tar.gz', 'wsl-companion.tar.gz.sha256')) {
+        $payload = "$RepoRoot\target\wsl-bundle\$file"
+        if (-not (Test-Path -LiteralPath $payload)) { throw "Missing source-matched bundled WSL payload: $file" }
+        Copy-Item -LiteralPath $payload -Destination "$BundledResourcesDir\$file" -Force
+    }
+    $expected = (Get-Content "$BundledResourcesDir\wsl-companion.tar.gz.sha256" -Raw).Trim()
+    if ((Get-FileHash "$BundledResourcesDir\wsl-companion.tar.gz" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+        throw 'Bundled WSL payload checksum mismatch'
+    }
+}
+
 # 3. Build Inno Setup installer
 Write-Host "==> [3/4] Compiling Windows installer with Inno Setup..."
 $ISCC_ARGS = @(

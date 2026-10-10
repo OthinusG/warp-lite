@@ -19,6 +19,8 @@ pub const MAX_RESULT: usize = 512 * 1024;
     deny_unknown_fields
 )]
 pub enum Command {
+    #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+    GuestNative(crate::wsl_setup::NativeRequest),
     Panel(PanelQuery),
     Operator(Operation),
     Controller(ControllerOperation),
@@ -27,8 +29,8 @@ pub enum Command {
 
 /// Credentials stay in native child environment and disappear with its owner.
 pub(super) struct RunBinding {
-    broker: Broker,
-    terminal: String,
+    pub(super) broker: Broker,
+    pub(super) terminal: String,
     run: String,
     pub environment: Vec<(String, String)>,
 }
@@ -527,12 +529,16 @@ pub(crate) fn decode_result(bytes: &[u8]) -> Option<serde_json::Value> {
 pub(super) struct Projects {
     directory: PathBuf,
     owners: Mutex<BTreeMap<String, (String, RunningBroker)>>,
+    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+    pub(super) guests: super::guests::Guests,
 }
 impl Projects {
     pub(super) fn new(directory: &Path) -> Self {
         Self {
             directory: directory.join("projects"),
             owners: Mutex::new(BTreeMap::new()),
+            #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+            guests: super::guests::Guests::new(directory.join("mcp-settings.json")),
         }
     }
     pub(super) fn broker(&self, project_id: &str, root: &str) -> Result<Broker, ManagedErrorCode> {
@@ -626,6 +632,21 @@ impl Projects {
         };
         if matches!(&command, Command::Scoped { .. }) {
             return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+        if let Command::GuestNative(query) = command {
+            if expected_scope.is_some() { return Err(ManagedErrorCode::ManagedInvalidInput); }
+            #[cfg(windows)]
+            return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+            #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+            {
+                let value = self.guests.native(root, query)?;
+                return Ok(ProjectTasksResult {
+                    fence: Some(fence.clone()), query_generation: request.query_generation,
+                    result_json: serde_json::to_vec(&serde_json::json!({"value": value}))
+                        .map_err(|_| ManagedErrorCode::ManagedUnavailable)?,
+                });
+            }
         }
         let root_path = root;
         let root = root.to_str().ok_or(ManagedErrorCode::ManagedUnavailable)?;
@@ -827,6 +848,8 @@ impl Projects {
             Command::Operator(operation) => broker.operator(&domain, &operation),
             Command::Controller(operation) => broker.control(&domain, &operation),
             Command::Scoped { .. } => unreachable!(),
+            #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+            Command::GuestNative(_) => unreachable!(),
         };
         let value = match result {
             Ok(value) => serde_json::json!({"value": value}),

@@ -1,7 +1,7 @@
 //! Remote installation metadata comes from the authenticated shell session, never local paths.
 use crate::ssh_remote::{ConnectionError, RemoteShell};
 
-pub const RELEASE_VERSION: &str = "5.0.0";
+pub const RELEASE_VERSION: &str = "4.0.0";
 
 /// Native installers own a private Git runtime; unpackaged development builds use system Git.
 pub fn git_executable() -> std::io::Result<std::path::PathBuf> {
@@ -76,6 +76,14 @@ pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), Con
         }
         _ => Err(ConnectionError::InvalidProfile),
     }
+}
+
+/// Resolve the dedicated WSL installation without sharing the SSH executable.
+#[cfg(any(windows, feature = "wsl_companion", test))]
+pub fn wsl_companion_path(home: &str) -> Result<String, ConnectionError> {
+    // Reuse the native home validation without pointing WSL to the SSH installation.
+    companion_path(home, "Linux")?;
+    Ok(format!("{}/.config/.warpai/wsl/bin/warpai-wsl-companion", home.trim_end_matches('/')))
 }
 
 /// A successful executable probe must also identify the supported control protocol.
