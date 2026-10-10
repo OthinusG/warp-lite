@@ -121,7 +121,7 @@ impl PasteAuthTokenModalView {
                 },
                 ctx,
             );
-            editor.set_placeholder_text("Enter auth token", ctx);
+            editor.set_placeholder_text(warpui::localization::text("Enter auth token"), ctx);
             editor
         });
 

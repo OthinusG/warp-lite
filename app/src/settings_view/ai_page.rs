@@ -579,7 +579,7 @@ impl AISettingsPageView {
                 let expanded = host_native_absolute_path(s, &None, &None);
                 Path::new(&expanded).is_dir()
             });
-            input.set_placeholder_text("e.g. ~/code-repos/repo", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. ~/code-repos/repo"), ctx);
             input
         });
         Self::update_editor_interaction_state(
@@ -618,7 +618,7 @@ impl AISettingsPageView {
             };
             let mut editor = EditorView::new(options, ctx);
 
-            editor.set_placeholder_text("Commands, comma separated", ctx);
+            editor.set_placeholder_text(warpui::localization::text("Commands, comma separated"), ctx);
 
             let current_value = AISettings::as_ref(ctx)
                 .autodetection_command_denylist
@@ -640,7 +640,7 @@ impl AISettingsPageView {
         let command_execution_allowlist_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|s| Regex::new(s).is_ok());
-            input.set_placeholder_text("e.g. ls .*", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. ls .*"), ctx);
             input
         });
         Self::update_editor_interaction_state(
@@ -672,7 +672,7 @@ impl AISettingsPageView {
         let command_execution_denylist_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|s| Regex::new(s).is_ok());
-            input.set_placeholder_text("e.g. rm .*", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. rm .*"), ctx);
             input
         });
         Self::update_editor_interaction_state(
@@ -704,7 +704,7 @@ impl AISettingsPageView {
         let cli_agent_footer_command_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|s| Regex::new(s).is_ok());
-            input.set_placeholder_text("command (supports regex)", ctx);
+            input.set_placeholder_text(warpui::localization::text("command (supports regex)"), ctx);
             input
         });
         // The coding agent footer command editor is always enabled,
@@ -1187,7 +1187,7 @@ impl AISettingsPageView {
                 let expanded = host_native_absolute_path(s, &None, &None);
                 Path::new(&expanded).is_dir()
             });
-            input.set_placeholder_text("e.g. ~/code-repos/repo", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. ~/code-repos/repo"), ctx);
             input
         });
 
@@ -1219,7 +1219,7 @@ impl AISettingsPageView {
         let command_denylist_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|s| Regex::new(s).is_ok());
-            input.set_placeholder_text("e.g. rm .*", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. rm .*"), ctx);
             input
         });
         Self::update_editor_interaction_state(
@@ -1257,7 +1257,7 @@ impl AISettingsPageView {
         let command_allowlist_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|s| Regex::new(s).is_ok());
-            input.set_placeholder_text("e.g. ls .*", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. ls .*"), ctx);
             input
         });
         Self::update_editor_interaction_state(
@@ -3274,28 +3274,28 @@ impl SettingsWidget for UsageWidget {
                 let upgrade_url = UserWorkspaces::upgrade_link_for_team(team.uid);
                 if has_admin_permissions {
                     vec![
-                        FormattedTextFragment::hyperlink("Upgrade", upgrade_url),
-                        FormattedTextFragment::plain_text(" to get more AI usage."),
+                        FormattedTextFragment::hyperlink(warpui::localization::text("Upgrade"), upgrade_url),
+                        FormattedTextFragment::plain_text(warpui::localization::text(" to get more AI usage.")),
                     ]
                 } else {
                     // The /upgrade page says to contact their administrator.
                     vec![
-                        FormattedTextFragment::hyperlink("Compare plans", upgrade_url),
-                        FormattedTextFragment::plain_text(" for more AI usage."),
+                        FormattedTextFragment::hyperlink(warpui::localization::text("Compare plans"), upgrade_url),
+                        FormattedTextFragment::plain_text(warpui::localization::text(" for more AI usage.")),
                     ]
                 }
             } else {
                 vec![
-                    FormattedTextFragment::hyperlink("Contact support", "mailto:support@warp.dev"),
-                    FormattedTextFragment::plain_text(" for more AI usage."),
+                    FormattedTextFragment::hyperlink(warpui::localization::text("Contact support"), "mailto:support@warp.dev"),
+                    FormattedTextFragment::plain_text(warpui::localization::text(" for more AI usage.")),
                 ]
             }
         } else {
             let user_id = auth_state.user_id().unwrap_or_default();
             let upgrade_url = UserWorkspaces::upgrade_link(user_id);
             vec![
-                FormattedTextFragment::hyperlink("Upgrade", upgrade_url),
-                FormattedTextFragment::plain_text(" to get more AI usage."),
+                FormattedTextFragment::hyperlink(warpui::localization::text("Upgrade"), upgrade_url),
+                FormattedTextFragment::plain_text(warpui::localization::text(" to get more AI usage.")),
             ]
         };
 
@@ -4213,10 +4213,10 @@ impl AgentsWidget {
 
         let codebase_context_description = vec![
             FormattedTextFragment::plain_text(
-                "Allow the Warpai Agent to generate an outline of your codebase that can be used for context. No code is ever stored on our servers. "
+                warpui::localization::text("Allow the Warpai Agent to generate an outline of your codebase that can be used for context. No code is ever stored on our servers. ")
             ),
             FormattedTextFragment::hyperlink(
-                "Learn more",
+                warpui::localization::text("Learn more"),
                 "https://docs.warp.dev/agent-platform/capabilities/codebase-context",
             ),
         ];
@@ -4285,10 +4285,10 @@ impl AgentsWidget {
 
         let subtext = {
             let subtext_fragments = vec![
-                FormattedTextFragment::plain_text("You haven't added any MCP servers yet. Once you do, you'll be able to control how much autonomy the Warpai Agent has when interacting with them. "),
+                FormattedTextFragment::plain_text(warpui::localization::text("You haven't added any MCP servers yet. Once you do, you'll be able to control how much autonomy the Warpai Agent has when interacting with them. ")),
                 FormattedTextFragment::hyperlink_action("Add a server", AISettingsPageAction::OpenMCPServerCollection),
-                FormattedTextFragment::plain_text(" or "),
-                FormattedTextFragment::hyperlink("learn more about MCPs.", "https://docs.warp.dev/agent-platform/capabilities/mcp"),
+                FormattedTextFragment::plain_text(warpui::localization::text(" or ")),
+                FormattedTextFragment::hyperlink(warpui::localization::text("learn more about MCPs."), "https://docs.warp.dev/agent-platform/capabilities/mcp"),
             ];
 
             Container::new(
@@ -4580,9 +4580,9 @@ impl AIInputWidget {
             static AUTODETECTION_DESCRIPTION_FRAGMENTS: LazyLock<Vec<FormattedTextFragment>> =
                 LazyLock::new(|| {
                     vec![
-                        FormattedTextFragment::plain_text("Encountered an incorrect detection? "),
+                        FormattedTextFragment::plain_text(warpui::localization::text("Encountered an incorrect detection? ")),
                         FormattedTextFragment::hyperlink(
-                            "Let us know",
+                            warpui::localization::text("Let us know"),
                             "https://warpdotdev.typeform.com/to/offrTIpq",
                         ),
                     ]
@@ -4635,10 +4635,10 @@ impl AIInputWidget {
             > = LazyLock::new(|| {
                 vec![
                 FormattedTextFragment::plain_text(
-                "Enabling natural language detection will detect when natural language is written in the terminal input, and then automatically switch to Agent Mode for AI queries."
+                warpui::localization::text("Enabling natural language detection will detect when natural language is written in the terminal input, and then automatically switch to Agent Mode for AI queries.")
                 ),
-                FormattedTextFragment::plain_text(" Encountered an incorrect input detection? "),
-                FormattedTextFragment::hyperlink("Let us know", "https://warpdotdev.typeform.com/to/offrTIpq"),
+                FormattedTextFragment::plain_text(warpui::localization::text(" Encountered an incorrect input detection? ")),
+                FormattedTextFragment::hyperlink(warpui::localization::text("Let us know"), "https://warpdotdev.typeform.com/to/offrTIpq"),
                 ]
             });
 
@@ -4741,11 +4741,11 @@ impl SettingsWidget for MCPServersWidget {
 
         let mcp_description = vec![
             FormattedTextFragment::plain_text(
-               "Add MCP servers to extend the Warpai Agent's capabilities. \
-            MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. ",
+               warpui::localization::text("Add MCP servers to extend the Warpai Agent's capabilities. \
+            MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. "),
             ),
             FormattedTextFragment::hyperlink(
-                "Learn more",
+                warpui::localization::text("Learn more"),
                 "https://docs.warp.dev/agent-platform/capabilities/mcp",
             ),
         ];
@@ -4788,10 +4788,10 @@ impl SettingsWidget for MCPServersWidget {
                         > = LazyLock::new(|| {
                             vec![
                                 FormattedTextFragment::plain_text(
-                                    "Automatically detect and spawn MCP servers from globally-scoped third-party AI agent configuration files (e.g. in your home directory). Servers detected inside a repository are never spawned automatically and must be enabled individually from the MCP settings page. ",
+                                    warpui::localization::text("Automatically detect and spawn MCP servers from globally-scoped third-party AI agent configuration files (e.g. in your home directory). Servers detected inside a repository are never spawned automatically and must be enabled individually from the MCP settings page. "),
                                 ),
                                 FormattedTextFragment::hyperlink(
-                                    "See supported providers.",
+                                    warpui::localization::text("See supported providers."),
                                     "https://docs.warp.dev/agent-platform/capabilities/mcp#file-based-mcp-servers",
                                 ),
                             ]
@@ -4873,10 +4873,10 @@ impl AIFactWidget {
 
         let rules_description = vec![
             FormattedTextFragment::plain_text(
-                "Rules help the Warpai Agent follow your conventions, whether for codebases or specific workflows. ",
+                warpui::localization::text("Rules help the Warpai Agent follow your conventions, whether for codebases or specific workflows. "),
             ),
             FormattedTextFragment::hyperlink(
-                "Learn more",
+                warpui::localization::text("Learn more"),
                 "https://docs.warp.dev/agent-platform/capabilities/rules",
             ),
         ];
@@ -5040,8 +5040,8 @@ impl VoiceWidget {
         ));
 
         let voice_input_description_text_fragments = vec![
-                FormattedTextFragment::plain_text("Voice input allows you to control Warpai by speaking directly to your terminal (powered by "),
-                FormattedTextFragment::hyperlink("Wispr Flow", WISPR_FLOW_URL),
+                FormattedTextFragment::plain_text(warpui::localization::text("Voice input allows you to control Warpai by speaking directly to your terminal (powered by ")),
+                FormattedTextFragment::hyperlink(warpui::localization::text("Wispr Flow"), WISPR_FLOW_URL),
                 FormattedTextFragment::plain_text(")."),
             ];
 
@@ -5314,12 +5314,12 @@ impl SettingsWidget for CLIAgentWidget {
 
         let description_fragments = vec![
             FormattedTextFragment::plain_text(
-                "Show a toolbar with quick actions when running coding agents like ",
+                warpui::localization::text("Show a toolbar with quick actions when running coding agents like "),
             ),
             FormattedTextFragment::inline_code("claude"),
             FormattedTextFragment::plain_text(", "),
             FormattedTextFragment::inline_code("codex"),
-            FormattedTextFragment::plain_text(", or "),
+            FormattedTextFragment::plain_text(warpui::localization::text(", or ")),
             FormattedTextFragment::inline_code("gemini"),
             FormattedTextFragment::plain_text("."),
         ];
@@ -5880,9 +5880,9 @@ impl ApiKeysWidget {
                 // to sales to enable BYOK on their existing plan.
                 if team.billing_metadata.customer_type == CustomerType::Enterprise {
                     vec![
-                        FormattedTextFragment::hyperlink("Contact sales", "mailto:sales@warp.dev"),
+                        FormattedTextFragment::hyperlink(warpui::localization::text("Contact sales"), "mailto:sales@warp.dev"),
                         FormattedTextFragment::plain_text(
-                            " to enable bringing your own API keys on your Enterprise plan.",
+                            warpui::localization::text(" to enable bringing your own API keys on your Enterprise plan."),
                         ),
                     ]
                 } else {
@@ -5892,15 +5892,15 @@ impl ApiKeysWidget {
                     if has_admin_permissions {
                         vec![
                             FormattedTextFragment::hyperlink(
-                                "Upgrade to the Build plan",
+                                warpui::localization::text("Upgrade to the Build plan"),
                                 upgrade_url,
                             ),
-                            FormattedTextFragment::plain_text(" to use your own API keys."),
+                            FormattedTextFragment::plain_text(warpui::localization::text(" to use your own API keys.")),
                         ]
                     } else {
                         vec![
                             FormattedTextFragment::plain_text(
-                                "Ask your team's admin to upgrade to the Build plan to use your own API keys.",
+                                warpui::localization::text("Ask your team's admin to upgrade to the Build plan to use your own API keys."),
                             ),
                         ]
                     }
@@ -5909,8 +5909,8 @@ impl ApiKeysWidget {
                 let user_id = auth_state.user_id().unwrap_or_default();
                 let upgrade_url = UserWorkspaces::upgrade_link(user_id);
                 vec![
-                    FormattedTextFragment::hyperlink("Upgrade to the Build plan", upgrade_url),
-                    FormattedTextFragment::plain_text(" to use your own API keys."),
+                    FormattedTextFragment::hyperlink(warpui::localization::text("Upgrade to the Build plan"), upgrade_url),
+                    FormattedTextFragment::plain_text(warpui::localization::text(" to use your own API keys.")),
                 ]
             };
 

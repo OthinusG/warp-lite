@@ -101,7 +101,7 @@ impl AliasBar {
                 },
                 ctx,
             );
-            view.set_placeholder_text("alias name", ctx);
+            view.set_placeholder_text(warpui::localization::text("alias name"), ctx);
 
             view
         });

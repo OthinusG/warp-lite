@@ -120,3 +120,10 @@ Literal MenuItemFields labels are localized at construction sites, and that
 constructor family is included in the strict display inventory. Platform reveal
 actions and notebook block/heading labels share translated display values; file
 paths, shell names, branch names and shortcut labels remain literal.
+
+Tooltip, placeholder, toast link and formatted text fragment constructors are
+included in the display inventory. Commands, regular expressions, config file
+names and branch-name examples stay verbatim. Linux desktop updater UI is
+explicitly excluded; its implementation is outside this release's desktop scope.
+The macOS backend initializes application settings before building its menu bar,
+so the selected locale is available when native menu labels are constructed.

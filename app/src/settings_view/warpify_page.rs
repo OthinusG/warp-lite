@@ -121,7 +121,7 @@ impl WarpifyPageView {
         let add_added_commands_editor = ctx.add_typed_action_view(|ctx| {
             let mut input =
                 SubmittableTextInput::new(ctx).validate_on_edit(|regex| Regex::new(regex).is_ok());
-            input.set_placeholder_text("command (supports regex)", ctx);
+            input.set_placeholder_text(warpui::localization::text("command (supports regex)"), ctx);
             input
         });
 
@@ -132,7 +132,7 @@ impl WarpifyPageView {
 
         let add_denylisted_commands_editor = ctx.add_typed_action_view(|ctx| {
             let mut input = SubmittableTextInput::new(ctx);
-            input.set_placeholder_text("command (supports regex)", ctx);
+            input.set_placeholder_text(warpui::localization::text("command (supports regex)"), ctx);
             input
         });
 
@@ -143,7 +143,7 @@ impl WarpifyPageView {
 
         let add_denylisted_ssh_editor = ctx.add_typed_action_view(|ctx| {
             let mut input = SubmittableTextInput::new(ctx);
-            input.set_placeholder_text("host (supports regex)", ctx);
+            input.set_placeholder_text(warpui::localization::text("host (supports regex)"), ctx);
             input
         });
 
@@ -505,11 +505,11 @@ impl TitleWidget {
     fn render_top_of_page(&self, appearance: &Appearance, _app: &AppContext) -> Box<dyn Element> {
         let warpify_description = vec![
             FormattedTextFragment::plain_text(
-                "Configure whether Warpai attempts to “Warpify” (add support for blocks, \
-                    input modes, etc) certain shells. ",
+                warpui::localization::text("Configure whether Warpai attempts to “Warpify” (add support for blocks, \
+                    input modes, etc) certain shells. "),
             ),
             FormattedTextFragment::hyperlink(
-                "Learn more",
+                warpui::localization::text("Learn more"),
                 "https://docs.warp.dev/terminal/warpify/subshells",
             ),
         ];

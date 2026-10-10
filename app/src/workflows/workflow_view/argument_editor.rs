@@ -588,7 +588,7 @@ impl WorkflowView {
                 )
                 .with_tooltip(move || {
                     ui_builder
-                        .tool_tip("Add a workflow argument".to_string())
+                        .tool_tip(warpui::localization::text("Add a workflow argument").to_string())
                         .build()
                         .finish()
                 })

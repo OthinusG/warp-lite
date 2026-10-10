@@ -394,7 +394,7 @@ impl UpdateEnvironmentForm {
 
         let setup_commands_input = ctx.add_typed_action_view(|ctx| {
             let mut input = SubmittableTextInput::new(ctx);
-            input.set_placeholder_text("e.g. cd my-repo && pip install -r requirements.txt", ctx);
+            input.set_placeholder_text(warpui::localization::text("e.g. cd my-repo && pip install -r requirements.txt"), ctx);
             // Keep this consistent with other form inputs (e.g. repos): caller controls spacing.
             input.set_outer_margins(0., 0., ctx);
             input
@@ -914,7 +914,7 @@ impl UpdateEnvironmentForm {
             };
             let mut editor = EditorView::new(options, ctx);
             editor.set_placeholder_text(
-                "e.g., this environment is for all front end focused agents",
+                warpui::localization::text("e.g., this environment is for all front end focused agents"),
                 ctx,
             );
             editor

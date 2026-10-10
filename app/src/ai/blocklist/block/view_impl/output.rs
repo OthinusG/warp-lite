@@ -932,7 +932,7 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             match &conversation_label {
                                 Some(name) => {
                                     fragments
-                                        .push(FormattedTextFragment::plain_text("conversation "));
+                                        .push(FormattedTextFragment::plain_text(warpui::localization::text("conversation ")));
                                     fragments.push(FormattedTextFragment::weighted(
                                         name.as_str(),
                                         Some(markdown_parser::weight::CustomWeight::Bold),
@@ -940,7 +940,7 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                                 }
                                 None => {
                                     fragments.push(FormattedTextFragment::plain_text(
-                                        "this conversation",
+                                        warpui::localization::text("this conversation"),
                                     ));
                                 }
                             };
@@ -1998,7 +1998,7 @@ fn render_stopped_output(props: Props, app: &AppContext) -> Box<dyn Element> {
         .with_custom_label(button_content)
         .with_tooltip(move || {
             ui_builder
-                .tool_tip("Resume conversation".to_string())
+                .tool_tip(warpui::localization::text("Resume conversation").to_string())
                 .build()
                 .finish()
         })
@@ -2278,12 +2278,12 @@ fn create_formatted_text_for_grep(
             .expect("Queries slice should have an element");
         let mut fragments = if is_cancelled || is_queued {
             vec![
-                FormattedTextFragment::plain_text("Grep for "),
+                FormattedTextFragment::plain_text(warpui::localization::text("Grep for ")),
                 FormattedTextFragment::inline_code(query),
             ]
         } else {
             vec![
-                FormattedTextFragment::plain_text("Grepping for "),
+                FormattedTextFragment::plain_text(warpui::localization::text("Grepping for ")),
                 FormattedTextFragment::inline_code(query),
             ]
         };
@@ -2375,12 +2375,12 @@ fn create_formatted_text_for_file_glob(
 
         let mut fragments = if is_cancelled || is_queued {
             vec![
-                FormattedTextFragment::plain_text("Search for files that match "),
+                FormattedTextFragment::plain_text(warpui::localization::text("Search for files that match ")),
                 FormattedTextFragment::inline_code(pattern),
             ]
         } else {
             vec![
-                FormattedTextFragment::plain_text("Finding files that match "),
+                FormattedTextFragment::plain_text(warpui::localization::text("Finding files that match ")),
                 FormattedTextFragment::inline_code(pattern),
             ]
         };
@@ -3003,7 +3003,7 @@ fn render_response_footer(props: Props, app: &AppContext) -> Option<Box<dyn Elem
         )
         .with_tooltip(move || {
             ui_builder
-                .tool_tip("Good response".to_string())
+                .tool_tip(warpui::localization::text("Good response").to_string())
                 .build()
                 .finish()
         })
@@ -3024,7 +3024,7 @@ fn render_response_footer(props: Props, app: &AppContext) -> Option<Box<dyn Elem
         .with_tooltip(move || {
             ui_builder
                 .clone()
-                .tool_tip("Bad response".to_string())
+                .tool_tip(warpui::localization::text("Bad response").to_string())
                 .build()
                 .finish()
         })
@@ -3096,7 +3096,7 @@ fn render_response_footer(props: Props, app: &AppContext) -> Option<Box<dyn Elem
         )
         .with_tooltip(move || {
             ui_builder
-                .tool_tip("Continue conversation".to_string())
+                .tool_tip(warpui::localization::text("Continue conversation").to_string())
                 .build()
                 .finish()
         })
@@ -3120,7 +3120,7 @@ fn render_response_footer(props: Props, app: &AppContext) -> Option<Box<dyn Elem
         )
         .with_tooltip(move || {
             ui_builder
-                .tool_tip("Fork conversation".to_string())
+                .tool_tip(warpui::localization::text("Fork conversation").to_string())
                 .build()
                 .finish()
         })
@@ -3281,7 +3281,7 @@ fn render_usage_button(props: Props, app: &AppContext) -> Box<dyn Element> {
                 // Show tooltip on hover or while clicked
                 let mut stack = Stack::new().with_child(content.finish());
                 let tooltip = ui_builder
-                    .tool_tip("Show credit usage details".to_string())
+                    .tool_tip(warpui::localization::text("Show credit usage details").to_string())
                     .build()
                     .finish();
                 stack.add_positioned_overlay_child(

@@ -283,7 +283,7 @@ impl PromptAlertView {
                 ));
 
                 // Show "or upgrade to Build" link
-                text_fragments.push(FormattedTextFragment::plain_text(" or "));
+                text_fragments.push(FormattedTextFragment::plain_text(warpui::localization::text(" or ")));
                 let upgrade_url = if let Some(team) = UserWorkspaces::as_ref(app).current_team() {
                     UserWorkspaces::upgrade_link_for_team(team.uid)
                 } else {
@@ -386,7 +386,7 @@ impl PromptAlertView {
                     text_fragments.push(FormattedTextFragment::hyperlink(label, upgrade_url));
                 }
                 if UserWorkspaces::as_ref(app).is_byo_api_key_enabled() {
-                    text_fragments.push(FormattedTextFragment::plain_text(" or "));
+                    text_fragments.push(FormattedTextFragment::plain_text(warpui::localization::text(" or ")));
                     text_fragments.push(FormattedTextFragment::hyperlink_action(
                         "use your own API keys",
                         WorkspaceAction::ShowSettingsPageWithSearch {

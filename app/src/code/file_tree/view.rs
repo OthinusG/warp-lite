@@ -2392,7 +2392,7 @@ impl FileTreeView {
 
             if is_remote_file && mouse_state.is_hovered() {
                 let tooltip = ui_builder
-                    .tool_tip("Opening files is unavailable for remote sessions".to_string())
+                    .tool_tip(warpui::localization::text("Opening files is unavailable for remote sessions").to_string())
                     .build()
                     .finish();
                 let offset = OffsetPositioning::offset_from_parent(

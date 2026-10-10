@@ -227,9 +227,9 @@ impl FreeTierLimitHitModal {
                         .with_child(
                             Container::new({
                                 let formatted_text = FormattedText::new([FormattedTextLine::Line(vec![
-                                    FormattedTextFragment::plain_text("Access to "),
+                                    FormattedTextFragment::plain_text(warpui::localization::text("Access to ")),
                                     FormattedTextFragment::hyperlink(
-                                        "Reload Credits".to_string(),
+                                        warpui::localization::text("Reload Credits").to_string(),
                                         "https://docs.warp.dev/support-and-community/plans-and-billing/add-on-credits".to_string(),
                                     ),
                                 ])]);
@@ -272,7 +272,7 @@ impl FreeTierLimitHitModal {
                             Container::new({
                                 let formatted_text = FormattedText::new([FormattedTextLine::Line(vec![
                                     FormattedTextFragment::hyperlink(
-                                        "Extended cloud agents access".to_string(),
+                                        warpui::localization::text("Extended cloud agents access").to_string(),
                                         "https://www.warp.dev/oz".to_string(),
                                     ),
                                 ])]);

@@ -1938,7 +1938,7 @@ impl EnvironmentsPageWidget {
                     )
                     .with_tooltip(move || {
                         share_ui_builder
-                            .tool_tip("Share".to_string())
+                            .tool_tip(warpui::localization::text("Share").to_string())
                             .build()
                             .finish()
                     })
@@ -1974,7 +1974,7 @@ impl EnvironmentsPageWidget {
             if is_card_hovered {
                 edit_button = edit_button.with_tooltip(move || {
                     edit_ui_builder
-                        .tool_tip("Edit".to_string())
+                        .tool_tip(warpui::localization::text("Edit").to_string())
                         .build()
                         .finish()
                 });

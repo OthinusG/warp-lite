@@ -827,7 +827,7 @@ impl LeftPanelView {
                 .finish()
         } else {
             ui_builder
-                .tool_tip("Close panel".to_string())
+                .tool_tip(warpui::localization::text("Close panel").to_string())
                 .build()
                 .finish()
         };

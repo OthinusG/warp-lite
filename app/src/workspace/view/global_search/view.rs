@@ -650,7 +650,7 @@ impl GlobalSearchView {
             };
 
             let mut editor = EditorView::new(options, ctx);
-            editor.set_placeholder_text("Search in files", ctx);
+            editor.set_placeholder_text(warpui::localization::text("Search in files"), ctx);
             editor
         });
 

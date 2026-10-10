@@ -51,7 +51,7 @@ impl AddRegexModal {
                 ..Default::default()
             };
             let mut editor = EditorView::single_line(options, ctx);
-            editor.set_placeholder_text("e.g. \"Google API Key\"", ctx);
+            editor.set_placeholder_text(warpui::localization::text("e.g. \"Google API Key\""), ctx);
             editor
         });
 

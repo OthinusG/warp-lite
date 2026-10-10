@@ -392,7 +392,7 @@ impl FileUpload {
         }
 
         let mut dest_fragments = vec![
-            FormattedTextFragment::plain_text(" to "),
+            FormattedTextFragment::plain_text(warpui::localization::text(" to ")),
             FormattedTextFragment::inline_code(&file.remote_host),
         ];
         if let Some(remote_path) = &file.remote_dest_path {
@@ -416,7 +416,7 @@ impl FileUpload {
         let ui_builder = appearance.ui_builder().clone();
         Container::new(
             icon_button(appearance, Icon::X, true, file.clear_button.clone())
-                .with_tooltip(move || ui_builder.tool_tip("Clear upload".into()).build().finish())
+                .with_tooltip(move || ui_builder.tool_tip(warpui::localization::text("Clear upload").into()).build().finish())
                 .build()
                 .on_click(move |event_ctx, _, _| {
                     event_ctx
@@ -460,7 +460,7 @@ impl FileUpload {
             FormattedTextElement::new(
                 FormattedText::new(vec![FormattedTextLine::Heading(FormattedTextHeader {
                     heading_size: 3,
-                    text: vec![FormattedTextFragment::plain_text("File Uploads")],
+                    text: vec![FormattedTextFragment::plain_text(warpui::localization::text("File Uploads"))],
                 })]),
                 appearance.ui_font_size(),
                 appearance.ui_font_family(),

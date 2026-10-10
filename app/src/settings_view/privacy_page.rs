@@ -1405,7 +1405,7 @@ impl AppAnalyticsWidget {
             let mut stack = Stack::new().with_child(badge);
             if is_hovered {
                 let tooltip = ui_builder.tool_tip(
-                    "Your administrator has enabled zero data retention for your team. User generated content will never be collected."
+                    warpui::localization::text("Your administrator has enabled zero data retention for your team. User generated content will never be collected.")
                         .to_string(),
                 );
                 stack.add_positioned_child(

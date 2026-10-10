@@ -965,7 +965,7 @@ fn render_force_refresh_inline(
         let mut stack = Stack::new().with_child(text_with_margin);
         if state.is_hovered() {
             let tool_tip = ui_builder
-                .tool_tip("Ask the agent to check this command now, skipping its timer.".to_owned())
+                .tool_tip(warpui::localization::text("Ask the agent to check this command now, skipping its timer.").to_owned())
                 .build()
                 .finish();
             stack.add_positioned_overlay_child(

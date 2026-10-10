@@ -3766,9 +3766,9 @@ impl TerminalView {
             Banner::<TerminalAction>::new_with_buttons(
                 BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::plain_text(
-                        "Seems like your shell is taking a while to start...  ",
+                        warpui::localization::text("Seems like your shell is taking a while to start...  "),
                     ),
-                    FormattedTextFragment::hyperlink("More info", KNOWN_ISSUES_URL),
+                    FormattedTextFragment::hyperlink(warpui::localization::text("More info"), KNOWN_ISSUES_URL),
                 ]),
                 vec![BannerTextButton::new(
                     "Show initialization block".to_string(),
@@ -3791,14 +3791,14 @@ impl TerminalView {
 
         let control_master_error_banner = ctx.add_typed_action_view(|_| {
             Banner::new_permanently_dismissible(BannerTextContent::formatted_text(vec![
-                FormattedTextFragment::plain_text("Seems like your completions are not working ("),
-                FormattedTextFragment::hyperlink("more info", CONTROLMASTER_ISSUES_URL),
-                FormattedTextFragment::plain_text("). Enabling tmux warpification in "),
+                FormattedTextFragment::plain_text(warpui::localization::text("Seems like your completions are not working (")),
+                FormattedTextFragment::hyperlink(warpui::localization::text("more info"), CONTROLMASTER_ISSUES_URL),
+                FormattedTextFragment::plain_text(warpui::localization::text("). Enabling tmux warpification in ")),
                 FormattedTextFragment::hyperlink_action(
                     "settings",
                     TerminalAction::ShowWarpifySettings,
                 ),
-                FormattedTextFragment::plain_text(" may resolve this issue."),
+                FormattedTextFragment::plain_text(warpui::localization::text(" may resolve this issue.")),
             ]))
         });
 
@@ -3809,9 +3809,9 @@ impl TerminalView {
         let incompatible_configuration_banner = ctx.add_typed_action_view(|_| {
             Banner::new(BannerTextContent::formatted_text(vec![
                 FormattedTextFragment::plain_text(
-                    "Your shell configuration is incompatible with Warpai...  ",
+                    warpui::localization::text("Your shell configuration is incompatible with Warpai...  "),
                 ),
-                FormattedTextFragment::hyperlink("More info", KNOWN_ISSUES_URL),
+                FormattedTextFragment::hyperlink(warpui::localization::text("More info"), KNOWN_ISSUES_URL),
             ]))
         });
 
@@ -3822,11 +3822,11 @@ impl TerminalView {
         let emacs_bindings_banner = ctx.add_typed_action_view(|_| {
             Banner::new_with_buttons(
                 BannerTextContent::formatted_text(vec![
-                    FormattedTextFragment::plain_text("Did you intend "),
+                    FormattedTextFragment::plain_text(warpui::localization::text("Did you intend ")),
                     FormattedTextFragment::inline_code("ctrl-a"),
                     FormattedTextFragment::plain_text("/"),
                     FormattedTextFragment::inline_code("ctrl-e"),
-                    FormattedTextFragment::plain_text(" to move the cursor?"),
+                    FormattedTextFragment::plain_text(warpui::localization::text(" to move the cursor?")),
                 ]),
                 // Here, we use DismissalType::Temporary and DismissalType::Permanent variants
                 // as stand-ins for changing bindings vs. leaving them as-is.
@@ -20483,21 +20483,21 @@ impl TerminalView {
                 Some(BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::bold("Powerlevel10k now supports Warpai!  "),
                     FormattedTextFragment::plain_text(
-                        "You seem to be running an older (unsupported) version, please follow ",
+                        warpui::localization::text("You seem to be running an older (unsupported) version, please follow "),
                     ),
                     FormattedTextFragment::hyperlink(
-                        "these instructions",
+                        warpui::localization::text("these instructions"),
                         P10K_UPDATE_INSTRUCTIONS_URL,
                     ),
-                    FormattedTextFragment::plain_text(" to update to the latest version."),
+                    FormattedTextFragment::plain_text(warpui::localization::text(" to update to the latest version.")),
                 ]))
             } else if shell_plugins.contains("pure") {
                 Some(BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::plain_text(
-                        "Pure is not yet supported in Warpai. You might consider one of the \
-                        supported prompts as an alternative.  ",
+                        warpui::localization::text("Pure is not yet supported in Warpai. You might consider one of the \
+                        supported prompts as an alternative.  "),
                     ),
-                    FormattedTextFragment::hyperlink("Learn more", PROMPT_COMPATIBILITY_URL),
+                    FormattedTextFragment::hyperlink(warpui::localization::text("Learn more"), PROMPT_COMPATIBILITY_URL),
                 ]))
             } else {
                 None

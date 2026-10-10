@@ -29,9 +29,9 @@ impl LoginFailureReason {
             mut fragments: Vec<FormattedTextFragment>,
         ) -> Vec<FormattedTextFragment> {
             fragments.extend([
-                FormattedTextFragment::plain_text(" Not the first time? See our "),
+                FormattedTextFragment::plain_text(warpui::localization::text(" Not the first time? See our ")),
                 FormattedTextFragment::hyperlink(
-                    "troubleshooting docs",
+                    warpui::localization::text("troubleshooting docs"),
                     LOGIN_TROUBLESHOOTING_DOCS_URL,
                 ),
                 FormattedTextFragment::plain_text("."),
@@ -50,17 +50,17 @@ impl LoginFailureReason {
             }
             LoginFailureReason::FailedUserAuthentication => {
                 with_troubleshooting_text(vec![FormattedTextFragment::plain_text(
-                    "Request to log in failed.",
+                    warpui::localization::text("Request to log in failed."),
                 )])
             }
             LoginFailureReason::FailedMintCustomToken => {
                 with_troubleshooting_text(vec![FormattedTextFragment::plain_text(
-                    "Request to sign up failed.",
+                    warpui::localization::text("Request to sign up failed."),
                 )])
             }
             LoginFailureReason::InvalidStateParameter | LoginFailureReason::MissingStateParameter => {
                 with_troubleshooting_text(vec![FormattedTextFragment::plain_text(
-                    "The redirect URL pasted did not originate from this app. Please click the button below to try again.",
+                    warpui::localization::text("The redirect URL pasted did not originate from this app. Please click the button below to try again."),
                 )])
             }
         };

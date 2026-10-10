@@ -81,9 +81,9 @@ pub fn warpify_description(
 
     let description = FormattedText::new(vec![FormattedTextLine::Line(vec![
         FormattedTextFragment::plain_text(
-            "Use Warpai command blocks, text editing and completion in your remote session. "
+            warpui::localization::text("Use Warpai command blocks, text editing and completion in your remote session. ")
         ),
-        FormattedTextFragment::hyperlink("Learn more", SSH_DOCS_URL),
+        FormattedTextFragment::hyperlink(warpui::localization::text("Learn more"), SSH_DOCS_URL),
     ])]);
     warpify::render::build_description_row(description, theme, appearance, hyperlink_index.clone())
         .with_hyperlink_font_color(appearance.theme().accent().into_solid())

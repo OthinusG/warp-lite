@@ -780,7 +780,7 @@ impl AIAssistantPanelView {
                 ..Default::default()
             };
             ui_builder
-                .tool_tip("Copy transcript to clipboard".to_owned())
+                .tool_tip(warpui::localization::text("Copy transcript to clipboard").to_owned())
                 .with_style(tool_tip_style)
                 .build()
                 .finish()

@@ -379,7 +379,7 @@ impl NotebookView {
                 ..Default::default()
             };
             let mut editor = EditorView::single_line(options, ctx);
-            editor.set_placeholder_text("Untitled", ctx);
+            editor.set_placeholder_text(warpui::localization::text("Untitled"), ctx);
             editor
         });
         ctx.subscribe_to_view(&title, |notebook, _, event, ctx| {
@@ -1971,7 +1971,7 @@ impl NotebookView {
                             )
                             .with_tooltip(move || {
                                 ui_builder
-                                    .tool_tip("Restore notebook from trash".to_string())
+                                    .tool_tip(warpui::localization::text("Restore notebook from trash").to_string())
                                     .build()
                                     .finish()
                             })
@@ -2002,7 +2002,7 @@ impl NotebookView {
                                 .with_tooltip(move || {
                                     ui_builder
                                         .tool_tip(
-                                            "Copy notebook contents into your personal workspace"
+                                            warpui::localization::text("Copy notebook contents into your personal workspace")
                                                 .to_string(),
                                         )
                                         .build()
@@ -2086,7 +2086,7 @@ impl NotebookView {
                         )
                         .with_tooltip(move || {
                             ui_builder
-                                .tool_tip("Copy notebook contents to your clipboard".to_string())
+                                .tool_tip(warpui::localization::text("Copy notebook contents to your clipboard").to_string())
                                 .build()
                                 .finish()
                         })
@@ -2120,7 +2120,7 @@ impl NotebookView {
                             )
                             .with_tooltip(move || {
                                 ui_builder
-                                    .tool_tip("Refresh notebook".to_string())
+                                    .tool_tip(warpui::localization::text("Refresh notebook").to_string())
                                     .build()
                                     .finish()
                             })

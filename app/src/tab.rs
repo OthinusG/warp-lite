@@ -1534,7 +1534,7 @@ impl<'a> TabComponent<'a> {
 
                         if state.is_hovered() {
                             let tooltip = ui_builder
-                                .tool_tip("Cloud agent run".to_string())
+                                .tool_tip(warpui::localization::text("Cloud agent run").to_string())
                                 .build()
                                 .finish();
                             stack.add_positioned_overlay_child(

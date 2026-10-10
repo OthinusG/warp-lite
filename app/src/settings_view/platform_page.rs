@@ -378,8 +378,8 @@ impl PlatformPageWidget {
         appearance: &Appearance,
     ) -> Box<dyn Element> {
         let text = vec![
-            FormattedTextFragment::plain_text("Create and manage API keys to allow other Oz cloud agents to access your Warpai account.\nFor more information, visit the "),
-            FormattedTextFragment::hyperlink("Documentation.", API_KEY_DOCS_URL),
+            FormattedTextFragment::plain_text(warpui::localization::text("Create and manage API keys to allow other Oz cloud agents to access your Warpai account.\nFor more information, visit the ")),
+            FormattedTextFragment::hyperlink(warpui::localization::text("Documentation."), API_KEY_DOCS_URL),
         ];
 
         let text_element = FormattedTextElement::new(

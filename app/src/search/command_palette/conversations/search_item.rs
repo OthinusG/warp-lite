@@ -241,7 +241,7 @@ impl ConversationSearchItem {
 
             let fork_button_tool_tip = appearance
                 .ui_builder()
-                .tool_tip("Fork conversation".to_string())
+                .tool_tip(warpui::localization::text("Fork conversation").to_string())
                 .build();
 
             let fork_button_inner = icon_button(

@@ -121,12 +121,12 @@ BINDING_DISPLAY = re.compile(
 
 DISPLAY = re.compile(
     r"(?:Text::new(?:_inline)?|FormattedTextElement::from_str|CustomMenuItem::new"
-    r"|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
+    r"|ToastLink::new|FormattedTextFragment::(?:plain_text|hyperlink)|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
     r"|ActionButton::new|render_page_title|AccessibilityContent::new"
     r"|(?:build_sub_header|render_sub_header_with_description|render_dropdown_item)\(\s*appearance\s*,"
     r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"
     r"|\.(?:with_label|with_tooltip|with_text_label|with_title|with_placeholder"
-    r"|with_centered_text_label|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
+    r"|with_centered_text_label|tool_tip|set_placeholder_text|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
     r"\s*\(\s*$"
 )
 
@@ -139,7 +139,10 @@ VERBATIM = {
     "app/src/app_menus.rs": {"Warpai", "AI"},
     "app/src/drive/index.rs": {"Warpai Drive"},
     "app/src/settings_view/about_page.rs": {"Warpai"},
-    "app/src/settings_view/ai_page.rs": {"Warpai Agent"},
+    "app/src/launch_configs/save_modal.rs": {"launch_config.yaml"},
+    "app/src/tab_configs/new_worktree_modal.rs": {"my-feature-branch"},
+    "app/src/settings_view/privacy/add_regex_modal.rs": {r"\bAIza[0-9A-Za-z-_]{35}\b"},
+    "app/src/settings_view/ai_page.rs": {"Warpai Agent", "aws login", "default"},
     "app/src/settings_view/features/external_editor.rs": {"Warpai", "$EDITOR"},
     "app/src/settings_view/mcp_servers/edit_page.rs": {"JSON"},
     "app/src/settings_view/privacy_page.rs": {"ZDR"},
@@ -181,6 +184,9 @@ def validate(catalog):
     for folder in ("app/src", "crates/warpui_core/src", "crates/ui_components/src"):
         for path in sorted((ROOT / folder).rglob("*.rs")):
             if path.name.endswith(("_test.rs", "_tests.rs")) or path.name == "localization.rs":
+                continue
+            # Linux desktop UI is outside the supported desktop release scope.
+            if path == ROOT / "app/src/autoupdate/linux.rs":
                 continue
             source = path.read_text()
             relative = str(path.relative_to(ROOT))

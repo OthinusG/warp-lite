@@ -2950,9 +2950,9 @@ impl PaneGroup {
             Banner::<PaneGroupAction>::new_permanently_dismissible(
                 BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::plain_text(
-                        "Warpai doesn't currently support your default shell, falling back to zsh.  ",
+                        warpui::localization::text("Warpai doesn't currently support your default shell, falling back to zsh.  "),
                     ),
-                    FormattedTextFragment::hyperlink("Learn more", WARP_SHELL_COMPATIBILITY_DOCS),
+                    FormattedTextFragment::hyperlink(warpui::localization::text("Learn more"), WARP_SHELL_COMPATIBILITY_DOCS),
                 ]),
             )
         });

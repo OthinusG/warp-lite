@@ -932,7 +932,7 @@ impl DriveIndex {
                 ..Default::default()
             };
             let mut editor = EditorView::single_line(options, ctx);
-            editor.set_placeholder_text("Untitled", ctx);
+            editor.set_placeholder_text(warpui::localization::text("Untitled"), ctx);
             editor
         });
 
