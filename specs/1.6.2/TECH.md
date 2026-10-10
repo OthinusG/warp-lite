@@ -132,3 +132,10 @@ Toast notifications and constant-based labels, including commit/find/keybinding
 placeholders, theme dialogs, prompt setup and settings import, are localized only
 at display consumers. Constant declarations retain their original values. Pane
 kind badges and fallback titles translate fixed kinds; user titles stay literal.
+
+Local preflight at 7c9109bf: all 301 changed Rust files parse under their crate's
+declared 2021/2024 edition. Strict catalog checks cover 2,330 translation pairs
+and 2,378 marked display sites; Python, YAML and defaults JSON syntax checks
+pass. Companion sources and Linux desktop updater sources match the 1.6.0
+acceptance baseline c3497dd4. Cloud compilation, tests and three-locale native
+visual acceptance remain gated on successful 1.6.0 acceptance.
