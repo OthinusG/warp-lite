@@ -5,6 +5,7 @@ use warpui::{AppContext, SingletonEntity, WindowId};
 pub(crate) fn session_connection(
     session: &crate::terminal::model::session::Session,
 ) -> Option<SshConnection> {
+    #[cfg(windows)]
     if session.ssh_arguments().is_none() && !session.is_legacy_ssh_session() {
         if let Some(distribution) = session.wsl_distro_name() {
             return Some(SshConnection::Wsl {
@@ -39,12 +40,12 @@ pub(crate) fn selected_ssh(
     let host_info = session.host_info();
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         session.home_dir()?,
-        if matches!(connection, SshConnection::Wsl { .. }) { "Linux" }
+        if connection.is_wsl() { "Linux" }
         else { host_info.os_category.as_deref()? },
     )
     .ok()?;
     let profile = SshProfile {
-        target: if matches!(connection, SshConnection::Wsl { .. }) { "wsl".into() } else { session.hostname().into() },
+        target: if connection.is_wsl() { "wsl".into() } else { session.hostname().into() },
         config_file: None,
         remote_root: active.current_directory(window)?.into(),
         companion_path,
@@ -63,7 +64,7 @@ pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection) ->
     )
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
     use crate::terminal::model::session::{command_executor::NoOpCommandExecutor, Session, SessionInfo};

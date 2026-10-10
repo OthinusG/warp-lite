@@ -13,6 +13,7 @@ use tokio::{io::AsyncWriteExt, process::Command, sync::Mutex};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SshConnection {
+    #[cfg(windows)]
     Wsl { distribution: String, user: String },
     Multiplexed {
         socket: PathBuf,
@@ -24,8 +25,16 @@ pub enum SshConnection {
     },
 }
 impl SshConnection {
+    pub fn is_wsl(&self) -> bool {
+        #[cfg(windows)]
+        { matches!(self, Self::Wsl { .. }) }
+        #[cfg(not(windows))]
+        { false }
+    }
+
     pub fn scope_key(&self) -> String {
         match self {
+            #[cfg(windows)]
             Self::Wsl { distribution, user } => format!("wsl:{distribution:?}:{user:?}"),
             Self::Multiplexed { socket, wsl } => format!("master:{socket:?}:{wsl:?}"),
             Self::Native { session, .. } => format!("native:{session}"),
@@ -33,6 +42,7 @@ impl SshConnection {
     }
     pub async fn connect(&self, profile: &SshProfile) -> Result<HostClient, ConnectionError> {
         match self {
+            #[cfg(windows)]
             Self::Wsl { distribution, user } => HostClient::connect_wsl(profile, distribution, user).await,
             Self::Multiplexed { socket, wsl } => {
                 HostClient::connect_session(profile, socket, wsl.as_deref()).await
@@ -68,6 +78,7 @@ impl SshConnection {
             "-oClearAllForwardings=yes",
         ]);
         match self {
+            #[cfg(windows)]
             Self::Wsl { .. } => return Err(ConnectionError::InvalidProfile),
             Self::Multiplexed { socket, .. } => {
                 let path = socket.to_str().ok_or(ConnectionError::InvalidProfile)?;
@@ -639,13 +650,14 @@ impl RemoteFiles {
     async fn transfer(
         &self,
         staged: &str,
-        transfer_id: &str,
+        _transfer_id: &str,
         local: &Path,
         upload: bool,
     ) -> Result<(), ConnectionError> {
         let result = async {
-            if matches!(self.connection, SshConnection::Wsl { .. }) {
-                return self.transfer_chunks(transfer_id, local, upload).await;
+            #[cfg(windows)]
+            if self.connection.is_wsl() {
+                return self.transfer_chunks(_transfer_id, local, upload).await;
             }
             let local = self.connection.local_sftp_path(local).await?;
             let remote = if matches!(
@@ -674,6 +686,7 @@ impl RemoteFiles {
         }
         result
     }
+    #[cfg(windows)]
     async fn transfer_chunks(&self, transfer_id: &str, local: &Path, upload: bool) -> Result<(), ConnectionError> {
         use std::io::{Read, Write};
         let mut file = if upload {
@@ -908,6 +921,7 @@ impl RemoteFiles {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
     #[test]
     fn wsl_scope_separates_distributions_accounts_and_host_sessions() {
         let one = SshConnection::Wsl { distribution: "Ubuntu".into(), user: "guest".into() };

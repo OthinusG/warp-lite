@@ -217,6 +217,7 @@ pub struct HostClient {
 
 impl HostClient {
     /// Use the selected guest account without an interactive shell or TCP listener.
+    #[cfg(windows)]
     pub async fn connect_wsl(profile: &SshProfile, distribution: &str, user: &str) -> Result<Self, ConnectionError> {
         Self::probe_installed(profile, Self::wsl_command(profile, distribution, user)?).await?;
         let mut command = Self::wsl_command(profile, distribution, user)?;
@@ -231,6 +232,7 @@ impl HostClient {
         Ok(client)
     }
 
+    #[cfg(windows)]
     pub(crate) fn wsl_command(profile: &SshProfile, distribution: &str, user: &str) -> Result<Command, ConnectionError> {
         profile.validate()?;
         if profile.remote_shell != RemoteShell::Posix
@@ -286,11 +288,14 @@ impl HostClient {
         mut probe: Command,
     ) -> Result<(), ConnectionError> {
         use tokio::io::AsyncReadExt;
+        #[cfg(windows)]
         let version_argument = if probe.as_std().get_program() == std::ffi::OsStr::new("wsl.exe") {
             "--version".to_owned()
         } else {
             profile.companion_command_args(" --version")?
         };
+        #[cfg(not(windows))]
+        let version_argument = profile.companion_command_args(" --version")?;
         let mut child = probe
             .arg(version_argument)
             .stdin(Stdio::null())
@@ -683,6 +688,7 @@ mod windows_tests;
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn wsl_transport_uses_explicit_guest_and_literal_native_arguments() {
         let profile = SshProfile { target: "wsl".into(), config_file: None,

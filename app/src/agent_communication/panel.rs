@@ -800,9 +800,10 @@ impl CollaborationPanel {
         };
         if let Some(profile) = &self.remote {
             fixture.sections.push(Section {
-                title: if matches!(self.remote_connection, Some(SshConnection::Wsl { .. })) { "WSL project" } else { "SSH project" }.into(),
+                title: if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) { "WSL project" } else { "SSH project" }.into(),
                 rows: vec![
                     match &self.remote_connection {
+                        #[cfg(windows)]
                         Some(SshConnection::Wsl { distribution, user }) => format!("{distribution} · {user} · {}", profile.remote_root),
                         _ => format!("{} · {}", profile.target, profile.remote_root),
                     },
@@ -5076,7 +5077,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }).add_named_assertion("startup preference is disabled", |app, _| {
         warpui::async_assert!(app.read(|ctx| !*crate::release_updates::UpdateSettings::as_ref(ctx).check_on_startup.value()))
     }));
-    if cfg!(windows) && std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
+    #[cfg(windows)]
+    if std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
         filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png"].map(str::to_owned));
         driver = driver.with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, _| {
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());

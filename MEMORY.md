@@ -110,7 +110,8 @@ consult it only when a specific historical question requires it.
 
 - Owner approved direct WSL: Warpai 1.5.8 / Companion 5.0.0, Windows-only validation
   including real WSL2. Reuse remote workspace; SSH keeps SFTP, WSL adds bounded
-  stdio chunks. Contract: specs/wsl-1.5.8/TECH.md. Implementation/acceptance pending.
+  stdio chunks. WSL client/UI compile only on Windows; shared Linux Companion
+  handlers remain portable. Contract: specs/wsl-1.5.8/TECH.md. Acceptance pending.
 
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),

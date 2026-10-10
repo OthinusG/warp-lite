@@ -15870,7 +15870,9 @@ impl Workspace {
                 let is_local = terminal.active_session_is_local(ctx);
                 let is_wsl_session = session.as_ref().map(|s| s.is_wsl()).unwrap_or(false);
                 let pwd = terminal.pwd();
-                let has_pending_ssh = terminal.has_pending_ssh_command() || terminal.model.lock().is_pending_wsl();
+                let has_pending_ssh = terminal.has_pending_ssh_command();
+                #[cfg(windows)]
+                let has_pending_ssh = has_pending_ssh || terminal.model.lock().is_pending_wsl();
                 (
                     session,
                     path_if_local,
@@ -15902,7 +15904,9 @@ impl Workspace {
                 }
             });
 
-            let is_remote = matches!(is_local, Some(false)) || is_wsl_session;
+            let is_remote = matches!(is_local, Some(false));
+            #[cfg(windows)]
+            let is_remote = is_remote || is_wsl_session;
             let is_unsupported_session = false;
 
             // Check whether this remote session has an active remote server

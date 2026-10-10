@@ -96,7 +96,11 @@ impl AgentCommunication {
                     if let Some(view) = view.upgrade(ctx) {
                         if view.as_ref(ctx).active_block_session_id()
                             .and_then(|id| view.as_ref(ctx).sessions_model().as_ref(ctx).get(id))
-                            .is_some_and(|session| session.is_wsl() || session.ssh_arguments().is_some()) { return; }
+                            .is_some_and(|session| {
+                                #[cfg(windows)]
+                                if session.is_wsl() { return true; }
+                                session.ssh_arguments().is_some()
+                            }) { return; }
                         let terminal_model = view.as_ref(ctx).model.lock();
                         if let Some(directory) =
                             terminal_model.active_block_metadata().current_working_directory()

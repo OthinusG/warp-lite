@@ -13,6 +13,11 @@ WSL scope includes distribution/user plus verified service/account/project ident
 Use Linux Git common-directory ownership; do not treat /mnt/c as Windows-local.
 Host and guest authority remain separate. Nested SSH still uses its existing route.
 
+Direct WSL desktop routing, wsl.exe transport, chunk-transfer client, native
+capture fixtures and launch adaptation compile only on Windows. Keep additive
+protocol fields, chunk service and native launch service cross-platform: the Linux
+Companion inside WSL must implement them. Future Linux desktop work is separate.
+
 ## Agent launch directory
 
 TerminalLaunch adds optional working_directory, gated by managed_launch_cwd.
