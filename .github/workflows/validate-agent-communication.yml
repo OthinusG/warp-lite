@@ -126,7 +126,7 @@ jobs:
           wsl-version: 2
           set-as-default: 'false'
           wsl-shell-user: root
-          additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git curl
+          additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git git-lfs curl
       - name: Build source-matched Linux Companion inside Windows WSL
         if: ${{ inputs.wsl_acceptance }}
         shell: wsl-bash_Ubuntu-24.04 {0}

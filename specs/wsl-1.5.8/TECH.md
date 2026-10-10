@@ -56,3 +56,9 @@ compilation with E0716 in selected_session.rs. Retain HostInfo in a local bindin
 before borrowing os_category; preserve WSL Linux override and nested SSH routing.
 Acceptance remains Windows default/platform builds, selected-session tests, real
 WSL2 acceptance and native captures from the corrected source.
+
+Run 38032799233 passed Windows default/platform builds, protocol/MCP, focused
+application tests and WSL2 provisioning. Source export failed because the guest
+lacked git-lfs required by checkout attributes. Install git-lfs in the disposable
+guest and assert its availability before archive; preserve hydrated source inputs.
+Real WSL workspace and native captures still require acceptance.

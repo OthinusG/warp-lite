@@ -3,6 +3,7 @@
 set -euo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true ]] || { echo 'Disposable GitHub runner required' >&2; exit 1; }
 [[ "$(id -u)" == 0 ]] || { echo 'Owned WSL setup requires root' >&2; exit 1; }
+git lfs version >/dev/null
 source_repository="$(pwd)"
 fixture_user=warpai-test
 id "$fixture_user" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash "$fixture_user"
