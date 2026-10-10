@@ -5190,6 +5190,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         .is_some_and(|source| matches!(source.files.connection, SshConnection::Wsl { .. })))))))
         }).with_take_screenshot("live-wsl-code-editor.png"))
         .with_step(TestStep::new("open WSL collaboration using existing tools").with_action(|app, window, _| {
+            let collaboration = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            collaboration.update(app, |panel, _| {
+                // The earlier native-Companion fixture override must not mask the real WSL selection.
+                panel.remote = None;
+            });
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
         }).add_named_assertion("WSL collaboration uses guest Companion", |app, window| {
@@ -5245,7 +5250,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored"] {
+                for name in ["live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored", "confirmed WSL selection carries guest user", "owned WSL tree populated", "native editor retains WSL save source", "WSL collaboration uses guest Companion", "WSL Markdown and guest image loaded", "original Review retains WSL project authority", "WSL settings detect installed bundled component for logged-in account"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
