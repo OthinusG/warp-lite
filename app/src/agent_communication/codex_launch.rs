@@ -51,6 +51,37 @@ impl TerminalView {
             .unwrap_or(command)
     }
 
+    #[cfg(windows)]
+    pub(crate) fn adapt_wsl_agent_launch(&mut self, event: &ExecuteCommandEvent, ctx: &mut ViewContext<Self>) -> bool {
+        let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
+        if !session.is_wsl() || session.ssh_arguments().is_some() || session.is_legacy_ssh_session()
+            || !AgentCommunication::as_ref(ctx).preferences.enabled { return false; }
+        let Some(words) = shlex::split(&event.command) else { return false; };
+        let Some(command) = words.first() else { return false; };
+        let Some(agent) = enum_iterator::all::<crate::terminal::CLIAgent>()
+            .find(|agent| agent.command_prefixes().contains(&command.as_str())) else { return false; };
+        if !agent.accepts_peer_prompt(&event.command)
+            || session.alias_value(command).is_some() || session.abbreviation_value(command).is_some()
+            || session.function_names().any(|name| name == command.as_str())
+            || words.iter().any(|word| matches!(word.as_str(), ";" | "&&" | "||" | "|" | "&")) { return false; }
+        let Some(root) = self.pwd().filter(|path| path.starts_with('/')) else { return false; };
+        let Some(home) = session.home_dir() else { return false; };
+        let Ok((companion, _)) = warp_agent_bus::installation::companion_path(home, "Linux") else { return false; };
+        let shell = session.shell().shell_type();
+        let executable = match shell {
+            ShellType::Bash | ShellType::Zsh => format!("\"$(command -v {})\"", shell_quote_arg(command, shell)),
+            ShellType::Fish => format!("(command -s {})", shell_quote_arg(command, shell)),
+            _ => return false,
+        };
+        let tail = event.command.trim_start().strip_prefix(command.as_str()).unwrap();
+        let adapted = format!("{} agent {} {} {}{tail}", shell_quote_arg(&companion, shell),
+            shell_quote_arg(&root, shell), shell_quote_arg(agent.command_prefix(), shell), executable);
+        self.codex_mcp_launch = Some((event.command.trim().to_owned(), adapted.clone()));
+        let mut event = event.clone(); event.command = adapted;
+        self.execute_input_command(&event, ctx);
+        true
+    }
+
     pub(crate) fn adapt_codex_mcp_launch(
         &mut self,
         event: &ExecuteCommandEvent,

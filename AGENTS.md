@@ -15,7 +15,7 @@ Maintain Warpai as an independently maintained local-first terminal derived from
 - Use the package manager and toolchain pinned by repository lockfiles.
 - Never store credentials or secret values in source, documentation, logs, or memory.
 - Local desktop targets are macOS and Windows. SSH Remote project environments and the remote companion target Linux, macOS and Windows, explicitly authorized on 2026-10-03. Linux desktop/UI implementations remain out of scope; Linux remote-service builds and focused tests are allowed. Preserve unrelated upstream terminal code.
-- Remote file transfer uses SFTP over SSH only. Do not add FTP/FTPS profiles, dependencies or fallback. The active SSH Remote scope is defined in specs/agent-communication-v2/PLAN.md; archived enrolled-device collaboration designs are not implementation instructions.
+- SSH remote file transfer uses SFTP over SSH only. Direct local WSL uses bounded Companion stdio file chunks, authorized 2026-10-10. Do not add FTP/FTPS profiles, dependencies or fallback. The active SSH Remote scope is defined in specs/agent-communication-v2/PLAN.md; archived enrolled-device collaboration designs are not implementation instructions.
 
 ## Verification
 

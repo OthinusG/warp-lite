@@ -1146,3 +1146,55 @@ fn git_review_handles_unborn_rename_delete_binary_conflict_and_worktree() {
     assert_eq!(status.git_base, worktree.git(&["rev-parse", "HEAD"]).trim());
     assert!(status.git_output.is_empty());
 }
+
+#[test]
+fn wsl_chunks_preserve_binary_bytes_and_reject_foreign_direction_offsets_and_partial_commit() {
+    let mut fixture = Fixture::new();
+    let original = vec![0xFF; files::MAX_CHUNK_BYTES + 7];
+    fixture.write("binary", &original);
+    let read = fixture.run(ProjectFileAction::ProjectFilePrepareRead, "binary").unwrap();
+    let base = ProjectFilesRequest {
+        transfer_id: read.transfer_id.clone(),
+        ..fixture.query(ProjectFileAction::ProjectFileReadChunk, "")
+    };
+    let first = fixture.execute(base.clone()).unwrap();
+    assert_eq!(first.data, original[..files::MAX_CHUNK_BYTES]);
+    assert!(!first.complete);
+    let second = fixture.execute(ProjectFilesRequest { offset: first.offset, ..base.clone() }).unwrap();
+    assert_eq!(second.data, original[files::MAX_CHUNK_BYTES..]);
+    assert!(second.complete);
+    for request in [
+        ProjectFilesRequest { offset: original.len() as u64 + 1, ..base.clone() },
+        ProjectFilesRequest { transfer_id: Uuid::new_v4().to_string(), ..base.clone() },
+        ProjectFilesRequest { action: ProjectFileAction::ProjectFileWriteChunk as i32, data: vec![1], total_size: 1, ..base.clone() },
+        ProjectFilesRequest { path: "../escape".into(), ..base.clone() },
+    ] { assert_eq!(fixture.execute(request).unwrap_err(), ManagedErrorCode::ManagedInvalidInput); }
+    let hash = format!("{:x}", Sha256::digest(&original));
+    let write = fixture.execute(ProjectFilesRequest {
+        expected_hash: hash.clone(), ..fixture.query(ProjectFileAction::ProjectFilePrepareWrite, "binary")
+    }).unwrap();
+    let request = ProjectFilesRequest {
+        transfer_id: write.transfer_id.clone(), data: vec![0, 1, 0xFE], total_size: 4,
+        ..fixture.query(ProjectFileAction::ProjectFileWriteChunk, "")
+    };
+    for invalid in [
+        ProjectFilesRequest { offset: 1, ..request.clone() },
+        ProjectFilesRequest { data: vec![1; files::MAX_CHUNK_BYTES + 1], total_size: files::MAX_FILE_BYTES, ..request.clone() },
+        ProjectFilesRequest { total_size: files::MAX_FILE_BYTES + 1, ..request.clone() },
+        ProjectFilesRequest { action: ProjectFileAction::ProjectFileReadChunk as i32, ..request.clone() },
+    ] { assert_eq!(fixture.execute(invalid).unwrap_err(), ManagedErrorCode::ManagedInvalidInput); }
+    assert_eq!(fixture.execute(request.clone()).unwrap().offset, 3);
+    assert!(fixture.execute(request).is_err(), "An uncertain upload cannot be repeated");
+    let commit = ProjectFilesRequest {
+        transfer_id: write.transfer_id.clone(), expected_hash: format!("{:x}", Sha256::digest([0, 1, 0xFE, 2])),
+        ..fixture.query(ProjectFileAction::ProjectFileCommitWrite, "binary")
+    };
+    assert!(fixture.execute(commit.clone()).is_err());
+    assert_eq!(std::fs::read(fixture.root.path().join("binary")).unwrap(), original);
+    assert!(fixture.execute(ProjectFilesRequest {
+        transfer_id: write.transfer_id, offset: 3, data: vec![2], total_size: 4,
+        ..fixture.query(ProjectFileAction::ProjectFileWriteChunk, "")
+    }).unwrap().complete);
+    fixture.execute(commit).unwrap();
+    assert_eq!(std::fs::read(fixture.root.path().join("binary")).unwrap(), [0, 1, 0xFE, 2]);
+}

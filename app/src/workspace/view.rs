@@ -15865,11 +15865,12 @@ impl Workspace {
                 let active_session_id = terminal.active_block_session_id();
                 let session =
                     active_session_id.and_then(|id| terminal.sessions_model().as_ref(ctx).get(id));
-                let path_if_local = terminal.active_session_path_if_local(ctx);
+                let path_if_local = terminal.active_session_path_if_local(ctx)
+                    .filter(|_| !session.as_ref().is_some_and(|session| session.is_wsl()));
                 let is_local = terminal.active_session_is_local(ctx);
                 let is_wsl_session = session.as_ref().map(|s| s.is_wsl()).unwrap_or(false);
                 let pwd = terminal.pwd();
-                let has_pending_ssh = terminal.has_pending_ssh_command();
+                let has_pending_ssh = terminal.has_pending_ssh_command() || terminal.model.lock().is_pending_wsl();
                 (
                     session,
                     path_if_local,
@@ -15901,8 +15902,8 @@ impl Workspace {
                 }
             });
 
-            let is_remote = matches!(is_local, Some(false));
-            let is_unsupported_session = is_wsl_session;
+            let is_remote = matches!(is_local, Some(false)) || is_wsl_session;
+            let is_unsupported_session = false;
 
             // Check whether this remote session has an active remote server
             // connection (or is in the process of connecting). This is only
@@ -15951,7 +15952,7 @@ impl Workspace {
             #[cfg(feature = "local_fs")]
             {
                 self.right_panel_view.update(ctx, |right_panel, ctx| {
-                    right_panel.update_session_env(is_remote || has_pending_ssh, is_wsl_session, ctx);
+                    right_panel.update_session_env(is_remote || has_pending_ssh, false, ctx);
                 });
 
                 if self.active_tab_pane_group().as_ref(ctx).right_panel_open {

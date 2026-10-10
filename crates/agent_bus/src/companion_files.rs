@@ -1,4 +1,4 @@
-//! Project-scoped file control. Content crosses SSH only through SFTP staging.
+//! Project-scoped staging shared by SSH/SFTP and direct WSL chunks.
 use std::{
     collections::HashMap,
     fs::File,
@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use super::{identity, path_error, Project};
 
+pub const MAX_CHUNK_BYTES: usize = 64 * 1024;
 pub const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_ENTRIES: usize = 4000;
 const MAX_METADATA_BYTES: usize = 512 * 1024;
@@ -24,6 +25,7 @@ struct Transfer {
     directory: PathBuf,
     target: Option<String>,
     expected_hash: String,
+    chunk_size: Option<u64>,
 }
 impl Drop for Transfer {
     fn drop(&mut self) {
@@ -96,6 +98,45 @@ impl Files {
             ..Default::default()
         };
         match action {
+            ProjectFileAction::ProjectFileReadChunk | ProjectFileAction::ProjectFileWriteChunk => {
+                use std::io::{Seek, SeekFrom, Write};
+                let transfer = self.transfers.get_mut(&request.transfer_id)
+                    .ok_or(ManagedErrorCode::ManagedInvalidInput)?;
+                if !request.path.is_empty() || !request.destination.is_empty() {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
+                let mut file = identity::private_file(&transfer.directory.join("content"))
+                    .map_err(path_error)?;
+                let size = file.metadata().map_err(path_error)?.len();
+                if action == ProjectFileAction::ProjectFileReadChunk {
+                    if transfer.target.is_some() || !request.data.is_empty()
+                        || request.offset > size || size > MAX_FILE_BYTES {
+                        return Err(ManagedErrorCode::ManagedInvalidInput);
+                    }
+                    file.seek(SeekFrom::Start(request.offset)).map_err(path_error)?;
+                    file.take(MAX_CHUNK_BYTES as u64).read_to_end(&mut result.data)
+                        .map_err(path_error)?;
+                    result.offset = request.offset + result.data.len() as u64;
+                    result.complete = result.offset == size;
+                    result.size = size;
+                } else {
+                    let end = request.offset.checked_add(request.data.len() as u64)
+                        .ok_or(ManagedErrorCode::ManagedInvalidInput)?;
+                    if transfer.target.is_none() || request.offset != size
+                        || request.data.len() > MAX_CHUNK_BYTES || request.total_size > MAX_FILE_BYTES
+                        || end > request.total_size
+                        || (request.data.is_empty() && request.total_size != 0)
+                        || transfer.chunk_size.is_some_and(|total| total != request.total_size) {
+                        return Err(ManagedErrorCode::ManagedInvalidInput);
+                    }
+                    transfer.chunk_size = Some(request.total_size);
+                    file.seek(SeekFrom::End(0)).map_err(path_error)?;
+                    file.write_all(&request.data).map_err(path_error)?;
+                    if end == request.total_size { file.sync_all().map_err(path_error)?; }
+                    result.offset = end;
+                    result.complete = end == request.total_size;
+                }
+            }
             ProjectFileAction::ProjectGitBranches => {
                 result.git_output = git_output(
                     project,
@@ -258,6 +299,7 @@ impl Files {
                             directory,
                             target: None,
                             expected_hash: String::new(),
+                            chunk_size: None,
                         };
                         let path = transfer.directory.join("content");
                         use std::io::Write;
@@ -347,6 +389,7 @@ impl Files {
                     directory,
                     target: writing.then(|| request.path.clone()),
                     expected_hash: hash.clone(),
+                    chunk_size: None,
                 };
                 let path = transfer.directory.join("content");
                 let mut staged = identity::private_file(&path).map_err(path_error)?;
@@ -398,6 +441,9 @@ impl Files {
                 }
                 let mut staged = identity::private_file(&transfer.directory.join("content"))
                     .map_err(path_error)?;
+                if transfer.chunk_size.is_some_and(|total| staged.metadata().map(|m| m.len()).ok() != Some(total)) {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
                 result.sha256 = digest(&mut staged)?;
                 if result.sha256 != request.expected_hash {
                     return Err(ManagedErrorCode::ManagedConflict);

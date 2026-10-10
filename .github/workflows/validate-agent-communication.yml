@@ -10,6 +10,14 @@ on:
         description: 'Include both desktop builds and application tests in protocol-only runs'
         type: boolean
         default: false
+      windows_only:
+        description: 'Run Windows builds/tests only, including optional WSL guest acceptance'
+        type: boolean
+        default: false
+      wsl_acceptance:
+        description: 'Provision disposable WSL2 and verify native Windows-to-Linux workspace'
+        type: boolean
+        default: false
       native_windows_only:
         description: 'Run only the Windows native capture, reusing compiled Rust outputs'
         type: boolean
@@ -99,6 +107,7 @@ jobs:
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
           cargo test -p warpai --lib terminal_ssh_session_ --locked
+          cargo test -p warpai --lib wsl_selection_ --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
@@ -109,6 +118,29 @@ jobs:
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
           cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
+      - name: Prepare disposable WSL2
+        if: ${{ inputs.wsl_acceptance }}
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: 2
+          set-as-default: 'false'
+          additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git curl
+      - name: Build source-matched Linux Companion inside Windows WSL
+        if: ${{ inputs.wsl_acceptance }}
+        shell: wsl-bash_Ubuntu-24.04 {0}
+        run: GITHUB_ACTIONS=true bash script/verify-wsl-workspace.sh
+      - name: Verify native Windows-to-WSL workspace
+        if: ${{ inputs.wsl_acceptance }}
+        shell: pwsh
+        env:
+          WARP_TEST_WSL_DISTRIBUTION: Ubuntu-24.04
+          WARP_TEST_WSL_USER: warpai-test
+          WARP_TEST_WSL_ROOT: /home/warpai-test/project spaces 多语言
+          WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/.warpai/bin/warpai-companion
+        run: |
+          cargo test -p warp-agent-bus --test wsl_workspace --locked -- --ignored --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'Real WSL workspace acceptance failed' }
       - name: Build Windows native review executable
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         shell: pwsh
@@ -149,6 +181,12 @@ jobs:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion.exe
         run: |
+          if ('${{ inputs.wsl_acceptance }}' -eq 'true') {
+            $env:WARP_TEST_WSL_DISTRIBUTION = 'Ubuntu-24.04'
+            $env:WARP_TEST_WSL_USER = 'warpai-test'
+            $env:WARP_TEST_WSL_ROOT = '/home/warpai-test/project spaces 多语言'
+            $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/.warpai/bin/warpai-companion'
+          }
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/.warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
           $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
@@ -166,6 +204,7 @@ jobs:
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
           $expectedImages = $fixtureCount * 8 + 170
+          if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 3 }
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
@@ -178,7 +217,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   macos:
-    if: ${{ !inputs.native_windows_only }}
+    if: ${{ !inputs.native_windows_only && !inputs.windows_only }}
     runs-on: macos-15
     timeout-minutes: 180
     steps:

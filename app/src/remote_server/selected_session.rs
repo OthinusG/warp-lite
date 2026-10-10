@@ -5,6 +5,13 @@ use warpui::{AppContext, SingletonEntity, WindowId};
 pub(crate) fn session_connection(
     session: &crate::terminal::model::session::Session,
 ) -> Option<SshConnection> {
+    if session.ssh_arguments().is_none() && !session.is_legacy_ssh_session() {
+        if let Some(distribution) = session.wsl_distro_name() {
+            return Some(SshConnection::Wsl {
+                distribution: distribution.into(), user: session.user().into(),
+            });
+        }
+    }
     let arguments = session.ssh_arguments()?;
     Some(match session.ssh_control_socket() {
         Some(socket) => SshConnection::Multiplexed {
@@ -31,11 +38,12 @@ pub(crate) fn selected_ssh(
     let connection = session_connection(&session)?;
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         session.home_dir()?,
-        session.host_info().os_category.as_deref()?,
+        if matches!(connection, SshConnection::Wsl { .. }) { "Linux" }
+        else { session.host_info().os_category.as_deref()? },
     )
     .ok()?;
     let profile = SshProfile {
-        target: session.hostname().into(),
+        target: if matches!(connection, SshConnection::Wsl { .. }) { "wsl".into() } else { session.hostname().into() },
         config_file: None,
         remote_root: active.current_directory(window)?.into(),
         companion_path,
@@ -52,4 +60,24 @@ pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection) ->
         profile.target,
         profile.remote_root
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::terminal::model::session::{command_executor::NoOpCommandExecutor, Session, SessionInfo};
+
+    #[test]
+    fn wsl_selection_keeps_guest_account_and_nested_ssh_distinct() {
+        let mut info = SessionInfo::new_for_test().with_user("guest".into());
+        info.wsl_name = Some("Ubuntu Test".into());
+        let session = Session::new(info.clone(), std::sync::Arc::new(NoOpCommandExecutor::new()));
+        assert_eq!(session_connection(&session), Some(SshConnection::Wsl {
+            distribution: "Ubuntu Test".into(), user: "guest".into(),
+        }));
+        let nested = Session::new(info.with_ssh_socket_path("/tmp/ssh-owned".into()),
+            std::sync::Arc::new(NoOpCommandExecutor::new()));
+        assert!(!matches!(session_connection(&nested), Some(SshConnection::Wsl { .. })),
+            "A nested SSH route cannot fall back to its WSL parent");
+    }
 }

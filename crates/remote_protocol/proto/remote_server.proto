@@ -115,7 +115,7 @@ message ProjectTasksResult {
   uint64 query_generation = 2;
   bytes result_json = 3;
 }
-// Metadata/control only. File content is transferred through system SFTP.
+// SSH content uses SFTP; direct WSL uses bounded connection-owned chunks.
 enum ProjectFileAction {
   PROJECT_FILE_ACTION_UNSPECIFIED = 0;
   PROJECT_FILE_LIST = 1;
@@ -132,6 +132,8 @@ enum ProjectFileAction {
   PROJECT_GIT_PREPARE_BASE = 12;
   PROJECT_GIT_ROOT = 13;
   PROJECT_GIT_BRANCHES = 14;
+  PROJECT_FILE_READ_CHUNK = 15;
+  PROJECT_FILE_WRITE_CHUNK = 16;
 }
 message ProjectFilesRequest {
   ManagedFence fence = 1;
@@ -144,6 +146,9 @@ message ProjectFilesRequest {
   string transfer_id = 7;
   // Git diff only: previous project-relative path for rename/copy comparisons.
   string git_previous_path = 8;
+  uint64 offset = 9;
+  bytes data = 10;
+  uint64 total_size = 11;
 }
 message ProjectFilesResult {
   ManagedFence fence = 1;
@@ -158,6 +163,9 @@ message ProjectFilesResult {
   string git_output = 8;
   string git_base = 9;
   string git_name_status = 10;
+  uint64 offset = 11;
+  bytes data = 12;
+  bool complete = 13;
 }
 message TerminalLaunch {
   ManagedFence fence = 1;

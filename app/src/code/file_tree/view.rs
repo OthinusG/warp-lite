@@ -75,7 +75,7 @@ mod render;
 
 use crate::settings::{CodeSettings, CodeSettingsChangedEvent};
 
-const REMOTE_TEXT: &str = "Remote files require a confirmed SSH session with shell integration, Warpai Companion and SFTP.";
+const REMOTE_TEXT: &str = "Remote files require a confirmed SSH or WSL session with shell integration and Warpai Companion. SSH also requires SFTP.";
 const DISABLED_TEXT: &str = "The Project Explorer requires access to your local workspace. Open a new session or navigate to an active session to view.";
 const WSL_TEXT: &str = "The Project Explorer doesn't currently work in WSL.";
 

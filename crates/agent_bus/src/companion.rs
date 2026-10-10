@@ -117,6 +117,7 @@ impl Companion {
                         "project_tasks".into(),
                         "project_mcp".into(),
                         "project_files".into(),
+                        "project_file_chunks".into(),
                         "project_git_review".into(),
                         "worktree_collaboration".into(),
                         "worktree_orchestration".into(),

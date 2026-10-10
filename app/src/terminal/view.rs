@@ -19583,6 +19583,8 @@ impl TerminalView {
             InputEvent::PageUp => self.page_up(ctx),
             InputEvent::PageDown => self.page_down(ctx),
             InputEvent::ExecuteCommand(event) => {
+                #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+                if self.adapt_wsl_agent_launch(event, ctx) { return; }
                 #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
                 if self.adapt_codex_mcp_launch(event, ctx) {
                     return;

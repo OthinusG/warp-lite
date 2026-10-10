@@ -13,6 +13,7 @@ use tokio::{io::AsyncWriteExt, process::Command, sync::Mutex};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SshConnection {
+    Wsl { distribution: String, user: String },
     Multiplexed {
         socket: PathBuf,
         wsl: Option<String>,
@@ -25,12 +26,14 @@ pub enum SshConnection {
 impl SshConnection {
     pub fn scope_key(&self) -> String {
         match self {
+            Self::Wsl { distribution, user } => format!("wsl:{distribution:?}:{user:?}"),
             Self::Multiplexed { socket, wsl } => format!("master:{socket:?}:{wsl:?}"),
             Self::Native { session, .. } => format!("native:{session}"),
         }
     }
     pub async fn connect(&self, profile: &SshProfile) -> Result<HostClient, ConnectionError> {
         match self {
+            Self::Wsl { distribution, user } => HostClient::connect_wsl(profile, distribution, user).await,
             Self::Multiplexed { socket, wsl } => {
                 HostClient::connect_session(profile, socket, wsl.as_deref()).await
             }
@@ -65,6 +68,7 @@ impl SshConnection {
             "-oClearAllForwardings=yes",
         ]);
         match self {
+            Self::Wsl { .. } => return Err(ConnectionError::InvalidProfile),
             Self::Multiplexed { socket, .. } => {
                 let path = socket.to_str().ok_or(ConnectionError::InvalidProfile)?;
                 if path.chars().any(char::is_control) {
@@ -635,10 +639,14 @@ impl RemoteFiles {
     async fn transfer(
         &self,
         staged: &str,
+        transfer_id: &str,
         local: &Path,
         upload: bool,
     ) -> Result<(), ConnectionError> {
         let result = async {
+            if matches!(self.connection, SshConnection::Wsl { .. }) {
+                return self.transfer_chunks(transfer_id, local, upload).await;
+            }
             let local = self.connection.local_sftp_path(local).await?;
             let remote = if matches!(
                 self.profile.remote_shell,
@@ -666,6 +674,45 @@ impl RemoteFiles {
         }
         result
     }
+    async fn transfer_chunks(&self, transfer_id: &str, local: &Path, upload: bool) -> Result<(), ConnectionError> {
+        use std::io::{Read, Write};
+        let mut file = if upload {
+            std::fs::File::open(local)
+        } else {
+            std::fs::OpenOptions::new().write(true).truncate(true).open(local)
+        }.map_err(|_| ConnectionError::InvalidInput)?;
+        let total = if upload { file.metadata().map_err(|_| ConnectionError::InvalidInput)?.len() } else { 0 };
+        if total > super::companion::files::MAX_FILE_BYTES { return Err(ConnectionError::CapacityExceeded); }
+        let mut offset = 0;
+        loop {
+            let mut data = Vec::new();
+            if upload {
+                (&mut file).take(super::companion::files::MAX_CHUNK_BYTES as u64)
+                    .read_to_end(&mut data).map_err(|_| ConnectionError::InvalidInput)?;
+            }
+            let length = data.len() as u64;
+            let reply = self.control(ProjectFilesRequest {
+                action: if upload { ProjectFileAction::ProjectFileWriteChunk } else { ProjectFileAction::ProjectFileReadChunk } as i32,
+                transfer_id: transfer_id.into(), offset, data, total_size: total,
+                ..Default::default()
+            }).await?;
+            let received = if upload { length } else { reply.data.len() as u64 };
+            if reply.offset != offset + received
+                || reply.data.len() > super::companion::files::MAX_CHUNK_BYTES
+                || reply.offset > super::companion::files::MAX_FILE_BYTES
+                || (!reply.complete && received == 0)
+                || (upload && reply.complete != (reply.offset == total)) {
+                return Err(ConnectionError::StaleAttachment);
+            }
+            if !upload { file.write_all(&reply.data).map_err(|_| ConnectionError::CapacityExceeded)?; }
+            offset = reply.offset;
+            if reply.complete { break; }
+            tokio::task::yield_now().await;
+        }
+        if !upload { file.sync_all().map_err(|_| ConnectionError::CapacityExceeded)?; }
+        Ok(())
+    }
+
     pub async fn download(&self, path: &str) -> Result<(PathBuf, String), ConnectionError> {
         let relative = self.relative(path)?;
         let mut cancellation = TransferCancellation(Some(self));
@@ -741,7 +788,7 @@ impl RemoteFiles {
                 .map_err(|_| ConnectionError::CapacityExceeded)?
                 .into_temp_path();
             // Windows SFTP opens local files with sharing rules incompatible with an open writer.
-            self.transfer(&staged.transfer_path, &temporary, false)
+            self.transfer(&staged.transfer_path, &staged.transfer_id, &temporary, false)
                 .await?;
             let metadata =
                 std::fs::metadata(&temporary).map_err(|_| ConnectionError::InvalidInput)?;
@@ -825,7 +872,7 @@ impl RemoteFiles {
                 .write_all(content)
                 .map_err(|_| ConnectionError::CapacityExceeded)?;
             let temporary = temporary.into_temp_path();
-            self.transfer(&staged.transfer_path, &temporary, true)
+            self.transfer(&staged.transfer_path, &staged.transfer_id, &temporary, true)
                 .await?;
             let hash = format!("{:x}", Sha256::digest(content));
             let reply = self
@@ -861,6 +908,17 @@ impl RemoteFiles {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn wsl_scope_separates_distributions_accounts_and_host_sessions() {
+        let one = SshConnection::Wsl { distribution: "Ubuntu".into(), user: "guest".into() };
+        for other in [
+            SshConnection::Wsl { distribution: "Debian".into(), user: "guest".into() },
+            SshConnection::Wsl { distribution: "Ubuntu".into(), user: "other".into() },
+            SshConnection::Native { arguments: vec!["localhost".into()], session: "guest".into() },
+        ] { assert_ne!(one.scope_key(), other.scope_key()); }
+        assert!(one.sftp_command().is_err(), "Direct WSL never falls back to SSH/SFTP");
+    }
+
     #[cfg(unix)]
     #[tokio::test(start_paused = true)]
     async fn missing_failed_and_stalled_transfer_processes_return_errors() {

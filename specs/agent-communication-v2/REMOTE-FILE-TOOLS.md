@@ -156,7 +156,9 @@ than converting it with `to_local_path_lossy`. Extend the current `FileModel`
 backend dispatch for the Companion SSH attachment; keep its events and editor
 integration. Retain the existing upstream remote backend for its current callers.
 
-File-content transfer must use **SFTP over SSH**, as required by `AGENTS.md`.
+SSH file-content transfer must use **SFTP over SSH**, as required by `AGENTS.md`.
+Direct local WSL uses the separately authorized bounded stdio chunk contract in
+[WSL 1.5.8](../wsl-1.5.8/TECH.md); it retains the same staged-save checks.
 Reuse system OpenSSH authentication and the selected transport. Existing SFTP
 upload helpers are transport references, not a directory-listing implementation:
 do not parse human-readable `ls` output or interpolate filenames into a shell.

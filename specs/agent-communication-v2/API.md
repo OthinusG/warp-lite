@@ -185,3 +185,9 @@ describe the selected team/checkout. Each participant row may carry its own
 `worktree_branch` alongside existing `workspace`. Scope changes discard task
 selection and pagination cursors. File requests, SFTP roots and ManagedFence are
 unchanged. See [the acceptance contract](WORKTREE-COLLABORATION.md).
+
+## Direct local WSL extension (1.5.8 / Companion 5.0.0)
+
+The additive file-chunk fields/actions and capability are specified in
+[the WSL contract](../wsl-1.5.8/TECH.md). Protocol major remains 1.
+SSH clients retain SFTP; WSL requires project_file_chunks before file access.

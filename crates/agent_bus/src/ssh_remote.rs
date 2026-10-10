@@ -216,6 +216,36 @@ pub struct HostClient {
 }
 
 impl HostClient {
+    /// Use the selected guest account without an interactive shell or TCP listener.
+    pub async fn connect_wsl(profile: &SshProfile, distribution: &str, user: &str) -> Result<Self, ConnectionError> {
+        Self::probe_installed(profile, Self::wsl_command(profile, distribution, user)?).await?;
+        let mut command = Self::wsl_command(profile, distribution, user)?;
+        command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+        let child = command.spawn().map_err(|_| ConnectionError::CompanionUnavailable)?;
+        let mut client = Self::open(child, &profile.remote_root).await?;
+        if !client.account_id.starts_with("uid:")
+            || !client.capabilities.iter().any(|value| value == "project_file_chunks") {
+            client.disconnect();
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        Ok(client)
+    }
+
+    pub(crate) fn wsl_command(profile: &SshProfile, distribution: &str, user: &str) -> Result<Command, ConnectionError> {
+        profile.validate()?;
+        if profile.remote_shell != RemoteShell::Posix
+            || !text(distribution, 256) || distribution.starts_with('-')
+            || !text(user, 256) || user.starts_with('-') {
+            return Err(ConnectionError::InvalidProfile);
+        }
+        let mut command = Command::new("wsl.exe");
+        crate::session::without_terminal_binding(&mut command);
+        command.env_remove("VIBE_MCP_SERVERS");
+        command.args(["--distribution", distribution, "--user", user, "--exec", &profile.companion_path]);
+        command.kill_on_drop(true);
+        Ok(command)
+    }
+
     pub async fn connect(profile: &SshProfile) -> Result<Self, ConnectionError> {
         let mut command = profile.ssh_command()?;
         command
@@ -256,8 +286,13 @@ impl HostClient {
         mut probe: Command,
     ) -> Result<(), ConnectionError> {
         use tokio::io::AsyncReadExt;
+        let version_argument = if probe.as_std().get_program() == std::ffi::OsStr::new("wsl.exe") {
+            "--version".to_owned()
+        } else {
+            profile.companion_command_args(" --version")?
+        };
         let mut child = probe
-            .arg(profile.companion_command_args(" --version")?)
+            .arg(version_argument)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -637,6 +672,20 @@ mod windows_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wsl_transport_uses_explicit_guest_and_literal_native_arguments() {
+        let profile = SshProfile { target: "wsl".into(), config_file: None,
+            remote_root: "/home/user/project with spaces".into(),
+            companion_path: "/home/user/it\'s $(literal)/companion".into(), remote_shell: RemoteShell::Posix };
+        let command = HostClient::wsl_command(&profile, "Ubuntu Test", "guest").unwrap();
+        let args: Vec<_> = command.as_std().get_args().map(|value| value.to_str().unwrap()).collect();
+        assert_eq!(args, ["--distribution", "Ubuntu Test", "--user", "guest", "--exec", &profile.companion_path]);
+        for (distribution, user) in [("", "guest"), ("--help", "guest"), ("Ubuntu\nother", "guest"), ("Ubuntu", ""), ("Ubuntu", "--root")] {
+            assert!(HostClient::wsl_command(&profile, distribution, user).is_err());
+        }
+    }
+
 
     #[test]
     fn ssh_profile_rejects_options_and_encodes_remote_shell_separately() {

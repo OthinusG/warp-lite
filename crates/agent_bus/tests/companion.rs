@@ -49,6 +49,7 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "project_tasks",
             "project_mcp",
             "project_files",
+            "project_file_chunks",
             "project_git_review",
             "worktree_collaboration",
             "worktree_orchestration",
