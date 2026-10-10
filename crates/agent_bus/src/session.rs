@@ -27,7 +27,8 @@ struct ForwardContext {
     directory: Option<String>,
 }
 
-pub(crate) fn without_terminal_binding(command: &mut Command) {
+/// Prevents background helpers from inheriting a terminal's private communication binding.
+pub fn without_terminal_binding(command: &mut Command) {
     for name in [
         crate::transport::ENDPOINT,
         crate::transport::CAPABILITY,

@@ -108,13 +108,13 @@ consult it only when a specific historical question requires it.
 
 ## SSH, task integrity and files
 
-- App 1.6.0 targets macOS/Windows; macOS keeps 1.5.5 functionality. Both SSH
-  and WSL Companion versions are 4.0.0; WSL remains a separate Windows-bundled
-  guest binary/path. Windows-only MCP settings list logged-in WSL 2 accounts,
-  with one installation checkbox and distro/user-scoped Rescan/Remove all.
-  Native Codex may add --no-daemon; no Companion wrapper or host MCP injection.
-  Native wake/guards/exit and bundled setup are implemented; Windows acceptance
-  is pending. Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
+- App 1.6.0: macOS/Windows; macOS retains 1.5.5. SSH/WSL Companion: 4.0.0;
+  WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
+  logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
+  Native Codex may add --no-daemon; no wrapper or host MCP injection.
+  Wake/guards/exit and bundled setup implemented; acceptance pending. E0603 in
+  38051265508 fixed; cloud gates: specs/wsl-1.6.0/CI-DIAGNOSIS.md.
+  Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),
   [Worktree contract](specs/agent-communication-v2/WORKTREE-COLLABORATION.md).
