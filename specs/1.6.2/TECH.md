@@ -110,3 +110,8 @@ The accessibility audit also covers the help argument of announcements and views
 including native menus, workflow selection, find/replace, command input, update
 and notification guidance. Command/output content stays literal. Shared command
 input labels are localized at consumers, retaining the original constant values.
+
+Update availability and toast/link labels are localized. Static update status is
+translated when rendered so the existing failure-prefix check that exposes the
+manual release link retains its behavior. Privacy page titles use the selected
+locale without changing SettingsSection identity.

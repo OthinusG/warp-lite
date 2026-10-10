@@ -152,7 +152,7 @@ impl SettingsWidget for AboutPageWidget {
         if !updates.status.is_empty() {
             update_controls.add_child(
                 ui_builder
-                    .span(updates.status.clone())
+                    .span(warpui::localization::text(&updates.status).to_owned())
                     .with_soft_wrap()
                     .build()
                     .finish(),

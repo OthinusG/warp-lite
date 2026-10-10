@@ -154,19 +154,19 @@ impl ReleaseUpdates {
                 model.checking = false;
                 match result {
                     Ok(Some((tag, download))) => {
-                        model.status = format!("Warpai {tag} is available.");
+                        model.status = warpui::localization::format_text("Warpai {tag} is available.", &[("tag", &tag)]);
                         model.available = Some(tag.clone());
                         model.download_url = download.clone();
                         if let Some(window) = ctx.windows().active_window() {
                             ToastStack::handle(ctx).update(ctx, |toasts, ctx| {
                                 toasts.add_ephemeral_toast(
-                                    DismissibleToast::default(format!("Warpai {tag} is available"))
+                                    DismissibleToast::default(warpui::localization::format_text("Warpai {tag} is available", &[("tag", &tag)]))
                                         .with_link(
                                             ToastLink::new(
                                                 if download.is_some() {
-                                                    "Download"
+                                                    warpui::localization::text("Download")
                                                 } else {
-                                                    "GitHub Releases"
+                                                    warpui::localization::text("GitHub Releases")
                                                 }
                                                 .into(),
                                             )

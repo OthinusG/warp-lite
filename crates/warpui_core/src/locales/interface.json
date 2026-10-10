@@ -675,6 +675,10 @@
     "正在检查所选 WSL 发行版中的 Agent…",
     "正在檢查所選 WSL 發行版中的 Agent…"
   ],
+  "Checking for updates…": [
+    "正在检查更新…",
+    "正在檢查更新…"
+  ],
   "Checking...": [
     "正在检查…",
     "正在檢查…"
@@ -1090,6 +1094,10 @@
   "Could not change communication mode. Reconnect and try again.": [
     "无法切换通信模式。请重新连接后再试。",
     "無法切換通訊模式。請重新連線後再試。"
+  ],
+  "Could not check for updates. Try again or open GitHub Releases.": [
+    "无法检查更新。请重试或打开 GitHub 发布页面。",
+    "無法檢查更新。請重試或開啟 GitHub 發布頁面。"
   ],
   "Could not load all choices. Close this form, reconnect or refresh, then retry.": [
     "无法加载所有选项。请关闭此表单，重新连接或刷新后再试。",
@@ -2825,7 +2833,7 @@
   ],
   "GitHub Releases": [
     "GitHub 发布页面",
-    "GitHub 發行頁面"
+    "GitHub 發布頁面"
   ],
   "Give control back to agent": [
     "将控制权交还给智能体",
@@ -4334,6 +4342,10 @@
   "Previous session's directory": [
     "上一次会话的目录",
     "上一次工作階段的目錄"
+  ],
+  "Privacy": [
+    "隐私",
+    "隱私"
   ],
   "Privacy Settings": [
     "隐私设置",
@@ -6315,9 +6327,21 @@
     "Warpai 是内置 AI 与开发团队知识的智能终端。",
     "Warpai 是內建 AI 與開發團隊知識的智慧終端機。"
   ],
+  "Warpai is up to date.": [
+    "Warpai 已是最新版本。",
+    "Warpai 已是最新版本。"
+  ],
   "Warpai will prevent use of premium models when this dollar limit is reached. Resets on a monthly basis.": [
     "达到此美元上限后，Warpai 将停止使用高级模型。额度每月重置。",
     "達到此美元上限後，Warpai 將停止使用進階模型。額度每月重設。"
+  ],
+  "Warpai {tag} is available": [
+    "Warpai {tag} 已可用",
+    "Warpai {tag} 已可用"
+  ],
+  "Warpai {tag} is available.": [
+    "Warpai {tag} 已可用。",
+    "Warpai {tag} 已可用。"
   ],
   "Warpify SSH Sessions": [
     "为 SSH 会话启用 Warpify",
