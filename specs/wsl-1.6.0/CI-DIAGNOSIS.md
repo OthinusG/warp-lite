@@ -121,3 +121,17 @@ after starting the block and before input; retain the production debug assertion
 Verify source parsing locally, then source-matched Windows native captures and
 complete both-OS acceptance. Do not classify the other warning source locations
 in panic_locations as actual panics.
+
+## WSL collaboration capture selection isolation
+
+Runs 38069558419 (cae4d3be) and 38069772345 (4a39ee08) passed native
+Windows builds and captured WSL Explorer/editor, then failed before the WSL
+collaboration screenshot. The full run passed macOS. The earlier simulated
+native-Companion panel deliberately uses a debug profile override; refresh keeps
+that attachment while its target is native-companion-checkpoint. The WSL step
+reused that panel without clearing the override, so the actual WSL selection
+could not satisfy the guest-connection assertion. Clear only that debug fixture
+override before opening WSL collaboration; keep production selection checks and
+real guest transport. Add all WSL assertion names to the existing safe diagnostic
+allowlist. The 276-image artifact includes both Explorer/editor WSL captures;
+no production login or terminal assertion is weakened. Focused cloud rerun pending.
