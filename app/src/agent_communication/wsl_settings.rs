@@ -580,7 +580,7 @@ mod tests {
         uninstall_companion(&target).await.unwrap();
         assert!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {
             action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
-        }).await.unwrap_err().is::<MissingCompanion>());
+        }).await.err().unwrap().is::<MissingCompanion>());
         let mut verify = wsl_command(&target).unwrap();
         assert!(verify.args(["--exec", "sh", "-lc",
             "set -eu; test \"$(cat \"$HOME/.config/.warpai/bin/warpai-companion\")\" = 'Owned SSH Companion fixture'; test -z \"$(find \"$HOME/.config/.warpai/wsl/bin\" -mindepth 1 -print -quit)\""]).status().await.unwrap().success());
