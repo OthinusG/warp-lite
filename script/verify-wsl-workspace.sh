@@ -5,16 +5,18 @@ set -euo pipefail
 [[ "$(id -u)" == 0 ]] || { echo 'Owned WSL setup requires root' >&2; exit 1; }
 git lfs version >/dev/null
 source_repository="$(pwd)"
+source_revision="$(git -c safe.directory="$source_repository" rev-parse HEAD)"
 fixture_user=warpai-test
 id "$fixture_user" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash "$fixture_user"
 id warpai-other >/dev/null 2>&1 || useradd --create-home --shell /bin/bash warpai-other
 source_directory=/home/warpai-test/warpai-source
 mkdir -p "$source_directory"
-git -c safe.directory="$source_repository" archive HEAD | tar -x -C "$source_directory"
+git -c safe.directory="$source_repository" archive "$source_revision" | tar -x -C "$source_directory"
 chown -R "$fixture_user:$fixture_user" "$source_directory"
-su - "$fixture_user" -s /bin/bash -- -s "$source_repository" <<'GUEST'
+su - "$fixture_user" -s /bin/bash -- -s "$source_repository" "$source_revision" <<'GUEST'
 set -euo pipefail
 windows_repository=$1
+source_revision=$2
 cd /home/warpai-test/warpai-source
 curl --fail --location --proto '=https' --tlsv1.2 --max-time 120 https://sh.rustup.rs -o /home/warpai-test/rustup-install.sh
 bash /home/warpai-test/rustup-install.sh -y --profile minimal --default-toolchain 1.92.0
@@ -31,7 +33,7 @@ cargo test -p warp-agent-bus --lib companion::guests::tests --features wsl_compa
 cargo test -p warp-agent-bus --lib setup::guest_tests --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib wsl_setup::tests --features wsl_companion --locked
 cargo build --release -p warp-agent-bus --bin warpai-wsl-companion --features wsl_companion --locked
-python3 script/companion/package-wsl.py target/release/warpai-wsl-companion "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz"
+python3 script/companion/package-wsl.py target/release/warpai-wsl-companion "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" "$source_revision"
 install -D -m 755 target/debug/warpai-wsl-companion /home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion
 project='/home/warpai-test/project spaces 多语言'
 mkdir -p "$project"

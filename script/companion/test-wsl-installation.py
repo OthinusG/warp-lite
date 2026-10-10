@@ -6,7 +6,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tarfile
 import tempfile
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("package_wsl", Path(__file__).with_name("package-wsl.py"))
 package_wsl = importlib.util.module_from_spec(spec)
@@ -16,6 +18,31 @@ spec.loader.exec_module(package_wsl)
 def main():
     with tempfile.TemporaryDirectory(prefix="warpai-wsl-install-") as temporary:
         root = Path(temporary)
+        binary_fixture = root / "guest-binary"
+        binary_fixture.write_bytes(b"Owned guest fixture")
+        output = root / "guest-payload.tar.gz"
+        source = "a" * 40
+        def build_runtime(arguments, **kwargs):
+            git = Path(arguments[-1]) / "bin/git"
+            git.parent.mkdir(parents=True)
+            git.write_bytes(b"Owned runtime fixture")
+        with patch.object(package_wsl.subprocess, "check_output", side_effect=[
+            "Linux\n", "warpai-companion 4.0.0 protocol 1\n",
+        ]) as commands, patch.object(package_wsl.subprocess, "run", side_effect=build_runtime):
+            package_wsl.package(binary_fixture, output, source)
+            assert commands.call_count == 2
+        with tarfile.open(output) as archive:
+            manifest = json.load(archive.extractfile("manifest.json"))
+            assert manifest["source"] == source
+            assert manifest["sha256"] == hashlib.sha256(binary_fixture.read_bytes()).hexdigest()
+        assert output.with_suffix(".gz.sha256").read_text().strip() == hashlib.sha256(output.read_bytes()).hexdigest()
+        for invalid in ["", "HEAD", "a" * 39, "a" * 41, "g" * 40, source + "\n"]:
+            try:
+                package_wsl.package(binary_fixture, output, invalid)
+            except SystemExit:
+                pass
+            else:
+                raise AssertionError("Invalid source revision accepted")
         payload = root / "payload"
         payload.mkdir()
         account = root / "account spaces 多语言"
@@ -68,7 +95,7 @@ def main():
         environment["HOME"] = str(isolated)
         assert install() != 0
         assert list(other.iterdir()) == []
-    print("WSL staged installation, repeat install, SSH isolation and corruption rejection: passed")
+    print("WSL package provenance, staged installation, repeat install, SSH isolation and corruption rejection: passed")
 
 
 if __name__ == "__main__":

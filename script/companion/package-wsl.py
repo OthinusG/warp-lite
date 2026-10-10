@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -22,7 +23,10 @@ def installer_source():
     return source
 
 
-def package(binary, output):
+def package(binary, output, source):
+    # Archived guest sources have no .git; use the exact revision exported by the runner.
+    if re.fullmatch(r"[0-9a-f]{40}", source) is None:
+        raise SystemExit("An exact source commit SHA is required")
     if subprocess.check_output(["uname", "-s"], text=True).strip() != "Linux":
         raise SystemExit("The WSL payload must be built in the Linux guest of the Windows build runner")
     version = subprocess.check_output([str(binary.resolve()), "--version"], text=True).strip()
@@ -41,7 +45,6 @@ def package(binary, output):
         (runtime / "SHA256SUMS").write_text(sums)
         runtime_name = "companion-runtime-" + hashlib.sha256(sums.encode()).hexdigest()
         runtime.rename(payload / runtime_name)
-        source = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         (payload / "manifest.json").write_text(json.dumps({
             "source": source, "version": version, "runtime_directory": runtime_name,
             "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
@@ -62,4 +65,4 @@ def package(binary, output):
 
 
 if __name__ == "__main__":
-    package(Path(sys.argv[1]), Path(sys.argv[2]))
+    package(Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3])

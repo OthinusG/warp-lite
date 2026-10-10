@@ -47,3 +47,17 @@ The existing cleanup function is public with its environment removal behavior
 unchanged. Internal callers and the WSL settings caller reuse the same helper.
 Cloud acceptance remains pending until actual build, test and capture results
 have been inspected. Monitor the source-matched run every 30 minutes.
+
+## Archived guest packaging correction
+
+Run 38052636231 at 54b02dc7 passes Windows default/platform checks and focused
+application tests. WSL builds reach packaging, which fails because package-wsl.py
+calls git rev-parse HEAD in an archived source directory without .git.
+
+Resolve the SHA in the runner checkout, archive that exact revision and pass it
+explicitly through the guest build to package-wsl.py. Validate the full commit SHA
+before packaging and keep it in the checksummed manifest. Both validation and
+release callers use verify-wsl-workspace.sh and receive the same correction.
+The Python regression checks manifest provenance without a Git subprocess and
+rejects malformed SHAs; existing installation/isolation tests remain required.
+Rerun complete cloud acceptance from the corrected source.
