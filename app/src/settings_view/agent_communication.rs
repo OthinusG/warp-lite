@@ -159,6 +159,7 @@ impl View for CommunicationSettingsView {
                 Some(appearance.theme().ui_warning_color()),
             ));
         }
+        if model.preferences.enabled {
         let refresh = builder
             .button(ButtonVariant::Secondary, self.refresh.clone())
             .with_text_label("Rescan agents".to_owned());
@@ -195,6 +196,7 @@ impl View for CommunicationSettingsView {
             .with_margin_top(8.)
             .finish(),
         );
+        }
         Container::new(body.finish())
             .with_margin_bottom(16.)
             .finish()

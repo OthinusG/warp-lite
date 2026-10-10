@@ -1,5 +1,30 @@
 # Project Memory
 
+## Collaboration patch scope — 2026-10-10
+
+- Owner b.txt has eight items with duplicate numbering. Confirmed: icon entry,
+  native local worktree management, Coordinator dropdown, mode title, section
+  separators/icons, History secondary view and Message/Assign dropdowns belong
+  to 1.5.1; Data usage belongs to 1.5.5. Keep Companion 4.0.0 if unchanged.
+- Usage source is https://github.com/stablyai/orca. Inventory implemented
+  providers before reuse; preserve MIT provenance. Qoder CN and Antigravity
+  deserve specific investigation; otherwise do not invent unsupported adapters.
+  Provider account setup is authorized without restoring Warp cloud services.
+- Contract: specs/agent-communication-v2/PATCHES-1.5.1-1.5.5.md. Reuse native UI,
+  exact-run Coordinator guards and existing history/tasks. Local deletion must
+  protect main, active, locked and dirty checkouts and never force or delete a
+  branch. Data usage is a fixed footer with its own at-most-four-row scroll.
+- 1.5.0 verification was stopped at the owner's request after public delivery;
+  do not resume that audit as part of these patches.
+- Additional 1.5.1 instruction: hide Rescan agents / Remove all MCP while Agent
+  communication is off; expose them inside the enabled settings section.
+- Additional 1.5.1 instruction: remove the nonfunctional App icon settings
+  selector; retain native package artwork and the separate Dock visibility switch.
+- Owner sequencing: validate completed 1.5.5 directly, then package/publish the
+  independent 1.5.1 checkpoint. Apply shared UI fixes to both checkpoints; keep
+  Data usage out of 1.5.1. Retain required tagged packaging checks, but skip a
+  redundant intermediate native walkthrough. Companion stays 4.0.0 if unchanged.
+
 ## 1.5.0 release authorization — 2026-10-10
 
 - Owner authorizes main integration, unused branch/workflow cleanup, and public

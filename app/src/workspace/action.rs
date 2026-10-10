@@ -733,6 +733,8 @@ pub enum WorkspaceAction {
     ShowHoaOnboardingFlow,
     /// Open the "New worktree" modal for creating a reusable worktree tab config.
     OpenNewWorktreeModal,
+    /// Confirm removal of a linked local checkout from its original repository.
+    RemoveLocalWorktree { repository: std::path::PathBuf, checkout: std::path::PathBuf },
     /// Open the native folder picker for the repo field in the new-worktree modal.
     OpenNewWorktreeRepoPicker,
     /// Create a new worktree in the given repo using the default worktree tab config.
@@ -991,6 +993,7 @@ impl WorkspaceAction {
             | CopyAccessTokenToClipboard
             | OpenTabConfigRepoPicker { .. }
             | OpenNewWorktreeModal
+            | RemoveLocalWorktree { .. }
             | OpenNewWorktreeRepoPicker
             | OpenWorktreeInRepo { .. }
             | OpenWorktreeAddRepoPicker

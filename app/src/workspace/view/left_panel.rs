@@ -878,14 +878,6 @@ impl LeftPanelView {
     ) -> Box<dyn Element> {
         let action = button_config.action.clone();
         let ui_builder = appearance.ui_builder().clone();
-        if matches!(action, LeftPanelAction::Collaboration) {
-            use warpui::ui_components::button::ButtonVariant;
-            return ui_builder.button(if button_config.render_with_active_state {
-                ButtonVariant::Accent
-            } else { ButtonVariant::Secondary }, mouse_state)
-                .with_text_label("Collaborate".into()).build()
-                .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish();
-        }
         let tooltip_keybinding = button_config.tooltip_keybinding.clone();
 
         let icon_color = if button_config.render_with_active_state {

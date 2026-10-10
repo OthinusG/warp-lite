@@ -3,6 +3,46 @@ use std::path::Path;
 
 use anyhow::{anyhow, Result};
 
+/// Remove an explicitly confirmed linked checkout without discarding local files
+/// or changing its branch. Native workspace callers supply every open local cwd.
+#[cfg(feature = "local_fs")]
+pub async fn remove_local_worktree(
+    repository: &Path,
+    target: &Path,
+    open_directories: &[std::path::PathBuf],
+) -> Result<()> {
+    let target = target.canonicalize()?;
+    anyhow::ensure!(!open_directories.iter().any(|directory| directory.canonicalize()
+        .is_ok_and(|directory| directory.starts_with(&target))),
+        "Close terminals using this worktree before removing it.");
+    let target_text = target.to_str().ok_or_else(|| anyhow!("Worktree path must be UTF-8."))?;
+    for check in 0..2 {
+        let registry = run_git_command(repository, &["worktree", "list", "--porcelain", "-z"]).await?;
+        let mut found = false;
+        for (index, record) in registry.split("\0\0").filter(|record| !record.is_empty()).enumerate() {
+            let fields: Vec<_> = record.split('\0').collect();
+            let Some(root) = fields.iter().find_map(|field| field.strip_prefix("worktree ")) else { continue; };
+            if Path::new(root).canonicalize().ok().as_ref() != Some(&target) { continue; }
+            anyhow::ensure!(index != 0, "The main checkout cannot be removed.");
+            anyhow::ensure!(!fields.iter().any(|field| field.starts_with("locked") || field.starts_with("prunable")),
+                "Unlock or repair this worktree in Git before removing it.");
+            found = true;
+        }
+        anyhow::ensure!(found, "This checkout is no longer registered in the original repository.");
+        let status = run_git_command(&target, &["status", "--porcelain", "--untracked-files=normal", "--ignored", "-z"]).await?;
+        anyhow::ensure!(status.is_empty(), "This worktree contains changed, untracked or ignored files. Preserve or remove them before retrying.");
+        if check == 1 {
+            run_git_command(repository, &["worktree", "remove", "--", target_text]).await?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "local_fs"))]
+pub async fn remove_local_worktree(_: &Path, _: &Path, _: &[std::path::PathBuf]) -> Result<()> {
+    Err(anyhow!("Local worktree management is unavailable in this build."))
+}
+
 #[cfg(test)]
 #[path = "git_tests.rs"]
 mod tests;

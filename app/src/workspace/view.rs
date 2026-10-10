@@ -22192,6 +22192,36 @@ impl TypedActionView for Workspace {
                 self.current_workspace_state.is_new_worktree_modal_open = true;
                 ctx.notify();
             }
+            RemoveLocalWorktree { repository, checkout } => {
+                use warpui::modals::ModalButton;
+                let workspace = ctx.handle();
+                let repository = repository.clone();
+                let checkout = checkout.clone();
+                let description = format!("Remove this local worktree?\n{}\n\nChanged, untracked, ignored, locked or open checkouts are protected. The Git branch is retained.", checkout.display());
+                let dialog = AlertDialogWithCallbacks::for_app("Remove worktree", description,
+                    vec![ModalButton::for_app("Cancel", |_| {}), ModalButton::for_app("Remove", move |app| {
+                        let Some(workspace) = workspace.upgrade(app) else { return; };
+                        workspace.update(app, |workspace, ctx| {
+                            let open_directories: Vec<_> = ctx.window_ids().flat_map(|window| {
+                                ctx.views_of_type::<TerminalView>(window).unwrap_or_default()
+                            }).filter_map(|terminal| terminal.as_ref(ctx).pwd_if_local(ctx).map(PathBuf::from)).collect();
+                            let repository = repository.clone();
+                            let checkout = checkout.clone();
+                            ctx.spawn(async move {
+                                crate::util::git::remove_local_worktree(&repository, &checkout, &open_directories).await
+                            }, |workspace, result, ctx| {
+                                workspace.toast_stack.update(ctx, |stack, ctx| {
+                                    stack.add_ephemeral_toast(match result {
+                                        Ok(()) => DismissibleToast::success("Worktree removed. Its branch was retained.".into()),
+                                        Err(error) => DismissibleToast::error(error.to_string()),
+                                    }, ctx);
+                                });
+                                ctx.notify();
+                            });
+                        });
+                    })], |_| {});
+                self.show_native_modal(dialog, ctx);
+            }
             OpenNewWorktreeRepoPicker => {
                 self.open_repo_picker_for_new_worktree_modal(ctx);
             }

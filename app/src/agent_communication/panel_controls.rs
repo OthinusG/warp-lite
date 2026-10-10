@@ -70,8 +70,14 @@ impl Kind {
     fn labels(self) -> &'static [&'static str] {
         match self {
             Self::SelectCoordinator => &[],
-            Self::Send => &["Recipient agent name", "Message", "Subject (optional)"],
-            Self::Assign | Self::Pool => &[
+            Self::Send => &["Agent", "Message", "Subject (optional)"],
+            Self::Assign => &[
+                "Agent", "Description", "Acceptance criteria", "Prerequisites (optional)",
+                "Start by (e.g. 2026-10-03T09:00:00Z; optional)",
+                "Execution timeout in seconds (optional)", "Review timeout in seconds (optional)",
+                "Reviewer",
+            ],
+            Self::Pool => &[
                 "Recipient or eligible names (comma-separated for pool)",
                 "Description",
                 "Acceptance criteria",
@@ -130,6 +136,9 @@ pub(super) struct Form {
     reservations: Vec<warp_agent_bus::Reservation>,
     request_id: String,
     fields: Vec<ViewHandle<EditorView>>,
+    selectors: std::collections::HashMap<usize, ViewHandle<super::Dropdown<Action>>>,
+    choices: std::collections::HashMap<usize, Vec<(String, String)>>,
+    choices_loading: bool,
     pub(super) submitting: bool,
     error: String,
     pub(super) submitted_fields: Option<Vec<String>>,
@@ -388,6 +397,47 @@ fn command(
 }
 
 impl CollaborationPanel {
+    pub(super) fn select_form_field(&mut self, request: &str, index: usize, value: &str, ctx: &mut ViewContext<Self>) {
+        let Some(form) = self.form.as_ref().filter(|form| form.request_id == request && !form.submitting && form.submitted_fields.is_none()) else { return; };
+        let Some(choices) = form.choices.get(&index) else { return; };
+        if !choices.iter().any(|(_, choice)| choice == value) { return; }
+        let value = if index == 3 && matches!(form.kind, Kind::Assign | Kind::Pool) && !value.is_empty() {
+            let text = form.fields[index].as_ref(ctx).buffer_text(ctx);
+            let mut selected: Vec<_> = text.split(',').filter(|id| !id.is_empty()).map(str::to_owned).collect();
+            if selected.iter().any(|id| id == value) { selected.retain(|id| id != value); }
+            else { selected.push(value.to_owned()); }
+            selected.join(",")
+        } else { value.to_owned() };
+        form.fields[index].update(ctx, |editor, ctx| editor.set_buffer_text(&value, ctx));
+        ctx.notify();
+    }
+
+    pub(super) fn sync_coordinator_dropdown(&self, snapshot: &super::Snapshot, ctx: &mut ViewContext<Self>) {
+        let selected = snapshot.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some()).map(|role| &role.agent);
+        if self.snapshot.as_ref().is_some_and(|previous| previous.project == snapshot.project
+            && previous.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name))
+                .eq(snapshot.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name)))
+            && previous.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some()).map(|role| &role.agent) == selected) {
+            return;
+        }
+        self.coordinator_dropdown.update(ctx, |dropdown, ctx| {
+            let mut items = vec![super::DropdownItem::new("Select Coordinator", Action::ChooseCoordinator {
+                project: snapshot.project.clone(), agent: String::new(), run: String::new(),
+            })];
+            let mut selected_index = 0;
+            for candidate in &snapshot.candidates {
+                if selected == Some(&candidate.agent.id) { selected_index = items.len(); }
+                items.push(super::DropdownItem::new(format!("{} · {} · {}", candidate.agent.name,
+                    candidate.branch.as_deref().unwrap_or("detached"), candidate.agent.id.chars().take(8).collect::<String>()),
+                    Action::ChooseCoordinator { project: snapshot.project.clone(), agent: candidate.agent.id.clone(), run: candidate.run.clone() })
+                    .with_tooltip(candidate.root.clone()));
+            }
+            dropdown.set_items(items, ctx);
+            dropdown.set_selected_by_index(selected_index, ctx);
+            if snapshot.candidates.is_empty() { dropdown.set_disabled(ctx); } else { dropdown.set_enabled(ctx); }
+        });
+    }
+
     pub(super) fn render_worktree_team(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let builder = appearance.ui_builder();
@@ -399,13 +449,7 @@ impl CollaborationPanel {
         }
         let coordinator = snapshot.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some());
         body.add_child(heading(appearance, "Coordinator"));
-        body.add_child(detail(appearance, coordinator.map(|role| snapshot.participant_label(&role.agent))
-            .unwrap_or_else(|| "Not selected".into())));
-        let button = builder.button(ButtonVariant::Accent, self.team_buttons[0].clone())
-            .with_text_label(if coordinator.is_some() { "Change Coordinator" } else { "Select Coordinator" }.into());
-        let button = if self.connected && !snapshot.candidates.is_empty() { button } else { button.disabled() };
-        body.add_child(button.build().on_click(|ctx, _, _|
-            ctx.dispatch_typed_action(Action::OpenControl(Kind::SelectCoordinator))).finish());
+        body.add_child(ChildView::new(&self.coordinator_dropdown).finish());
         if self.remote.is_none() {
             body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[1].clone())
                 .with_text_label("New worktree".into()).build().on_click(|ctx, _, _|
@@ -441,6 +485,15 @@ impl CollaborationPanel {
             }
             if expanded {
                 body.add_child(detail(appearance, format!("{branch}\n{}", checkout.root)));
+                if self.remote.is_none() && snapshot.worktrees.first().is_some_and(|main| main.root != checkout.root) {
+                    let repository = std::path::PathBuf::from(&snapshot.worktree_root);
+                    let root = std::path::PathBuf::from(&checkout.root);
+                    body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[0].clone())
+                        .with_text_label("Remove worktree".into()).build().on_click(move |ctx, _, _|
+                            ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::RemoveLocalWorktree {
+                                repository: repository.clone(), checkout: root.clone(),
+                            })).finish());
+                }
             }
         }
         body.finish()
@@ -572,14 +625,125 @@ impl CollaborationPanel {
             purge_preview,
             reservations,
             fields,
+            selectors: Default::default(),
+            choices: Default::default(),
+            choices_loading: false,
             request_id: uuid::Uuid::new_v4().to_string(),
             submitting: false,
             error: String::new(),
             submitted_fields: None,
             buttons: Default::default(),
         });
+        self.build_form_selectors(ctx);
+        self.load_remaining_choices(ctx);
         self.scroll = Default::default();
         ctx.notify();
+    }
+
+    fn build_form_selectors(&mut self, ctx: &mut ViewContext<Self>) {
+        let (Some(form), Some(snapshot)) = (&mut self.form, &self.snapshot) else { return; };
+        let peers: Vec<_> = if self.worktree_mode {
+            snapshot.candidates.iter().map(|candidate| (candidate.agent.id.clone(), format!("{} · {}", candidate.agent.name, candidate.branch.as_deref().unwrap_or("detached")))).collect()
+        } else {
+            snapshot.agents.iter().filter(|row| row.online).map(|row| (row.agent.id.clone(), row.agent.name.clone())).collect()
+        };
+        let indexes: &[usize] = match form.kind {
+            Kind::Send | Kind::Reassign | Kind::ReassignOverride => &[0],
+            Kind::Assign => &[0, 3, 7],
+            _ => &[],
+        };
+        for &index in indexes {
+            let mut choices = vec![(if index == 7 { "You (default reviewer)" } else if index == 3 { "No prerequisites" } else { "Select Agent" }.to_owned(), String::new())];
+            if index == 3 {
+                choices.extend(snapshot.tasks.iter().map(|task| (format!("{} · {}", task.description, task.state), task.id.clone())));
+            } else {
+                choices.extend(peers.iter().map(|(id, label)| (format!("{label} · {}", id.chars().take(8).collect::<String>()), id.clone())));
+            }
+            let request = form.request_id.clone();
+            let dropdown = ctx.add_typed_action_view(|ctx| {
+                let mut dropdown = super::Dropdown::new(ctx);
+                dropdown.set_items(choices.iter().map(|(label, value)| super::DropdownItem::new(label.clone(), Action::SelectFormField {
+                    request: request.clone(), index, value: value.clone(),
+                })).collect(), ctx);
+                dropdown.set_selected_by_index(0, ctx);
+                dropdown
+            });
+            form.selectors.insert(index, dropdown);
+            form.choices.insert(index, choices);
+        }
+    }
+
+    fn load_remaining_choices(&mut self, ctx: &mut ViewContext<Self>) {
+        let (Some(form), Some(snapshot)) = (&mut self.form, &self.snapshot) else { return; };
+        if form.selectors.is_empty() || (snapshot.agent_cursor.is_none() && snapshot.task_cursor.is_none()) { return; }
+        form.choices_loading = true;
+        let request = form.request_id.clone();
+        let response_request = request.clone();
+        let project = snapshot.project.clone();
+        let mut query = warp_agent_bus::transport::PanelQuery {
+            project: self.context.as_ref().map(|context| context.0.clone()).unwrap_or_default(),
+            scope: Some(project.clone()), terminal: self.context.as_ref().and_then(|context| context.1.clone()),
+            worktree: self.worktree_mode, agent_after: snapshot.agent_cursor.clone(), task_after: snapshot.task_cursor,
+            ..Default::default()
+        };
+        let remote = self.remote.is_some();
+        let client = self.remote_client.clone();
+        let broker = super::super::BROKER.get().cloned();
+        let generation = self.generation;
+        ctx.spawn(async move {
+            tokio::time::timeout(std::time::Duration::from_secs(30), async move {
+                let mut peers = Vec::new();
+                let mut tasks = Vec::new();
+                loop {
+                    let previous = (query.agent_after.clone(), query.task_after);
+                    let mut value = if remote {
+                        query.project.clear(); query.terminal = None;
+                        let mut guard = client.lock().await;
+                        let client = guard.as_mut().ok_or_else(|| anyhow::anyhow!("SSH connection unavailable"))?;
+                        Self::remote_command(client, &warp_agent_bus::companion::TaskCommand::Panel(query.clone()), generation).await?
+                    } else {
+                        query.project = warp_agent_bus::project_root(std::path::Path::new(&query.project))?;
+                        broker.as_ref().ok_or_else(|| anyhow::anyhow!("Broker unavailable"))?.operator_panel(&query)?
+                    };
+                    if let Some(scope) = value.get("collaboration_scope").cloned() { value["project"] = scope; }
+                    let page: super::Snapshot = serde_json::from_value(value)?;
+                    anyhow::ensure!(page.project == project, "Selection scope changed");
+                    peers.extend(page.agents.into_iter().filter(|row| row.online).map(|row| (row.agent.id, row.agent.name)));
+                    tasks.extend(page.tasks.into_iter().map(|task| (task.id, format!("{} · {}", task.description, task.state))));
+                    let complete = page.agent_cursor.is_none() && page.task_cursor.is_none();
+                    query.agent_after = page.agent_cursor.or(query.agent_after);
+                    query.task_after = page.task_cursor.or(query.task_after);
+                    if complete { break; }
+                    anyhow::ensure!(previous != (query.agent_after.clone(), query.task_after), "Selection cursor did not advance");
+                }
+                Ok::<_, anyhow::Error>((peers, tasks))
+            }).await.map_err(|_| anyhow::anyhow!("Selection loading timed out"))?
+        }, move |panel, result, ctx| {
+            let Some(form) = panel.form.as_mut().filter(|form| form.request_id == response_request) else { return; };
+            form.choices_loading = false;
+            match result {
+                Ok((peers, tasks)) => {
+                    for (&index, choices) in &mut form.choices {
+                        for (value, label) in if index == 3 { &tasks } else { &peers } {
+                            if !choices.iter().any(|(_, id)| id == value) { choices.push((label.clone(), value.clone())); }
+                        }
+                        let request = form.request_id.clone();
+                        let selected = form.fields[index].as_ref(ctx).buffer_text(ctx);
+                        form.selectors[&index].update(ctx, |dropdown, ctx| {
+                            dropdown.set_items(choices.iter().map(|(label, value)| super::DropdownItem::new(label.clone(), Action::SelectFormField {
+                                request: request.clone(), index, value: value.clone(),
+                            })).collect(), ctx);
+                            dropdown.set_selected_by_index(choices.iter().position(|(_, value)| value == &selected).unwrap_or(0), ctx);
+                        });
+                    }
+                }
+                Err(_) => {
+                    form.choices_loading = true;
+                    form.error = "Could not load all choices. Close this form, reconnect or refresh, then retry.".into();
+                }
+            }
+            ctx.notify();
+        });
     }
 
     pub(super) fn cancel_control(&mut self, ctx: &mut ViewContext<Self>) {
@@ -606,6 +770,7 @@ impl CollaborationPanel {
         if form.submitting {
             return;
         }
+        if form.choices_loading { return; }
         if self
             .snapshot
             .as_ref()
@@ -769,6 +934,17 @@ impl CollaborationPanel {
         let builder = appearance.ui_builder();
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         if let Some(form) = &self.form {
+            if form.kind == Kind::SelectCoordinator {
+                if !form.error.is_empty() { body.add_child(detail(appearance, form.error.clone())); }
+                if form.submitting { body.add_child(note(appearance, "Updating Coordinator…")); }
+                else if !form.error.is_empty() {
+                    body.add_child(builder.button(ButtonVariant::Secondary, form.buttons[0].clone())
+                        .with_text_label("Retry".into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::ConfirmControl)).finish());
+                    body.add_child(builder.button(ButtonVariant::Text, form.buttons[1].clone())
+                        .with_text_label("Dismiss".into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::CancelControl)).finish());
+                }
+                return body.finish();
+            }
             body.add_child(heading(appearance, form.kind.label()));
             if let Some(task) = &form.task {
                 body.add_child(note(
@@ -844,9 +1020,14 @@ impl CollaborationPanel {
                 }
 
             }
-            for (label, field) in form.kind.labels().iter().zip(&form.fields) {
-                let value = if form.submitting {
-                    detail(appearance, field.as_ref(app).buffer_text(app))
+            for (index, (label, field)) in form.kind.labels().iter().zip(&form.fields).enumerate() {
+                let value = if form.submitting || form.submitted_fields.is_some() {
+                    let text = field.as_ref(app).buffer_text(app);
+                    detail(appearance, form.choices.get(&index).map(|choices| text.split(',').filter_map(|id|
+                        choices.iter().find(|(_, value)| value == id).map(|(label, _)| label.clone()))
+                        .collect::<Vec<_>>().join(", ")).unwrap_or(text))
+                } else if let Some(selector) = form.selectors.get(&index) {
+                    ChildView::new(selector).finish()
                 } else {
                     ChildView::new(field).finish()
                 };
@@ -857,6 +1038,15 @@ impl CollaborationPanel {
                         .with_child(value)
                         .finish(),
                 );
+                if index == 3 && matches!(form.kind, Kind::Assign) {
+                    let selected = field.as_ref(app).buffer_text(app);
+                    if !selected.is_empty() {
+                        let names = form.choices.get(&index).into_iter().flatten()
+                            .filter(|(_, id)| selected.split(',').any(|selected| selected == id))
+                            .map(|(label, _)| label.clone()).collect::<Vec<_>>().join(", ");
+                        body.add_child(note(appearance, names));
+                    }
+                }
             }
             if !form.error.is_empty() {
                 body.add_child(detail(appearance, form.error.clone()));
@@ -869,7 +1059,7 @@ impl CollaborationPanel {
                 let button = builder
                     .button(if index == 0 { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.buttons[index].clone())
                     .with_text_label(label.into());
-                let button = if form.submitting || (index == 0 && (!self.connected ||
+                let button = if form.submitting || (index == 0 && (!self.connected || form.choices_loading ||
                     (matches!(form.kind, Kind::SelectCoordinator) && form.selected_candidate.is_none()))) {
                     button.disabled()
                 } else {
@@ -886,9 +1076,6 @@ impl CollaborationPanel {
                 body.add_child(buttons);
             }
         } else {
-            if self.worktree_mode && self.snapshot.as_ref().is_none_or(|snapshot| snapshot.roles.is_empty() || !snapshot.worktree_available) {
-                return body.finish();
-            }
             let mut kinds = if self.query.history {
                 vec![]
             } else if self.show_spaces {
@@ -898,8 +1085,10 @@ impl CollaborationPanel {
                     Kind::RenewReservation,
                     Kind::ReleaseReservation,
                 ]
+            } else if self.worktree_mode && self.snapshot.as_ref().is_none_or(|snapshot| snapshot.roles.is_empty() || !snapshot.worktree_available) {
+                vec![]
             } else {
-                if self.worktree_mode { vec![Kind::Send] } else { vec![Kind::Assign, Kind::Send] }
+                vec![Kind::Assign, Kind::Send]
             };
             if self.show_spaces
                 && self
@@ -954,6 +1143,11 @@ impl CollaborationPanel {
                         })
                         .finish(),
                 );
+            }
+            if !self.query.history && !self.show_spaces && self.query.selected_task.is_none() {
+                buttons.push(builder.button(ButtonVariant::Secondary, self.history_buttons[0].clone())
+                    .with_text_label("History".into()).build()
+                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History)).finish());
             }
             if let Some(buttons) = button_row(buttons) {
                 body.add_child(buttons);

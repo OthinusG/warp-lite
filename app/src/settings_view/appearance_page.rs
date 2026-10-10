@@ -27,7 +27,7 @@ use crate::prompt::editor_modal::OpenSource as PromptEditorOpenSource;
 use crate::server::telemetry::InputUXChangeOrigin;
 use crate::settings::{
     active_theme_kind,
-    app_icon::{AppIcon, AppIconSettings, ShowDockIconState},
+    app_icon::{AppIconSettings, ShowDockIconState},
     respect_system_theme, AIFontName, AppEditorSettings, CursorBlink, CursorBlinkEnabled,
     EnforceMinimumContrast, FocusPaneOnHover, FontSettings, FontSettingsChangedEvent, InputBoxType,
     InputModeSettings, InputModeState, MonospaceFontName, PaneSettings, ShouldDimInactivePanes,
@@ -442,7 +442,6 @@ pub enum AppearancePageAction {
         from_binding: bool,
     },
     SetInputType(InputBoxType),
-    SetAppIcon(AppIcon),
     ToggleShowDockIcon,
     SetCursorType(CursorDisplayType),
     SetWorkspaceDecorationVisibility(WorkspaceDecorationVisibility),
@@ -505,7 +504,6 @@ pub struct AppearanceSettingsPageView {
     enforce_min_contrast_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     input_mode_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     input_type_radio_state: RadioButtonStateHandle,
-    app_icon_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     workspace_decorations_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     tab_close_button_position_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     zoom_level_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
@@ -590,7 +588,6 @@ impl TypedActionView for AppearanceSettingsPageView {
                 from_binding,
             } => self.set_input_mode(*new_mode, *from_binding, ctx),
             SetInputType(input_type) => self.set_input_type(*input_type, ctx),
-            SetAppIcon(new_icon) => self.set_app_icon(*new_icon, ctx),
             ToggleShowDockIcon => self.toggle_show_dock_icon(ctx),
             SetCursorType(cursor_display_type) => self.set_cursor_type(*cursor_display_type, ctx),
             OpacitySliderDragged(val) => self.set_opacity(*val, false, ctx),
@@ -856,14 +853,7 @@ impl AppearanceSettingsPageView {
                 ctx.notify();
             }
         });
-        ctx.subscribe_to_model(&AppIconSettings::handle(ctx), |me, _, _, ctx| {
-            me.app_icon_dropdown.update(ctx, |dropdown, ctx| {
-                let app_icon = *AppIconSettings::as_ref(ctx).app_icon;
-                dropdown.set_selected_by_name(Self::app_icon_dropdown_item_label(app_icon), ctx);
-                ctx.notify();
-            });
-            ctx.notify()
-        });
+        ctx.subscribe_to_model(&AppIconSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
         ctx.subscribe_to_model(&SessionSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
         ctx.subscribe_to_model(&BlockListSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
         ctx.subscribe_to_model(&WindowSettings::handle(ctx), |me, _, evt, ctx| {
@@ -1104,35 +1094,6 @@ impl AppearanceSettingsPageView {
             dropdown
         });
 
-        let app_icon_dropdown = ctx.add_typed_action_view(|ctx| {
-            let mut dropdown = Dropdown::new(ctx);
-            dropdown.set_top_bar_max_width(INPUT_MODE_DROPDOWN_WIDTH);
-            dropdown.set_menu_width(INPUT_MODE_DROPDOWN_WIDTH, ctx);
-
-            let values = vec![AppIcon::Default];
-            let current_value = *AppIconSettings::as_ref(ctx).app_icon;
-            let selected_index = values
-                .iter()
-                .position(|val| *val == current_value)
-                .unwrap_or(0);
-
-            dropdown.add_items(
-                values
-                    .into_iter()
-                    .map(|val| {
-                        DropdownItem::new(
-                            Self::app_icon_dropdown_item_label(val),
-                            AppearancePageAction::SetAppIcon(val),
-                        )
-                    })
-                    .collect(),
-                ctx,
-            );
-            dropdown.set_selected_by_index(selected_index, ctx);
-
-            dropdown
-        });
-
         let enforce_min_contrast_dropdown = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = Dropdown::new(ctx);
 
@@ -1211,7 +1172,6 @@ impl AppearanceSettingsPageView {
             thin_strokes_dropdown,
             input_mode_dropdown,
             input_type_radio_state,
-            app_icon_dropdown,
             enforce_min_contrast_dropdown,
             workspace_decorations_dropdown: Self::build_workspace_decoration_visibility_dropdown(
                 ctx,
@@ -1517,10 +1477,6 @@ impl AppearanceSettingsPageView {
             InputMode::PinnedToTop => "Pin to the top (Reverse mode)",
             InputMode::Waterfall => "Start at the top (Classic mode)",
         }
-    }
-
-    fn app_icon_dropdown_item_label(_val: AppIcon) -> &'static str {
-        "Warpai"
     }
 
     fn thin_strokes_dropdown_item_label(val: ThinStrokes) -> &'static str {
@@ -2152,12 +2108,6 @@ impl AppearanceSettingsPageView {
         }
     }
 
-    fn set_app_icon(&mut self, new_icon: AppIcon, ctx: &mut ViewContext<Self>) {
-        AppIconSettings::handle(ctx).update(ctx, |app_icon_settings, ctx| {
-            report_if_error!(app_icon_settings.app_icon.set_value(new_icon, ctx));
-        });
-    }
-
     fn toggle_show_dock_icon(&mut self, ctx: &mut ViewContext<Self>) {
         AppIconSettings::handle(ctx).update(ctx, |app_icon_settings, ctx| {
             report_if_error!(app_icon_settings.show_dock_icon.toggle_and_save_value(ctx));
@@ -2696,7 +2646,7 @@ impl SettingsWidget for CustomAppIconWidget {
     type View = AppearanceSettingsPageView;
 
     fn search_terms(&self) -> &str {
-        "customize custom app icon icons dock cmd tab app switcher"
+        "dock cmd tab app switcher"
     }
 
     fn render(
@@ -2705,36 +2655,6 @@ impl SettingsWidget for CustomAppIconWidget {
         appearance: &Appearance,
         app: &AppContext,
     ) -> Box<dyn Element> {
-        #[allow(unused_mut)]
-        let show_bundle_warning = {
-            #[cfg(target_os = "macos")]
-            #[allow(deprecated)]
-            {
-                use cocoa::base::id;
-                use objc::{class, msg_send, sel, sel_impl};
-                unsafe {
-                    let running_app: id =
-                        msg_send![class!(NSRunningApplication), currentApplication];
-                    let bundle_id: id = msg_send![running_app, bundleIdentifier];
-                    bundle_id.is_null()
-                }
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                false
-            }
-        };
-
-        let dropdown = render_dropdown_item(
-            appearance,
-            "App icon",
-            show_bundle_warning.then_some("Changing the app icon requires the app to be bundled."),
-            None,
-            LocalOnlyIconState::Hidden,
-            None,
-            &view.app_icon_dropdown,
-        );
-
         let show_dock_icon_toggle = render_body_item::<AppearancePageAction>(
             "Show Warpai in Dock".into(),
             None,
@@ -2761,44 +2681,7 @@ impl SettingsWidget for CustomAppIconWidget {
             .show_dock_icon
             .is_supported_on_current_platform();
 
-        #[cfg(target_os = "macos")]
-        {
-            use crate::appearance::AppearanceManager;
-
-            let app_icon_at_startup = AppearanceManager::as_ref(app).app_icon_at_startup();
-            let current_icon = *AppIconSettings::as_ref(app).app_icon;
-            if current_icon == AppIcon::Default
-                && ChannelState::channel() != Channel::Local
-                && app_icon_at_startup != AppIcon::Default
-            {
-                let theme = appearance.theme();
-                let column = Flex::column().with_child(dropdown).with_child(
-                    appearance
-                        .ui_builder()
-                        .wrappable_text(
-                            "You may need to restart Warpai for MacOS to apply the preferred icon style.",
-                            true,
-                        )
-                        .with_style(UiComponentStyles {
-                            font_color: Some(
-                                theme.sub_text_color(theme.background()).into_solid(),
-                            ),
-                            margin: Some(Coords::default().bottom(8.)),
-                            ..Default::default()
-                        })
-                        .build()
-                        .finish(),
-                );
-                let column = if show_dock_icon_is_supported {
-                    column.with_child(show_dock_icon_toggle)
-                } else {
-                    column
-                };
-                return column.finish();
-            }
-        }
-
-        let column = Flex::column().with_child(dropdown);
+        let column = Flex::column();
         let column = if show_dock_icon_is_supported {
             column.with_child(show_dock_icon_toggle)
         } else {

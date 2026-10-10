@@ -1,6 +1,7 @@
 //! Native collaboration projection; explicit sample mode retains the accepted fixtures.
 use crate::appearance::Appearance;
 use crate::ui_components::blended_colors;
+use crate::view_components::dropdown::{Dropdown, DropdownItem};
 #[path = "panel_controls.rs"]
 mod controls;
 use serde::Deserialize;
@@ -20,7 +21,7 @@ use warpui::r#async::Timer;
 use warpui::{
     accessibility::{AccessibilityContent, ActionAccessibilityContent, WarpA11yRole},
     elements::{
-        ClippedScrollStateHandle, ClippedScrollable, Container, DispatchEventResult, Element,
+        Border, ClippedScrollStateHandle, ClippedScrollable, Container, DispatchEventResult, Element,
         EventHandler, Expanded, Fill, Flex, MouseStateHandle, Padding, ParentElement, ScrollbarWidth,
         Shrinkable, Wrap,
     },
@@ -31,6 +32,7 @@ use warpui::{
     },
     units::IntoPixels,
     AppContext, Entity, SingletonEntity, TypedActionView, View, ViewContext,
+    ViewHandle,
 };
 
 /// Shared panel spacing so every row, section and button run keeps one rhythm.
@@ -57,7 +59,18 @@ fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> 
 }
 
 fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
-    appearance
+    let text = text.into();
+    use crate::ui_components::icons::Icon;
+    let icon = match text.as_ref() {
+        "Agents" | "Coordinator" | "Agents Collaboration Mode" => Some(Icon::Users),
+        "Worktrees" | "Worktree collaboration" => Some(Icon::GitBranch),
+        "History" => Some(Icon::History),
+        "Message" | "Messages" | "Conversation" => Some(Icon::MessageText),
+        "Tasks" | "Assign" => Some(Icon::TaskListBlock),
+        "Project" | "SSH project" => Some(Icon::Folder),
+        _ => None,
+    };
+    let label = appearance
         .ui_builder()
         .span(text)
         .with_style(UiComponentStyles {
@@ -66,6 +79,18 @@ fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<d
         })
         .with_soft_wrap()
         .build()
+        .finish();
+    if let Some(icon) = icon {
+        Flex::row().with_spacing(GAP_ROW)
+            .with_child(icon.to_warpui_icon(appearance.theme().foreground()).finish())
+            .with_child(Shrinkable::new(1., label).finish()).finish()
+    } else { label }
+}
+
+fn section(appearance: &Appearance, content: Box<dyn Element>) -> Box<dyn Element> {
+    Container::new(content)
+        .with_padding(Padding::uniform(GAP_SECTION))
+        .with_border(Border::bottom(1.).with_border_fill(appearance.theme().outline()))
         .finish()
 }
 
@@ -286,6 +311,7 @@ impl Snapshot {
 pub(crate) struct CollaborationPanel {
     worktree_mode: bool,
     mode_buttons: [MouseStateHandle; 2],
+    coordinator_dropdown: ViewHandle<Dropdown<Action>>,
     expanded_worker: Option<String>,
     team_buttons: [MouseStateHandle; 2],
     checkout_buttons: HashMap<String, MouseStateHandle>,
@@ -330,6 +356,8 @@ pub(crate) struct CollaborationPanel {
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
     Mode(bool),
+    SelectFormField { request: String, index: usize, value: String },
+    ChooseCoordinator { project: String, agent: String, run: String },
     SelectParticipant(String),
     ExpandWorker(String),
     NextFixture,
@@ -378,6 +406,7 @@ impl CollaborationPanel {
         Self {
             worktree_mode: false,
             mode_buttons: Default::default(),
+            coordinator_dropdown: ctx.add_typed_action_view(Dropdown::new),
             expanded_worker: None,
             team_buttons: Default::default(),
             checkout_buttons: Default::default(),
@@ -699,6 +728,7 @@ impl CollaborationPanel {
                         "directory_mismatch" => "This pane changed checkout. Its shared native connection is unavailable in this directory; open a fresh pane for the reviewed workspace.",
                         _ => "Connected.",
                     }.into() };
+                    panel.sync_coordinator_dropdown(&snapshot, ctx);
                     panel.snapshot = Some(snapshot);
                 }
                 Err(error) => {
@@ -1096,6 +1126,10 @@ impl TypedActionView for CollaborationPanel {
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         if !self.preview {
             match action {
+                Action::SelectFormField { request, index, value } => {
+                    self.select_form_field(request, *index, value, ctx);
+                    return;
+                }
                 Action::Mode(worktree) => {
                     if self.form.is_some() { return; }
                     self.set_mode(*worktree, ctx);
@@ -1108,6 +1142,17 @@ impl TypedActionView for CollaborationPanel {
                         }
                     }
                     ctx.notify();
+                    return;
+                }
+                Action::ChooseCoordinator { project, agent, run } => {
+                    if self.form.is_some() || !self.worktree_mode || !self.connected
+                        || self.snapshot.as_ref().is_none_or(|snapshot| snapshot.project != *project
+                            || !snapshot.candidates.iter().any(|candidate| candidate.agent.id == *agent && candidate.run == *run)) {
+                        return;
+                    }
+                    self.open_control(controls::Kind::SelectCoordinator, ctx);
+                    if let Some(form) = &mut self.form { form.selected_candidate = Some(agent.clone()); }
+                    self.confirm_control(ctx);
                     return;
                 }
                 Action::ExpandWorker(root) => {
@@ -1490,7 +1535,7 @@ impl View for CollaborationPanel {
             .as_ref()
             .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
-        header.add_child(panel_title(appearance, "Collaboration"));
+        header.add_child(heading(appearance, "Agents Collaboration Mode"));
         if !self.preview {
             let mut modes = Flex::row().with_spacing(GAP_ROW);
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
@@ -1553,13 +1598,16 @@ impl View for CollaborationPanel {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, section.title.clone()));
             for row in &section.rows {
-                column.add_child(
-                    detail(appearance, row.clone()),
-                );
+                let record = detail(appearance, row.clone());
+                column.add_child(if section.title == "History" {
+                    self::section(appearance, record)
+                } else { record });
             }
-            column.finish()
+            self::section(appearance, column.finish())
         };
-        if self.worktree_mode && !self.preview && self.form.is_none() {
+        if self.worktree_mode && !self.preview
+            && self.form.as_ref().is_none_or(|form| form.kind == controls::Kind::SelectCoordinator)
+            && !self.query.history && !self.show_messages {
             body.add_child(self.render_worktree_team(app));
         }
         let leading_status = !self.worktree_mode && !self.preview && self.remote.is_some() && self.form.is_none();
@@ -1581,16 +1629,6 @@ impl View for CollaborationPanel {
                 let mut navigation = Wrap::row()
                     .with_spacing(GAP_SECTION)
                     .with_run_spacing(GAP_TIGHT);
-                if !hide_navigation {
-                    navigation.add_child(
-                        builder
-                            .button(ButtonVariant::Text, self.history_buttons[0].clone())
-                            .with_text_label("History".into())
-                            .build()
-                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History))
-                            .finish(),
-                    );
-                }
                 if self.query.selected_task.is_some()
                     || self.show_spaces
                     || self.show_messages
@@ -1703,6 +1741,9 @@ impl View for CollaborationPanel {
             }
         }
         for section in &fixture.sections {
+            if !self.preview && self.query.history && section.title != "History" {
+                continue;
+            }
             if self.worktree_mode && !self.preview && !self.query.history && !self.show_messages &&
                 (matches!(section.title.as_str(), "Worktree collaboration" | "Agents" | "No participating agents")
                     || section.title.starts_with("File reservations") || section.title.starts_with("Activity")) {
@@ -2042,6 +2083,7 @@ impl CollaborationPanel {
             }
             self.expanded_worker = Some(snapshot.worktrees[1].root.clone());
         } else { self.expanded_worker = None; }
+        self.sync_coordinator_dropdown(&snapshot, ctx);
         self.snapshot = Some(snapshot);
         if state == "selector" { self.open_control(controls::Kind::SelectCoordinator, ctx); }
         ctx.notify();
