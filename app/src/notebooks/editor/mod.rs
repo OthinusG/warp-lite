@@ -135,7 +135,7 @@ impl BlockType {
     }
 
     fn label(self) -> &'static str {
-        match self {
+        warpui::localization::text(match self {
             BlockType::Text => "Text",
             BlockType::Header(size) => size.label(),
             BlockType::RunnableCommand => "Command",
@@ -143,7 +143,7 @@ impl BlockType {
             BlockType::OrderedList => "Numbered list",
             BlockType::Code => "Code",
             BlockType::TaskList => "To-do list",
-        }
+        })
     }
 }
 

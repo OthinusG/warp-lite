@@ -164,13 +164,13 @@ impl ParticipantAvatarView {
             .into_item()];
 
         match self.role {
-            Some(Role::Reader) => items.extend([MenuItemFields::new("Make editor")
+            Some(Role::Reader) => items.extend([MenuItemFields::new(warpui::localization::text("Make editor"))
                 .with_on_select_action(ParticipantAvatarAction::UpdateRole {
                     participant_id,
                     role: Role::Executor,
                 })
                 .into_item()]),
-            Some(Role::Executor) => items.extend([MenuItemFields::new("Make viewer")
+            Some(Role::Executor) => items.extend([MenuItemFields::new(warpui::localization::text("Make viewer"))
                 .with_on_select_action(ParticipantAvatarAction::UpdateRole {
                     participant_id,
                     role: Role::Reader,

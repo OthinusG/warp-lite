@@ -2094,7 +2094,7 @@ impl CodeView {
         };
 
         let mut items = vec![
-            MenuItemFields::new_with_label("Close saved", &format!("{modifier_keys} U"))
+            MenuItemFields::new_with_label(warpui::localization::text("Close saved"), &format!("{modifier_keys} U"))
                 .with_on_select_action(CodeViewAction::CloseSaved)
                 .into_item(),
             MenuItemFields::toggle_pane_action(is_maximized)
@@ -2113,14 +2113,14 @@ impl CodeView {
             };
             items.extend([
                 MenuItem::Separator,
-                MenuItemFields::new("Copy file path")
+                MenuItemFields::new(warpui::localization::text("Copy file path"))
                     .with_on_select_action(CodeViewAction::CopyFilePath)
                     .into_item(),
             ]);
 
             if !warp_files::FileModel::as_ref(ctx).is_ssh_file(&path) {
                 items.push(
-                    MenuItemFields::new(reveal_label)
+                    MenuItemFields::new(warpui::localization::text(reveal_label))
                         .with_on_select_action(CodeViewAction::RevealInFinder)
                         .into_item(),
                 );
@@ -2128,7 +2128,7 @@ impl CodeView {
 
             if is_markdown_file(&path) {
                 items.push(
-                    MenuItemFields::new("View Markdown preview")
+                    MenuItemFields::new(warpui::localization::text("View Markdown preview"))
                         .with_on_select_action(CodeViewAction::RenderMarkdown)
                         .into_item(),
                 );

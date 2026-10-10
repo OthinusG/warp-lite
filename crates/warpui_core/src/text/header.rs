@@ -38,16 +38,16 @@ impl BlockHeaderSize {
         }
     }
 
-    /// A text label for this heading, in the format `Heading $N`.
+    /// An interface label for this heading.
     pub fn label(self) -> &'static str {
-        match self {
+        crate::localization::text(match self {
             BlockHeaderSize::Header1 => "Heading 1",
             BlockHeaderSize::Header2 => "Heading 2",
             BlockHeaderSize::Header3 => "Heading 3",
             BlockHeaderSize::Header4 => "Heading 4",
             BlockHeaderSize::Header5 => "Heading 5",
             BlockHeaderSize::Header6 => "Heading 6",
-        }
+        })
     }
 }
 

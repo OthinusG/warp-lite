@@ -549,7 +549,7 @@ impl AgentManagementView {
         }
 
         let mut items = vec![MenuItem::Item(
-            MenuItemFields::new("All").with_on_select_action(DropdownAction::SelectActionAndClose(
+            MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(DropdownAction::SelectActionAndClose(
                 AgentManagementViewAction::SetSourceFilter(SourceFilter::All),
             )),
         )];
@@ -585,22 +585,22 @@ impl AgentManagementView {
         Self::setup_filter_menu(&mut dropdown, "Created on", ctx);
 
         let items = vec![
-            MenuItem::Item(MenuItemFields::new("All").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(
                     AgentManagementViewAction::SetCreatedOnFilter(CreatedOnFilter::All),
                 ),
             )),
-            MenuItem::Item(MenuItemFields::new("Last 24 hours").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Last 24 hours")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(
                     AgentManagementViewAction::SetCreatedOnFilter(CreatedOnFilter::Last24Hours),
                 ),
             )),
-            MenuItem::Item(MenuItemFields::new("Past 3 days").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Past 3 days")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(
                     AgentManagementViewAction::SetCreatedOnFilter(CreatedOnFilter::Past3Days),
                 ),
             )),
-            MenuItem::Item(MenuItemFields::new("Last week").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Last week")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(
                     AgentManagementViewAction::SetCreatedOnFilter(CreatedOnFilter::LastWeek),
                 ),
@@ -619,27 +619,27 @@ impl AgentManagementView {
         Self::setup_filter_menu(&mut dropdown, "Has artifact", ctx);
 
         let items = vec![
-            MenuItem::Item(MenuItemFields::new("All").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(AgentManagementViewAction::SetArtifactFilter(
                     ArtifactFilter::All,
                 )),
             )),
-            MenuItem::Item(MenuItemFields::new("Pull Request").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Pull Request")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(AgentManagementViewAction::SetArtifactFilter(
                     ArtifactFilter::PullRequest,
                 )),
             )),
-            MenuItem::Item(MenuItemFields::new("Plan").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Plan")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(AgentManagementViewAction::SetArtifactFilter(
                     ArtifactFilter::Plan,
                 )),
             )),
-            MenuItem::Item(MenuItemFields::new("Screenshot").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("Screenshot")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(AgentManagementViewAction::SetArtifactFilter(
                     ArtifactFilter::Screenshot,
                 )),
             )),
-            MenuItem::Item(MenuItemFields::new("File").with_on_select_action(
+            MenuItem::Item(MenuItemFields::new(warpui::localization::text("File")).with_on_select_action(
                 DropdownAction::SelectActionAndClose(AgentManagementViewAction::SetArtifactFilter(
                     ArtifactFilter::File,
                 )),
@@ -659,7 +659,7 @@ impl AgentManagementView {
 
         // "All" has no leading icon, matching the Status dropdown's "All" row.
         let mut items = vec![MenuItem::Item(
-            MenuItemFields::new("All").with_on_select_action(DropdownAction::SelectActionAndClose(
+            MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(DropdownAction::SelectActionAndClose(
                 AgentManagementViewAction::SetHarnessFilter(HarnessFilter::All),
             )),
         )];
@@ -755,7 +755,7 @@ impl AgentManagementView {
 
         self.environment_dropdown.update(ctx, |dropdown, ctx| {
             let mut items = vec![MenuItem::Item(
-                MenuItemFields::new("All").with_on_select_action(
+                MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(
                     DropdownAction::SelectActionAndClose(
                         AgentManagementViewAction::SetEnvironmentFilter(EnvironmentFilter::All),
                     ),
@@ -763,7 +763,7 @@ impl AgentManagementView {
             )];
 
             items.push(MenuItem::Item(
-                MenuItemFields::new("None").with_on_select_action(
+                MenuItemFields::new(warpui::localization::text("None")).with_on_select_action(
                     DropdownAction::SelectActionAndClose(
                         AgentManagementViewAction::SetEnvironmentFilter(
                             EnvironmentFilter::NoEnvironment,
@@ -802,7 +802,7 @@ impl AgentManagementView {
         };
         self.creator_dropdown.update(ctx, |dropdown, ctx| {
             let mut items = vec![MenuItem::Item(
-                MenuItemFields::new("All").with_on_select_action(
+                MenuItemFields::new(warpui::localization::text("All")).with_on_select_action(
                     DropdownAction::SelectActionAndClose(
                         AgentManagementViewAction::SetCreatorFilter(CreatorFilter::All),
                     ),

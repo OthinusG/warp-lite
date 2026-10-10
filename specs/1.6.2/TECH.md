@@ -115,3 +115,8 @@ Update availability and toast/link labels are localized. Static update status is
 translated when rendered so the existing failure-prefix check that exposes the
 manual release link retains its behavior. Privacy page titles use the selected
 locale without changing SettingsSection identity.
+
+Literal MenuItemFields labels are localized at construction sites, and that
+constructor family is included in the strict display inventory. Platform reveal
+actions and notebook block/heading labels share translated display values; file
+paths, shell names, branch names and shortcut labels remain literal.

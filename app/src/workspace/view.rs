@@ -5947,7 +5947,7 @@ impl Workspace {
         if !FeatureFlag::ConfigurableToolbar.is_enabled() {
             return;
         }
-        let items = vec![MenuItemFields::new("Re-arrange toolbar items")
+        let items = vec![MenuItemFields::new(warpui::localization::text("Re-arrange toolbar items"))
             .with_on_select_action(WorkspaceAction::OpenHeaderToolbarEditor)
             .into_item()];
         self.header_toolbar_context_menu
@@ -6486,7 +6486,7 @@ impl Workspace {
 
         // 1. Agent (if AI enabled)
         if is_any_ai_enabled {
-            let mut agent_item = MenuItemFields::new("Agent")
+            let mut agent_item = MenuItemFields::new(warpui::localization::text("Agent"))
                 .with_on_select_action(WorkspaceAction::AddAgentTab)
                 .with_icon(icons::Icon::LayoutAlt01);
             if effective_default == DefaultSessionMode::Agent {
@@ -6502,7 +6502,7 @@ impl Workspace {
             #[cfg(target_os = "windows")]
             {
                 let is_terminal_default = effective_default == DefaultSessionMode::Terminal;
-                let mut terminal_item = MenuItemFields::new("Terminal")
+                let mut terminal_item = MenuItemFields::new(warpui::localization::text("Terminal"))
                     .with_on_select_action(WorkspaceAction::AddTerminalTab {
                         hide_homepage: false,
                     })
@@ -6539,7 +6539,7 @@ impl Workspace {
             // On other platforms, Terminal is a regular item.
             #[cfg(not(target_os = "windows"))]
             {
-                let mut terminal_item = MenuItemFields::new("Terminal")
+                let mut terminal_item = MenuItemFields::new(warpui::localization::text("Terminal"))
                     .with_on_select_action(WorkspaceAction::AddTerminalTab {
                         hide_homepage: false,
                     })
@@ -6556,7 +6556,7 @@ impl Workspace {
             && FeatureFlag::AgentView.is_enabled()
             && FeatureFlag::CloudMode.is_enabled()
         {
-            let mut cloud_item = MenuItemFields::new("Cloud Oz")
+            let mut cloud_item = MenuItemFields::new(warpui::localization::text("Cloud Oz"))
                 .with_on_select_action(WorkspaceAction::AddAmbientAgentTab)
                 .with_icon(icons::Icon::LayoutAlt01);
             if effective_default == DefaultSessionMode::CloudAgent {
@@ -6567,7 +6567,7 @@ impl Workspace {
 
         // 3b. Local Docker Sandbox
         if FeatureFlag::LocalDockerSandbox.is_enabled() {
-            let mut docker_item = MenuItemFields::new("Local Docker Sandbox")
+            let mut docker_item = MenuItemFields::new(warpui::localization::text("Local Docker Sandbox"))
                 .with_on_select_action(WorkspaceAction::AddDockerSandboxTab)
                 .with_icon(icons::Icon::Docker);
             if effective_default == DefaultSessionMode::DockerSandbox {
@@ -6627,14 +6627,14 @@ impl Workspace {
         if FeatureFlag::TabConfigs.is_enabled() {
             menu_items.push(MenuItem::Separator);
             menu_items.push(
-                MenuItemFields::new_submenu("New worktree config")
+                MenuItemFields::new_submenu(warpui::localization::text("New worktree config"))
                     .with_icon(icons::Icon::Dataflow02)
                     .into_item(),
             );
 
             // 6. New tab config — V0: opens the TOML template.
             menu_items.push(
-                MenuItemFields::new("New tab config")
+                MenuItemFields::new(warpui::localization::text("New tab config"))
                     .with_on_select_action(WorkspaceAction::SelectNewSessionMenuItem(
                         NewSessionMenuItem::CreateNewTabConfig,
                     ))
@@ -6645,7 +6645,7 @@ impl Workspace {
 
         menu_items.push(MenuItem::Separator);
         menu_items.push(
-            MenuItemFields::new("Reopen closed session")
+            MenuItemFields::new(warpui::localization::text("Reopen closed session"))
                 .with_on_select_action(WorkspaceAction::ReopenClosedSession)
                 .with_key_shortcut_label(reopen_closed_session_shortcut_label)
                 .with_disabled(UndoCloseStack::handle(ctx).as_ref(ctx).is_empty())
@@ -7717,7 +7717,7 @@ impl Workspace {
                             .into_item(),
                     ),
                     AutoupdateStage::UnableToUpdateToNewVersion { .. } => menu_items.push(
-                        MenuItemFields::new("Update Warpai manually")
+                        MenuItemFields::new(warpui::localization::text("Update Warpai manually"))
                             .with_on_select_action(WorkspaceAction::DownloadNewVersion)
                             .into_item(),
                     ),
@@ -9422,7 +9422,7 @@ impl Workspace {
                     ) =>
                 {
                     items.push(
-                        MenuItemFields::new("Update and relaunch Warpai")
+                        MenuItemFields::new(warpui::localization::text("Update and relaunch Warpai"))
                             .with_on_select_action(WorkspaceAction::ApplyUpdate)
                             .with_override_text_color(appearance.theme().ansi_fg_red())
                             .into_item(),
@@ -9445,7 +9445,7 @@ impl Workspace {
                     ) =>
                 {
                     items.push(
-                        MenuItemFields::new("Update Warpai manually")
+                        MenuItemFields::new(warpui::localization::text("Update Warpai manually"))
                             .with_on_select_action(WorkspaceAction::DownloadNewVersion)
                             .with_override_text_color(appearance.theme().ansi_fg_red())
                             .into_item(),
@@ -9456,33 +9456,33 @@ impl Workspace {
         }
 
         items.extend([
-            MenuItemFields::new("What's new")
+            MenuItemFields::new(warpui::localization::text("What's new"))
                 .with_on_select_action(WorkspaceAction::ViewLatestChangelog)
                 .into_item(),
-            MenuItemFields::new("Settings")
+            MenuItemFields::new(warpui::localization::text("Settings"))
                 .with_on_select_action(WorkspaceAction::ShowSettings)
                 .into_item(),
-            MenuItemFields::new("Keyboard shortcuts")
+            MenuItemFields::new(warpui::localization::text("Keyboard shortcuts"))
                 .with_on_select_action(WorkspaceAction::ToggleKeybindingsPage)
                 .into_item(),
             MenuItem::Separator,
-            MenuItemFields::new("Documentation")
+            MenuItemFields::new(warpui::localization::text("Documentation"))
                 .with_on_select_action(WorkspaceAction::ViewUserDocs)
                 .into_item(),
-            MenuItemFields::new("Feedback")
+            MenuItemFields::new(warpui::localization::text("Feedback"))
                 .with_on_select_action(WorkspaceAction::SendFeedback)
                 .into_item(),
         ]);
 
         #[cfg(not(target_family = "wasm"))]
         items.push(
-            MenuItemFields::new("View Warpai logs")
+            MenuItemFields::new(warpui::localization::text("View Warpai logs"))
                 .with_on_select_action(WorkspaceAction::ViewLogs)
                 .into_item(),
         );
 
         items.extend([
-            MenuItemFields::new("Slack")
+            MenuItemFields::new(warpui::localization::text("Slack"))
                 .with_on_select_action(WorkspaceAction::JoinSlack)
                 .into_item(),
             MenuItem::Separator,
@@ -9491,7 +9491,7 @@ impl Workspace {
         if !cfg!(feature = "skip_firebase_anonymous_user") {
             if self.auth_state.is_anonymous_or_logged_out() {
                 items.push(
-                    MenuItemFields::new("Sign up")
+                    MenuItemFields::new(warpui::localization::text("Sign up"))
                         .with_on_select_action(WorkspaceAction::SignupAnonymousUser)
                         .into_item(),
                 );
@@ -9505,7 +9505,7 @@ impl Workspace {
 
             if is_on_paid_plan {
                 items.push(
-                    MenuItemFields::new("Billing and usage")
+                    MenuItemFields::new(warpui::localization::text("Billing and usage"))
                         .with_on_select_action(WorkspaceAction::ShowSettingsPage(
                             SettingsSection::BillingAndUsage,
                         ))
@@ -9513,7 +9513,7 @@ impl Workspace {
                 );
             } else {
                 items.push(
-                    MenuItemFields::new("Upgrade")
+                    MenuItemFields::new(warpui::localization::text("Upgrade"))
                         .with_on_select_action(WorkspaceAction::ShowUpgrade)
                         .into_item(),
                 );
@@ -9521,14 +9521,14 @@ impl Workspace {
 
             #[cfg(feature = "warp_platform")]
             items.push(
-                MenuItemFields::new("Invite a friend")
+                MenuItemFields::new(warpui::localization::text("Invite a friend"))
                     .with_on_select_action(WorkspaceAction::ShowReferralSettingsPage)
                     .into_item(),
             );
 
             if !self.auth_state.is_anonymous_or_logged_out() {
                 items.push(
-                    MenuItemFields::new("Log out")
+                    MenuItemFields::new(warpui::localization::text("Log out"))
                         .with_on_select_action(WorkspaceAction::LogOut)
                         .into_item(),
                 );
@@ -9687,12 +9687,12 @@ impl Workspace {
         };
 
         let close_section = {
-            let mut items = vec![MenuItemFields::new("Close all tabs in group")
+            let mut items = vec![MenuItemFields::new(warpui::localization::text("Close all tabs in group"))
                 .with_on_select_action(WorkspaceAction::CloseTabGroup(group_id))
                 .into_item()];
             if has_tabs_outside {
                 items.push(
-                    MenuItemFields::new("Close other tabs")
+                    MenuItemFields::new(warpui::localization::text("Close other tabs"))
                         .with_on_select_action(WorkspaceAction::CloseTabsOutsideGroup(group_id))
                         .into_item(),
                 );
@@ -9755,15 +9755,15 @@ impl Workspace {
         for section_items in [
             pin_section,
             vec![
-                MenuItemFields::new("Ungroup tabs")
+                MenuItemFields::new(warpui::localization::text("Ungroup tabs"))
                     .with_on_select_action(WorkspaceAction::UngroupTabs(group_id))
                     .into_item(),
-                MenuItemFields::new("New tab in group")
+                MenuItemFields::new(warpui::localization::text("New tab in group"))
                     .with_on_select_action(WorkspaceAction::NewTabInGroup(group_id))
                     .into_item(),
             ],
             move_section,
-            vec![MenuItemFields::new("Rename")
+            vec![MenuItemFields::new(warpui::localization::text("Rename"))
                 .with_on_select_action(WorkspaceAction::RenameTabGroup(group_id))
                 .into_item()],
             close_section,

@@ -2718,7 +2718,7 @@ impl FileTreeView {
         if is_remote {
             if self.ssh_files.is_some() {
                 items.push(
-                    MenuItemFields::new("Refresh")
+                    MenuItemFields::new(warpui::localization::text("Refresh"))
                         .with_on_select_action(FileTreeAction::RefreshRemote)
                         .into_item(),
                 );
@@ -2754,12 +2754,12 @@ impl FileTreeView {
                 }
                 if id.index != 0 {
                     items.push(
-                        MenuItemFields::new("Rename")
+                        MenuItemFields::new(warpui::localization::text("Rename"))
                             .with_on_select_action(FileTreeAction::Rename { id: id.clone() })
                             .into_item(),
                     );
                     items.push(
-                        MenuItemFields::new("Delete")
+                        MenuItemFields::new(warpui::localization::text("Delete"))
                             .with_on_select_action(FileTreeAction::Delete { id: id.clone() })
                             .into_item(),
                     );
@@ -2771,12 +2771,12 @@ impl FileTreeView {
                     let path_local = item.path().to_local_path_lossy();
                     if !is_file_content_binary(&path_local) {
                         items.extend([
-                            MenuItemFields::new("Open in new pane")
+                            MenuItemFields::new(warpui::localization::text("Open in new pane"))
                                 .with_on_select_action(FileTreeAction::OpenInNewPane {
                                     id: id.clone(),
                                 })
                                 .into_item(),
-                            MenuItemFields::new("Open in new tab")
+                            MenuItemFields::new(warpui::localization::text("Open in new tab"))
                                 .with_on_select_action(FileTreeAction::OpenInNewTab {
                                     id: id.clone(),
                                 })
@@ -2784,7 +2784,7 @@ impl FileTreeView {
                         ]);
                     } else {
                         items.push(
-                            MenuItemFields::new("Open file")
+                            MenuItemFields::new(warpui::localization::text("Open file"))
                                 .with_on_select_action(FileTreeAction::ItemClicked {
                                     id: id.clone(),
                                 })
@@ -2794,7 +2794,7 @@ impl FileTreeView {
                 }
                 FileTreeItem::DirectoryHeader { .. } => {
                     items.push(
-                        MenuItemFields::new("New file")
+                        MenuItemFields::new(warpui::localization::text("New file"))
                             .with_on_select_action(FileTreeAction::NewFileBelowDirectory {
                                 id: id.clone(),
                             })
@@ -2803,7 +2803,7 @@ impl FileTreeView {
                     items.push(MenuItem::Separator);
                     if self.has_terminal_session {
                         items.push(
-                            MenuItemFields::new("cd to directory")
+                            MenuItemFields::new(warpui::localization::text("cd to directory"))
                                 .with_on_select_action(FileTreeAction::CDToDirectory {
                                     id: id.clone(),
                                 })
@@ -2811,7 +2811,7 @@ impl FileTreeView {
                         );
                     }
                     items.push(
-                        MenuItemFields::new("Open in new tab")
+                        MenuItemFields::new(warpui::localization::text("Open in new tab"))
                             .with_on_select_action(FileTreeAction::OpenInNewTab { id: id.clone() })
                             .into_item(),
                     );
@@ -2826,7 +2826,7 @@ impl FileTreeView {
                 "Reveal in file manager"
             };
             items.push(
-                MenuItemFields::new(open_text)
+                MenuItemFields::new(warpui::localization::text(open_text))
                     .with_on_select_action(FileTreeAction::OpenInFinder { id: id.clone() })
                     .into_item(),
             );
@@ -2836,12 +2836,12 @@ impl FileTreeView {
             let is_repo_root_dir = id.index == 0;
             if !is_repo_root_dir {
                 items.push(
-                    MenuItemFields::new("Rename")
+                    MenuItemFields::new(warpui::localization::text("Rename"))
                         .with_on_select_action(FileTreeAction::Rename { id: id.clone() })
                         .into_item(),
                 );
                 items.push(
-                    MenuItemFields::new("Delete")
+                    MenuItemFields::new(warpui::localization::text("Delete"))
                         .with_on_select_action(FileTreeAction::Delete { id: id.clone() })
                         .into_item(),
                 );
@@ -2853,7 +2853,7 @@ impl FileTreeView {
                 items.push(MenuItem::Separator);
             }
             items.push(
-                MenuItemFields::new("Attach as context")
+                MenuItemFields::new(warpui::localization::text("Attach as context"))
                     .with_on_select_action(FileTreeAction::AttachAsContext { id: id.clone() })
                     .into_item(),
             );
@@ -2863,10 +2863,10 @@ impl FileTreeView {
             items.push(MenuItem::Separator);
         }
         items.extend([
-            MenuItemFields::new("Copy path")
+            MenuItemFields::new(warpui::localization::text("Copy path"))
                 .with_on_select_action(FileTreeAction::CopyPath { id: id.clone() })
                 .into_item(),
-            MenuItemFields::new("Copy relative path")
+            MenuItemFields::new(warpui::localization::text("Copy relative path"))
                 .with_on_select_action(FileTreeAction::CopyRelativePath { id: id.clone() })
                 .into_item(),
         ]);
