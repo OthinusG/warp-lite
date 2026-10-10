@@ -570,10 +570,6 @@ impl TypedActionView for AppearanceSettingsPageView {
                 crate::settings::LanguageSettings::handle(ctx).update(ctx, |settings, ctx| {
                     report_if_error!(settings.language.set_value(*language, ctx));
                 });
-                self.language_dropdown.update(ctx, |dropdown, ctx| {
-                    dropdown.set_selected_by_name(language.display_name(), ctx);
-                });
-                ctx.notify();
             }
             SetFontFamily(name) => self.set_font_family(name, ctx),
             SetAIFontFamily(name) => {
@@ -854,6 +850,13 @@ impl AppearanceSettingsPageView {
         });
 
         ctx.subscribe_to_model(&Prompt::handle(ctx), Self::handle_prompt_update);
+        ctx.subscribe_to_model(&crate::settings::LanguageSettings::handle(ctx), |me, settings, _, ctx| {
+            let language = *settings.as_ref(ctx).language.value();
+            me.language_dropdown.update(ctx, |dropdown, ctx| {
+                dropdown.set_selected_by_name(language.display_name(), ctx);
+            });
+            ctx.notify();
+        });
 
         let ligature_settings_handle = LigatureSettings::handle(ctx);
         ctx.subscribe_to_model(&ligature_settings_handle, |_, _, _, ctx| ctx.notify());

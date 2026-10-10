@@ -3259,7 +3259,7 @@ impl TypedActionView for RichTextEditorView {
                 .style_toggle_a11y(BufferTextStyle::StrikeThrough),
             EditorViewAction::ExitCommandSelection => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new(
-                    "De-select command",
+                    warpui::localization::text("De-select command"),
                     "Switch from selecting commands to selecting text",
                     WarpA11yRole::UserAction,
                 ))

@@ -728,7 +728,7 @@ impl View for BlockFilterEditor {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            "Type searched phrase.",
+            warpui::localization::text("Type searched phrase."),
             "Press escape to quit",
             WarpA11yRole::TextareaRole,
         ))

@@ -252,7 +252,7 @@ impl TerminalView {
             }
             OpenInWarpBannerAction::LearnMore => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new(
-                    "Learn more",
+                    warpui::localization::text("Learn more"),
                     "Learn more about opening Markdown files in Warpai",
                     WarpA11yRole::UserAction,
                 ))

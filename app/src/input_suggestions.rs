@@ -1085,7 +1085,7 @@ impl View for InputSuggestions {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            "Command suggestions.",
+            warpui::localization::text("Command suggestions."),
             // TODO use bindings from user settings
             "Navigate with tab and shift-tab, and confirm with enter. Execute selected command \
                 with command + enter. Esc leaves the suggestions menu.",

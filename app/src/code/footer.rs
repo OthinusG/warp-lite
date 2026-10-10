@@ -1626,10 +1626,13 @@ impl CodeFooterView {
                 ),
                 LSPEnablementResultForFile::LSPNotEnabled { root_name } => match lsp_repo_status {
                     LspRepoStatus::CheckingForInstallation => (
-                        Some(format!(
-                            "Language support is not currently enabled for {}",
-                            root_name.unwrap_or("this codebase".to_string())
-                        )),
+                        Some({
+                            let __warpai_locale_argument_0 = &(root_name.unwrap_or("this codebase".to_string()));
+                            warpui::localization::format_text(
+                                "Language support is not currently enabled for {}",
+                                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                            )
+                        }),
                         false,
                     ),
                     LspRepoStatus::Ready | LspRepoStatus::Enabled => (
@@ -1638,10 +1641,13 @@ impl CodeFooterView {
                     ),
                     LspRepoStatus::DisabledAndNotInstalled { .. }
                     | LspRepoStatus::DisabledAndInstalled { .. } => (
-                        Some(format!(
-                            "Language support is not currently enabled for {}",
-                            root_name.unwrap_or("this codebase".to_string())
-                        )),
+                        Some({
+                            let __warpai_locale_argument_0 = &(root_name.unwrap_or("this codebase".to_string()));
+                            warpui::localization::format_text(
+                                "Language support is not currently enabled for {}",
+                                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                            )
+                        }),
                         true,
                     ),
                     LspRepoStatus::Installing { server_type } => (

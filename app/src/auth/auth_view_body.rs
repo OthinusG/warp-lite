@@ -972,7 +972,7 @@ impl View for AuthViewBody {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            "Welcome to Warpai!",
+            warpui::localization::text("Welcome to Warpai!"),
             "Press enter to open your browser to Sign Up or Sign In.",
             WarpA11yRole::HelpRole,
         ))

@@ -81,3 +81,9 @@ capture setup persists each locale before application initialization and asserts
 that both the typed setting and active catalog match. Dropdown labels used for
 selection share the same translation path. Internal collaboration section IDs
 remain English; translation is applied only to the rendered headings.
+
+Additional literal action descriptions are checked at BindingDescription and
+EditableBinding construction sites. The catalog includes terminal/editor actions
+and compiled debug labels without changing action IDs or key sequences. Language
+selector updates subscribe to the settings model so Reset and external preference
+reloads reflect the persisted language; restart still applies the interface locale.

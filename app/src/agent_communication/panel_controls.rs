@@ -975,10 +975,19 @@ impl CollaborationPanel {
             if let Some(task) = &form.task {
                 body.add_child(note(
                     appearance,
-                    format!(
-                        "Task {} · original revision {} · version {}",
-                        task.id, task.revision, task.version
-                    ),
+                    {
+                        let __warpai_locale_argument_0 = &(task.id);
+                        let __warpai_locale_argument_1 = &(task.revision);
+                        let __warpai_locale_argument_2 = &(task.version);
+                        warpui::localization::format_text(
+                            "Task {} · original revision {} · version {}",
+                            &[
+                                ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                            ],
+                        )
+                    },
                 ));
             }
             if form.kind.overrides() {
@@ -994,14 +1003,23 @@ impl CollaborationPanel {
                 {
                     body.add_child(note(
                         appearance,
-                        format!(
-                            "Original checkout {} · path {} · owner {} · expiry {} · attempt {}",
-                            reservation.workspace,
-                            reservation.path,
-                            reservation.owner,
-                            reservation.expires_at,
-                            reservation.attempt_id.as_deref().unwrap_or("unlinked")
-                        ),
+                        {
+                            let __warpai_locale_argument_0 = &(reservation.workspace);
+                            let __warpai_locale_argument_1 = &(reservation.path);
+                            let __warpai_locale_argument_2 = &(reservation.owner);
+                            let __warpai_locale_argument_3 = &(reservation.expires_at);
+                            let __warpai_locale_argument_4 = &(reservation.attempt_id.as_deref().unwrap_or("unlinked"));
+                            warpui::localization::format_text(
+                                "Original checkout {} · path {} · owner {} · expiry {} · attempt {}",
+                                &[
+                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                    ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                    ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                    ("3", format!("{__warpai_locale_argument_3}").as_str()),
+                                    ("4", format!("{__warpai_locale_argument_4}").as_str()),
+                                ],
+                            )
+                        },
                     ));
                 }
             }

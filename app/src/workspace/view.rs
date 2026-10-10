@@ -18010,7 +18010,7 @@ impl Workspace {
         let body = appearance
             .ui_builder()
             .wrappable_text(
-                "Ask Warpai AI to explain errors, suggest commands or write scripts.".to_owned(),
+                warpui::localization::text("Ask Warpai AI to explain errors, suggest commands or write scripts.").to_owned(),
                 true,
             )
             .with_style(UiComponentStyles {

@@ -265,7 +265,7 @@ impl TipsView {
                 .with_child(
                     Container::new(
                         ui_builder
-                            .wrappable_text("Shortcut".to_string(), false)
+                            .wrappable_text(warpui::localization::text("Shortcut").to_string(), false)
                             .with_style(UiComponentStyles {
                                 font_family_id: Some(appearance.ui_font_family()),
                                 font_size: Some(appearance.monospace_font_size() * 0.8),

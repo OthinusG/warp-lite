@@ -823,13 +823,23 @@ impl CollaborationPanel {
                     },
                     self.last_received
                         .map(|at| {
-                            format!(
-                                "Last received update {}s ago{}",
-                                at.elapsed().as_secs(),
-                                if self.connected { "" } else { " · stale" }
-                            )
+                            {
+                                let __warpai_locale_argument_0 = &(at.elapsed().as_secs());
+                                let __warpai_locale_argument_1 = &(if self.connected {
+                                    ""
+                                } else {
+                                    warpui::localization::text(" · stale")
+                                });
+                                warpui::localization::format_text(
+                                    "Last received update {}s ago{}",
+                                    &[
+                                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                    ],
+                                )
+                            }
                         })
-                        .unwrap_or_else(|| "No remote update received.".into()),
+                        .unwrap_or_else(|| warpui::localization::text("No remote update received.").into()),
                 ],
             });
         }
@@ -842,11 +852,11 @@ impl CollaborationPanel {
                 rows: vec![format!(
                     "{} · {}",
                     if self.remote.is_some() {
-                        "Remote project"
+                        warpui::localization::text("Remote project")
                     } else if cfg!(target_os = "windows") {
-                        "This Windows PC"
+                        warpui::localization::text("This Windows PC")
                     } else {
-                        "This Mac"
+                        warpui::localization::text("This Mac")
                     },
                     if snapshot.worktree_root.is_empty() { &snapshot.project } else { &snapshot.worktree_root }
                 )],
@@ -878,17 +888,17 @@ impl CollaborationPanel {
             .into();
             fixture.sections.push(Section {
                 title: if self.query.selected_thread.is_some() { "Conversation".into() } else { "Messages".into() },
-                rows: if snapshot.messages.is_empty() { vec!["No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.".into()] }
+                rows: if snapshot.messages.is_empty() { vec![warpui::localization::text("No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.").into()] }
                     else { snapshot.messages.iter().flat_map(|message| [
-                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or("Message"), if message.acknowledged { "read" } else { "unread" }),
+                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or("Message"), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
                         message.body.clone(),
                     ]).collect() },
             });
         } else if self.show_spaces {
             fixture.state = "space preview".into();
             fixture.sections.push(Section { title: "New shared sessions only".into(), rows: vec![
-                "Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.".into(),
-                "Saved layouts and restored sessions begin private until explicitly joined again. Leaving shared participation revokes coordination access; it does not stop a CLI or file writes.".into(),
+                warpui::localization::text("Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.").into(),
+                warpui::localization::text("Saved layouts and restored sessions begin private until explicitly joined again. Leaving shared participation revokes coordination access; it does not stop a CLI or file writes.").into(),
             ] });
             if let Some(workspace) = &self.workspace_preview {
                 fixture.sections.push(Section { title: "Reviewed workspace admission".into(), rows: vec![
@@ -907,11 +917,11 @@ impl CollaborationPanel {
                     },
                     {
                         let __warpai_locale_argument_0 =
-                            &(workspace.repository_id.as_deref().unwrap_or("not linked"));
+                            &(workspace.repository_id.as_deref().unwrap_or(warpui::localization::text("not linked")));
                         let __warpai_locale_argument_1 = &(workspace.model);
-                        let __warpai_locale_argument_2 = &(workspace.branch.as_deref().unwrap_or("unspecified"));
+                        let __warpai_locale_argument_2 = &(workspace.branch.as_deref().unwrap_or(warpui::localization::text("unspecified")));
                         let __warpai_locale_argument_3 =
-                            &(workspace.base_commit.as_deref().unwrap_or("unspecified"));
+                            &(workspace.base_commit.as_deref().unwrap_or(warpui::localization::text("unspecified")));
                         warpui::localization::format_text(
                             "Repository {} · model {} · branch {} · base {}",
                             &[
@@ -922,7 +932,7 @@ impl CollaborationPanel {
                             ],
                         )
                     },
-                    "Confirmation opens one new local tab in exactly this reviewed mapping. A changed mapping fails closed.".into(),
+                    warpui::localization::text("Confirmation opens one new local tab in exactly this reviewed mapping. A changed mapping fails closed.").into(),
                 ] });
             }
             for space in &snapshot.spaces {
@@ -933,25 +943,36 @@ impl CollaborationPanel {
                         space.id.as_deref().unwrap_or("private")
                     ),
                     rows: vec![if space.private {
-                        "Ordinary new panes remain isolated by canonical project root.".into()
+                        warpui::localization::text("Ordinary new panes remain isolated by canonical project root.").into()
                     } else {
-                        format!(
-                            "Participants: {}",
-                            if space.members.is_empty() {
-                                "none yet".into()
+                        {
+                            let __warpai_locale_argument_0 = &(if space.members.is_empty() {
+                                warpui::localization::text("none yet").into()
                             } else {
                                 space.members.join(", ")
-                            }
-                        )
+                            });
+                            warpui::localization::format_text(
+                                "Participants: {}",
+                                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                            )
+                        }
                     }]
                     .into_iter()
                     .chain(space.workspaces.iter().map(|workspace| {
-                        format!(
-                            "{} · repository {} · {}",
-                            workspace.root,
-                            workspace.repository_id.as_deref().unwrap_or("not linked"),
-                            workspace.model
-                        )
+                        {
+                            let __warpai_locale_argument_0 = &(workspace.root);
+                            let __warpai_locale_argument_1 =
+                                &(workspace.repository_id.as_deref().unwrap_or(warpui::localization::text("not linked")));
+                            let __warpai_locale_argument_2 = &(workspace.model);
+                            warpui::localization::format_text(
+                                "{} · repository {} · {}",
+                                &[
+                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                    ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                    ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                ],
+                            )
+                        }
                     }))
                     .collect(),
                 });
@@ -962,32 +983,54 @@ impl CollaborationPanel {
             fixture.state = "task detail".into();
             fixture.sections.extend([
                 Section {
-                    title: format!(
-                        "Task · {}",
-                        task.state
-                    ),
+                    title: {
+                        let __warpai_locale_argument_0 = &(task.state);
+                        warpui::localization::format_text(
+                            "Task · {}",
+                            &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                        )
+                    },
                     rows: {
                         let rows = vec![
-                        format!(
-                            "Issuer: {} · assignee: {} · reviewer: {}",
-                            snapshot.participant_label(&task.issuer), snapshot.participant_label(&task.assignee), snapshot.participant_label(&task.reviewer)
-                        ),
+                        {
+                            let __warpai_locale_argument_0 = &(snapshot.participant_label(&task.issuer));
+                            let __warpai_locale_argument_1 = &(snapshot.participant_label(&task.assignee));
+                            let __warpai_locale_argument_2 = &(snapshot.participant_label(&task.reviewer));
+                            warpui::localization::format_text(
+                                "Issuer: {} · assignee: {} · reviewer: {}",
+                                &[
+                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                    ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                    ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                ],
+                            )
+                        },
                         task.wait_reason.clone().unwrap_or_else(|| {
-                            "No recorded dependency or delivery blocker.".into()
+                            warpui::localization::text("No recorded dependency or delivery blocker.").into()
                         }),
                         snapshot
                             .task_runtime
                             .as_ref()
                             .map(|runtime| {
-                                format!(
-                                    "Receiver {} · execution {}",
-                                    if runtime.online { "online" } else { "offline" },
-                                    if runtime.interrupted {
-                                        "interrupted; outcome unknown"
+                                {
+                                    let __warpai_locale_argument_0 = &(if runtime.online {
+                                        warpui::localization::text("online")
                                     } else {
-                                        "see recorded attempts"
-                                    }
-                                )
+                                        warpui::localization::text("offline")
+                                    });
+                                    let __warpai_locale_argument_1 = &(if runtime.interrupted {
+                                        warpui::localization::text("interrupted; outcome unknown")
+                                    } else {
+                                        warpui::localization::text("see recorded attempts")
+                                    });
+                                    warpui::localization::format_text(
+                                        "Receiver {} · execution {}",
+                                        &[
+                                            ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                            ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                        ],
+                                    )
+                                }
                             })
                             .unwrap_or_default(),
                         ];
@@ -1029,7 +1072,7 @@ impl CollaborationPanel {
                         let deadline = |value: Option<u64>| value.and_then(|value| i64::try_from(value).ok())
                             .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
                             .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-                            .unwrap_or_else(|| "not set".into());
+                            .unwrap_or_else(|| warpui::localization::text("not set").into());
                         vec![
                             {
                                 let __warpai_locale_argument_0 = &(deadline(task.start_deadline));
@@ -1048,11 +1091,11 @@ impl CollaborationPanel {
                                 let __warpai_locale_argument_0 = &(task
                                     .execution_timeout_seconds
                                     .map(|seconds| format!("{seconds}s"))
-                                    .unwrap_or_else(|| "not set".into()));
+                                    .unwrap_or_else(|| warpui::localization::text("not set").into()));
                                 let __warpai_locale_argument_1 = &(task
                                     .review_timeout_seconds
                                     .map(|seconds| format!("{seconds}s"))
-                                    .unwrap_or_else(|| "not set".into()));
+                                    .unwrap_or_else(|| warpui::localization::text("not set").into()));
                                 let __warpai_locale_argument_2 = &(task.review_overdue);
                                 warpui::localization::format_text(
                                     "Execution timeout {} · review timeout {} · review overdue {}",
@@ -1065,7 +1108,7 @@ impl CollaborationPanel {
                             },
                             {
                                 let __warpai_locale_argument_0 = &(if task.eligible.is_empty() {
-                                    "assigned task".into()
+                                    warpui::localization::text("assigned task").into()
                                 } else {
                                     task.eligible.join(", ")
                                 });
@@ -1074,8 +1117,8 @@ impl CollaborationPanel {
                                     &[("0", format!("{__warpai_locale_argument_0}").as_str())],
                                 )
                             },
-                            "Expiry changes coordination state; it does not stop a process or assert that file writes ended.".into(),
-                            if task.history_truncated { "Earlier attempts or review feedback are outside this bounded detail. Use history retrieval for older records.".into() } else { "All retained attempt and feedback records fit this detail.".into() },
+                            warpui::localization::text("Expiry changes coordination state; it does not stop a process or assert that file writes ended.").into(),
+                            if task.history_truncated { warpui::localization::text("Earlier attempts or review feedback are outside this bounded detail. Use history retrieval for older records.").into() } else { warpui::localization::text("All retained attempt and feedback records fit this detail.").into() },
                         ]
                     },
                 },
@@ -1102,11 +1145,11 @@ impl CollaborationPanel {
                                     .path
                                     .as_deref()
                                     .or(evidence.summary.as_deref())
-                                    .unwrap_or("metadata reference"),
+                                    .unwrap_or(warpui::localization::text("metadata reference")),
                                 if evidence.verified {
-                                    "locally verified"
+                                    warpui::localization::text("locally verified")
                                 } else {
-                                    "agent-reported"
+                                    warpui::localization::text("agent-reported")
                                 },
                                 [
                                     evidence.commit.as_ref().map(|value| warpui::localization::format_text("commit {value}", &[("value", format!("{value}").as_str())])),
@@ -1157,16 +1200,16 @@ impl CollaborationPanel {
                     .collect(),
             });
             if snapshot.agents.is_empty() {
-                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec![if self.remote.is_some() { "Start an Agent in this remote project." } else { "Start an Agent in this project." }.into()] });
+                fixture.sections.push(Section { title: "No participating agents".into(), rows: vec![if self.remote.is_some() { warpui::localization::text("Start an Agent in this remote project.") } else { warpui::localization::text("Start an Agent in this project.") }.into()] });
             }
         }
         fixture.sections.push(Section {
             title: "File reservations · current checkout · up to 50 records".into(),
-            rows: std::iter::once("Reservations coordinate participants; they do not lock files or prove that writes stopped. Agent renewal requires its owning run. Human maintenance in Spaces and workspaces pins the original owner and expiry; explicit release never completes an attempt.".into())
+            rows: std::iter::once(warpui::localization::text("Reservations coordinate participants; they do not lock files or prove that writes stopped. Agent renewal requires its owning run. Human maintenance in Spaces and workspaces pins the original owner and expiry; explicit release never completes an attempt.").into())
                 .chain(snapshot.reservations.iter().map(|lease| {
                     let expiry = i64::try_from(lease.expires_at).ok()
                         .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
-                        .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string()).unwrap_or_else(|| "unavailable".into());
+                        .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string()).unwrap_or_else(|| warpui::localization::text("unavailable").into());
                     format!("{} · {} · {} · owner {} · expires {} · {}{} · task {} · attempt {}", lease.id, lease.path, lease.mode, lease.owner, expiry,
                         if lease.expired { "expired" } else { "active" }, if lease.abandoned { "; abandoned owner, execution effects unknown" } else { "" },
                         lease.task_id.as_deref().unwrap_or("unlinked"), lease.attempt_id.as_deref().unwrap_or("unlinked"))

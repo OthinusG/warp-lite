@@ -1210,7 +1210,7 @@ impl View for CategoriesView {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            "Workflows",
+            warpui::localization::text("Workflows"),
             "Search or use arrow up and arrow down keys to navigate and find a workflow. Use enter to confirm the workflow and esc to quit.",
             WarpA11yRole::MenuRole,
         ))

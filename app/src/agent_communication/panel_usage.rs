@@ -88,16 +88,28 @@ impl CollaborationPanel {
             let mut tooltip = format!("{} · {}\n{status}", account.provider.name(), account.label);
             if let Some(Ok(reading)) = reading {
                 for window in &reading.windows {
-                    tooltip.push_str(&format!(
-                        "\n{}: {:.1}% used{}",
-                        window.name,
-                        window.used,
-                        window
+                    tooltip.push_str(&{
+                        let __warpai_locale_argument_0 = &(window.name);
+                        let __warpai_locale_argument_1 = &(window.used);
+                        let __warpai_locale_argument_2 = &(window
                             .reset
                             .as_ref()
-                            .map(|time| warpui::localization::format_text(" · resets {time}", &[("time", format!("{time}").as_str())]))
-                            .unwrap_or_default()
-                    ));
+                            .map(|time| {
+                                warpui::localization::format_text(
+                                    " · resets {time}",
+                                    &[("time", format!("{time}").as_str())],
+                                )
+                            })
+                            .unwrap_or_default());
+                        warpui::localization::format_text(
+                            "\n{}: {:.1}% used{}",
+                            &[
+                                ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                ("1:.1", format!("{__warpai_locale_argument_1:.1}").as_str()),
+                                ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                            ],
+                        )
+                    });
                 }
             }
             if usage.checking && reading.is_some() {

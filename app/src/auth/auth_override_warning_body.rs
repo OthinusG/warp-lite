@@ -376,7 +376,7 @@ impl View for AuthOverrideWarningBody {
 
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
-            "New login detected",
+            warpui::localization::text("New login detected"),
             "Warpai has detected a new login from a web browser. Press escape to cancel and continue using Warpai without login.",
             WarpA11yRole::HelpRole,
         ))

@@ -43,6 +43,14 @@
     " · {time} 重置",
     " · {time} 重設"
   ],
+  " · stale": [
+    " · 已过期",
+    " · 已過期"
+  ],
+  "(Experimental) Toggle classic completions mode": [
+    "（实验性）切换经典补全模式",
+    "（實驗性）切換經典補全模式"
+  ],
   "*Secrets are not sent to Warpai's server.": [
     "*敏感信息不会发送至 Warpai 服务器。",
     "*敏感資訊不會傳送至 Warpai 伺服器。"
@@ -95,6 +103,22 @@
     "接受自动建议",
     "接受自動建議"
   ],
+  "Activate next pane": [
+    "激活下一个窗格",
+    "啟用下一個窗格"
+  ],
+  "Activate next tab": [
+    "激活下一个标签页",
+    "啟用下一個分頁"
+  ],
+  "Activate previous pane": [
+    "激活上一个窗格",
+    "啟用上一個窗格"
+  ],
+  "Activate previous tab": [
+    "激活上一个标签页",
+    "啟用上一個分頁"
+  ],
   "Activate previous/next tab": [
     "激活上一个/下一个标签页",
     "啟用上一個／下一個分頁"
@@ -119,6 +143,18 @@
     "添加到上下文",
     "新增至上下文"
   ],
+  "Add current folder as project": [
+    "将当前文件夹添加为项目",
+    "將目前資料夾新增為專案"
+  ],
+  "Add cursor above": [
+    "在上方添加光标",
+    "在上方新增游標"
+  ],
+  "Add cursor below": [
+    "在下方添加光标",
+    "在下方新增游標"
+  ],
   "Add environment variables": [
     "添加环境变量",
     "新增環境變數"
@@ -139,9 +175,17 @@
     "添加仓库",
     "新增儲存庫"
   ],
+  "Add repository": [
+    "添加仓库",
+    "新增儲存庫"
+  ],
   "Add rule": [
     "添加规则",
     "新增規則"
+  ],
+  "Add selection for next occurrence": [
+    "选择下一个匹配项",
+    "選取下一個符合項目"
   ],
   "Add-on credits": [
     "额外额度",
@@ -215,6 +259,10 @@
     "所有本地已索引的仓库均已选中。",
     "已選取所有本機已建立索引的儲存庫。"
   ],
+  "All retained attempt and feedback records fit this detail.": [
+    "此详情包含所有保留的尝试与反馈记录。",
+    "此詳細資料包含所有保留的嘗試與意見記錄。"
+  ],
   "Allow": [
     "允许",
     "允許"
@@ -226,6 +274,10 @@
   "Already have an account? ": [
     "已有账户？",
     "已有帳戶？"
+  ],
+  "Alternate terminal paste": [
+    "使用替代终端粘贴",
+    "使用替代終端機貼上"
   ],
   "Always": [
     "始终",
@@ -271,6 +323,22 @@
     "你或智能体做出修改后，可在此查看变更。",
     "你或智慧體進行修改後，可在此檢視變更。"
   ],
+  "Ask Warpai AI": [
+    "询问 Warpai AI",
+    "詢問 Warpai AI"
+  ],
+  "Ask Warpai AI about Selection": [
+    "向 Warpai AI 询问所选内容",
+    "向 Warpai AI 詢問所選內容"
+  ],
+  "Ask Warpai AI about last block": [
+    "向 Warpai AI 询问上一个命令块",
+    "向 Warpai AI 詢問上一個命令區塊"
+  ],
+  "Ask Warpai AI to explain errors, suggest commands or write scripts.": [
+    "请 Warpai AI 解释错误、推荐命令或编写脚本。",
+    "請 Warpai AI 解釋錯誤、建議命令或撰寫指令碼。"
+  ],
   "Ask on first write": [
     "首次写入时询问",
     "首次寫入時詢問"
@@ -290,6 +358,14 @@
   "Asynchronous find": [
     "异步查找",
     "非同步尋找"
+  ],
+  "Attach Selected Block as Agent Context": [
+    "将所选命令块附加为 Agent 上下文",
+    "將所選命令區塊附加為 Agent 上下文"
+  ],
+  "Attach Selected Text as Agent Context": [
+    "将所选文本附加为 Agent 上下文",
+    "將所選文字附加為 Agent 上下文"
   ],
   "Attach file": [
     "附加文件",
@@ -391,6 +467,10 @@
     "背景不透明度",
     "背景不透明度"
   ],
+  "Backward tabulation within an executing command": [
+    "在执行中的命令内反向制表",
+    "在執行中的命令內反向定位"
+  ],
   "Balance ${:.2}": [
     "余额 ${:.2}",
     "餘額 ${:.2}"
@@ -426,6 +506,10 @@
   "Blocks": [
     "命令块",
     "命令區塊"
+  ],
+  "Bookmark selected block": [
+    "为所选命令块添加书签",
+    "為所選命令區塊新增書籤"
   ],
   "Branch": [
     "分支",
@@ -491,6 +575,10 @@
     "视为单词一部分的字符",
     "視為單字一部分的字元"
   ],
+  "Check for updates": [
+    "检查更新",
+    "檢查更新"
+  ],
   "Check for updates on startup": [
     "启动时检查更新",
     "啟動時檢查更新"
@@ -543,13 +631,33 @@
     "选择智能体",
     "選擇智慧體"
   ],
+  "Clear Blocks": [
+    "清除命令块",
+    "清除命令區塊"
+  ],
   "Clear all": [
     "全部清除",
     "全部清除"
   ],
+  "Clear and reset AI context menu query": [
+    "清除并重置 AI 上下文菜单查询",
+    "清除並重設 AI 上下文選單查詢"
+  ],
+  "Clear command editor": [
+    "清空命令编辑器",
+    "清空命令編輯器"
+  ],
   "Clear filters": [
     "清除筛选条件",
     "清除篩選條件"
+  ],
+  "Clear screen": [
+    "清屏",
+    "清除螢幕"
+  ],
+  "Clear selected lines": [
+    "清除所选行",
+    "清除所選行"
   ],
   "Click here to paste your token from the browser": [
     "点击此处粘贴浏览器中的令牌",
@@ -571,13 +679,45 @@
     "关闭",
     "關閉"
   ],
+  "Close Current Session": [
+    "关闭当前会话",
+    "關閉目前工作階段"
+  ],
   "Close Welcome Tips": [
     "关闭欢迎提示",
     "關閉歡迎提示"
   ],
+  "Close Window": [
+    "关闭窗口",
+    "關閉視窗"
+  ],
+  "Close all tabs": [
+    "关闭所有标签页",
+    "關閉所有分頁"
+  ],
+  "Close focused panel": [
+    "关闭当前焦点面板",
+    "關閉目前焦點面板"
+  ],
+  "Close other tabs": [
+    "关闭其他标签页",
+    "關閉其他分頁"
+  ],
+  "Close saved tabs": [
+    "关闭已保存的标签页",
+    "關閉已儲存的分頁"
+  ],
   "Close session": [
     "关闭会话",
     "關閉工作階段"
+  ],
+  "Close tabs to the right": [
+    "关闭右侧标签页",
+    "關閉右側分頁"
+  ],
+  "Close the current tab": [
+    "关闭当前标签页",
+    "關閉目前分頁"
   ],
   "Cloud Agent Run Cancelled": [
     "云端智能体运行已取消",
@@ -626,6 +766,10 @@
   "Command edited.": [
     "命令已编辑。",
     "指令已編輯。"
+  ],
+  "Command suggestions.": [
+    "命令建议。",
+    "命令建議。"
   ],
   "Commands that enable the toolbar": [
     "启用工具栏的命令",
@@ -703,6 +847,10 @@
     "关闭共享会话前确认",
     "關閉共用工作階段前確認"
   ],
+  "Confirmation opens one new local tab in exactly this reviewed mapping. A changed mapping fails closed.": [
+    "确认后将在已审查的映射中打开一个新的本地标签页。映射发生变化时将拒绝操作。",
+    "確認後將在已審查的對應中開啟一個新的本機分頁。對應發生變更時將拒絕操作。"
+  ],
   "Connect accounts in Settings": [
     "在设置中连接账号",
     "在設定中連結帳號"
@@ -739,9 +887,33 @@
     "协调者",
     "協調者"
   ],
+  "Copy": [
+    "复制",
+    "複製"
+  ],
   "Copy All": [
     "全部复制",
     "全部複製"
+  ],
+  "Copy access token to clipboard": [
+    "复制访问令牌到剪贴板",
+    "複製存取權杖到剪貼簿"
+  ],
+  "Copy and clear selected lines": [
+    "复制并清除所选行",
+    "複製並清除所選行"
+  ],
+  "Copy command": [
+    "复制命令",
+    "複製命令"
+  ],
+  "Copy command and output": [
+    "复制命令和输出",
+    "複製命令與輸出"
+  ],
+  "Copy command output": [
+    "复制命令输出",
+    "複製命令輸出"
   ],
   "Copy error": [
     "复制错误",
@@ -750,6 +922,10 @@
   "Copy file path": [
     "复制文件路径",
     "複製檔案路徑"
+  ],
+  "Copy git branch": [
+    "复制 Git 分支",
+    "複製 Git 分支"
   ],
   "Copy link": [
     "复制链接",
@@ -762,6 +938,14 @@
   "Copy on select": [
     "选中时复制",
     "選取時複製"
+  ],
+  "Copy rich-text buffer": [
+    "复制富文本缓冲区",
+    "複製富文字緩衝區"
+  ],
+  "Copy rich-text selection": [
+    "复制所选富文本",
+    "複製所選富文字"
   ],
   "Copy to Personal": [
     "复制到个人空间",
@@ -791,6 +975,38 @@
     "创建密钥以管理对 Warpai 的外部访问",
     "建立金鑰以管理對 Warpai 的外部存取"
   ],
+  "Create a new personal folder": [
+    "新建个人文件夹",
+    "新增個人資料夾"
+  ],
+  "Create a new personal notebook": [
+    "新建个人笔记本",
+    "新增個人筆記本"
+  ],
+  "Create a new personal prompt": [
+    "新建个人提示",
+    "新增個人提示"
+  ],
+  "Create a new personal workflow": [
+    "新建个人工作流",
+    "新增個人工作流程"
+  ],
+  "Create a new team folder": [
+    "新建团队文件夹",
+    "新增團隊資料夾"
+  ],
+  "Create a new team notebook": [
+    "新建团队笔记本",
+    "新增團隊筆記本"
+  ],
+  "Create a new team prompt": [
+    "新建团队提示",
+    "新增團隊提示"
+  ],
+  "Create a new team workflow": [
+    "新建团队工作流",
+    "新增團隊工作流程"
+  ],
   "Create an environment": [
     "创建环境",
     "建立環境"
@@ -806,6 +1022,34 @@
   "Create environment": [
     "创建环境",
     "建立環境"
+  ],
+  "Create new personal environment variables": [
+    "新建个人环境变量",
+    "新增個人環境變數"
+  ],
+  "Create new project": [
+    "新建项目",
+    "新增專案"
+  ],
+  "Create new tab": [
+    "新建标签页",
+    "新增分頁"
+  ],
+  "Create new tab group": [
+    "新建标签页组",
+    "新增分頁群組"
+  ],
+  "Create new team environment variables": [
+    "新建团队环境变量",
+    "新增團隊環境變數"
+  ],
+  "Create or edit link": [
+    "创建或编辑链接",
+    "建立或編輯連結"
+  ],
+  "Create tab group from active or selected tab(s)": [
+    "从当前或所选标签页创建标签页组",
+    "從目前或所選分頁建立分頁群組"
   ],
   "Create team": [
     "创建团队",
@@ -843,6 +1087,14 @@
     "光标",
     "游標"
   ],
+  "Cursor at buffer end": [
+    "光标位于缓冲区末尾",
+    "游標位於緩衝區結尾"
+  ],
+  "Cursor at buffer start": [
+    "光标位于缓冲区开头",
+    "游標位於緩衝區開頭"
+  ],
   "Cursor type": [
     "光标类型",
     "游標類型"
@@ -863,6 +1115,26 @@
     "可在外观设置中自定义。",
     "可在外觀設定中自訂。"
   ],
+  "Cut all left": [
+    "剪切左侧全部内容",
+    "剪下左側全部內容"
+  ],
+  "Cut all right": [
+    "剪切右侧全部内容",
+    "剪下右側全部內容"
+  ],
+  "Cut word left": [
+    "剪切左侧单词",
+    "剪下左側單字"
+  ],
+  "Cut word right": [
+    "剪切右侧单词",
+    "剪下右側單字"
+  ],
+  "Cycle current tab color": [
+    "循环切换当前标签页颜色",
+    "循環切換目前分頁顏色"
+  ],
   "Cycle most recent session": [
     "切换最近使用的会话",
     "切換最近使用的工作階段"
@@ -879,6 +1151,14 @@
     "用量",
     "用量"
   ],
+  "De-select command": [
+    "取消选择命令",
+    "取消選取命令"
+  ],
+  "De-select shell commands": [
+    "取消选择 Shell 命令",
+    "取消選取 Shell 命令"
+  ],
   "Debug": [
     "调试",
     "偵錯"
@@ -886,6 +1166,18 @@
   "Debug output": [
     "调试输出",
     "偵錯輸出"
+  ],
+  "Decrease font size": [
+    "减小字号",
+    "縮小字型大小"
+  ],
+  "Decrease notebook font size": [
+    "减小笔记本字号",
+    "縮小筆記本字型大小"
+  ],
+  "Decrease zoom level": [
+    "缩小界面",
+    "縮小介面"
   ],
   "Dedicated hotkey window": [
     "专用快捷键窗口",
@@ -911,6 +1203,14 @@
     "删除 MCP",
     "刪除 MCP"
   ],
+  "Delete all left": [
+    "删除左侧全部内容",
+    "刪除左側全部內容"
+  ],
+  "Delete all right": [
+    "删除右侧全部内容",
+    "刪除右側全部內容"
+  ],
   "Delete environment": [
     "删除环境",
     "刪除環境"
@@ -923,9 +1223,29 @@
     "删除规则",
     "刪除規則"
   ],
+  "Delete to line end within an executing command": [
+    "在执行中的命令内删除至行尾",
+    "在執行中的命令內刪除至行尾"
+  ],
+  "Delete to line start within an executing command": [
+    "在执行中的命令内删除至行首",
+    "在執行中的命令內刪除至行首"
+  ],
   "Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.": [
     "从原始预览序列 {2} 中最多删除 {0} 个已归档任务和 {1} 条已确认消息。此操作不可撤销。历史发生变化时需要重新预览并确认操作意图。",
     "從原始預覽序列 {2} 中最多刪除 {0} 個已封存任務與 {1} 則已確認訊息。此操作無法復原。歷史發生變化時需要重新預覽並確認操作意圖。"
+  ],
+  "Delete word left": [
+    "删除左侧单词",
+    "刪除左側單字"
+  ],
+  "Delete word left within an executing command": [
+    "在执行中的命令内删除左侧单词",
+    "在執行中的命令內刪除左側單字"
+  ],
+  "Delete word right": [
+    "删除右侧单词",
+    "刪除右側單字"
   ],
   "Deleting...": [
     "正在删除…",
@@ -1487,6 +1807,14 @@
     "云盘",
     "雲端硬碟"
   ],
+  "Dump heap profile (can only be done once)": [
+    "导出堆分析数据（仅限一次）",
+    "匯出堆積分析資料（僅限一次）"
+  ],
+  "Earlier attempts or review feedback are outside this bounded detail. Use history retrieval for older records.": [
+    "较早的尝试或审查反馈未包含在此有限详情中。请通过历史记录查询获取更早记录。",
+    "較早的嘗試或審查意見未包含在此有限詳細資料中。請透過歷史記錄查詢取得更早記錄。"
+  ],
   "Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.": [
     "先前的执行可能仍在写入。此操作会更改协调归属，不会停止进程或文件写入。",
     "先前的執行可能仍在寫入。此操作會變更協調歸屬，不會停止程序或檔案寫入。"
@@ -1502,6 +1830,10 @@
   "Edit Profile": [
     "编辑配置方案",
     "編輯設定檔"
+  ],
+  "Edit Prompt": [
+    "编辑提示",
+    "編輯提示"
   ],
   "Edit Variables": [
     "编辑变量",
@@ -2035,6 +2367,10 @@
     "启用代码库索引和 WARP.md",
     "啟用程式碼庫索引與 WARP.md"
   ],
+  "End": [
+    "末尾",
+    "結尾"
+  ],
   "Enter custom Docker image name:": [
     "输入自定义 Docker 镜像名称：",
     "輸入自訂 Docker 映像名稱："
@@ -2059,6 +2395,10 @@
     "错误",
     "錯誤"
   ],
+  "Error finding results": [
+    "查找结果出错",
+    "尋找結果時發生錯誤"
+  ],
   "Error loading diffs": [
     "加载差异时出错",
     "載入差異時發生錯誤"
@@ -2075,6 +2415,14 @@
     "执行超时 {} · 审查超时 {} · 审查逾期 {}",
     "執行逾時 {} · 審查逾時 {} · 審查逾期 {}"
   ],
+  "Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.": [
+    "现有私有任务和窗格保持原范围。请检查参与者与映射的检出目录，再明确打开新的共享窗格，并在其中启动已配置的原生 Agent 以参与协作。",
+    "現有私人任務和窗格保持原範圍。請檢查參與者與對應的簽出目錄，再明確開啟新的共用窗格，並在其中啟動已設定的原生 Agent 以參與協作。"
+  ],
+  "Exit Vim insert mode": [
+    "退出 Vim 插入模式",
+    "退出 Vim 插入模式"
+  ],
   "Expand": [
     "展开",
     "展開"
@@ -2083,9 +2431,25 @@
     "输入时展开别名",
     "輸入時展開別名"
   ],
+  "Expand selected blocks above": [
+    "向上扩展所选命令块",
+    "向上擴展所選命令區塊"
+  ],
+  "Expand selected blocks below": [
+    "向下扩展所选命令块",
+    "向下擴展所選命令區塊"
+  ],
   "Expiration": [
     "到期时间",
     "到期時間"
+  ],
+  "Expiry changes coordination state; it does not stop a process or assert that file writes ended.": [
+    "到期只会改变协作状态，不会停止进程，也不表示文件写入已结束。",
+    "到期只會改變協作狀態，不會停止程序，也不表示檔案寫入已結束。"
+  ],
+  "Export all Warpai Drive objects": [
+    "导出所有 Warpai Drive 对象",
+    "匯出所有 Warpai Drive 物件"
   ],
   "Failed": [
     "失败",
@@ -2123,6 +2487,30 @@
     "搜索栏找到 {} 个匹配项，当前选中第 {} 项，共 {} 项。",
     "搜尋列找到 {} 個符合項目，目前選取第 {} 項，共 {} 項。"
   ],
+  "Find in Notebook": [
+    "在笔记本中查找",
+    "在筆記本中尋找"
+  ],
+  "Find in Terminal": [
+    "在终端中查找",
+    "在終端機中尋找"
+  ],
+  "Find in code editor": [
+    "在代码编辑器中查找",
+    "在程式碼編輯器中尋找"
+  ],
+  "Find the next occurrence of your search query": [
+    "查找下一个搜索匹配项",
+    "尋找下一個搜尋符合項目"
+  ],
+  "Find the previous occurrence of your search query": [
+    "查找上一个搜索匹配项",
+    "尋找上一個搜尋符合項目"
+  ],
+  "Find within selected block": [
+    "在所选命令块内查找",
+    "在所選命令區塊內尋找"
+  ],
   "Finish": [
     "完成",
     "完成"
@@ -2131,9 +2519,41 @@
     "请先设置环境，再创建集成。",
     "請先設定環境，再建立整合。"
   ],
+  "Focus Terminal Input From Warpai AI": [
+    "从 Warpai AI 聚焦终端输入",
+    "從 Warpai AI 聚焦終端機輸入"
+  ],
+  "Focus Terminal Input from File": [
+    "从文件聚焦终端输入",
+    "從檔案聚焦終端機輸入"
+  ],
+  "Focus Terminal Input from Notebook": [
+    "从笔记本聚焦终端输入",
+    "從筆記本聚焦終端機輸入"
+  ],
   "Focus follows mouse": [
     "焦点跟随鼠标",
     "焦點跟隨滑鼠"
+  ],
+  "Focus next match": [
+    "聚焦下一个匹配项",
+    "聚焦下一個符合項目"
+  ],
+  "Focus previous match": [
+    "聚焦上一个匹配项",
+    "聚焦上一個符合項目"
+  ],
+  "Focus terminal input": [
+    "聚焦终端输入",
+    "聚焦終端機輸入"
+  ],
+  "Fold": [
+    "折叠",
+    "摺疊"
+  ],
+  "Fold selected ranges": [
+    "折叠所选范围",
+    "摺疊所選範圍"
   ],
   "Font size (px)": [
     "字号（px）",
@@ -2239,6 +2659,14 @@
     "历史记录",
     "歷史記錄"
   ],
+  "History Search": [
+    "历史搜索",
+    "歷史搜尋"
+  ],
+  "Home": [
+    "开头",
+    "開頭"
+  ],
   "Home directory": [
     "主目录",
     "家目錄"
@@ -2275,6 +2703,18 @@
     "导入",
     "匯入"
   ],
+  "Import External Settings": [
+    "导入外部设置",
+    "匯入外部設定"
+  ],
+  "Import To Personal Drive": [
+    "导入个人 Drive",
+    "匯入個人 Drive"
+  ],
+  "Import To Team Drive": [
+    "导入团队 Drive",
+    "匯入團隊 Drive"
+  ],
   "Include unstaged": [
     "包含未暂存的变更",
     "包含尚未暫存的變更"
@@ -2282,6 +2722,18 @@
   "Included commits": [
     "包含的提交",
     "包含的提交"
+  ],
+  "Increase font size": [
+    "增大字号",
+    "放大字型大小"
+  ],
+  "Increase notebook font size": [
+    "增大笔记本字号",
+    "放大筆記本字型大小"
+  ],
+  "Increase zoom level": [
+    "放大界面",
+    "放大介面"
   ],
   "Index new folder": [
     "索引新文件夹",
@@ -2307,6 +2759,10 @@
     "已初始化／建立索引的文件夹",
     "已初始化／建立索引的資料夾"
   ],
+  "Initiate project for warp": [
+    "初始化 Warpai 项目",
+    "初始化 Warpai 專案"
+  ],
   "Input": [
     "输入",
     "輸入"
@@ -2315,9 +2771,33 @@
     "输入类型",
     "輸入類型"
   ],
+  "Insert Command Correction": [
+    "插入命令修正",
+    "插入命令修正"
+  ],
+  "Insert last word of previous command": [
+    "插入上一条命令的最后一个单词",
+    "插入上一條命令的最後一個單字"
+  ],
+  "Insert newline": [
+    "插入换行",
+    "插入換行"
+  ],
+  "Insert non-expanding space": [
+    "插入不触发展开的空格",
+    "插入不觸發展開的空格"
+  ],
+  "Inspect Command": [
+    "检查命令",
+    "檢查命令"
+  ],
   "Install": [
     "安装",
     "安裝"
+  ],
+  "Install Oz CLI command": [
+    "安装 Oz CLI 命令",
+    "安裝 Oz CLI 命令"
   ],
   "Install WSL Companion": [
     "安装 WSL Companion",
@@ -2334,6 +2814,10 @@
   "Install the Warpai plugin to enable rich agent notifications within Warpai": [
     "安装 Warpai 插件以启用应用内丰富智能体通知",
     "安裝 Warpai 外掛程式以啟用應用程式內的豐富智慧體通知"
+  ],
+  "Install update and relaunch": [
+    "安装更新并重新启动",
+    "安裝更新並重新啟動"
   ],
   "Install {}": [
     "安装 {}",
@@ -2371,9 +2855,25 @@
     "邀请",
     "邀請"
   ],
+  "Invite People...": [
+    "邀请成员…",
+    "邀請成員…"
+  ],
   "Issuer: {} · assignee: {} · reviewer: {}": [
     "发起者：{} · 执行者：{} · 审查者：{}",
     "發起者：{} · 執行者：{} · 審查者：{}"
+  ],
+  "Items in the trash will be deleted forever after 30 days.": [
+    "回收站中的项目将在 30 天后永久删除。",
+    "垃圾桶中的項目將在 30 天後永久刪除。"
+  ],
+  "Join our Slack community (opens external link)": [
+    "加入 Slack 社区（打开外部链接）",
+    "加入 Slack 社群（開啟外部連結）"
+  ],
+  "Jump to latest agent task": [
+    "跳到最新 Agent 任务",
+    "跳到最新 Agent 任務"
   ],
   "Keybinding": [
     "快捷键",
@@ -2411,9 +2911,17 @@
     "最近 30 天",
     "最近 30 天"
   ],
+  "Last received update {}s ago{}": [
+    "上次收到更新：{} 秒前{}",
+    "上次收到更新：{} 秒前{}"
+  ],
   "Launch Configurations": [
     "启动配置",
     "啟動設定"
+  ],
+  "Launch configuration palette": [
+    "打开启动配置面板",
+    "開啟啟動設定面板"
   ],
   "Learn about file support and formatting": [
     "了解支持的文件与格式",
@@ -2434,6 +2942,22 @@
   "Left Option key is Meta": [
     "左 Option 键作为 Meta",
     "左 Option 鍵作為 Meta"
+  ],
+  "Left Panel: Agent conversations": [
+    "左侧面板：Agent 对话",
+    "左側面板：Agent 對話"
+  ],
+  "Left Panel: Global search": [
+    "左侧面板：全局搜索",
+    "左側面板：全域搜尋"
+  ],
+  "Left Panel: Project explorer": [
+    "左侧面板：项目资源管理器",
+    "左側面板：專案總管"
+  ],
+  "Left Panel: Warpai Drive": [
+    "左侧面板：Warpai Drive",
+    "左側面板：Warpai Drive"
   ],
   "Left and Right or Enter change preview state. Page Up and Page Down scroll. Escape returns to terminal.": [
     "按左右方向键或 Enter 切换预览状态，Page Up 和 Page Down 滚动，Escape 返回终端。",
@@ -2459,6 +2983,10 @@
     "文档链接",
     "文件連結"
   ],
+  "Load agent mode conversation (from debug link in clipboard)": [
+    "加载 Agent 模式对话（来自剪贴板中的调试链接）",
+    "載入 Agent 模式對話（來自剪貼簿中的偵錯連結）"
+  ],
   "Load more": [
     "加载更多",
     "載入更多"
@@ -2482,6 +3010,10 @@
   "Loading…": [
     "正在加载…",
     "正在載入…"
+  ],
+  "Log editor state": [
+    "记录编辑器状态",
+    "記錄編輯器狀態"
   ],
   "Log out": [
     "注销",
@@ -2599,6 +3131,114 @@
     "每月支出上限",
     "每月支出上限"
   ],
+  "Move Backward One Subword": [
+    "向后移动一个子词",
+    "向後移動一個子詞"
+  ],
+  "Move Backward One Word": [
+    "向后移动一个单词",
+    "向後移動一個單字"
+  ],
+  "Move Forward One Subword": [
+    "向前移动一个子词",
+    "向前移動一個子詞"
+  ],
+  "Move Forward One Word": [
+    "向前移动一个单词",
+    "向前移動一個單字"
+  ],
+  "Move backward one word": [
+    "向后移动一个单词",
+    "向後移動一個單字"
+  ],
+  "Move cursor down": [
+    "向下移动光标",
+    "向下移動游標"
+  ],
+  "Move cursor end within an executing command": [
+    "在执行中的命令内将光标移至末尾",
+    "在執行中的命令內將游標移至結尾"
+  ],
+  "Move cursor home within an executing command": [
+    "在执行中的命令内将光标移至开头",
+    "在執行中的命令內將游標移至開頭"
+  ],
+  "Move cursor left": [
+    "向左移动光标",
+    "向左移動游標"
+  ],
+  "Move cursor one word to the left within an executing command": [
+    "在执行中的命令内将光标左移一个单词",
+    "在執行中的命令內將游標左移一個單字"
+  ],
+  "Move cursor one word to the right within an executing command": [
+    "在执行中的命令内将光标右移一个单词",
+    "在執行中的命令內將游標右移一個單字"
+  ],
+  "Move cursor right": [
+    "向右移动光标",
+    "向右移動游標"
+  ],
+  "Move cursor to the bottom": [
+    "将光标移至底部",
+    "將游標移至底部"
+  ],
+  "Move cursor to the top": [
+    "将光标移至顶部",
+    "將游標移至頂部"
+  ],
+  "Move cursor up": [
+    "向上移动光标",
+    "向上移動游標"
+  ],
+  "Move forward one word": [
+    "向前移动一个单词",
+    "向前移動一個單字"
+  ],
+  "Move tab left": [
+    "向左移动标签页",
+    "向左移動分頁"
+  ],
+  "Move tab right": [
+    "向右移动标签页",
+    "向右移動分頁"
+  ],
+  "Move to end of line": [
+    "移至行尾",
+    "移至行尾"
+  ],
+  "Move to end of paragraph": [
+    "移至段落末尾",
+    "移至段落結尾"
+  ],
+  "Move to line end": [
+    "移至行尾",
+    "移至行尾"
+  ],
+  "Move to line start": [
+    "移至行首",
+    "移至行首"
+  ],
+  "Move to start of line": [
+    "移至行首",
+    "移至行首"
+  ],
+  "Move to the end of the buffer": [
+    "移至缓冲区末尾",
+    "移至緩衝區結尾"
+  ],
+  "Move to the end of the paragraph": [
+    "移至段落末尾",
+    "移至段落結尾"
+  ],
+  "Move to the start of the buffer": [
+    "移至缓冲区开头",
+    "移至緩衝區開頭"
+  ],
+  "Move to the start of the paragraph": [
+    "移至段落开头",
+    "移至段落開頭"
+  ],
   "My Label": [
     "我的标签",
     "我的標籤"
@@ -2643,6 +3283,14 @@
     "新建智能体标签页",
     "新增智慧體分頁"
   ],
+  "New Cloud Agent Tab": [
+    "新建云端 Agent 标签页",
+    "新增雲端 Agent 分頁"
+  ],
+  "New File": [
+    "新建文件",
+    "新增檔案"
+  ],
   "New Tab": [
     "新标签页",
     "新分頁"
@@ -2670,6 +3318,10 @@
   "New environment": [
     "新建环境",
     "新增環境"
+  ],
+  "New login detected": [
+    "检测到新登录",
+    "偵測到新的登入"
   ],
   "New shared sessions only": [
     "仅限新的共享会话",
@@ -2787,9 +3439,17 @@
     "没有匹配的主题！",
     "沒有符合的佈景主題！"
   ],
+  "No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.": [
+    "此页没有消息。请搜索其他短语或返回首页。原始消息不可修改；更正请通过新回复发送。",
+    "此頁沒有訊息。請搜尋其他片語或返回首頁。原始訊息不可修改；更正請透過新回覆傳送。"
+  ],
   "No node versions installed": [
     "未安装 Node.js 版本",
     "尚未安裝 Node.js 版本"
+  ],
+  "No notifications": [
+    "暂无通知",
+    "尚無通知"
   ],
   "No online Agents": [
     "没有在线智能体",
@@ -2802,6 +3462,14 @@
   "No participating agents": [
     "暂无参与的 Agent",
     "尚無參與的 Agent"
+  ],
+  "No recorded dependency or delivery blocker.": [
+    "未记录依赖或交付阻碍。",
+    "未記錄相依性或交付阻礙。"
+  ],
+  "No remote update received.": [
+    "尚未收到远程更新。",
+    "尚未收到遠端更新。"
   ],
   "No repos selected yet": [
     "尚未选择仓库",
@@ -2919,9 +3587,25 @@
     "打开",
     "開啟"
   ],
+  "Open AI Command Suggestions": [
+    "打开 AI 命令建议",
+    "開啟 AI 命令建議"
+  ],
+  "Open AI Rules": [
+    "打开 AI 规则",
+    "開啟 AI 規則"
+  ],
   "Open Completions Menu": [
     "打开补全菜单",
     "開啟補全選單"
+  ],
+  "Open Left Panel": [
+    "打开左侧面板",
+    "開啟左側面板"
+  ],
+  "Open MCP Servers": [
+    "打开 MCP 服务器",
+    "開啟 MCP 伺服器"
   ],
   "Open Markdown files in Warpai's Markdown Viewer by default": [
     "默认在 Warpai 的 Markdown 查看器中打开 Markdown 文件",
@@ -2935,6 +3619,70 @@
     "打开富文本输入",
     "開啟豐富文字輸入"
   ],
+  "Open Settings": [
+    "打开设置",
+    "開啟設定"
+  ],
+  "Open Settings: AI": [
+    "打开设置：AI",
+    "開啟設定：AI"
+  ],
+  "Open Settings: About": [
+    "打开设置：关于",
+    "開啟設定：關於"
+  ],
+  "Open Settings: Account": [
+    "打开设置：账号",
+    "開啟設定：帳號"
+  ],
+  "Open Settings: Appearance": [
+    "打开设置：外观",
+    "開啟設定：外觀"
+  ],
+  "Open Settings: Billing and usage": [
+    "打开设置：账单与用量",
+    "開啟設定：帳單與用量"
+  ],
+  "Open Settings: Code": [
+    "打开设置：代码",
+    "開啟設定：程式碼"
+  ],
+  "Open Settings: Environments": [
+    "打开设置：环境",
+    "開啟設定：環境"
+  ],
+  "Open Settings: Features": [
+    "打开设置：功能",
+    "開啟設定：功能"
+  ],
+  "Open Settings: Keyboard Shortcuts": [
+    "打开设置：键盘快捷键",
+    "開啟設定：鍵盤快速鍵"
+  ],
+  "Open Settings: MCP Servers": [
+    "打开设置：MCP 服务器",
+    "開啟設定：MCP 伺服器"
+  ],
+  "Open Settings: Privacy": [
+    "打开设置：隐私",
+    "開啟設定：隱私"
+  ],
+  "Open Settings: Referrals": [
+    "打开设置：推荐",
+    "開啟設定：推薦"
+  ],
+  "Open Settings: Shared Blocks": [
+    "打开设置：共享命令块",
+    "開啟設定：共用命令區塊"
+  ],
+  "Open Settings: Teams": [
+    "打开设置：团队",
+    "開啟設定：團隊"
+  ],
+  "Open Settings: Warpify": [
+    "打开设置：Warpify",
+    "開啟設定：Warpify"
+  ],
   "Open Tab": [
     "打开标签页",
     "開啟分頁"
@@ -2946,6 +3694,10 @@
   "Open all in code review": [
     "在代码审阅中打开全部",
     "在程式碼審閱中開啟全部"
+  ],
+  "Open block context menu": [
+    "打开命令块上下文菜单",
+    "開啟命令區塊上下文選單"
   ],
   "Open coding agent settings": [
     "打开编程智能体设置",
@@ -2959,6 +3711,10 @@
     "输入时打开补全菜单",
     "輸入時開啟補完選單"
   ],
+  "Open conversation": [
+    "打开对话",
+    "開啟對話"
+  ],
   "Open file": [
     "打开文件",
     "開啟檔案"
@@ -2966,6 +3722,10 @@
   "Open file explorer": [
     "打开文件浏览器",
     "開啟檔案總管"
+  ],
+  "Open global search": [
+    "打开全局搜索",
+    "開啟全域搜尋"
   ],
   "Open in GitHub": [
     "在 GitHub 中打开",
@@ -2982,6 +3742,10 @@
   "Open in code review": [
     "在代码审阅中打开",
     "在程式碼審閱中開啟"
+  ],
+  "Open keybindings editor": [
+    "打开快捷键编辑器",
+    "開啟快速鍵編輯器"
   ],
   "Open links in desktop app": [
     "在桌面应用中打开链接",
@@ -3003,9 +3767,17 @@
     "打开设置文件",
     "開啟設定檔"
   ],
+  "Open theme picker": [
+    "打开主题选择器",
+    "開啟主題選擇器"
+  ],
   "Open this conversation in the Warpai desktop app": [
     "在 Warpai 桌面应用中打开此对话",
     "在 Warpai 桌面應用程式中開啟此對話"
+  ],
+  "Open view tree debugger": [
+    "打开视图树调试器",
+    "開啟檢視樹偵錯工具"
   ],
   "Open {name}": [
     "打开 {name}",
@@ -3026,6 +3798,10 @@
   "Or, supply your own existing docker image.": [
     "也可以提供现有的 Docker 镜像。",
     "也可以提供現有的 Docker 映像。"
+  ],
+  "Ordinary new panes remain isolated by canonical project root.": [
+    "普通新窗格仍按规范项目根目录隔离。",
+    "一般新窗格仍依正規專案根目錄隔離。"
   ],
   "Original checkout {} · path {} · owner {} · expiry {} · attempt {}": [
     "原始检出 {} · 路径 {} · 归属者 {} · 到期 {} · 尝试 {}",
@@ -3075,6 +3851,10 @@
     "参与者：{}",
     "參與者：{}"
   ],
+  "Paste": [
+    "粘贴",
+    "貼上"
+  ],
   "Paste your auth token below": [
     "在下方粘贴认证令牌",
     "在下方貼上驗證權杖"
@@ -3094,6 +3874,14 @@
   "Pick a theme for when your system is in light mode.": [
     "选择系统浅色模式下使用的主题。",
     "選擇系統淺色模式下使用的佈景主題。"
+  ],
+  "Pin current tab": [
+    "固定当前标签页",
+    "釘選目前分頁"
+  ],
+  "Pin current tab group": [
+    "固定当前标签页组",
+    "釘選目前分頁群組"
   ],
   "Pin to bottom": [
     "固定在底部",
@@ -3215,6 +4003,10 @@
     "快速开始：访问 oz.warp.dev，通过界面完成设置。",
     "快速開始：造訪 oz.warp.dev，透過介面完成設定。"
   ],
+  "Quit Warpai": [
+    "退出 Warpai",
+    "結束 Warpai"
+  ],
   "Quit when all windows are closed": [
     "关闭所有窗口后退出",
     "關閉所有視窗後結束"
@@ -3246,6 +4038,10 @@
   "Receive desktop notifications from Warpai": [
     "接收 Warpai 桌面通知",
     "接收 Warpai 桌面通知"
+  ],
+  "Receiver {} · execution {}": [
+    "接收方 {} · 执行 {}",
+    "接收方 {} · 執行 {}"
   ],
   "Recommended": [
     "推荐",
@@ -3279,6 +4075,14 @@
     "正则表达式",
     "正規表示式"
   ],
+  "Reinput selected commands": [
+    "重新输入所选命令",
+    "重新輸入所選命令"
+  ],
+  "Reinput selected commands as root": [
+    "以 root 身份重新输入所选命令",
+    "以 root 身分重新輸入所選命令"
+  ],
   "Reject": [
     "拒绝",
     "拒絕"
@@ -3286,6 +4090,10 @@
   "Relative": [
     "相对行号",
     "相對行號"
+  ],
+  "Reload file": [
+    "重新加载文件",
+    "重新載入檔案"
   ],
   "Remote Review unavailable: {error}. Check Git and Warpai Companion on the remote host.": [
     "远程审查不可用：{error}。请检查远程主机上的 Git 和 Warpai Companion。",
@@ -3307,6 +4115,10 @@
     "远程主机已断开，修改已保留。请先点击重新连接，再保存。",
     "遠端主機已中斷連線，修改已保留。請先點選重新連線，再儲存。"
   ],
+  "Remote project": [
+    "远程项目",
+    "遠端專案"
+  ],
   "Remove": [
     "移除",
     "移除"
@@ -3314,6 +4126,10 @@
   "Remove Warpai MCP from all agents": [
     "从所有智能体中移除 Warpai MCP",
     "從所有智慧體移除 Warpai MCP"
+  ],
+  "Remove active or selected tab(s) from group": [
+    "将当前或所选标签页移出组",
+    "將目前或所選分頁移出群組"
   ],
   "Remove from team": [
     "从团队中移除",
@@ -3323,6 +4139,10 @@
     "移除排队中的提示",
     "移除佇列中的提示"
   ],
+  "Remove the previous character": [
+    "删除前一个字符",
+    "刪除前一個字元"
+  ],
   "Remove worktree": [
     "移除工作树",
     "移除工作樹"
@@ -3330,6 +4150,14 @@
   "Remove {display_name}": [
     "移除 {display_name}",
     "移除 {display_name}"
+  ],
+  "Rename the current pane": [
+    "重命名当前窗格",
+    "重新命名目前窗格"
+  ],
+  "Rename the current tab": [
+    "重命名当前标签页",
+    "重新命名目前分頁"
   ],
   "Reopen closed session": [
     "重新打开已关闭的会话",
@@ -3355,9 +4183,21 @@
     "重新扫描智能体",
     "重新掃描智慧體"
   ],
+  "Reservations coordinate participants; they do not lock files or prove that writes stopped. Agent renewal requires its owning run. Human maintenance in Spaces and workspaces pins the original owner and expiry; explicit release never completes an attempt.": [
+    "预约用于协调参与者，不会锁定文件，也不证明写入已停止。Agent 续期需要所属运行。在协作空间和工作区中进行人工维护时，会固定原所有者与到期时间；明确释放预约不会完成一次尝试。",
+    "預約用於協調參與者，不會鎖定檔案，也不證明寫入已停止。Agent 續期需要所屬執行。在協作空間和工作區中進行人工維護時，會固定原擁有者與到期時間；明確釋放預約不會完成一次嘗試。"
+  ],
+  "Reset font size to default": [
+    "恢复默认字号",
+    "還原預設字型大小"
+  ],
   "Reset links": [
     "重置链接",
     "重設連結"
+  ],
+  "Reset notebook font size": [
+    "重置笔记本字号",
+    "重設筆記本字型大小"
   ],
   "Reset to Warpai defaults": [
     "重置为 Warpai 默认设置",
@@ -3366,6 +4206,30 @@
   "Reset to default": [
     "恢复默认值",
     "還原預設值"
+  ],
+  "Reset zoom level to default": [
+    "恢复默认缩放",
+    "還原預設縮放"
+  ],
+  "Resize pane > Move divider down": [
+    "调整窗格 > 下移分隔线",
+    "調整窗格 > 下移分隔線"
+  ],
+  "Resize pane > Move divider left": [
+    "调整窗格 > 左移分隔线",
+    "調整窗格 > 左移分隔線"
+  ],
+  "Resize pane > Move divider right": [
+    "调整窗格 > 右移分隔线",
+    "調整窗格 > 右移分隔線"
+  ],
+  "Resize pane > Move divider up": [
+    "调整窗格 > 上移分隔线",
+    "調整窗格 > 上移分隔線"
+  ],
+  "Restart Warpai AI": [
+    "重启 Warpai AI",
+    "重新啟動 Warpai AI"
   ],
   "Restart Warpai to apply this language.": [
     "重启 Warpai 后应用此语言。",
@@ -3447,6 +4311,10 @@
     "运行",
     "執行"
   ],
+  "Run selected commands": [
+    "运行所选命令",
+    "執行所選命令"
+  ],
   "Run your agent task in an isolated cloud environment.": [
     "在隔离的云端环境中运行智能体任务。",
     "在隔離的雲端環境中執行智慧體工作。"
@@ -3471,9 +4339,17 @@
     "同行提示符",
     "同列提示符"
   ],
+  "Sample Process": [
+    "采样进程",
+    "取樣程序"
+  ],
   "Save": [
     "保存",
     "儲存"
+  ],
+  "Save Config Modal": [
+    "保存配置对话框",
+    "儲存設定對話框"
   ],
   "Save Current Configuration": [
     "保存当前配置",
@@ -3483,9 +4359,61 @@
     "另存为新文件…",
     "另存為新檔案…"
   ],
+  "Save all unsaved files in code review": [
+    "保存代码审查中所有未保存的文件",
+    "儲存程式碼審查中所有未儲存的檔案"
+  ],
+  "Save file as": [
+    "文件另存为",
+    "檔案另存為"
+  ],
+  "Save new launch configuration": [
+    "保存新的启动配置",
+    "儲存新的啟動設定"
+  ],
+  "Save workflow": [
+    "保存工作流",
+    "儲存工作流程"
+  ],
+  "Saved layouts and restored sessions begin private until explicitly joined again. Leaving shared participation revokes coordination access; it does not stop a CLI or file writes.": [
+    "已保存的布局和恢复的会话默认私有，需明确重新加入共享。退出共享会撤销协作访问权限，但不会停止 CLI 或文件写入。",
+    "已儲存的配置和還原的工作階段預設為私人，需明確重新加入共用。退出共用會撤銷協作存取權限，但不會停止 CLI 或檔案寫入。"
+  ],
   "Scheduling and deadlines": [
     "调度与截止时间",
     "排程與截止時間"
+  ],
+  "Scroll down half a page (vim)": [
+    "向下滚动半页（Vim）",
+    "向下捲動半頁（Vim）"
+  ],
+  "Scroll terminal output down one line": [
+    "终端输出向下滚动一行",
+    "終端機輸出向下捲動一行"
+  ],
+  "Scroll terminal output down one page": [
+    "终端输出向下滚动一页",
+    "終端機輸出向下捲動一頁"
+  ],
+  "Scroll terminal output up one line": [
+    "终端输出向上滚动一行",
+    "終端機輸出向上捲動一行"
+  ],
+  "Scroll terminal output up one page": [
+    "终端输出向上滚动一页",
+    "終端機輸出向上捲動一頁"
+  ],
+  "Scroll to bottom of selected block": [
+    "滚动到所选命令块底部",
+    "捲動到所選命令區塊底部"
+  ],
+  "Scroll to top of selected block": [
+    "滚动到所选命令块顶部",
+    "捲動到所選命令區塊頂部"
+  ],
+  "Scroll up half a page (vim)": [
+    "向上滚动半页（Vim）",
+    "向上捲動半頁（Vim）"
   ],
   "Search": [
     "搜索",
@@ -3507,6 +4435,14 @@
     "选择协调者",
     "選擇協調者"
   ],
+  "Select To Line End": [
+    "选择至行尾",
+    "選取至行尾"
+  ],
+  "Select To Line Start": [
+    "选择至行首",
+    "選取至行首"
+  ],
   "Select a git repository to enable worktree support": [
     "选择 Git 仓库以启用工作树支持",
     "選取 Git 儲存庫以啟用工作樹支援"
@@ -3515,17 +4451,97 @@
     "全选",
     "全選"
   ],
+  "Select all blocks": [
+    "选择所有命令块",
+    "選取所有命令區塊"
+  ],
+  "Select and move to the bottom": [
+    "选择并移至底部",
+    "選取並移至底部"
+  ],
+  "Select and move to the top": [
+    "选择并移至顶部",
+    "選取並移至頂部"
+  ],
   "Select directory": [
     "选择目录",
     "選取目錄"
+  ],
+  "Select down": [
+    "向下选择",
+    "向下選取"
   ],
   "Select logged-in WSL account": [
     "选择已登录的 WSL 账户",
     "選擇已登入的 WSL 帳戶"
   ],
+  "Select next command": [
+    "选择下一条命令",
+    "選取下一條命令"
+  ],
+  "Select one character to the left": [
+    "向左选择一个字符",
+    "向左選取一個字元"
+  ],
+  "Select one character to the right": [
+    "向右选择一个字符",
+    "向右選取一個字元"
+  ],
+  "Select one subword to the left": [
+    "向左选择一个子词",
+    "向左選取一個子詞"
+  ],
+  "Select one subword to the right": [
+    "向右选择一个子词",
+    "向右選取一個子詞"
+  ],
+  "Select one word to the left": [
+    "向左选择一个单词",
+    "向左選取一個單字"
+  ],
+  "Select one word to the right": [
+    "向右选择一个单词",
+    "向右選取一個單字"
+  ],
   "Select only after logging into a remote PowerShell prompt": [
     "登录远程 PowerShell 后才能选择",
     "登入遠端 PowerShell 後才能選取"
+  ],
+  "Select previous command": [
+    "选择上一条命令",
+    "選取上一條命令"
+  ],
+  "Select shell command at cursor": [
+    "选择光标处的 Shell 命令",
+    "選取游標處的 Shell 命令"
+  ],
+  "Select the closest bookmark down": [
+    "选择下方最近的书签",
+    "選取下方最近的書籤"
+  ],
+  "Select the closest bookmark up": [
+    "选择上方最近的书签",
+    "選取上方最近的書籤"
+  ],
+  "Select to end of line": [
+    "选择至行尾",
+    "選取至行尾"
+  ],
+  "Select to end of paragraph": [
+    "选择至段落末尾",
+    "選取至段落結尾"
+  ],
+  "Select to start of line": [
+    "选择至行首",
+    "選取至行首"
+  ],
+  "Select to start of paragraph": [
+    "选择至段落开头",
+    "選取至段落開頭"
+  ],
+  "Select up": [
+    "向上选择",
+    "向上選取"
   ],
   "Selected folder is not a Git repository: {path}": [
     "所选文件夹不是 Git 仓库：{path}",
@@ -3542,6 +4558,10 @@
   "Send crash reports": [
     "发送崩溃报告",
     "傳送當機報告"
+  ],
+  "Send feedback (opens external link)": [
+    "发送反馈（打开外部链接）",
+    "傳送意見（開啟外部連結）"
   ],
   "Send now": [
     "立即发送",
@@ -3587,9 +4607,25 @@
     "设置同步",
     "設定同步"
   ],
+  "Setup Guide": [
+    "设置指南",
+    "設定指南"
+  ],
   "Setup commands run independently. Each command runs from the workspace root (/workspace). If a command depends on the previous one, combine them with &&.": [
     "设置命令独立运行，每条命令都从工作区根目录（/workspace）执行。如需依赖上一条命令，请使用 && 将它们组合。",
     "設定指令獨立執行，每條指令都從工作區根目錄（/workspace）執行。如需依賴上一條指令，請使用 && 將它們組合。"
+  ],
+  "Share current session": [
+    "共享当前会话",
+    "共用目前工作階段"
+  ],
+  "Share pane": [
+    "共享窗格",
+    "共用窗格"
+  ],
+  "Share selected block": [
+    "共享所选命令块",
+    "共用所選命令區塊"
   ],
   "Share with team": [
     "与团队共享",
@@ -3598,6 +4634,10 @@
   "Shared blocks": [
     "共享命令块",
     "共用命令區塊"
+  ],
+  "Shortcut": [
+    "快捷键",
+    "快速鍵"
   ],
   "Show": [
     "显示",
@@ -3618,6 +4658,10 @@
   "Show Warpai in Dock": [
     "在程序坞中显示 Warpai",
     "在 Dock 中顯示 Warpai"
+  ],
+  "Show Warpai network log": [
+    "显示 Warpai 网络日志",
+    "顯示 Warpai 網路記錄"
   ],
   "Show a button in the top right of the window to toggle the code review panel.": [
     "在窗口右上角显示切换代码审查面板的按钮。",
@@ -3654,6 +4698,10 @@
   "Show file navigation": [
     "显示文件导航",
     "顯示檔案導覽"
+  ],
+  "Show find bar in code review": [
+    "显示代码审查查找栏",
+    "顯示程式碼審查尋找列"
   ],
   "Show help block in new sessions": [
     "在新会话中显示帮助块",
@@ -3771,6 +4819,22 @@
     "拆分窗格",
     "分割窗格"
   ],
+  "Split pane down": [
+    "向下拆分窗格",
+    "向下分割窗格"
+  ],
+  "Split pane left": [
+    "向左拆分窗格",
+    "向左分割窗格"
+  ],
+  "Split pane right": [
+    "向右拆分窗格",
+    "向右分割窗格"
+  ],
+  "Split pane up": [
+    "向上拆分窗格",
+    "向上分割窗格"
+  ],
   "Stale": [
     "已过期",
     "已過期"
@@ -3792,8 +4856,12 @@
     "啟動新的 Oz 雲端智慧體"
   ],
   "Start an Agent in this project.": [
-    "在此项目中启动智能体。",
-    "在此專案中啟動智慧體。"
+    "在此项目中启动一个 Agent。",
+    "在此專案中啟動一個 Agent。"
+  ],
+  "Start an Agent in this remote project.": [
+    "在此远程项目中启动一个 Agent。",
+    "在此遠端專案中啟動一個 Agent。"
   ],
   "Start at the top (Classic mode)": [
     "从顶部开始（经典模式）",
@@ -3811,9 +4879,17 @@
     "状态",
     "狀態"
   ],
+  "Stop Synchronizing Any Panes": [
+    "停止同步所有窗格",
+    "停止同步所有窗格"
+  ],
   "Stop sharing": [
     "停止共享",
     "停止共用"
+  ],
+  "Stop sharing current session": [
+    "停止共享当前会话",
+    "停止共用目前工作階段"
   ],
   "Stopped": [
     "已停止",
@@ -3851,9 +4927,69 @@
     "支持 1 到 20 之间的小数值。",
     "支援 1 到 20 之間的小數值。"
   ],
+  "Switch Focus to Left Panel": [
+    "将焦点切换到左侧面板",
+    "將焦點切換到左側面板"
+  ],
+  "Switch Focus to Right Panel": [
+    "将焦点切换到右侧面板",
+    "將焦點切換到右側面板"
+  ],
   "Switch back to horizontal tabs": [
     "切换回横向标签页",
     "切換回橫向分頁"
+  ],
+  "Switch panes down": [
+    "向下切换窗格",
+    "向下切換窗格"
+  ],
+  "Switch panes left": [
+    "向左切换窗格",
+    "向左切換窗格"
+  ],
+  "Switch panes right": [
+    "向右切换窗格",
+    "向右切換窗格"
+  ],
+  "Switch panes up": [
+    "向上切换窗格",
+    "向上切換窗格"
+  ],
+  "Switch to 1st tab": [
+    "切换到第 1 个标签页",
+    "切換到第 1 個分頁"
+  ],
+  "Switch to 2nd tab": [
+    "切换到第 2 个标签页",
+    "切換到第 2 個分頁"
+  ],
+  "Switch to 3rd tab": [
+    "切换到第 3 个标签页",
+    "切換到第 3 個分頁"
+  ],
+  "Switch to 4th tab": [
+    "切换到第 4 个标签页",
+    "切換到第 4 個分頁"
+  ],
+  "Switch to 5th tab": [
+    "切换到第 5 个标签页",
+    "切換到第 5 個分頁"
+  ],
+  "Switch to 6th tab": [
+    "切换到第 6 个标签页",
+    "切換到第 6 個分頁"
+  ],
+  "Switch to 7th tab": [
+    "切换到第 7 个标签页",
+    "切換到第 7 個分頁"
+  ],
+  "Switch to 8th tab": [
+    "切换到第 8 个标签页",
+    "切換到第 8 個分頁"
+  ],
+  "Switch to last tab": [
+    "切换到最后一个标签页",
+    "切換到最後一個分頁"
   ],
   "Sync with OS": [
     "跟随操作系统",
@@ -3882,6 +5018,10 @@
   "System": [
     "系统",
     "系統"
+  ],
+  "TRASH": [
+    "回收站",
+    "垃圾桶"
   ],
   "Tab": [
     "标签页",
@@ -3943,6 +5083,10 @@
     "终端字体",
     "終端機字型"
   ],
+  "Terminal session": [
+    "终端会话",
+    "終端機工作階段"
+  ],
   "Terms of Service": [
     "服务条款",
     "服務條款"
@@ -3987,6 +5131,10 @@
     "所选硬件可能不支持透明窗口。",
     "所選硬體可能不支援透明視窗。"
   ],
+  "Theme chooser. Unfortunately, theme chooser window isn't compatible with screen readers yet.": [
+    "主题选择器。目前主题选择器窗口尚不兼容屏幕阅读器。",
+    "主題選擇器。目前主題選擇器視窗尚不相容螢幕閱讀器。"
+  ],
   "Theme name": [
     "主题名称",
     "佈景主題名稱"
@@ -3998,6 +5146,14 @@
   "Thinking...": [
     "正在思考…",
     "正在思考…"
+  ],
+  "This Mac": [
+    "此 Mac",
+    "此 Mac"
+  ],
+  "This Windows PC": [
+    "此 Windows 电脑",
+    "此 Windows 電腦"
   ],
   "This change will take effect in new sessions": [
     "此更改将在新会话中生效",
@@ -4047,17 +5203,33 @@
     "通知显示时长",
     "通知顯示時間"
   ],
+  "Toggle Agent conversation list view": [
+    "切换 Agent 对话列表视图",
+    "切換 Agent 對話清單檢視"
+  ],
   "Toggle Case Sensitivity": [
     "切换大小写敏感",
     "切換區分大小寫"
+  ],
+  "Toggle Files Palette": [
+    "切换文件面板",
+    "切換檔案面板"
   ],
   "Toggle Focus Reporting": [
     "切换焦点报告",
     "切換焦點回報"
   ],
+  "Toggle Maximize Code Review Panel": [
+    "切换代码审查面板最大化",
+    "切換程式碼審查面板最大化"
+  ],
   "Toggle Mouse Reporting": [
     "切换鼠标报告",
     "切換滑鼠回報"
+  ],
+  "Toggle PTY Recording for Session": [
+    "切换会话 PTY 录制",
+    "切換工作階段 PTY 錄製"
   ],
   "Toggle Regex": [
     "切换正则表达式",
@@ -4066,6 +5238,102 @@
   "Toggle Scroll Reporting": [
     "切换滚动报告",
     "切換捲動回報"
+  ],
+  "Toggle Sticky Command Header in Active Pane": [
+    "切换当前窗格的固定命令标题",
+    "切換目前窗格的固定命令標題"
+  ],
+  "Toggle Synchronizing All Panes in All Tabs": [
+    "切换所有标签页中所有窗格的同步",
+    "切換所有分頁中所有窗格的同步"
+  ],
+  "Toggle Synchronizing All Panes in Current Tab": [
+    "切换当前标签页中所有窗格的同步",
+    "切換目前分頁中所有窗格的同步"
+  ],
+  "Toggle Warpai AI": [
+    "切换 Warpai AI",
+    "切換 Warpai AI"
+  ],
+  "Toggle Warpai Drive": [
+    "切换 Warpai Drive",
+    "切換 Warpai Drive"
+  ],
+  "Toggle case-sensitive search": [
+    "切换区分大小写搜索",
+    "切換區分大小寫搜尋"
+  ],
+  "Toggle code review": [
+    "切换代码审查",
+    "切換程式碼審查"
+  ],
+  "Toggle command palette": [
+    "切换命令面板",
+    "切換命令面板"
+  ],
+  "Toggle comment": [
+    "切换注释",
+    "切換註解"
+  ],
+  "Toggle fullscreen": [
+    "切换全屏",
+    "切換全螢幕"
+  ],
+  "Toggle hidden files in Project Explorer": [
+    "切换项目资源管理器中的隐藏文件",
+    "切換專案總管中的隱藏檔案"
+  ],
+  "Toggle inline code styling": [
+    "切换行内代码样式",
+    "切換行內程式碼樣式"
+  ],
+  "Toggle keyboard shortcuts": [
+    "切换键盘快捷键",
+    "切換鍵盤快速鍵"
+  ],
+  "Toggle navigation palette": [
+    "切换导航面板",
+    "切換導覽面板"
+  ],
+  "Toggle project explorer": [
+    "切换项目资源管理器",
+    "切換專案總管"
+  ],
+  "Toggle regular expression search": [
+    "切换正则表达式搜索",
+    "切換正規表示式搜尋"
+  ],
+  "Toggle resource center": [
+    "切换资源中心",
+    "切換資源中心"
+  ],
+  "Toggle rich-text debug mode": [
+    "切换富文本调试模式",
+    "切換富文字偵錯模式"
+  ],
+  "Toggle sticky command header": [
+    "切换固定命令标题",
+    "切換固定命令標題"
+  ],
+  "Toggle strikethrough styling": [
+    "切换删除线样式",
+    "切換刪除線樣式"
+  ],
+  "Toggle team workflows modal": [
+    "切换团队工作流对话框",
+    "切換團隊工作流程對話框"
+  ],
+  "Toggle the agent management view": [
+    "切换 Agent 管理视图",
+    "切換 Agent 管理檢視"
+  ],
+  "Toggle underline styling": [
+    "切换下划线样式",
+    "切換底線樣式"
+  ],
+  "Toggle vertical tabs panel": [
+    "切换垂直标签页面板",
+    "切換垂直分頁面板"
   ],
   "Toolbar layout": [
     "工具栏布局",
@@ -4091,9 +5359,25 @@
     "回收站",
     "垃圾桶"
   ],
+  "Trigger Auto Detection": [
+    "触发自动检测",
+    "觸發自動偵測"
+  ],
+  "Trigger a panic (for testing sentry-rust)": [
+    "触发崩溃（用于测试 sentry-rust）",
+    "觸發當機（用於測試 sentry-rust）"
+  ],
   "Try installing versions with nvm": [
     "尝试使用 nvm 安装版本",
     "嘗試使用 nvm 安裝版本"
+  ],
+  "Turn notifications off": [
+    "关闭通知",
+    "關閉通知"
+  ],
+  "Turn notifications on": [
+    "开启通知",
+    "開啟通知"
   ],
   "Type": [
     "类型",
@@ -4102,6 +5386,10 @@
   "Type owner/repo and press Enter to add, or select from dropdown.": [
     "输入 owner/repo 并按 Enter 添加，或从下拉菜单选择。",
     "輸入 owner/repo 並按 Enter 新增，或從下拉選單選取。"
+  ],
+  "Type searched phrase.": [
+    "输入要查找的短语。",
+    "輸入要尋找的片語。"
   ],
   "Unable to load file content": [
     "无法加载文件内容",
@@ -4115,9 +5403,25 @@
     "撤销",
     "復原"
   ],
+  "Unfold": [
+    "展开",
+    "展開"
+  ],
   "Uniform padding (px)": [
     "统一内边距（px）",
     "統一內距（px）"
+  ],
+  "Uninstall Oz CLI command": [
+    "卸载 Oz CLI 命令",
+    "解除安裝 Oz CLI 命令"
+  ],
+  "Unpin current tab": [
+    "取消固定当前标签页",
+    "取消釘選目前分頁"
+  ],
+  "Unpin current tab group": [
+    "取消固定当前标签页组",
+    "取消釘選目前分頁群組"
   ],
   "Unshare": [
     "取消共享",
@@ -4138,6 +5442,10 @@
   "Update Warpai plugin": [
     "更新 Warpai 插件",
     "更新 Warpai 外掛程式"
+  ],
+  "Update available.": [
+    "有可用更新。",
+    "有可用更新。"
   ],
   "Updating Coordinator…": [
     "正在更新协调者…",
@@ -4215,6 +5523,10 @@
     "查看上下文",
     "檢視上下文"
   ],
+  "View Warpai logs": [
+    "查看 Warpai 日志",
+    "查看 Warpai 記錄"
+  ],
   "View agent tasks you created": [
     "查看你创建的智能体任务",
     "檢視你建立的智慧體工作"
@@ -4251,6 +5563,10 @@
     "查看 Warpai 插件更新说明",
     "檢視 Warpai 外掛程式更新說明"
   ],
+  "View latest changelog": [
+    "查看最新更新日志",
+    "查看最新更新記錄"
+  ],
   "View logs": [
     "查看日志",
     "檢視記錄"
@@ -4263,9 +5579,17 @@
     "查看网络日志",
     "查看網路記錄"
   ],
+  "View privacy policy (opens external link)": [
+    "查看隐私政策（打开外部链接）",
+    "查看隱私權政策（開啟外部連結）"
+  ],
   "View this run in the Oz web app": [
     "在 Oz 网页应用中查看此次运行",
     "在 Oz 網頁應用程式中檢視此次執行"
+  ],
+  "View user docs (opens external link)": [
+    "查看用户文档（打开外部链接）",
+    "查看使用者文件（開啟外部連結）"
   ],
   "View your agent tasks plus all shared team tasks": [
     "查看你的智能体任务及所有团队共享任务",
@@ -4327,6 +5651,10 @@
     "为 SSH 会话启用 Warpify",
     "為 SSH 工作階段啟用 Warpify"
   ],
+  "Warpify ssh session": [
+    "为 SSH 会话启用 Warpify",
+    "為 SSH 工作階段啟用 Warpify"
+  ],
   "Warpify subshell": [
     "为子 shell 启用集成",
     "為子 shell 啟用整合"
@@ -4342,6 +5670,10 @@
   "Welcome to Warpai": [
     "欢迎使用 Warpai",
     "歡迎使用 Warpai"
+  ],
+  "Welcome to Warpai!": [
+    "欢迎使用 Warpai！",
+    "歡迎使用 Warpai！"
   ],
   "When a command takes longer than": [
     "当命令执行时间超过",
@@ -4394,6 +5726,10 @@
   "Worktrees": [
     "工作树",
     "工作樹"
+  ],
+  "Write current codebase index snapshot": [
+    "写入当前代码库索引快照",
+    "寫入目前程式碼庫索引快照"
   ],
   "Write only": [
     "仅允许写入",
@@ -4455,9 +5791,101 @@
     "额度已用完",
     "額度已用完"
   ],
+  "[Debug] Enter Onboarding State": [
+    "[调试] 进入引导状态",
+    "[偵錯] 進入引導狀態"
+  ],
+  "[Debug] Generate codebase index": [
+    "[调试] 生成代码库索引",
+    "[偵錯] 產生程式碼庫索引"
+  ],
+  "[Debug] Install OpenCode Warpai plugin": [
+    "[调试] 安装 OpenCode Warpai 插件",
+    "[偵錯] 安裝 OpenCode Warpai 外掛"
+  ],
+  "[Debug] Log review comment send status for active tab": [
+    "[调试] 记录当前标签页的审查评论发送状态",
+    "[偵錯] 記錄目前分頁的審查留言傳送狀態"
+  ],
+  "[Debug] Onboarding Callout: Modality - No Project": [
+    "[调试] 引导提示：模式 - 无项目",
+    "[偵錯] 引導提示：模式 - 無專案"
+  ],
+  "[Debug] Onboarding Callout: Modality - Project": [
+    "[调试] 引导提示：模式 - 项目",
+    "[偵錯] 引導提示：模式 - 專案"
+  ],
+  "[Debug] Onboarding Callout: Modality - Terminal": [
+    "[调试] 引导提示：模式 - 终端",
+    "[偵錯] 引導提示：模式 - 終端機"
+  ],
+  "[Debug] Onboarding Callout: WarpInput - No Project": [
+    "[调试] 引导提示：WarpInput - 无项目",
+    "[偵錯] 引導提示：WarpInput - 無專案"
+  ],
+  "[Debug] Onboarding Callout: WarpInput - Project": [
+    "[调试] 引导提示：WarpInput - 项目",
+    "[偵錯] 引導提示：WarpInput - 專案"
+  ],
+  "[Debug] Onboarding Callout: WarpInput - Terminal": [
+    "[调试] 引导提示：WarpInput - 终端",
+    "[偵錯] 引導提示：WarpInput - 終端機"
+  ],
+  "[Debug] Open Build Plan Migration Modal": [
+    "[调试] 打开构建计划迁移对话框",
+    "[偵錯] 開啟建置計畫移轉對話框"
+  ],
+  "[Debug] Open OpenWarp Launch Modal": [
+    "[调试] 打开 OpenWarp 启动对话框",
+    "[偵錯] 開啟 OpenWarp 啟動對話框"
+  ],
+  "[Debug] Open Oz Launch Modal": [
+    "[调试] 打开 Oz 启动对话框",
+    "[偵錯] 開啟 Oz 啟動對話框"
+  ],
+  "[Debug] Open Session Config Modal": [
+    "[调试] 打开会话配置对话框",
+    "[偵錯] 開啟工作階段設定對話框"
+  ],
+  "[Debug] Reset Build Plan Migration Modal State": [
+    "[调试] 重置构建计划迁移对话框状态",
+    "[偵錯] 重設建置計畫移轉對話框狀態"
+  ],
+  "[Debug] Reset OpenWarp Launch Modal State": [
+    "[调试] 重置 OpenWarp 启动对话框状态",
+    "[偵錯] 重設 OpenWarp 啟動對話框狀態"
+  ],
+  "[Debug] Reset Oz Launch Modal State": [
+    "[调试] 重置 Oz 启动对话框状态",
+    "[偵錯] 重設 Oz 啟動對話框狀態"
+  ],
+  "[Debug] Start HOA Onboarding Flow": [
+    "[调试] 启动 HOA 引导流程",
+    "[偵錯] 啟動 HOA 引導流程"
+  ],
+  "[Debug] Un-dismiss AWS login banner": [
+    "[调试] 恢复 AWS 登录横幅",
+    "[偵錯] 還原 AWS 登入橫幅"
+  ],
+  "[Debug] Use local OpenCode Warpai plugin (testing only)": [
+    "[调试] 使用本地 OpenCode Warpai 插件（仅限测试）",
+    "[偵錯] 使用本機 OpenCode Warpai 外掛（僅限測試）"
+  ],
+  "[a11y] Set concise accessibility announcements": [
+    "[辅助功能] 使用简洁播报",
+    "[輔助使用] 使用簡潔播報"
+  ],
+  "[a11y] Set verbose accessibility announcements": [
+    "[辅助功能] 使用详细播报",
+    "[輔助使用] 使用詳細播報"
+  ],
   "about warpai warp version update check startup releases": [
     "关于 版本 更新 检查 启动 发布",
     "關於 版本 更新 檢查 啟動 發行"
+  ],
+  "agent-reported": [
+    "Agent 报告",
+    "Agent 回報"
   ],
   "alt screen padding border space vim": [
     "全屏应用 内边距 边框 空间 Vim",
@@ -4474,6 +5902,10 @@
   "are only available to logged-in users. ": [
     "仅对已登录用户开放。",
     "僅對已登入使用者開放。"
+  ],
+  "assigned task": [
+    "已指派任务",
+    "已指派任務"
   ],
   "async asynchronous fast find search": [
     "异步 快速查找 搜索",
@@ -4667,6 +6099,10 @@
     "输入模式 输入位置 固定顶部 底部 经典 瀑布 反向",
     "輸入模式 輸入位置 固定頂部 底部 經典 瀑布 反向"
   ],
+  "interrupted; outcome unknown": [
+    "已中断；结果未知",
+    "已中斷；結果未知"
+  ],
   "jump to bottom of block button": [
     "跳至命令块底部 按钮",
     "跳至命令區塊底部 按鈕"
@@ -4675,9 +6111,17 @@
     "行号 相对行号 Vim 边栏 代码编辑器",
     "行號 相對行號 Vim 邊欄 程式碼編輯器"
   ],
+  "locally verified": [
+    "已在本地验证",
+    "已在本機驗證"
+  ],
   "login item startup start mac windows app restart automatic": [
     "登录项 启动 Mac Windows 应用 重启 自动",
     "登入項目 啟動 Mac Windows 應用程式 重新啟動 自動"
+  ],
+  "metadata reference": [
+    "元数据引用",
+    "中繼資料參照"
   ],
   "middle click paste clipboard": [
     "中键粘贴 剪贴板",
@@ -4694,6 +6138,26 @@
   "new tab placement": [
     "新标签页位置",
     "新分頁位置"
+  ],
+  "none yet": [
+    "暂无",
+    "尚無"
+  ],
+  "not linked": [
+    "未关联",
+    "未連結"
+  ],
+  "not set": [
+    "未设置",
+    "未設定"
+  ],
+  "offline": [
+    "离线",
+    "離線"
+  ],
+  "online": [
+    "在线",
+    "在線"
   ],
   "open windows with custom size": [
     "新窗口 自定义大小",
@@ -4714,6 +6178,10 @@
   "quit all windows closed": [
     "所有窗口关闭后退出",
     "所有視窗關閉後結束"
+  ],
+  "read": [
+    "已读",
+    "已讀"
   ],
   "render integrated discrete gpu graphics": [
     "渲染 集成 显卡 独立 GPU 图形",
@@ -4746,6 +6214,10 @@
   "secret redaction safe mode hide": [
     "敏感信息遮蔽 安全模式 隐藏",
     "敏感資訊遮蔽 安全模式 隱藏"
+  ],
+  "see recorded attempts": [
+    "查看已记录的尝试",
+    "查看已記錄的嘗試"
   ],
   "show block dividers": [
     "显示命令块分隔线",
@@ -4827,9 +6299,21 @@
     "切换参数",
     "切換參數"
   ],
+  "unavailable": [
+    "不可用",
+    "無法使用"
+  ],
   "unknown activity": [
     "活动状态未知",
     "活動狀態未知"
+  ],
+  "unread": [
+    "未读",
+    "未讀"
+  ],
+  "unspecified": [
+    "未指定",
+    "未指定"
   ],
   "vertical tabs panel restore window session snapshot": [
     "垂直标签页面板 恢复窗口 会话快照",

@@ -114,13 +114,18 @@ def fields(template):
     return Counter(result)
 
 
+BINDING_DISPLAY = re.compile(
+    r'BindingDescription::new\(\s*$|EditableBinding::new\(\s*"[^"\n]*"\s*,\s*$'
+)
+
 DISPLAY = re.compile(
     r"(?:Text::new(?:_inline)?|FormattedTextElement::from_str|CustomMenuItem::new"
     r"|Menu::new|DropdownItem::new|Category::new|MenuItemLabelText::new"
-    r"|ActionButton::new|render_page_title"
+    r"|ActionButton::new|render_page_title|AccessibilityContent::new"
+    r"|(?:build_sub_header|render_sub_header_with_description|render_dropdown_item)\(\s*appearance\s*,"
     r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"
     r"|\.(?:with_label|with_tooltip|with_text_label|with_title|with_placeholder"
-    r"|with_centered_text_label|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph))"
+    r"|with_centered_text_label|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
     r"\s*\(\s*$"
 )
 
@@ -168,6 +173,9 @@ def validate(catalog):
                 prefix = source[max(0, start - 200):start]
                 if re.search(r"localization::(?:text|format_text)\(\s*$", prefix):
                     assert value in catalog, f"Missing translation: {path}:{value}"
+                    marked += 1
+                elif BINDING_DISPLAY.search(prefix):
+                    assert value in catalog, f"Missing binding translation: {path}:{value}"
                     marked += 1
                 elif DISPLAY.search(prefix) and re.search(r"[A-Za-z]", value):
                     if value in VERBATIM.get(relative, ()) or (value == "ESC" and relative in KEY_LABEL_FILES):
