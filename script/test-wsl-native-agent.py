@@ -52,7 +52,7 @@ def main():
     assert mode == "--agent" and os.isatty(0)
     config = json.loads((root / "native-mcp.json").read_text())
     bridge = subprocess.Popen([config["command"], *config["args"]], stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                              stdout=subprocess.PIPE, stderr=None, text=True)
     sequence = 0
     def rpc(method, params):
         nonlocal sequence

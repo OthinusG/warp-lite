@@ -66,11 +66,13 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id,
         run_id: state.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
     // Ordinary Linux Agent in its shell, never Companion TerminalLaunch or Agent wrapper.
+    // Preserve only the owned fixture's output so startup failures identify the failed guard.
+    let native_log = tempfile::NamedTempFile::new().unwrap();
     let mut native = tokio::process::Command::new("wsl.exe")
         .args(["--distribution", &distribution, "--user", &user, "--exec", "python3",
             "/home/warpai-test/native-agent-fixture.py", "--terminal", &profile.companion_path, &root])
-        .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null()).kill_on_drop(true).spawn().unwrap();
+        .stdin(std::process::Stdio::piped()).stdout(native_log.reopen().unwrap())
+        .stderr(native_log.reopen().unwrap()).kill_on_drop(true).spawn().unwrap();
     let metadata_path = format!("{root}/native-session.json");
     let mut metadata = None;
     for _ in 0..100 {
@@ -79,9 +81,16 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
                 metadata = Some(value); break;
             }
         }
+        if native.try_wait().unwrap().is_some() { break; }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-    let shell_pid = metadata.expect("Ordinary guest MCP must register")["shell_pid"].as_u64().unwrap() as u32;
+    let metadata = metadata.unwrap_or_else(|| {
+        use std::io::Read;
+        let mut output = Vec::new();
+        native_log.reopen().unwrap().take(16384).read_to_end(&mut output).unwrap();
+        panic!("Ordinary guest MCP must register: {}", String::from_utf8_lossy(&output));
+    });
+    let shell_pid = metadata["shell_pid"].as_u64().unwrap() as u32;
     use warp_agent_bus::{companion::TaskCommand, transport::PanelQuery, ControllerOperation,
         wsl_setup::{NativeAction, NativeRequest, NativeState}};
     let observe = |draft, blocked, epoch, submitted, cancelled| TaskCommand::GuestNative(NativeRequest {

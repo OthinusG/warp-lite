@@ -61,3 +61,13 @@ release callers use verify-wsl-workspace.sh and receive the same correction.
 The Python regression checks manifest provenance without a Git subprocess and
 rejects malformed SHAs; existing installation/isolation tests remain required.
 Rerun complete cloud acceptance from the corrected source.
+
+## Native guest registration diagnosis
+
+Run 38055377836 at e00caf1f passes the complete macOS job, both Windows
+application configurations and guest packaging. The real WSL workspace test
+fails waiting for native-session.json at ordinary guest MCP registration.
+The fixture and test previously discarded child stderr/stdout, obscuring the
+failed registration guard. Capture bounded owned-fixture output and stop waiting
+when the child exits; rerun focused WSL acceptance before changing production
+admission. Preserve UID, ancestry, foreground and enabled-program checks.
