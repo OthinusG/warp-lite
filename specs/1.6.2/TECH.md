@@ -139,3 +139,12 @@ and 2,378 marked display sites; Python, YAML and defaults JSON syntax checks
 pass. Companion sources and Linux desktop updater sources match the 1.6.0
 acceptance baseline c3497dd4. Cloud compilation, tests and three-locale native
 visual acceptance remain gated on successful 1.6.0 acceptance.
+
+Expand native acceptance to all seven additional visible settings sections:
+Appearance, Features, both Code subpages, Keyboard shortcuts, Shared blocks and
+Privacy. Capture each in light/dark at 800/1200 width and 125% zoom; assert the
+actual selected section before capturing. Also capture the open Language menu
+in each Appearance variant. Existing About state captures remain in place.
+This adds 32 images per locale (macOS 918 total; Windows with WSL 936 total).
+Use isolated profiles and the existing 300-second watchdog; runtime and visual
+results must pass the cloud gate before release.

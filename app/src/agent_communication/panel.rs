@@ -5209,6 +5209,50 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }).with_take_screenshot(filename));
         }
     }
+    for (theme, theme_name) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
+        for width in [800, 1200] {
+            for (section, name) in [
+                (crate::settings_view::SettingsSection::Appearance, "appearance"),
+                (crate::settings_view::SettingsSection::Features, "features"),
+                (crate::settings_view::SettingsSection::CodeIndexing, "code-projects"),
+                (crate::settings_view::SettingsSection::EditorAndCodeReview, "code-editor"),
+                (crate::settings_view::SettingsSection::Keybindings, "keybindings"),
+                (crate::settings_view::SettingsSection::SharedBlocks, "shared-blocks"),
+                (crate::settings_view::SettingsSection::Privacy, "privacy"),
+            ] {
+                let filename = format!("settings-interface-{name}-{theme_name}-{width}.png");
+                filenames.push(filename.clone());
+                let theme = theme.clone();
+                driver = driver.with_step(TestStep::new(&filename).with_action(move |app, window, _| {
+                    app.update(|ctx| {
+                        let origin = ctx.window_bounds(&window).unwrap().origin();
+                        ctx.set_and_cache_window_bounds(window, pathfinder_geometry::rect::RectF::new(origin,
+                            pathfinder_geometry::vector::vec2f(width as f32, 800.)));
+                        ctx.set_zoom_factor(1.25);
+                        let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                        Appearance::handle(ctx).update(ctx, |appearance, ctx| appearance.set_theme(colors, ctx));
+                    });
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ShowSettingsPageWithSearch {
+                        search_query: String::new(), section: Some(section),
+                    }, ctx));
+                }).add_named_assertion("requested interface settings section is selected", move |app, window| {
+                    warpui::async_assert!(app.views_of_type::<crate::settings_view::SettingsView>(window)
+                        .is_some_and(|views| views.iter().any(|view|
+                            view.read(app, |view, _| view.current_settings_section() == section))))
+                }).with_take_screenshot(filename));
+                if section == crate::settings_view::SettingsSection::Appearance {
+                    let filename = format!("settings-interface-language-menu-{theme_name}-{width}.png");
+                    filenames.push(filename.clone());
+                    driver = driver.with_step(TestStep::new(&filename).with_action(|app, window, _| {
+                        let view = app.views_of_type::<crate::settings_view::appearance_page::AppearanceSettingsPageView>(window).unwrap()[0].clone();
+                        view.update(app, |view, ctx| view.capture_language_menu(ctx));
+                    }).with_take_screenshot(filename));
+                }
+            }
+        }
+    }
     driver = driver.with_step(TestStep::new("open native About update settings").with_action(|app, window, _| {
         let root = app.root_view::<RootView>(window).unwrap();
         let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -5417,7 +5461,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
             if let Some(assertion) = data.get("failed_assertion_name") {
-                for name in ["live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored", "confirmed WSL selection carries guest user", "owned WSL tree populated", "native editor retains WSL save source", "WSL collaboration uses guest Companion", "WSL Markdown and guest image loaded", "original Review retains WSL project authority", "WSL settings detect installed bundled component for logged-in account"] {
+                for name in ["interface language loaded from isolated preferences", "requested interface settings section is selected", "live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored", "confirmed WSL selection carries guest user", "owned WSL tree populated", "native editor retains WSL save source", "WSL collaboration uses guest Companion", "WSL Markdown and guest image loaded", "original Review retains WSL project authority", "WSL settings detect installed bundled component for logged-in account"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");
                         // Windows GUI processes may not retain redirected stderr.
