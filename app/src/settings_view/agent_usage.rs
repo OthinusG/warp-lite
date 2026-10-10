@@ -230,7 +230,7 @@ impl View for UsageSettingsView {
                 account.provider.name(),
                 account.label,
                 if account.cli_login {
-                    " · current CLI account"
+                    " · current CLI account on this computer"
                 } else {
                     ""
                 }

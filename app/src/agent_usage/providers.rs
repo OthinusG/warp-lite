@@ -71,7 +71,7 @@ impl Provider {
                 "Dashboard cookie (stored in OS credential storage)"
             }
             Self::Codex | Self::Claude | Self::Gemini | Self::Grok | Self::Kimi => {
-                "Access token, or leave empty to use the current CLI login"
+                "Access token, or leave empty to use the current CLI login on this computer"
             }
             _ => "API key (stored in OS credential storage)",
         }
@@ -160,7 +160,6 @@ pub(crate) fn parse(provider: Provider, data: &Value) -> Result<Reading, &'stati
                 };
                 add(&mut out, label, number(&w["used_percent"]), &w["reset_at"]);
             }
-            out.balance = number(&data["credits"]["balance"]);
         }
         Provider::OpenCodeGo => {
             for (key, label) in [
@@ -330,7 +329,6 @@ pub(crate) fn parse(provider: Provider, data: &Value) -> Result<Reading, &'stati
                 used.zip(limit).map(|(u, l)| u / l * 100.),
                 &w["billingPeriodEnd"],
             );
-            out.balance = number(&w["prepaidBalance"]["val"]);
         }
     }
     if out.windows.is_empty() && out.balance.is_none() {
@@ -502,6 +500,8 @@ mod tests {
         )
         .is_err());
         assert!(parse(Provider::Kimi, &json!({"usage":{"used":10,"limit":0}})).is_err());
+        assert!(parse(Provider::Codex, &json!({"credits":{"balance":50}})).is_err());
+        assert!(parse(Provider::Grok, &json!({"prepaidBalance":{"val":"50"}})).is_err());
     }
     #[test]
     fn maps_percent_and_remaining_without_inventing_a_limit() {

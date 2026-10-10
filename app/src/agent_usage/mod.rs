@@ -378,12 +378,18 @@ async fn output(program: &str, args: &[&str], seconds: u64) -> Result<Vec<u8>, &
 }
 async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'static str> {
     if account.provider == Provider::Antigravity {
-        let version = output("agy", &["--version"], 5).await?;
+        let home = dirs::home_dir().ok_or("CLI home directory unavailable")?;
+        let executable = crate::agent_communication::setup::executable("agy", &[], &home)
+            .ok_or("Antigravity CLI is unavailable")?;
+        let executable = executable
+            .to_str()
+            .ok_or("CLI executable path unavailable")?;
+        let version = output(executable, &["--version"], 5).await?;
         if !providers::safe_agy_version(&String::from_utf8_lossy(&version)) {
             return Err("Requires agy 1.1.11 or newer for a free usage query");
         }
         let bytes = output(
-            "agy",
+            executable,
             &[
                 "-p",
                 "/usage",
@@ -413,7 +419,7 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
                 {
                     serde_json::from_slice(
                         &output(
-                            "security",
+                            "/usr/bin/security",
                             &[
                                 "find-generic-password",
                                 "-s",

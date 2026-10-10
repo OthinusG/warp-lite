@@ -176,7 +176,7 @@ fn output(executable: &Path, args: &[String], search_paths: &[PathBuf]) -> Resul
     let (success, text) = run(executable, args, search_paths)?;
     Ok(success.then_some(text))
 }
-fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<PathBuf> {
+pub(crate) fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<PathBuf> {
     executable_with_environment(
         command, search_paths, home,
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),

@@ -9,6 +9,8 @@ Accounts are opt-in. CLI accounts follow the current vendor CLI login, rather
 than pinning a previous user's identity. API/token/cookie accounts use OS secure
 storage; the account file contains labels, provider IDs, visibility and context
 only. No Warp cloud login, model calls or provider credentials enter Agent IPC.
+The same configured accounts appear in every local and SSH project. Current CLI
+login means the desktop computer's login; no remote host credentials are read.
 Expired access tokens require vendor sign-in again; Warpai does not extract
 OAuth client secrets or modify vendor credentials. Missing values never mean 0%.
 
