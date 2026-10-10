@@ -1,5 +1,27 @@
 # Warpai releases
 
+## 1.6.0 delivery contract
+
+Owner authorization 2026-10-11: after acceptance passes, trigger both desktop
+release workflows for Warpai 1.6.0 with Companion 4.0.0. Add no telemetry.
+
+1. Finish the Windows WSL capture correction and one source-matched complete
+   macOS/Windows acceptance run. Inspect diagnostics and the 274 macOS / 280
+   Windows PNGs, including all six WSL views and installation/removal isolation.
+2. Prepare v1.6.0 notes and README downloads. Companion RELEASE_VERSION remains
+   4.0.0 and protocol major remains 1; desktop versions derive from the tag.
+3. Fast-forward main to the accepted source and release documentation, retaining
+   unrelated worktree changes and historical tags/assets. This also installs the
+   existing WSL-aware Windows release workflow on the default branch, required
+   by its workflow_run trigger. Create immutable v1.6.0; never move older tags.
+4. Dispatch release-macos.yml with release_tag=v1.6.0 and auto_publish=true.
+   Windows follows from the same tag and publishes after the native package gates.
+   Preserve all three Companion native installer/runtime gates and both desktop
+   version/source/package checks. Monitor at the owner's 30-minute cadence.
+5. Verify all five public installers, both SHA-256 lists, source provenance and
+   public links before reporting delivery. Record receipts here and in MEMORY.md.
+   No personal installation, local Rust compilation or credential changes.
+
 ## Sequential patch delivery: 1.5.1, then 1.5.5
 
 Owner authorization 2026-10-10 supersedes the earlier single-publication limit.

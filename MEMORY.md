@@ -108,7 +108,7 @@ consult it only when a specific historical question requires it.
 
 ## SSH, task integrity and files
 
-- App 1.6.0: macOS/Windows; macOS retains 1.5.5. SSH/WSL Companion: 4.0.0;
+- App 1.6.0: both desktops authorized after acceptance. Companion: 4.0.0;
   WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
   logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
   Native Codex may add --no-daemon; no wrapper or host MCP injection.
