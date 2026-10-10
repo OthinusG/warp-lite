@@ -503,7 +503,7 @@ impl HostClient {
         Err(ConnectionError::StaleAttachment)
     }
 
-    /// File control never transports file bytes or admits legacy command execution.
+    /// File control includes bounded WSL chunks and never admits legacy command execution.
     pub async fn project_files(
         &mut self,
         mut query: ProjectFilesRequest,
@@ -511,9 +511,15 @@ impl HostClient {
         if !self.capabilities.iter().any(|c| c == "project_files") {
             return Err(ConnectionError::FeatureUnavailable);
         }
-        if query.action >= ProjectFileAction::ProjectGitStatus as i32
-            && !self.capabilities.iter().any(|c| c == "project_git_review")
-        {
+        let action = ProjectFileAction::try_from(query.action).map_err(|_| ConnectionError::InvalidInput)?;
+        let capability = match action {
+            ProjectFileAction::ProjectGitStatus | ProjectFileAction::ProjectGitDiff
+            | ProjectFileAction::ProjectGitPrepareBase | ProjectFileAction::ProjectGitRoot
+            | ProjectFileAction::ProjectGitBranches => Some("project_git_review"),
+            ProjectFileAction::ProjectFileReadChunk | ProjectFileAction::ProjectFileWriteChunk => Some("project_file_chunks"),
+            _ => None,
+        };
+        if capability.is_some_and(|required| !self.capabilities.iter().any(|c| c == required)) {
             return Err(ConnectionError::FeatureUnavailable);
         }
         query.fence = self.fence.clone();

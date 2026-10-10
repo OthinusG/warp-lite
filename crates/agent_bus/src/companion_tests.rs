@@ -192,6 +192,7 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "project_tasks",
             "project_mcp",
             "project_files",
+            "project_file_chunks",
             "project_git_review",
             "worktree_collaboration",
             "worktree_orchestration",
