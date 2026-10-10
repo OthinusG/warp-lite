@@ -36,10 +36,11 @@ pub(crate) fn selected_ssh(
     }
     let session = active.session(window)?;
     let connection = session_connection(&session)?;
+    let host_info = session.host_info();
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         session.home_dir()?,
         if matches!(connection, SshConnection::Wsl { .. }) { "Linux" }
-        else { session.host_info().os_category.as_deref()? },
+        else { host_info.os_category.as_deref()? },
     )
     .ok()?;
     let profile = SshProfile {

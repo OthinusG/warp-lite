@@ -43,3 +43,11 @@ new fields/actions are additive, old clients retain their SSH/SFTP path.
    default/platform checks and Windows SSH regressions from the same source.
 5. Record actual receipts and limitations. Do not tag/publish 1.5.8 without a
    separate release instruction. Companion version is 5.0.0; no telemetry.
+
+## Windows build correction
+
+Run 38031271996 passed protocol/MCP and history checks, then failed application
+compilation with E0716 in selected_session.rs. Retain HostInfo in a local binding
+before borrowing os_category; preserve WSL Linux override and nested SSH routing.
+Acceptance remains Windows default/platform builds, selected-session tests, real
+WSL2 acceptance and native captures from the corrected source.

@@ -43,8 +43,8 @@ consult it only when a specific historical question requires it.
 - Independent 1.5.1 at 30ad76bb is public with both desktops, Companion 4.0.0
   and checksum lists. Release runs 38022801330 / 38025608195 succeeded.
 - 1.5.5 is tagged at fc6f3487, including corrected captures at 61d50dbe.
-  Run 38025511405 passed macOS/three Companion packages; Windows follower
-  38028454517 is pending. Confirm publication and five public installers.
+  Runs 38025511405 / 38028454517 passed; 1.5.5 is public.
+  Retain all five installers and checksum receipts.
 - WSL 1.5.8 descends from both immutable patch tags; retain their full UI/usage
   changes. Worktree: /private/tmp/warpai-wsl-1.5.8, feature/wsl-1.5.8.
 
