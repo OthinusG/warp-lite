@@ -1,4 +1,6 @@
 {
+  "agents.third_party.auto_open_composer_on_cli_agent_start": true,
+  "agents.third_party.should_render_cli_agent_toolbar": true,
   "appearance.blocks.show_block_dividers": true,
   "appearance.cursor.cursor_display_type": "underline",
   "appearance.icon.app_icon": "mono",

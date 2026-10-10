@@ -251,11 +251,17 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> Find<T> {
     pub fn emit_result_a11y_content(&mut self, ctx: &mut ViewContext<Self>) {
         let content = if let Some(match_index) = self.model.as_ref(ctx).focused_match_index() {
             AccessibilityContent::new(
-                format!(
-                    "Result {} of {}.",
-                    match_index + 1,
-                    self.model.as_ref(ctx).match_count()
-                ),
+                {
+                    let __warpai_locale_argument_0 = &(match_index + 1);
+                    let __warpai_locale_argument_1 = &(self.model.as_ref(ctx).match_count());
+                    warpui::localization::format_text(
+                        "Result {} of {}.",
+                        &[
+                            ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                            ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                        ],
+                    )
+                },
                 "Use enter and shift-enter to navigate between matches. Escape to quit.",
                 WarpA11yRole::UserAction,
             )

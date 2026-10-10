@@ -16,6 +16,7 @@ import uuid
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--capture", type=Path)
+    parser.add_argument("--languages", nargs="+", choices=["en", "zh-Hans", "zh-Hant"], default=["en"])
     args = parser.parse_args()
     windows = os.name == "nt"
     server = "C:/Windows/System32/OpenSSH/sshd.exe" if windows else (shutil.which("sshd") or "/usr/sbin/sshd")
@@ -120,7 +121,9 @@ def main():
                                         raise RuntimeError("Owned SSH master unavailable")
                                     time.sleep(0.025)
                                 env["WARP_TEST_SSH_SOCKET"] = str(socket)
-                            subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
+                            for language in args.languages:
+                                env["WARPAI_CAPTURE_LANGUAGE"] = language
+                                subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
                         finally:
                             if master is not None:
                                 master.terminate()

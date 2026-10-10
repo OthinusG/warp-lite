@@ -297,7 +297,7 @@ impl View for CommunicationSettingsView {
                         .check(model.wsl.companion_installed == Some(true));
                     let checkbox = if model.wsl.busy || model.wsl.companion_installed.is_none() { checkbox.disabled() } else { checkbox };
                     body.add_child(build_toggle_element(
-                        render_body_item_label_with_icon::<Action>("Install WSL Companion".into(), crate::agent_usage::agent_icon("custom"), None, None,
+                        render_body_item_label_with_icon::<Action>(warpui::localization::text("Install WSL Companion").into(), crate::agent_usage::agent_icon("custom"), None, None,
                             LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
                         checkbox.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslCompanion)).finish(),
                         appearance, Some("Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.".into()),

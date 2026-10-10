@@ -1,4 +1,8 @@
 {
+  "\n{}: {:.1}% used{}": [
+    "\n{}：已用 {:.1}%{}",
+    "\n{}：已用 {:.1}%{}"
+  ],
   " + Add new repo": [
     " + 添加仓库",
     " + 新增儲存庫"
@@ -26,6 +30,14 @@
   " · Check now": [
     " · 立即检查",
     " · 立即檢查"
+  ],
+  " · approval required": [
+    " · 需要批准",
+    " · 需要核准"
+  ],
+  " · paused": [
+    " · 已暂停",
+    " · 已暫停"
   ],
   " · resets {time}": [
     " · {time} 重置",
@@ -83,9 +95,17 @@
     "接受自动建议",
     "接受自動建議"
   ],
+  "Activate previous/next tab": [
+    "激活上一个/下一个标签页",
+    "啟用上一個／下一個分頁"
+  ],
   "Active Screen": [
     "当前屏幕",
     "目前螢幕"
+  ],
+  "Activity · latest 200 received events": [
+    "活动 · 最近收到的 200 个事件",
+    "活動 · 最近收到的 200 個事件"
   ],
   "Add": [
     "添加",
@@ -155,6 +175,14 @@
     "当前标签页之后",
     "目前分頁之後"
   ],
+  "Agent collaboration, sample data. {}. {}": [
+    "智能体协作，示例数据。{}。{}",
+    "智慧體協作，範例資料。{}。{}"
+  ],
+  "Agent collaboration. {}": [
+    "智能体协作。{}",
+    "智慧體協作。{}"
+  ],
   "Agent communication": [
     "智能体通信",
     "智慧體通訊"
@@ -162,6 +190,10 @@
   "Agent decides": [
     "由智能体决定",
     "由智慧體決定"
+  ],
+  "Agent font": [
+    "Agent 字体",
+    "Agent 字型"
   ],
   "Agent thinking display": [
     "智能体思考过程显示",
@@ -194,6 +226,10 @@
   "Already have an account? ": [
     "已有账户？",
     "已有帳戶？"
+  ],
+  "Always": [
+    "始终",
+    "一律"
   ],
   "Always allow": [
     "始终允许",
@@ -251,9 +287,17 @@
     "除自动批准外均询问",
     "除自動核准外均詢問"
   ],
+  "Asynchronous find": [
+    "异步查找",
+    "非同步尋找"
+  ],
   "Attach file": [
     "附加文件",
     "附加檔案"
+  ],
+  "Attempts and dependencies": [
+    "尝试与依赖",
+    "嘗試與相依性"
   ],
   "Auth with GitHub": [
     "通过 GitHub 认证",
@@ -347,6 +391,14 @@
     "背景不透明度",
     "背景不透明度"
   ],
+  "Balance ${:.2}": [
+    "余额 ${:.2}",
+    "餘額 ${:.2}"
+  ],
+  "Bar": [
+    "竖线",
+    "直線"
+  ],
   "Beta": [
     "测试版",
     "測試版"
@@ -362,6 +414,14 @@
   "Binary file - no diff available": [
     "二进制文件，无法显示差异",
     "二進位檔案，無法顯示差異"
+  ],
+  "Blinking cursor": [
+    "光标闪烁",
+    "游標閃爍"
+  ],
+  "Block": [
+    "方块",
+    "方塊"
   ],
   "Blocks": [
     "命令块",
@@ -382,6 +442,10 @@
   "By continuing, you agree to Warpai's ": [
     "继续即表示你同意 Warpai 的",
     "繼續即表示你同意 Warpai 的"
+  ],
+  "Call MCP servers": [
+    "调用 MCP 服务器",
+    "呼叫 MCP 伺服器"
   ],
   "Call web tools": [
     "调用网页工具",
@@ -591,6 +655,10 @@
     "紧凑模式",
     "精簡模式"
   ],
+  "Compact mode": [
+    "紧凑模式",
+    "緊湊模式"
+  ],
   "Compare plans": [
     "比较套餐",
     "比較方案"
@@ -598,6 +666,10 @@
   "Complete!": [
     "完成！",
     "完成！"
+  ],
+  "Completions open as you type (or {}).": [
+    "输入时打开补全菜单（或按 {}）。",
+    "輸入時開啟補全選單（或按 {}）。"
   ],
   "Completions open as you type.": [
     "输入时打开补全菜单。",
@@ -759,6 +831,10 @@
     "当前",
     "目前"
   ],
+  "Current backend: {}": [
+    "当前后端：{}",
+    "目前後端：{}"
+  ],
   "Current theme": [
     "当前主题",
     "目前佈景主題"
@@ -766,6 +842,10 @@
   "Cursor": [
     "光标",
     "游標"
+  ],
+  "Cursor type": [
+    "光标类型",
+    "游標類型"
   ],
   "Cursor type is disabled in Vim mode": [
     "Vim 模式下无法设置光标类型",
@@ -775,9 +855,21 @@
     "自定义",
     "自訂"
   ],
+  "Custom directory": [
+    "自定义目录",
+    "自訂目錄"
+  ],
   "Customizable in appearance settings.": [
     "可在外观设置中自定义。",
     "可在外觀設定中自訂。"
+  ],
+  "Cycle most recent session": [
+    "切换最近使用的会话",
+    "切換最近使用的工作階段"
+  ],
+  "Cycle most recent tab": [
+    "切换最近使用的标签页",
+    "切換最近使用的分頁"
   ],
   "Cycle suggestions": [
     "切换建议",
@@ -794,6 +886,10 @@
   "Debug output": [
     "调试输出",
     "偵錯輸出"
+  ],
+  "Dedicated hotkey window": [
+    "专用快捷键窗口",
+    "專用快速鍵視窗"
   ],
   "Default": [
     "默认",
@@ -827,6 +923,10 @@
     "删除规则",
     "刪除規則"
   ],
+  "Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.": [
+    "从原始预览序列 {2} 中最多删除 {0} 个已归档任务和 {1} 条已确认消息。此操作不可撤销。历史发生变化时需要重新预览并确认操作意图。",
+    "從原始預覽序列 {2} 中最多刪除 {0} 個已封存任務與 {1} 則已確認訊息。此操作無法復原。歷史發生變化時需要重新預覽並確認操作意圖。"
+  ],
   "Deleting...": [
     "正在删除…",
     "正在刪除…"
@@ -834,6 +934,10 @@
   "Density": [
     "密度",
     "密度"
+  ],
+  "Deny": [
+    "拒绝",
+    "拒絕"
   ],
   "Description": [
     "描述",
@@ -843,9 +947,493 @@
     "差异过大，无法显示",
     "差異過大，無法顯示"
   ],
+  "Dim inactive panes": [
+    "调暗非活动窗格",
+    "調暗非作用中窗格"
+  ],
   "Directory tab colors": [
     "目录标签页颜色",
     "目錄分頁色彩"
+  ],
+  "Disable AI": [
+    "禁用 AI",
+    "停用 AI"
+  ],
+  "Disable Active AI": [
+    "禁用 主动 AI",
+    "停用 主動 AI"
+  ],
+  "Disable Agent Prompt Autodetection in Terminal Input": [
+    "禁用 终端输入中的智能体提示自动检测",
+    "停用 終端機輸入中的智慧體提示自動偵測"
+  ],
+  "Disable Alias Expansion": [
+    "禁用 别名展开",
+    "停用 別名展開"
+  ],
+  "Disable App Analytics": [
+    "禁用 应用分析",
+    "停用 應用程式分析"
+  ],
+  "Disable Audible Terminal Bell": [
+    "禁用 终端提示音",
+    "停用 終端機提示音"
+  ],
+  "Disable Auto-Indexing": [
+    "禁用 自动索引",
+    "停用 自動索引"
+  ],
+  "Disable Autocomplete Quotes, Parentheses, and Brackets": [
+    "禁用 自动补全引号、圆括号和方括号",
+    "停用 自動補完引號、圓括號與方括號"
+  ],
+  "Disable Autosuggestion Keybinding Hint": [
+    "禁用 自动建议 快捷键提示",
+    "停用 自動建議 快速鍵提示"
+  ],
+  "Disable Autosuggestions": [
+    "禁用 自动建议",
+    "停用 自動建議"
+  ],
+  "Disable Block Dividers": [
+    "禁用 命令块分隔线",
+    "停用 命令區塊分隔線"
+  ],
+  "Disable Code Suggestions": [
+    "禁用 代码建议",
+    "停用 程式碼建議"
+  ],
+  "Disable Code as Default Editor": [
+    "禁用 代码视图作为默认编辑器",
+    "停用 程式碼檢視作為預設編輯器"
+  ],
+  "Disable Codebase Index": [
+    "禁用 代码库索引",
+    "停用 程式碼庫索引"
+  ],
+  "Disable Command Corrections": [
+    "禁用 命令纠正",
+    "停用 命令修正"
+  ],
+  "Disable Compact Mode": [
+    "禁用 紧凑模式",
+    "停用 精簡模式"
+  ],
+  "Disable Completions While Typing": [
+    "禁用 输入时的补全",
+    "停用 輸入時的補全"
+  ],
+  "Disable Copy on Select Within the Terminal": [
+    "禁用 选中终端文字时复制",
+    "停用 選取終端文字時複製"
+  ],
+  "Disable Crash Reporting": [
+    "禁用 崩溃报告",
+    "停用 當機報告"
+  ],
+  "Disable Cursor Blink": [
+    "禁用 光标闪烁",
+    "停用 游標閃爍"
+  ],
+  "Disable Debug Network Status": [
+    "禁用 网络状态调试",
+    "停用 網路狀態偵錯"
+  ],
+  "Disable Dim Inactive Panes": [
+    "禁用 调暗非活动窗格",
+    "停用 調暗非作用中窗格"
+  ],
+  "Disable Editing Commands With Vim Keybindings": [
+    "禁用 使用 Vim 快捷键编辑命令",
+    "停用 使用 Vim 快速鍵編輯命令"
+  ],
+  "Disable Error Underlining": [
+    "禁用 错误下划线",
+    "停用 錯誤底線"
+  ],
+  "Disable Focus Follows Mouse": [
+    "禁用 焦点跟随鼠标",
+    "停用 焦點跟隨滑鼠"
+  ],
+  "Disable Focus Reporting": [
+    "禁用 焦点报告",
+    "停用 焦點回報"
+  ],
+  "Disable Input Hint Text": [
+    "禁用 输入提示文字",
+    "停用 輸入提示文字"
+  ],
+  "Disable Integrated GPU Rendering (Low Power)": [
+    "禁用 集成 GPU 渲染（低功耗）",
+    "停用 整合 GPU 繪製（低功耗）"
+  ],
+  "Disable Jump to Bottom of Block Button": [
+    "禁用 跳至命令块底部 按钮",
+    "停用 跳至命令區塊底部 按鈕"
+  ],
+  "Disable Ligature Rendering": [
+    "禁用 连字渲染",
+    "停用 連字繪製"
+  ],
+  "Disable Linux Selection Clipboard": [
+    "禁用 Linux 选区剪贴板",
+    "停用 Linux 選取範圍剪貼簿"
+  ],
+  "Disable Memory Statistics": [
+    "禁用 内存统计",
+    "停用 記憶體統計"
+  ],
+  "Disable Middle-Click Paste": [
+    "禁用 中键粘贴",
+    "停用 中鍵貼上"
+  ],
+  "Disable Natural Language Autosuggestions": [
+    "禁用 自然语言自动建议",
+    "停用 自然語言自動建議"
+  ],
+  "Disable Next Command": [
+    "禁用 下一条命令",
+    "停用 下一條命令"
+  ],
+  "Disable Preserve Input Focus on Block Selection": [
+    "禁用 选择命令块时保留输入焦点",
+    "停用 選取命令區塊時保留輸入焦點"
+  ],
+  "Disable Prompt Suggestions": [
+    "禁用 提示符建议",
+    "停用 提示符建議"
+  ],
+  "Disable Quit Warning Modal": [
+    "禁用 退出警告对话框",
+    "停用 結束警告對話方塊"
+  ],
+  "Disable Recording Mode": [
+    "禁用 录制模式",
+    "停用 錄製模式"
+  ],
+  "Disable Restore Windows, Tabs, and Panes on Startup": [
+    "禁用 启动时恢复窗口、标签页和窗格",
+    "停用 啟動時復原視窗、分頁與窗格"
+  ],
+  "Disable SSH Session Detection for Warpification": [
+    "禁用 用于 Warpify 的 SSH 会话检测",
+    "停用 用於 Warpify 的 SSH 工作階段偵測"
+  ],
+  "Disable SSH session detection for Warpification": [
+    "禁用 用于 Warpify 的 SSH 会话检测",
+    "停用 用於 Warpify 的 SSH 工作階段偵測"
+  ],
+  "Disable Scroll Reporting": [
+    "禁用 滚动报告",
+    "停用 捲動回報"
+  ],
+  "Disable Secret Redaction": [
+    "禁用 敏感信息遮蔽",
+    "停用 敏感資訊遮蔽"
+  ],
+  "Disable Settings Sync": [
+    "禁用 设置同步",
+    "停用 設定同步"
+  ],
+  "Disable Shared Block Title Generation": [
+    "禁用 共享命令块标题生成",
+    "停用 共用命令區塊標題產生"
+  ],
+  "Disable Show Tooltip on Click on Links": [
+    "禁用 点击链接时显示提示",
+    "停用 點選連結時顯示提示"
+  ],
+  "Disable Show Vertical Tabs Panel in Restored Windows": [
+    "禁用 恢复窗口中的垂直标签页面板",
+    "停用 還原視窗中的垂直分頁面板"
+  ],
+  "Disable Slash Commands in Terminal Mode": [
+    "禁用 终端模式中的斜杠命令",
+    "停用 終端機模式中的斜線命令"
+  ],
+  "Disable Smart Select": [
+    "禁用 智能选择",
+    "停用 智慧選取"
+  ],
+  "Disable Syntax Highlighting": [
+    "禁用 语法高亮",
+    "停用 語法醒目提示"
+  ],
+  "Disable Tab Indicators": [
+    "禁用 标签页状态指示器",
+    "停用 分頁狀態指示器"
+  ],
+  "Disable Terminal Input Message Line": [
+    "禁用 终端输入消息行",
+    "停用 終端機輸入訊息列"
+  ],
+  "Disable Themes: Sync With OS": [
+    "禁用 主题：跟随系统",
+    "停用 佈景主題：隨系統切換"
+  ],
+  "Disable Vertical Tab Layout": [
+    "禁用 垂直标签页布局",
+    "停用 垂直分頁配置"
+  ],
+  "Disable Vim Status Bar": [
+    "禁用 Vim 状态栏",
+    "停用 Vim 狀態列"
+  ],
+  "Disable Vim Unnamed Register as System Clipboard": [
+    "禁用 Vim 未命名寄存器作为系统剪贴板",
+    "停用 Vim 未命名暫存器作為系統剪貼簿"
+  ],
+  "Disable Vim status bar": [
+    "禁用 Vim 状态栏",
+    "停用 Vim 狀態列"
+  ],
+  "Disable Vim unnamed register as system clipboard": [
+    "禁用 Vim 未命名寄存器作为系统剪贴板",
+    "停用 Vim 未命名暫存器作為系統剪貼簿"
+  ],
+  "Disable Voice Input": [
+    "禁用 语音输入",
+    "停用 語音輸入"
+  ],
+  "Disable Warpai SSH Wrapper": [
+    "禁用 Warpai SSH 包装器",
+    "停用 Warpai SSH 包裝程式"
+  ],
+  "Disable Warpai SSH wrapper": [
+    "禁用 Warpai SSH 包装器",
+    "停用 Warpai SSH 包裝程式"
+  ],
+  "Disable Wayland for Window Management": [
+    "禁用 Wayland 窗口管理",
+    "停用 Wayland 視窗管理"
+  ],
+  "Disable Wayland for window management": [
+    "禁用 Wayland 窗口管理",
+    "停用 Wayland 視窗管理"
+  ],
+  "Disable Zen Mode": [
+    "禁用 禅模式",
+    "停用 禪模式"
+  ],
+  "Disable agent prompt autodetection in terminal input": [
+    "禁用 终端输入中的智能体提示自动检测",
+    "停用 終端機輸入中的智慧體提示自動偵測"
+  ],
+  "Disable alias expansion": [
+    "禁用 别名展开",
+    "停用 別名展開"
+  ],
+  "Disable app analytics": [
+    "禁用 应用分析",
+    "停用 應用程式分析"
+  ],
+  "Disable audible terminal bell": [
+    "禁用 终端提示音",
+    "停用 終端機提示音"
+  ],
+  "Disable auto-indexing": [
+    "禁用 自动索引",
+    "停用 自動索引"
+  ],
+  "Disable autocomplete quotes, parentheses, and brackets": [
+    "禁用 自动补全引号、圆括号和方括号",
+    "停用 自動補完引號、圓括號與方括號"
+  ],
+  "Disable autosuggestion keybinding hint": [
+    "禁用 自动建议 快捷键提示",
+    "停用 自動建議 快速鍵提示"
+  ],
+  "Disable autosuggestions": [
+    "禁用 自动建议",
+    "停用 自動建議"
+  ],
+  "Disable block dividers": [
+    "禁用 命令块分隔线",
+    "停用 命令區塊分隔線"
+  ],
+  "Disable code as default editor": [
+    "禁用 代码视图作为默认编辑器",
+    "停用 程式碼檢視作為預設編輯器"
+  ],
+  "Disable code suggestions": [
+    "禁用 代码建议",
+    "停用 程式碼建議"
+  ],
+  "Disable codebase index": [
+    "禁用 代码库索引",
+    "停用 程式碼庫索引"
+  ],
+  "Disable command corrections": [
+    "禁用 命令纠正",
+    "停用 命令修正"
+  ],
+  "Disable compact mode": [
+    "禁用 紧凑模式",
+    "停用 精簡模式"
+  ],
+  "Disable completions while typing": [
+    "禁用 输入时的补全",
+    "停用 輸入時的補全"
+  ],
+  "Disable copy on select within the terminal": [
+    "禁用 选中终端文字时复制",
+    "停用 選取終端文字時複製"
+  ],
+  "Disable crash reporting": [
+    "禁用 崩溃报告",
+    "停用 當機報告"
+  ],
+  "Disable cursor blink": [
+    "禁用 光标闪烁",
+    "停用 游標閃爍"
+  ],
+  "Disable debug network status": [
+    "禁用 网络状态调试",
+    "停用 網路狀態偵錯"
+  ],
+  "Disable dim inactive panes": [
+    "禁用 调暗非活动窗格",
+    "停用 調暗非作用中窗格"
+  ],
+  "Disable editing commands with Vim keybindings": [
+    "禁用 使用 Vim 快捷键编辑命令",
+    "停用 使用 Vim 快速鍵編輯命令"
+  ],
+  "Disable error underlining": [
+    "禁用 错误下划线",
+    "停用 錯誤底線"
+  ],
+  "Disable focus follows mouse": [
+    "禁用 焦点跟随鼠标",
+    "停用 焦點跟隨滑鼠"
+  ],
+  "Disable focus reporting": [
+    "禁用 焦点报告",
+    "停用 焦點回報"
+  ],
+  "Disable in-Band Generators for New Sessions": [
+    "禁用 新会话的带内生成器",
+    "停用 新工作階段的帶內產生器"
+  ],
+  "Disable in-band generators for new sessions": [
+    "禁用 新会话的带内生成器",
+    "停用 新工作階段的帶內產生器"
+  ],
+  "Disable input hint text": [
+    "禁用 输入提示文字",
+    "停用 輸入提示文字"
+  ],
+  "Disable integrated GPU rendering (low power)": [
+    "禁用 集成 GPU 渲染（低功耗）",
+    "停用 整合 GPU 繪製（低功耗）"
+  ],
+  "Disable jump to bottom of block button": [
+    "禁用 跳至命令块底部 按钮",
+    "停用 跳至命令區塊底部 按鈕"
+  ],
+  "Disable ligature rendering": [
+    "禁用 连字渲染",
+    "停用 連字繪製"
+  ],
+  "Disable linux selection clipboard": [
+    "禁用 Linux 选区剪贴板",
+    "停用 Linux 選取範圍剪貼簿"
+  ],
+  "Disable memory statistics": [
+    "禁用 内存统计",
+    "停用 記憶體統計"
+  ],
+  "Disable middle-click paste": [
+    "禁用 中键粘贴",
+    "停用 中鍵貼上"
+  ],
+  "Disable natural language autosuggestions": [
+    "禁用 自然语言自动建议",
+    "停用 自然語言自動建議"
+  ],
+  "Disable preserve input focus on block selection": [
+    "禁用 选择命令块时保留输入焦点",
+    "停用 選取命令區塊時保留輸入焦點"
+  ],
+  "Disable prompt suggestions": [
+    "禁用 提示符建议",
+    "停用 提示符建議"
+  ],
+  "Disable quit warning modal": [
+    "禁用 退出警告对话框",
+    "停用 結束警告對話方塊"
+  ],
+  "Disable recording mode": [
+    "禁用 录制模式",
+    "停用 錄製模式"
+  ],
+  "Disable restore windows, tabs, and panes on startup": [
+    "禁用 启动时恢复窗口、标签页和窗格",
+    "停用 啟動時復原視窗、分頁與窗格"
+  ],
+  "Disable scroll reporting": [
+    "禁用 滚动报告",
+    "停用 捲動回報"
+  ],
+  "Disable secret redaction": [
+    "禁用 敏感信息遮蔽",
+    "停用 敏感資訊遮蔽"
+  ],
+  "Disable settings sync": [
+    "禁用 设置同步",
+    "停用 設定同步"
+  ],
+  "Disable shared block title generation": [
+    "禁用 共享命令块标题生成",
+    "停用 共用命令區塊標題產生"
+  ],
+  "Disable show tooltip on click on links": [
+    "禁用 点击链接时显示提示",
+    "停用 點選連結時顯示提示"
+  ],
+  "Disable show vertical tabs panel in restored windows": [
+    "禁用 恢复窗口中的垂直标签页面板",
+    "停用 還原視窗中的垂直分頁面板"
+  ],
+  "Disable slash commands in terminal mode": [
+    "禁用 终端模式中的斜杠命令",
+    "停用 終端機模式中的斜線命令"
+  ],
+  "Disable smart select": [
+    "禁用 智能选择",
+    "停用 智慧選取"
+  ],
+  "Disable syntax highlighting": [
+    "禁用 语法高亮",
+    "停用 語法醒目提示"
+  ],
+  "Disable tab indicators": [
+    "禁用 标签页状态指示器",
+    "停用 分頁狀態指示器"
+  ],
+  "Disable terminal input message line": [
+    "禁用 终端输入消息行",
+    "停用 終端機輸入訊息列"
+  ],
+  "Disable themes: sync with OS": [
+    "禁用 主题：跟随系统",
+    "停用 佈景主題：隨系統切換"
+  ],
+  "Disable vertical tab layout": [
+    "禁用 垂直标签页布局",
+    "停用 垂直分頁配置"
+  ],
+  "Disable voice input": [
+    "禁用 语音输入",
+    "停用 語音輸入"
+  ],
+  "Disable zen mode": [
+    "禁用 禅模式",
+    "停用 禪模式"
+  ],
+  "Disabled": [
+    "已禁用",
+    "已停用"
   ],
   "Discard changes": [
     "丢弃修改",
@@ -935,6 +1523,10 @@
     "编辑中",
     "編輯中"
   ],
+  "Eligible pool participants: {}": [
+    "符合条件的池参与者：{}",
+    "符合條件的集區參與者：{}"
+  ],
   "Empty trash": [
     "清空回收站",
     "清空垃圾桶"
@@ -943,33 +1535,501 @@
     "在终端模式中启用“@”上下文菜单",
     "在終端模式中啟用「@」上下文選單"
   ],
+  "Enable AI": [
+    "启用 AI",
+    "啟用 AI"
+  ],
+  "Enable Active AI": [
+    "启用 主动 AI",
+    "啟用 主動 AI"
+  ],
+  "Enable Agent Prompt Autodetection in Terminal Input": [
+    "启用 终端输入中的智能体提示自动检测",
+    "啟用 終端機輸入中的智慧體提示自動偵測"
+  ],
+  "Enable Alias Expansion": [
+    "启用 别名展开",
+    "啟用 別名展開"
+  ],
+  "Enable App Analytics": [
+    "启用 应用分析",
+    "啟用 應用程式分析"
+  ],
+  "Enable Audible Terminal Bell": [
+    "启用 终端提示音",
+    "啟用 終端機提示音"
+  ],
+  "Enable Auto-Indexing": [
+    "启用 自动索引",
+    "啟用 自動索引"
+  ],
+  "Enable Autocomplete Quotes, Parentheses, and Brackets": [
+    "启用 自动补全引号、圆括号和方括号",
+    "啟用 自動補完引號、圓括號與方括號"
+  ],
+  "Enable Autosuggestion Keybinding Hint": [
+    "启用 自动建议 快捷键提示",
+    "啟用 自動建議 快速鍵提示"
+  ],
+  "Enable Autosuggestions": [
+    "启用 自动建议",
+    "啟用 自動建議"
+  ],
+  "Enable Block Dividers": [
+    "启用 命令块分隔线",
+    "啟用 命令區塊分隔線"
+  ],
+  "Enable Code Suggestions": [
+    "启用 代码建议",
+    "啟用 程式碼建議"
+  ],
+  "Enable Code as Default Editor": [
+    "启用 代码视图作为默认编辑器",
+    "啟用 程式碼檢視作為預設編輯器"
+  ],
+  "Enable Codebase Index": [
+    "启用 代码库索引",
+    "啟用 程式碼庫索引"
+  ],
+  "Enable Command Corrections": [
+    "启用 命令纠正",
+    "啟用 命令修正"
+  ],
+  "Enable Compact Mode": [
+    "启用 紧凑模式",
+    "啟用 精簡模式"
+  ],
+  "Enable Completions While Typing": [
+    "启用 输入时的补全",
+    "啟用 輸入時的補全"
+  ],
+  "Enable Copy on Select Within the Terminal": [
+    "启用 选中终端文字时复制",
+    "啟用 選取終端文字時複製"
+  ],
+  "Enable Crash Reporting": [
+    "启用 崩溃报告",
+    "啟用 當機報告"
+  ],
+  "Enable Cursor Blink": [
+    "启用 光标闪烁",
+    "啟用 游標閃爍"
+  ],
+  "Enable Debug Network Status": [
+    "启用 网络状态调试",
+    "啟用 網路狀態偵錯"
+  ],
+  "Enable Dim Inactive Panes": [
+    "启用 调暗非活动窗格",
+    "啟用 調暗非作用中窗格"
+  ],
+  "Enable Editing Commands With Vim Keybindings": [
+    "启用 使用 Vim 快捷键编辑命令",
+    "啟用 使用 Vim 快速鍵編輯命令"
+  ],
+  "Enable Error Underlining": [
+    "启用 错误下划线",
+    "啟用 錯誤底線"
+  ],
+  "Enable Focus Follows Mouse": [
+    "启用 焦点跟随鼠标",
+    "啟用 焦點跟隨滑鼠"
+  ],
   "Enable Focus Reporting": [
-    "启用焦点报告",
-    "啟用焦點回報"
+    "启用 焦点报告",
+    "啟用 焦點回報"
+  ],
+  "Enable Input Hint Text": [
+    "启用 输入提示文字",
+    "啟用 輸入提示文字"
+  ],
+  "Enable Integrated GPU Rendering (Low Power)": [
+    "启用 集成 GPU 渲染（低功耗）",
+    "啟用 整合 GPU 繪製（低功耗）"
+  ],
+  "Enable Jump to Bottom of Block Button": [
+    "启用 跳至命令块底部 按钮",
+    "啟用 跳至命令區塊底部 按鈕"
+  ],
+  "Enable Ligature Rendering": [
+    "启用 连字渲染",
+    "啟用 連字繪製"
+  ],
+  "Enable Linux Selection Clipboard": [
+    "启用 Linux 选区剪贴板",
+    "啟用 Linux 選取範圍剪貼簿"
+  ],
+  "Enable Memory Statistics": [
+    "启用 内存统计",
+    "啟用 記憶體統計"
+  ],
+  "Enable Middle-Click Paste": [
+    "启用 中键粘贴",
+    "啟用 中鍵貼上"
   ],
   "Enable Mouse Reporting": [
     "启用鼠标报告",
     "啟用滑鼠回報"
   ],
+  "Enable Natural Language Autosuggestions": [
+    "启用 自然语言自动建议",
+    "啟用 自然語言自動建議"
+  ],
+  "Enable Next Command": [
+    "启用 下一条命令",
+    "啟用 下一條命令"
+  ],
+  "Enable Preserve Input Focus on Block Selection": [
+    "启用 选择命令块时保留输入焦点",
+    "啟用 選取命令區塊時保留輸入焦點"
+  ],
+  "Enable Prompt Suggestions": [
+    "启用 提示符建议",
+    "啟用 提示符建議"
+  ],
+  "Enable Quit Warning Modal": [
+    "启用 退出警告对话框",
+    "啟用 結束警告對話方塊"
+  ],
+  "Enable Recording Mode": [
+    "启用 录制模式",
+    "啟用 錄製模式"
+  ],
+  "Enable Restore Windows, Tabs, and Panes on Startup": [
+    "启用 启动时恢复窗口、标签页和窗格",
+    "啟用 啟動時復原視窗、分頁與窗格"
+  ],
+  "Enable SSH Session Detection for Warpification": [
+    "启用 用于 Warpify 的 SSH 会话检测",
+    "啟用 用於 Warpify 的 SSH 工作階段偵測"
+  ],
+  "Enable SSH session detection for Warpification": [
+    "启用 用于 Warpify 的 SSH 会话检测",
+    "啟用 用於 Warpify 的 SSH 工作階段偵測"
+  ],
   "Enable Scroll Reporting": [
-    "启用滚动报告",
-    "啟用捲動回報"
+    "启用 滚动报告",
+    "啟用 捲動回報"
+  ],
+  "Enable Secret Redaction": [
+    "启用 敏感信息遮蔽",
+    "啟用 敏感資訊遮蔽"
+  ],
+  "Enable Settings Sync": [
+    "启用 设置同步",
+    "啟用 設定同步"
+  ],
+  "Enable Shared Block Title Generation": [
+    "启用 共享命令块标题生成",
+    "啟用 共用命令區塊標題產生"
+  ],
+  "Enable Show Tooltip on Click on Links": [
+    "启用 点击链接时显示提示",
+    "啟用 點選連結時顯示提示"
+  ],
+  "Enable Show Vertical Tabs Panel in Restored Windows": [
+    "启用 恢复窗口中的垂直标签页面板",
+    "啟用 還原視窗中的垂直分頁面板"
+  ],
+  "Enable Slash Commands in Terminal Mode": [
+    "启用 终端模式中的斜杠命令",
+    "啟用 終端機模式中的斜線命令"
+  ],
+  "Enable Smart Select": [
+    "启用 智能选择",
+    "啟用 智慧選取"
+  ],
+  "Enable Syntax Highlighting": [
+    "启用 语法高亮",
+    "啟用 語法醒目提示"
+  ],
+  "Enable Tab Indicators": [
+    "启用 标签页状态指示器",
+    "啟用 分頁狀態指示器"
+  ],
+  "Enable Terminal Input Message Line": [
+    "启用 终端输入消息行",
+    "啟用 終端機輸入訊息列"
+  ],
+  "Enable Themes: Sync With OS": [
+    "启用 主题：跟随系统",
+    "啟用 佈景主題：隨系統切換"
+  ],
+  "Enable Vertical Tab Layout": [
+    "启用 垂直标签页布局",
+    "啟用 垂直分頁配置"
+  ],
+  "Enable Vim Status Bar": [
+    "启用 Vim 状态栏",
+    "啟用 Vim 狀態列"
+  ],
+  "Enable Vim Unnamed Register as System Clipboard": [
+    "启用 Vim 未命名寄存器作为系统剪贴板",
+    "啟用 Vim 未命名暫存器作為系統剪貼簿"
+  ],
+  "Enable Vim status bar": [
+    "启用 Vim 状态栏",
+    "啟用 Vim 狀態列"
+  ],
+  "Enable Vim unnamed register as system clipboard": [
+    "启用 Vim 未命名寄存器作为系统剪贴板",
+    "啟用 Vim 未命名暫存器作為系統剪貼簿"
+  ],
+  "Enable Voice Input": [
+    "启用 语音输入",
+    "啟用 語音輸入"
+  ],
+  "Enable Warpai SSH Wrapper": [
+    "启用 Warpai SSH 包装器",
+    "啟用 Warpai SSH 包裝程式"
+  ],
+  "Enable Warpai SSH wrapper": [
+    "启用 Warpai SSH 包装器",
+    "啟用 Warpai SSH 包裝程式"
   ],
   "Enable Warpai shell integration in this session": [
     "在此会话中启用 Warpai shell 集成",
     "在此工作階段中啟用 Warpai shell 整合"
   ],
+  "Enable Wayland for Window Management": [
+    "启用 Wayland 窗口管理",
+    "啟用 Wayland 視窗管理"
+  ],
+  "Enable Wayland for window management": [
+    "启用 Wayland 窗口管理",
+    "啟用 Wayland 視窗管理"
+  ],
+  "Enable Zen Mode": [
+    "启用 禅模式",
+    "啟用 禪模式"
+  ],
+  "Enable agent prompt autodetection in terminal input": [
+    "启用 终端输入中的智能体提示自动检测",
+    "啟用 終端機輸入中的智慧體提示自動偵測"
+  ],
+  "Enable alias expansion": [
+    "启用 别名展开",
+    "啟用 別名展開"
+  ],
+  "Enable app analytics": [
+    "启用 应用分析",
+    "啟用 應用程式分析"
+  ],
+  "Enable audible terminal bell": [
+    "启用 终端提示音",
+    "啟用 終端機提示音"
+  ],
+  "Enable auto-indexing": [
+    "启用 自动索引",
+    "啟用 自動索引"
+  ],
+  "Enable autocomplete quotes, parentheses, and brackets": [
+    "启用 自动补全引号、圆括号和方括号",
+    "啟用 自動補完引號、圓括號與方括號"
+  ],
+  "Enable autosuggestion keybinding hint": [
+    "启用 自动建议 快捷键提示",
+    "啟用 自動建議 快速鍵提示"
+  ],
+  "Enable autosuggestions": [
+    "启用 自动建议",
+    "啟用 自動建議"
+  ],
+  "Enable block dividers": [
+    "启用 命令块分隔线",
+    "啟用 命令區塊分隔線"
+  ],
+  "Enable code as default editor": [
+    "启用 代码视图作为默认编辑器",
+    "啟用 程式碼檢視作為預設編輯器"
+  ],
+  "Enable code suggestions": [
+    "启用 代码建议",
+    "啟用 程式碼建議"
+  ],
+  "Enable codebase index": [
+    "启用 代码库索引",
+    "啟用 程式碼庫索引"
+  ],
+  "Enable command corrections": [
+    "启用 命令纠正",
+    "啟用 命令修正"
+  ],
+  "Enable compact mode": [
+    "启用 紧凑模式",
+    "啟用 精簡模式"
+  ],
+  "Enable completions while typing": [
+    "启用 输入时的补全",
+    "啟用 輸入時的補全"
+  ],
+  "Enable copy on select within the terminal": [
+    "启用 选中终端文字时复制",
+    "啟用 選取終端文字時複製"
+  ],
+  "Enable crash reporting": [
+    "启用 崩溃报告",
+    "啟用 當機報告"
+  ],
+  "Enable cursor blink": [
+    "启用 光标闪烁",
+    "啟用 游標閃爍"
+  ],
+  "Enable debug network status": [
+    "启用 网络状态调试",
+    "啟用 網路狀態偵錯"
+  ],
+  "Enable dim inactive panes": [
+    "启用 调暗非活动窗格",
+    "啟用 調暗非作用中窗格"
+  ],
+  "Enable editing commands with Vim keybindings": [
+    "启用 使用 Vim 快捷键编辑命令",
+    "啟用 使用 Vim 快速鍵編輯命令"
+  ],
+  "Enable error underlining": [
+    "启用 错误下划线",
+    "啟用 錯誤底線"
+  ],
+  "Enable focus follows mouse": [
+    "启用 焦点跟随鼠标",
+    "啟用 焦點跟隨滑鼠"
+  ],
+  "Enable focus reporting": [
+    "启用 焦点报告",
+    "啟用 焦點回報"
+  ],
+  "Enable in-Band Generators for New Sessions": [
+    "启用 新会话的带内生成器",
+    "啟用 新工作階段的帶內產生器"
+  ],
+  "Enable in-band generators for new sessions": [
+    "启用 新会话的带内生成器",
+    "啟用 新工作階段的帶內產生器"
+  ],
+  "Enable input hint text": [
+    "启用 输入提示文字",
+    "啟用 輸入提示文字"
+  ],
+  "Enable integrated GPU rendering (low power)": [
+    "启用 集成 GPU 渲染（低功耗）",
+    "啟用 整合 GPU 繪製（低功耗）"
+  ],
+  "Enable jump to bottom of block button": [
+    "启用 跳至命令块底部 按钮",
+    "啟用 跳至命令區塊底部 按鈕"
+  ],
+  "Enable ligature rendering": [
+    "启用 连字渲染",
+    "啟用 連字繪製"
+  ],
+  "Enable linux selection clipboard": [
+    "启用 Linux 选区剪贴板",
+    "啟用 Linux 選取範圍剪貼簿"
+  ],
+  "Enable memory statistics": [
+    "启用 内存统计",
+    "啟用 記憶體統計"
+  ],
+  "Enable middle-click paste": [
+    "启用 中键粘贴",
+    "啟用 中鍵貼上"
+  ],
+  "Enable natural language autosuggestions": [
+    "启用 自然语言自动建议",
+    "啟用 自然語言自動建議"
+  ],
   "Enable notifications": [
     "启用通知",
     "啟用通知"
+  ],
+  "Enable preserve input focus on block selection": [
+    "启用 选择命令块时保留输入焦点",
+    "啟用 選取命令區塊時保留輸入焦點"
+  ],
+  "Enable prompt suggestions": [
+    "启用 提示符建议",
+    "啟用 提示符建議"
+  ],
+  "Enable quit warning modal": [
+    "启用 退出警告对话框",
+    "啟用 結束警告對話方塊"
+  ],
+  "Enable recording mode": [
+    "启用 录制模式",
+    "啟用 錄製模式"
   ],
   "Enable reopening of closed sessions": [
     "允许重新打开已关闭的会话",
     "允許重新開啟已關閉的工作階段"
   ],
+  "Enable restore windows, tabs, and panes on startup": [
+    "启用 启动时恢复窗口、标签页和窗格",
+    "啟用 啟動時復原視窗、分頁與窗格"
+  ],
+  "Enable scroll reporting": [
+    "启用 滚动报告",
+    "啟用 捲動回報"
+  ],
+  "Enable secret redaction": [
+    "启用 敏感信息遮蔽",
+    "啟用 敏感資訊遮蔽"
+  ],
+  "Enable settings sync": [
+    "启用 设置同步",
+    "啟用 設定同步"
+  ],
+  "Enable shared block title generation": [
+    "启用 共享命令块标题生成",
+    "啟用 共用命令區塊標題產生"
+  ],
+  "Enable show tooltip on click on links": [
+    "启用 点击链接时显示提示",
+    "啟用 點選連結時顯示提示"
+  ],
+  "Enable show vertical tabs panel in restored windows": [
+    "启用 恢复窗口中的垂直标签页面板",
+    "啟用 還原視窗中的垂直分頁面板"
+  ],
   "Enable slash commands in terminal mode": [
-    "在终端模式中启用斜杠命令",
-    "在終端模式中啟用斜線指令"
+    "启用 终端模式中的斜杠命令",
+    "啟用 終端機模式中的斜線命令"
+  ],
+  "Enable smart select": [
+    "启用 智能选择",
+    "啟用 智慧選取"
+  ],
+  "Enable syntax highlighting": [
+    "启用 语法高亮",
+    "啟用 語法醒目提示"
+  ],
+  "Enable tab indicators": [
+    "启用 标签页状态指示器",
+    "啟用 分頁狀態指示器"
+  ],
+  "Enable terminal input message line": [
+    "启用 终端输入消息行",
+    "啟用 終端機輸入訊息列"
+  ],
+  "Enable themes: sync with OS": [
+    "启用 主题：跟随系统",
+    "啟用 佈景主題：隨系統切換"
+  ],
+  "Enable vertical tab layout": [
+    "启用 垂直标签页布局",
+    "啟用 垂直分頁配置"
+  ],
+  "Enable voice input": [
+    "启用 语音输入",
+    "啟用 語音輸入"
+  ],
+  "Enable zen mode": [
+    "启用 禅模式",
+    "啟用 禪模式"
+  ],
+  "Enable {}": [
+    "启用 {}",
+    "啟用 {}"
   ],
   "Enables codebase indexing and WARP.md": [
     "启用代码库索引和 WARP.md",
@@ -978,6 +2038,10 @@
   "Enter custom Docker image name:": [
     "输入自定义 Docker 镜像名称：",
     "輸入自訂 Docker 映像名稱："
+  ],
+  "Enter refreshes. Page Up and Page Down scroll. Escape returns to terminal. Tasks and pagination use native buttons.": [
+    "按 Enter 刷新，Page Up 和 Page Down 滚动，Escape 返回终端。任务和分页使用原生按钮。",
+    "按 Enter 重新整理，Page Up 和 Page Down 捲動，Escape 返回終端機。任務與分頁使用原生按鈕。"
   ],
   "Environment details": [
     "环境详情",
@@ -1006,6 +2070,10 @@
   "Example queries": [
     "查询示例",
     "查詢範例"
+  ],
+  "Execution timeout {} · review timeout {} · review overdue {}": [
+    "执行超时 {} · 审查超时 {} · 审查逾期 {}",
+    "執行逾時 {} · 審查逾時 {} · 審查逾期 {}"
   ],
   "Expand": [
     "展开",
@@ -1043,9 +2111,17 @@
     "文件已重命名，内容未变更",
     "檔案已重新命名，內容未變更"
   ],
+  "File reservations · current checkout · up to 50 records": [
+    "文件预约 · 当前检出目录 · 最多 50 条记录",
+    "檔案預約 · 目前簽出目錄 · 最多 50 筆記錄"
+  ],
   "Fill out the arguments in this workflow and copy it to run in your terminal session": [
     "填写工作流参数，然后复制到终端会话中运行",
     "填寫工作流程參數，然後複製至終端機工作階段中執行"
+  ],
+  "Find bar with {} matches found. Currently on match {} of {}.": [
+    "搜索栏找到 {} 个匹配项，当前选中第 {} 项，共 {} 项。",
+    "搜尋列找到 {} 個符合項目，目前選取第 {} 項，共 {} 項。"
   ],
   "Finish": [
     "完成",
@@ -1054,6 +2130,10 @@
   "First, set up an environment to create an integration.": [
     "请先设置环境，再创建集成。",
     "請先設定環境，再建立整合。"
+  ],
+  "Focus follows mouse": [
+    "焦点跟随鼠标",
+    "焦點跟隨滑鼠"
   ],
   "Font size (px)": [
     "字号（px）",
@@ -1139,6 +2219,10 @@
     "智能体执行器",
     "智慧體執行器"
   ],
+  "Header toolbar layout": [
+    "顶部工具栏布局",
+    "頂部工具列配置"
+  ],
   "Height %": [
     "高度 %",
     "高度 %"
@@ -1147,9 +2231,17 @@
     "帮助",
     "說明"
   ],
+  "Hide search bar in vertical tab layout": [
+    "在垂直标签页布局中隐藏搜索栏",
+    "在垂直分頁配置中隱藏搜尋列"
+  ],
   "History": [
     "历史记录",
     "歷史記錄"
+  ],
+  "Home directory": [
+    "主目录",
+    "家目錄"
   ],
   "Honor linux selection clipboard": [
     "使用 Linux 选区剪贴板",
@@ -1219,9 +2311,17 @@
     "输入",
     "輸入"
   ],
+  "Input type": [
+    "输入类型",
+    "輸入類型"
+  ],
   "Install": [
     "安装",
     "安裝"
+  ],
+  "Install WSL Companion": [
+    "安装 WSL Companion",
+    "安裝 WSL Companion"
   ],
   "Install nvm": [
     "安装 nvm",
@@ -1235,9 +2335,17 @@
     "安装 Warpai 插件以启用应用内丰富智能体通知",
     "安裝 Warpai 外掛程式以啟用應用程式內的豐富智慧體通知"
   ],
+  "Install {}": [
+    "安装 {}",
+    "安裝 {}"
+  ],
   "Installed": [
     "已安装",
     "已安裝"
+  ],
+  "Installing {}...": [
+    "正在安装 {}…",
+    "正在安裝 {}…"
   ],
   "Installing...": [
     "正在安装…",
@@ -1246,6 +2354,10 @@
   "Integrate PowerShell": [
     "集成 PowerShell",
     "整合 PowerShell"
+  ],
+  "Integration commit recorded · {}": [
+    "已记录集成提交 · {}",
+    "已記錄整合提交 · {}"
   ],
   "Introducing universal agent support: level up any coding agent with Warpai": [
     "通用智能体支持：使用 Warpai 提升编程智能体能力",
@@ -1258,6 +2370,10 @@
   "Invite": [
     "邀请",
     "邀請"
+  ],
+  "Issuer: {} · assignee: {} · reviewer: {}": [
+    "发起者：{} · 执行者：{} · 审查者：{}",
+    "發起者：{} · 執行者：{} · 審查者：{}"
   ],
   "Keybinding": [
     "快捷键",
@@ -1283,6 +2399,10 @@
     "尚未为 {root_name} 启用语言支持",
     "尚未為 {root_name} 啟用語言支援"
   ],
+  "Language support is not currently enabled for {}": [
+    "尚未为 {} 启用语言支持",
+    "尚未為 {} 啟用語言支援"
+  ],
   "Language support is unavailable for {root_name}": [
     "{root_name} 的语言支持不可用",
     "{root_name} 的語言支援無法使用"
@@ -1303,6 +2423,10 @@
     "了解更多",
     "瞭解更多"
   ],
+  "Left": [
+    "左侧",
+    "左側"
+  ],
   "Left Alt key is Meta": [
     "左 Alt 键作为 Meta",
     "左 Alt 鍵作為 Meta"
@@ -1310,6 +2434,10 @@
   "Left Option key is Meta": [
     "左 Option 键作为 Meta",
     "左 Option 鍵作為 Meta"
+  ],
+  "Left and Right or Enter change preview state. Page Up and Page Down scroll. Escape returns to terminal.": [
+    "按左右方向键或 Enter 切换预览状态，Page Up 和 Page Down 滚动，Escape 返回终端。",
+    "按左右方向鍵或 Enter 切換預覽狀態，Page Up 和 Page Down 捲動，Escape 返回終端機。"
   ],
   "Ligatures may reduce performance": [
     "连字可能降低性能",
@@ -1491,9 +2619,13 @@
     "进入仓库并初始化开发环境",
     "進入儲存庫並初始化開發環境"
   ],
+  "Network log console": [
+    "网络日志控制台",
+    "網路記錄主控台"
+  ],
   "Never": [
     "从不",
-    "永不"
+    "從不"
   ],
   "Never Warpify this host": [
     "永不为此主机启用 Warpify",
@@ -1538,6 +2670,10 @@
   "New environment": [
     "新建环境",
     "新增環境"
+  ],
+  "New shared sessions only": [
+    "仅限新的共享会话",
+    "僅限新的共用工作階段"
   ],
   "New tab": [
     "新标签页",
@@ -1662,6 +2798,10 @@
   "No open changes": [
     "没有打开的变更",
     "沒有開啟的變更"
+  ],
+  "No participating agents": [
+    "暂无参与的 Agent",
+    "尚無參與的 Agent"
   ],
   "No repos selected yet": [
     "尚未选择仓库",
@@ -1887,6 +3027,10 @@
     "也可以提供现有的 Docker 镜像。",
     "也可以提供現有的 Docker 映像。"
   ],
+  "Original checkout {} · path {} · owner {} · expiry {} · attempt {}": [
+    "原始检出 {} · 路径 {} · 归属者 {} · 到期 {} · 尝试 {}",
+    "原始檢出 {} · 路徑 {} · 歸屬者 {} · 到期 {} · 嘗試 {}"
+  ],
   "Other agents: usage unsupported. Qoder CN has no verified background usage interface.": [
     "其他智能体不支持用量查询。Qoder CN 尚无已验证的后台用量接口。",
     "其他智慧體不支援用量查詢。Qoder CN 尚無已驗證的背景用量介面。"
@@ -1926,6 +3070,10 @@
   "Panes": [
     "窗格",
     "窗格"
+  ],
+  "Participants: {}": [
+    "参与者：{}",
+    "參與者：{}"
   ],
   "Paste your auth token below": [
     "在下方粘贴认证令牌",
@@ -2011,6 +3159,10 @@
     "前置任务 {id}",
     "前置任務 {id}"
   ],
+  "Preserve active tab color for new tabs": [
+    "新标签页沿用当前标签页颜色",
+    "新分頁沿用目前分頁顏色"
+  ],
   "Preserve input focus on block selection": [
     "选择命令块时保留输入焦点",
     "選取命令區塊時保留輸入焦點"
@@ -2019,9 +3171,17 @@
     "按下新的快捷键",
     "按下新的快捷鍵"
   ],
+  "Preview · {}": [
+    "预览 · {}",
+    "預覽 · {}"
+  ],
   "Previous": [
     "上一步",
     "上一步"
+  ],
+  "Previous session's directory": [
+    "上一次会话的目录",
+    "上一次工作階段的目錄"
   ],
   "Privacy Settings": [
     "隐私设置",
@@ -2070,6 +3230,10 @@
   "Read all changelogs": [
     "查看所有更新记录",
     "查看所有更新紀錄"
+  ],
+  "Read and write": [
+    "允许读取和写入",
+    "允許讀取與寫入"
   ],
   "Read more about Warpai's use of data": [
     "了解 Warpai 如何使用数据",
@@ -2179,6 +3343,10 @@
     "仓库",
     "儲存庫"
   ],
+  "Repository {} · model {} · branch {} · base {}": [
+    "仓库 {} · 模式 {} · 分支 {} · 基准 {}",
+    "儲存庫 {} · 模式 {} · 分支 {} · 基準 {}"
+  ],
   "Request edit access": [
     "申请编辑权限",
     "申請編輯權限"
@@ -2215,6 +3383,14 @@
     "启动时恢复窗口、标签页和窗格",
     "啟動時復原視窗、分頁與窗格"
   ],
+  "Result and review": [
+    "结果与审查",
+    "結果與審查"
+  ],
+  "Result {} of {}.": [
+    "第 {} 项，共 {} 项。",
+    "第 {} 項，共 {} 項。"
+  ],
   "Retry": [
     "重试",
     "重試"
@@ -2222,6 +3398,10 @@
   "Review changes": [
     "审阅变更",
     "審閱變更"
+  ],
+  "Reviewed workspace admission": [
+    "已审查的工作区加入信息",
+    "已審查的工作區加入資訊"
   ],
   "Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.": [
     "撤销所选智能体的共享协调访问和唤醒资格。其任务尝试会保留在此空间中，并可能仍在执行；此操作不会停止 CLI 进程。",
@@ -2242,6 +3422,10 @@
   "Rich Input": [
     "富文本输入",
     "豐富文字輸入"
+  ],
+  "Right": [
+    "右侧",
+    "右側"
   ],
   "Right Alt key is Meta": [
     "右 Alt 键作为 Meta",
@@ -2275,6 +3459,10 @@
     "无法安装 SSH 扩展",
     "無法安裝 SSH 擴充功能"
   ],
+  "SSH project": [
+    "SSH 项目",
+    "SSH 專案"
+  ],
   "SSH project unavailable ({code}). Last received state is stale. Check the terminal connection, then reconnect.": [
     "SSH 项目不可用（{code}）。最后接收的状态已过期。请检查终端连接，然后重新连接。",
     "SSH 專案無法使用（{code}）。最後接收的狀態已過期。請檢查終端機連線，然後重新連線。"
@@ -2294,6 +3482,10 @@
   "Save New...": [
     "另存为新文件…",
     "另存為新檔案…"
+  ],
+  "Scheduling and deadlines": [
+    "调度与截止时间",
+    "排程與截止時間"
   ],
   "Search": [
     "搜索",
@@ -2339,9 +3531,17 @@
     "所选文件夹不是 Git 仓库：{path}",
     "所選資料夾不是 Git 儲存庫：{path}"
   ],
+  "Send Feedback": [
+    "发送反馈",
+    "傳送意見"
+  ],
   "Send Feedback...": [
     "发送反馈…",
     "傳送意見回饋…"
+  ],
+  "Send crash reports": [
+    "发送崩溃报告",
+    "傳送當機報告"
   ],
   "Send now": [
     "立即发送",
@@ -2395,6 +3595,10 @@
     "与团队共享",
     "與團隊共用"
   ],
+  "Shared blocks": [
+    "共享命令块",
+    "共用命令區塊"
+  ],
   "Show": [
     "显示",
     "顯示"
@@ -2402,6 +3606,10 @@
   "Show Global Workflows in Command Search (ctrl-r)": [
     "在命令搜索中显示全局工作流（ctrl-r）",
     "在指令搜尋中顯示全域工作流程（ctrl-r）"
+  ],
+  "Show Jump to Bottom of Block button": [
+    "显示跳到命令块底部按钮",
+    "顯示跳到命令區塊底部按鈕"
   ],
   "Show Vim status bar": [
     "显示 Vim 状态栏",
@@ -2423,13 +3631,17 @@
     "显示自动建议快捷键提示",
     "顯示自動建議快捷鍵提示"
   ],
+  "Show block dividers": [
+    "显示命令块分隔线",
+    "顯示命令區塊分隔線"
+  ],
   "Show changelog toast after updates": [
     "更新后显示版本变更通知",
     "更新後顯示版本變更通知"
   ],
   "Show code review button": [
-    "显示代码审阅按钮",
-    "顯示程式碼審閱按鈕"
+    "显示代码审查按钮",
+    "顯示程式碼審查按鈕"
   ],
   "Show diff stats on code review button": [
     "在代码审阅按钮上显示差异统计",
@@ -2455,6 +3667,10 @@
     "显示应用内智能体通知",
     "顯示應用程式內的智慧體通知"
   ],
+  "Show ligatures in terminal": [
+    "在终端显示连字",
+    "在終端機顯示連字"
+  ],
   "Show lines added and removed counts on the code review button.": [
     "在代码审查按钮上显示新增与删除的行数。",
     "在程式碼審查按鈕上顯示新增與刪除的行數。"
@@ -2471,6 +3687,10 @@
     "固定显示命令标题",
     "固定顯示指令標題"
   ],
+  "Show tab indicators": [
+    "显示标签页指示器",
+    "顯示分頁指示器"
+  ],
   "Show terminal input message line": [
     "显示终端输入提示行",
     "顯示終端輸入提示列"
@@ -2483,9 +3703,17 @@
     "显示版本历史",
     "顯示版本歷史"
   ],
+  "Show vertical tabs panel in restored windows": [
+    "在恢复的窗口中显示垂直标签页面板",
+    "在還原的視窗中顯示垂直分頁面板"
+  ],
   "Show warning before quitting/logging out": [
     "退出或注销前显示警告",
     "結束或登出前顯示警告"
+  ],
+  "Show/hide all windows": [
+    "显示/隐藏所有窗口",
+    "顯示／隱藏所有視窗"
   ],
   "Showing {total_refs} references": [
     "显示 {total_refs} 处引用",
@@ -2531,6 +3759,10 @@
     "部分设置将在打开新会话后生效。",
     "部分設定將在開啟新工作階段後生效。"
   ],
+  "Space {} · workspace {} · {}": [
+    "空间 {} · 工作空间 {} · {}",
+    "空間 {} · 工作空間 {} · {}"
+  ],
   "Split Pane": [
     "拆分窗格",
     "分割窗格"
@@ -2567,6 +3799,10 @@
     "从顶部开始（经典模式）",
     "從頂部開始（經典模式）"
   ],
+  "Start by {} · execution deadline {} · review deadline {}": [
+    "开始期限 {} · 执行期限 {} · 审查期限 {}",
+    "開始期限 {} · 執行期限 {} · 審查期限 {}"
+  ],
   "Stash changes": [
     "暂存更改",
     "暫存變更"
@@ -2582,6 +3818,10 @@
   "Stopped": [
     "已停止",
     "已停止"
+  ],
+  "Store AI conversations in the cloud": [
+    "在云端保存 AI 对话",
+    "在雲端儲存 AI 對話"
   ],
   "Subshells": [
     "子 shell",
@@ -2667,6 +3907,14 @@
     "接管",
     "接管"
   ],
+  "Task {} · original revision {} · version {}": [
+    "任务 {} · 原始修订 {} · 版本 {}",
+    "任務 {} · 原始修訂 {} · 版本 {}"
+  ],
+  "Task · {}": [
+    "任务 · {}",
+    "任務 · {}"
+  ],
   "Tasks": [
     "任务",
     "工作"
@@ -2690,6 +3938,10 @@
   "Terminal Input": [
     "终端输入",
     "終端輸入"
+  ],
+  "Terminal font": [
+    "终端字体",
+    "終端機字型"
   ],
   "Terms of Service": [
     "服务条款",
@@ -2819,6 +4071,10 @@
     "工具栏布局",
     "工具列配置"
   ],
+  "Tools panel visibility is consistent across tabs": [
+    "各标签页保持相同的工具面板显示状态",
+    "各分頁保持相同的工具面板顯示狀態"
+  ],
   "Total overages": [
     "超额用量总计",
     "超額用量總計"
@@ -2850,6 +4106,10 @@
   "Unable to load file content": [
     "无法加载文件内容",
     "無法載入檔案內容"
+  ],
+  "Underline": [
+    "下划线",
+    "底線"
   ],
   "Undo": [
     "撤销",
@@ -2895,6 +4155,10 @@
     "使用提示音",
     "使用提示音"
   ],
+  "Use Tmux Warpification": [
+    "启用 Tmux Warpify 集成",
+    "啟用 Tmux Warpify 整合"
+  ],
   "Use Warpai's Prompt": [
     "使用 Warpai 提示符",
     "使用 Warpai 提示字元"
@@ -2903,6 +4167,10 @@
     "使用 Wayland 管理窗口",
     "使用 Wayland 管理視窗"
   ],
+  "Use Window Blur (Acrylic texture)": [
+    "启用窗口模糊（亚克力效果）",
+    "啟用視窗模糊（壓克力效果）"
+  ],
   "Use agent": [
     "使用智能体",
     "使用智慧體"
@@ -2910,6 +4178,18 @@
   "Use an ID from the original reservation page. Renewal requires a confirmed active owner; release removes advisory coordination only and does not stop execution or file writes.": [
     "使用原预约页面中的 ID。续期需要确认归属者仍处于活动状态；释放仅移除协调声明，不会停止执行或文件写入。",
     "使用原預約頁面中的 ID。續期需要確認歸屬者仍處於活動狀態；釋放僅移除協調宣告，不會停止執行或檔案寫入。"
+  ],
+  "Use custom padding in alt-screen": [
+    "在备用屏幕中使用自定义边距",
+    "在替代螢幕中使用自訂邊距"
+  ],
+  "Use latest user prompt as conversation title in tab names": [
+    "以最新用户提示作为标签页中的对话标题",
+    "以最新使用者提示作為分頁中的對話標題"
+  ],
+  "Use vertical tab layout": [
+    "使用垂直标签页布局",
+    "使用垂直分頁配置"
   ],
   "User defined": [
     "用户自定义",
@@ -3015,6 +4295,10 @@
     "WSL 通信",
     "WSL 通訊"
   ],
+  "WSL project": [
+    "WSL 项目",
+    "WSL 專案"
+  ],
   "Warpai SSH Wrapper": [
     "Warpai SSH 包装器",
     "Warpai SSH 包裝程式"
@@ -3038,6 +4322,10 @@
   "Warpai will prevent use of premium models when this dollar limit is reached. Resets on a monthly basis.": [
     "达到此美元上限后，Warpai 将停止使用高级模型。额度每月重置。",
     "達到此美元上限後，Warpai 將停止使用進階模型。額度每月重設。"
+  ],
+  "Warpify SSH Sessions": [
+    "为 SSH 会话启用 Warpify",
+    "為 SSH 工作階段啟用 Warpify"
   ],
   "Warpify subshell": [
     "为子 shell 启用集成",
@@ -3107,6 +4395,10 @@
     "工作树",
     "工作樹"
   ],
+  "Write only": [
+    "仅允许写入",
+    "僅允許寫入"
+  ],
   "Yes, skip login": [
     "是，跳过登录",
     "是，略過登入"
@@ -3163,6 +4455,14 @@
     "额度已用完",
     "額度已用完"
   ],
+  "about warpai warp version update check startup releases": [
+    "关于 版本 更新 检查 启动 发布",
+    "關於 版本 更新 檢查 啟動 發行"
+  ],
+  "alt screen padding border space vim": [
+    "全屏应用 内边距 边框 空间 Vim",
+    "全螢幕應用程式 內距 邊框 空間 Vim"
+  ],
   "and open the page manually.": [
     "并手动打开页面。",
     "並手動開啟頁面。"
@@ -3175,13 +4475,61 @@
     "仅对已登录用户开放。",
     "僅對已登入使用者開放。"
   ],
+  "async asynchronous fast find search": [
+    "异步 快速查找 搜索",
+    "非同步 快速尋找 搜尋"
+  ],
+  "audible bell": [
+    "终端提示音",
+    "終端機提示音"
+  ],
+  "auto save autosave automatically save editor files on type focus": [
+    "自动保存 编辑器 文件 输入 焦点",
+    "自動儲存 編輯器 檔案 輸入 焦點"
+  ],
+  "autocomplete autoclose symbol bracket quote parentheses braces": [
+    "自动补全 自动闭合 符号 括号 引号 圆括号 花括号",
+    "自動補全 自動閉合 符號 括號 引號 圓括號 大括號"
+  ],
+  "autosuggestion ignore button hide": [
+    "自动建议 忽略按钮 隐藏",
+    "自動建議 忽略按鈕 隱藏"
+  ],
+  "autosuggestion keybinding hint": [
+    "自动建议 快捷键提示",
+    "自動建議 快速鍵提示"
+  ],
   "base {value}": [
     "基准 {value}",
     "基準 {value}"
   ],
+  "blinking cursor": [
+    "光标闪烁",
+    "游標閃爍"
+  ],
   "branch {value}": [
     "分支 {value}",
     "分支 {value}"
+  ],
+  "cancelled": [
+    "已取消",
+    "已取消"
+  ],
+  "case insensitive completions autosuggestions": [
+    "不区分大小写 补全 自动建议",
+    "不區分大小寫 補全 自動建議"
+  ],
+  "changelog updates": [
+    "更新记录 更新",
+    "更新紀錄 更新"
+  ],
+  "clipboard osc 52 osc52 paste copy access terminal program": [
+    "剪贴板 OSC52 粘贴 复制 访问 终端程序",
+    "剪貼簿 OSC52 貼上 複製 存取 終端機程式"
+  ],
+  "code review button tab bar": [
+    "代码审查按钮 标签栏",
+    "程式碼審查按鈕 分頁列"
   ],
   "command {value}": [
     "命令 {value}",
@@ -3191,21 +4539,109 @@
     "提交 {value}",
     "提交 {value}"
   ],
+  "compact mode spacing padding": [
+    "紧凑模式 间距 内边距",
+    "精簡模式 間距 內距"
+  ],
+  "completions autosuggestions tab keybinding arrow accept": [
+    "补全 自动建议 Tab 快捷键 箭头 接受",
+    "補全 自動建議 Tab 快速鍵 箭頭 接受"
+  ],
+  "completions menu type typing": [
+    "补全菜单 输入",
+    "補全選單 輸入"
+  ],
+  "copy on select": [
+    "选中时复制",
+    "選取時複製"
+  ],
   "copy the URL": [
     "复制网址",
     "複製網址"
+  ],
+  "create theme create custom theme": [
+    "创建主题 自定义主题",
+    "建立佈景主題 自訂佈景主題"
   ],
   "creating your own workflow": [
     "创建自定义工作流",
     "建立自訂工作流程"
   ],
+  "ctrl tab behavior pane switch session recent": [
+    "Ctrl Tab 行为 窗格切换 最近会话",
+    "Ctrl Tab 行為 窗格切換 最近工作階段"
+  ],
+  "cursor shape cursor type block bar beam underline": [
+    "光标形状 光标类型 方块 竖线 下划线",
+    "游標形狀 游標類型 方塊 直線 底線"
+  ],
+  "desktop notifications": [
+    "桌面通知",
+    "桌面通知"
+  ],
   "device {value}; remote metadata, content not fetched": [
     "设备 {value}；远程元数据，内容尚未获取",
     "裝置 {value}；遠端中繼資料，內容尚未取得"
   ],
+  "dim inactive panes": [
+    "调暗非活动窗格",
+    "調暗非作用中窗格"
+  ],
+  "directory tab color folder codebase repo": [
+    "目录标签页颜色 文件夹 代码库 仓库",
+    "目錄分頁色彩 資料夾 程式碼庫 儲存庫"
+  ],
+  "disconnected": [
+    "已断开连接",
+    "已中斷連線"
+  ],
+  "dock cmd tab app switcher": [
+    "程序坞 应用切换器",
+    "Dock 應用程式切換器"
+  ],
+  "error": [
+    "错误",
+    "錯誤"
+  ],
+  "error underline editor": [
+    "错误下划线 编辑器",
+    "錯誤底線 編輯器"
+  ],
   "exit {value}": [
     "退出状态 {value}",
     "結束狀態 {value}"
+  ],
+  "expand alias expansion": [
+    "展开别名",
+    "展開別名"
+  ],
+  "extra meta key alt option": [
+    "额外 Meta 键 Alt Option",
+    "額外 Meta 鍵 Alt Option"
+  ],
+  "focus follows mouse": [
+    "焦点跟随鼠标",
+    "焦點跟隨滑鼠"
+  ],
+  "focus reporting": [
+    "焦点报告",
+    "焦點回報"
+  ],
+  "for terminal": [
+    "用于终端",
+    "用於終端機"
+  ],
+  "global hotkey quake mode keybinding quick terminal": [
+    "全局快捷键 下拉终端模式 按键绑定 快速终端",
+    "全域快速鍵 下拉終端機模式 按鍵綁定 快速終端機"
+  ],
+  "global search file search left panel tools": [
+    "全局搜索 文件搜索 左侧工具面板",
+    "全域搜尋 檔案搜尋 左側工具面板"
+  ],
+  "gpu graphics backend vulkan dx12 directx12 opengl driver": [
+    "GPU 图形后端 Vulkan DX12 DirectX12 OpenGL 驱动",
+    "GPU 圖形後端 Vulkan DX12 DirectX12 OpenGL 驅動程式"
   ],
   "hash {value}": [
     "哈希 {value}",
@@ -3219,13 +4655,85 @@
     "此处。",
     "此處。"
   ],
+  "hide title bar search bar vertical tabs chrome minimal": [
+    "隐藏标题栏 搜索栏 垂直标签页 极简",
+    "隱藏標題列 搜尋列 垂直分頁 極簡"
+  ],
+  "idle": [
+    "空闲",
+    "閒置"
+  ],
+  "input mode input position pinned top bottom classic waterfall reverse": [
+    "输入模式 输入位置 固定顶部 底部 经典 瀑布 反向",
+    "輸入模式 輸入位置 固定頂部 底部 經典 瀑布 反向"
+  ],
+  "jump to bottom of block button": [
+    "跳至命令块底部 按钮",
+    "跳至命令區塊底部 按鈕"
+  ],
+  "line number relative line vim gutter code editor": [
+    "行号 相对行号 Vim 边栏 代码编辑器",
+    "行號 相對行號 Vim 邊欄 程式碼編輯器"
+  ],
+  "login item startup start mac windows app restart automatic": [
+    "登录项 启动 Mac Windows 应用 重启 自动",
+    "登入項目 啟動 Mac Windows 應用程式 重新啟動 自動"
+  ],
+  "middle click paste clipboard": [
+    "中键粘贴 剪贴板",
+    "中鍵貼上 剪貼簿"
+  ],
+  "mouse reporting": [
+    "鼠标报告",
+    "滑鼠回報"
+  ],
+  "network log audit console data collection": [
+    "网络日志 审计 控制台 数据收集",
+    "網路記錄 稽核 主控台 資料收集"
+  ],
+  "new tab placement": [
+    "新标签页位置",
+    "新分頁位置"
+  ],
+  "open windows with custom size": [
+    "新窗口 自定义大小",
+    "新視窗 自訂大小"
+  ],
   "outcome {value}": [
     "结果 {value}",
     "結果 {value}"
   ],
+  "project explorer file tree left panel tools": [
+    "项目浏览器 文件树 左侧工具面板",
+    "專案瀏覽器 檔案樹 左側工具面板"
+  ],
+  "prompt ps1 terminal warp shell custom": [
+    "提示符 终端 shell 自定义",
+    "提示符 終端機 shell 自訂"
+  ],
+  "quit all windows closed": [
+    "所有窗口关闭后退出",
+    "所有視窗關閉後結束"
+  ],
+  "render integrated discrete gpu graphics": [
+    "渲染 集成 显卡 独立 GPU 图形",
+    "繪製 整合 顯示卡 獨立 GPU 圖形"
+  ],
+  "reopen restore recover closed tab session": [
+    "重新打开 恢复已关闭标签页 会话",
+    "重新開啟 還原已關閉分頁 工作階段"
+  ],
   "repository {value}": [
     "仓库 {value}",
     "儲存庫 {value}"
+  ],
+  "restore session window tab pane startup": [
+    "恢复会话 窗口 标签页 窗格 启动",
+    "還原工作階段 視窗 分頁 窗格 啟動"
+  ],
+  "scroll reporting": [
+    "滚动报告",
+    "捲動回報"
   ],
   "seconds": [
     "秒",
@@ -3235,9 +4743,81 @@
     "秒时",
     "秒時"
   ],
+  "secret redaction safe mode hide": [
+    "敏感信息遮蔽 安全模式 隐藏",
+    "敏感資訊遮蔽 安全模式 隱藏"
+  ],
+  "show block dividers": [
+    "显示命令块分隔线",
+    "顯示命令區塊分隔線"
+  ],
+  "show hidden files dotfiles project explorer file tree": [
+    "显示隐藏文件 点文件 项目浏览器 文件树",
+    "顯示隱藏檔案 點檔案 專案瀏覽器 檔案樹"
+  ],
+  "starting": [
+    "正在启动",
+    "正在啟動"
+  ],
+  "starting working directory pwd session": [
+    "起始工作目录 会话",
+    "起始工作目錄 工作階段"
+  ],
+  "startup shell session": [
+    "启动 shell 会话",
+    "啟動 shell 工作階段"
+  ],
+  "suggest command corrections": [
+    "命令纠正建议",
+    "命令修正建議"
+  ],
   "summary {value}": [
     "摘要 {value}",
     "摘要 {value}"
+  ],
+  "sync with os theme themes background backgrounds color colors customize": [
+    "同步系统 主题 背景 颜色 自定义",
+    "同步系統 佈景主題 背景 色彩 自訂"
+  ],
+  "syntax highlighting editor": [
+    "语法高亮 编辑器",
+    "語法醒目提示 編輯器"
+  ],
+  "tab bar close button position left right": [
+    "标签栏 关闭按钮位置 左侧 右侧",
+    "分頁列 關閉按鈕位置 左側 右側"
+  ],
+  "tab color preserve new inherit active": [
+    "标签页颜色 保留 新建 继承 当前",
+    "分頁色彩 保留 新增 繼承 目前"
+  ],
+  "tab indicator": [
+    "标签页状态指示器",
+    "分頁狀態指示器"
+  ],
+  "text agent ai font family font size monospace": [
+    "智能体文本 字体 字号 等宽字体",
+    "智慧體文字 字型 字型大小 等寬字型"
+  ],
+  "text font ligatures": [
+    "文本 字体 连字",
+    "文字 字型 連字"
+  ],
+  "text minimum contrast high": [
+    "文本 最小对比度",
+    "文字 最小對比度"
+  ],
+  "text notebook font size": [
+    "笔记本文本 字号",
+    "筆記本文字 字型大小"
+  ],
+  "text terminal font family font size line height monospace": [
+    "终端文本 字体 字号 行高 等宽字体",
+    "終端機文字 字型 字型大小 行高 等寬字型"
+  ],
+  "text thin strokes high dpi": [
+    "文本 细笔画 高 DPI",
+    "文字 細筆畫 高 DPI"
   ],
   "the page manually.": [
     "手动打开此页面。",
@@ -3247,9 +4827,61 @@
     "切换参数",
     "切換參數"
   ],
+  "unknown activity": [
+    "活动状态未知",
+    "活動狀態未知"
+  ],
+  "vertical tabs panel restore window session snapshot": [
+    "垂直标签页面板 恢复窗口 会话快照",
+    "垂直分頁面板 還原視窗 工作階段快照"
+  ],
+  "vertical tabs sidebar layout": [
+    "垂直标签页 侧边栏 布局",
+    "垂直分頁 側邊欄 配置"
+  ],
+  "vim mode keybindings": [
+    "Vim 模式 快捷键",
+    "Vim 模式 快速鍵"
+  ],
+  "waiting for approval": [
+    "等待批准",
+    "等待核准"
+  ],
+  "waiting for input": [
+    "等待输入",
+    "等待輸入"
+  ],
+  "window blur radius": [
+    "窗口模糊半径",
+    "視窗模糊半徑"
+  ],
+  "window blur texture acrylic": [
+    "窗口模糊 纹理 亚克力",
+    "視窗模糊 紋理 壓克力"
+  ],
+  "window opacity transparency": [
+    "窗口不透明度 透明度",
+    "視窗不透明度 透明度"
+  ],
+  "word smart select semantic separator": [
+    "单词 智能选择 语义 分隔符",
+    "單字 智慧選取 語意 分隔符號"
+  ],
+  "working": [
+    "正在工作",
+    "正在工作"
+  ],
   "you can adjust your ": [
     "可调整你的",
     "可調整你的"
+  ],
+  "zen mode minimal tab bar window decoration": [
+    "禅模式 极简 标签栏 窗口装饰",
+    "禪模式 極簡 分頁列 視窗裝飾"
+  ],
+  "zoom level zoom size scale": [
+    "缩放比例 缩放 大小",
+    "縮放比例 縮放 大小"
   ],
   "{error} Click to reconnect.": [
     "{error} 点击重新连接。",
@@ -3258,6 +4890,34 @@
   "{member_count} tabs": [
     "{member_count} 个标签页",
     "{member_count} 個分頁"
+  ],
+  "{} (default)": [
+    "{}（默认）",
+    "{}（預設）"
+  ],
+  "{} accepts autosuggestions.": [
+    "按 {} 接受自动建议。",
+    "按 {} 接受自動建議。"
+  ],
+  "{} opens completion menu.": [
+    "按 {} 打开补全菜单。",
+    "按 {} 開啟補全選單。"
+  ],
+  "{} · repository {} · {}": [
+    "{} · 仓库 {} · {}",
+    "{} · 儲存庫 {} · {}"
+  ],
+  "{} · {:.0}% used": [
+    "{} · 已用 {:.0}%",
+    "{} · 已用 {:.0}%"
+  ],
+  "{}: error": [
+    "{}：错误",
+    "{}：錯誤"
+  ],
+  "{}: stopped": [
+    "{}：已停止",
+    "{}：已停止"
   ],
   "→ accepts autosuggestions.": [
     "按 → 接受自动建议。",

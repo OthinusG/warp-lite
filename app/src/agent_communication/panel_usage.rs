@@ -56,9 +56,25 @@ impl CollaborationPanel {
             let status = match reading {
                 Some(Ok(r)) => {
                     if let Some(window) = window {
-                        format!("{} · {:.0}% used", window.name, window.used)
+                        {
+                            let __warpai_locale_argument_0 = &(window.name);
+                            let __warpai_locale_argument_1 = &(window.used);
+                            warpui::localization::format_text(
+                                "{} · {:.0}% used",
+                                &[
+                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                    ("1:.0", format!("{__warpai_locale_argument_1:.0}").as_str()),
+                                ],
+                            )
+                        }
                     } else {
-                        format!("Balance ${:.2}", r.balance.unwrap_or_default())
+                        {
+                            let __warpai_locale_argument_0 = &(r.balance.unwrap_or_default());
+                            warpui::localization::format_text(
+                                "Balance ${:.2}",
+                                &[("0:.2", format!("{__warpai_locale_argument_0:.2}").as_str())],
+                            )
+                        }
                     }
                 }
                 Some(Err(error)) => (*error).to_owned(),

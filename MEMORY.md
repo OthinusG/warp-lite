@@ -146,7 +146,8 @@ consult it only when a specific historical question requires it.
 
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
   1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
-  Defaults exclude account/path/credential/server/history; English/zh-Hans/zh-Hant UI.
+  Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
+  Capture each locale in isolated profiles; retain internal IDs and user content.
   Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
@@ -171,8 +172,5 @@ consult it only when a specific historical question requires it.
 
 ## Memory maintenance
 
-Keep this file under 200 lines / 12 KB. Record durable decisions and current
-unfinished work once; replace superseded statements instead of appending a
-second timeline. Put detailed CI/debug/release receipts in their owning spec or
-release document. Archive only when historical evidence is still useful, and
-never read the entire historical archive as routine startup context.
+Keep under 200 lines / 12 KB. Replace superseded facts; keep detailed receipts
+in owning specs. Archive useful evidence only; do not read all archives at startup.

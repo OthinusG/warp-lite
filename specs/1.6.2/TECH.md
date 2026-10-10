@@ -52,7 +52,7 @@ No new cloud translation runtime, telemetry, billing or bundled Agent capability
 
 ## Implementation progress
 
-The owner baseline contains 49 registered public preferences. Theme defaults use
+The owner baseline contains 51 registered public preferences. Theme defaults use
 built-in Claude Warm Light, Catppuccin Latte and Dark; the owner explicitly chose
 Dark because the former LLM Dark file is unavailable. Saved explicit themes remain
 unchanged. No machine-specific theme paths are bundled.
@@ -65,3 +65,19 @@ coverage: indirect constants, optional help text, dynamic actions/statuses, sear
 terms and accessibility labels still require review and native locale walkthroughs.
 The 1.6.2 workflow runs the checker and sets desktop version metadata to 1.6.2;
 cloud execution remains gated on successful 1.6.0 acceptance.
+
+Native captures now accept explicit language codes through the existing SSH/file
+acceptance driver. Each native process loads its language from a newly created
+public TOML file in its own protected capture profile before interface creation;
+a startup assertion verifies the stored and active language agree. The workflow
+runs English, Simplified Chinese and Traditional Chinese sequentially against the
+same owned SSH fixture, retaining separate process/profile artifacts and the
+existing WSL cases. No production language override or personal installation is
+introduced. These runtime checks have not run yet; the 1.6.0 gate still applies.
+
+Focused cloud checks cover reordered confirmation arguments, preserved literal
+user braces, typed public owner defaults and bilingual settings search. Native
+capture setup persists each locale before application initialization and asserts
+that both the typed setting and active catalog match. Dropdown labels used for
+selection share the same translation path. Internal collaboration section IDs
+remain English; translation is applied only to the rendered headings.

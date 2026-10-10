@@ -6600,29 +6600,35 @@ impl TabKeyBehaviorWidget {
                 // user can always still accept with right arrow.
                 Some(warpui::localization::text("→ accepts autosuggestions.").into())
             }
-            TabBehavior::Completions => Some(format!(
-                "{} accepts autosuggestions.",
-                *view.autosuggestions_keystroke
-            )),
+            TabBehavior::Completions => Some({
+                let __warpai_locale_argument_0 = &(*view.autosuggestions_keystroke);
+                warpui::localization::format_text(
+                    "{} accepts autosuggestions.",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }),
             TabBehavior::Autosuggestions
                 if *input_settings.completions_open_while_typing.value() =>
             {
                 if view.completions_keystroke.is_empty() {
                     Some(warpui::localization::text("Completions open as you type.").into())
                 } else {
-                    Some(format!(
+                    Some(warpui::localization::format_text(
                         "Completions open as you type (or {}).",
-                        *view.completions_keystroke
+                        &[("0", view.completions_keystroke.to_string().as_str())],
                     ))
                 }
             }
             TabBehavior::Autosuggestions if view.completions_keystroke.is_empty() => {
                 Some(warpui::localization::text("Opening the completion menu is unbound.").into())
             }
-            TabBehavior::Autosuggestions => Some(format!(
-                "{} opens completion menu.",
-                *view.completions_keystroke
-            )),
+            TabBehavior::Autosuggestions => Some({
+                let __warpai_locale_argument_0 = &(*view.completions_keystroke);
+                warpui::localization::format_text(
+                    "{} opens completion menu.",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }),
             TabBehavior::UserDefined => None,
         };
         let other_keybinding_name = match *view.tab_behavior {
@@ -7611,7 +7617,13 @@ impl SettingsWidget for GraphicsBackendWidget {
             col.add_child(
                 appearance
                     .ui_builder()
-                    .wrappable_text(format!("Current backend: {}", backend.to_label()), true)
+                    .wrappable_text({
+                        let __warpai_locale_argument_0 = &(backend.to_label());
+                        warpui::localization::format_text(
+                            "Current backend: {}",
+                            &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                        )
+                    }, true)
                     .with_style(UiComponentStyles {
                         font_color: Some(theme.sub_text_color(theme.background()).into_solid()),
                         ..Default::default()
@@ -7668,7 +7680,7 @@ impl SettingsWidget for AsyncFindWidget {
         let ui_builder = appearance.ui_builder();
 
         let label = render_body_item_label::<FeaturesPageAction>(
-            "Asynchronous find".into(),
+            warpui::localization::text("Asynchronous find").into(),
             None,
             None,
             LocalOnlyIconState::for_setting(

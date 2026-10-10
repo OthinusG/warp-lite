@@ -117,13 +117,19 @@ def fields(template):
 DISPLAY = re.compile(
     r"(?:Text::new(?:_inline)?|FormattedTextElement::from_str|CustomMenuItem::new"
     r"|Menu::new|DropdownItem::new|Category::new|MenuItemLabelText::new"
+    r"|ActionButton::new|render_page_title"
+    r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"
     r"|\.(?:with_label|with_tooltip|with_text_label|with_title|with_placeholder"
-    r"|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph))"
+    r"|with_centered_text_label|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph))"
     r"\s*\(\s*$"
 )
 
 # Brand/technical names and terminal preview content must retain their spelling.
 VERBATIM = {
+    "app/src/ai/blocklist/agent_view/agent_input_footer/mod.rs": {"/remote-control"},
+    "app/src/code/footer.rs": {"/update-tab-config"},
+    "app/src/context_chips/node_version_popup.rs": {"nvm install node"},
+    "app/src/settings_view/warp_drive_page.rs": {"Warpai Drive"},
     "app/src/app_menus.rs": {"Warpai", "AI"},
     "app/src/drive/index.rs": {"Warpai Drive"},
     "app/src/settings_view/about_page.rs": {"Warpai"},
@@ -131,7 +137,7 @@ VERBATIM = {
     "app/src/settings_view/features/external_editor.rs": {"Warpai", "$EDITOR"},
     "app/src/settings_view/mcp_servers/edit_page.rs": {"JSON"},
     "app/src/settings_view/privacy_page.rs": {"ZDR"},
-    "app/src/settings_view/warpify_page.rs": {"SSH"},
+    "app/src/settings_view/warpify_page.rs": {"SSH", "Warpify"},
     "app/src/terminal/view/block_onboarding/onboarding_prompt_block.rs": {"(myenv)", " ~/myproject", " git:(", "main"},
     "app/src/themes/theme.rs": {"ls", "dir   ", "executable   ", "file"},
 }

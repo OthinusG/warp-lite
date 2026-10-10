@@ -106,6 +106,9 @@ jobs:
       - name: Verify Windows legacy metadata and credential cleanup
         if: ${{ !inputs.native_windows_only && (!inputs.protocol_only || inputs.check_app) }}
         run: |
+          cargo test -p warpui_core --lib localization::tests --locked
+          cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
+          cargo test -p warpai --lib localization_search_tests --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
@@ -210,7 +213,7 @@ jobs:
           }
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
-          $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe", "--languages", "en", "zh-Hans", "zh-Hant") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
           # Keep only panic source locations, never the raw application log or payload.
           $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
@@ -226,6 +229,7 @@ jobs:
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
           $expectedImages = $fixtureCount * 8 + 170
           if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 6 }
+          $expectedImages *= 3
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
         if: ${{ always() && (inputs.capture_ui || inputs.native_windows_only) }}
@@ -296,6 +300,9 @@ jobs:
       - name: Test dormant wake and settings configuration
         if: ${{ !inputs.protocol_only || inputs.check_app }}
         run: |
+          cargo test -p warpui_core --lib localization::tests --locked
+          cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
+          cargo test -p warpai --lib localization_search_tests --locked
           cargo test -p warpai --lib lite_app_menu_builds_without_platform_bindings --locked
           cargo test -p warpai --lib collaboration_ --locked
           cargo test -p warp-agent-bus --lib setup::tests::legacy_warp_agent_mcp_entries_are_removed_without_touching_other_servers --locked
@@ -348,7 +355,7 @@ jobs:
           ordinary_before=0
           if [[ -e "$ordinary_marker" ]]; then ordinary_before=1; fi
           capture_exit=0
-          python3 script/verify-ssh-file-tools.py --capture WarpaiReview.app/Contents/MacOS/Warpai > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
+          python3 script/verify-ssh-file-tools.py --capture WarpaiReview.app/Contents/MacOS/Warpai --languages en zh-Hans zh-Hant > "$RUNNER_TEMP/collaboration-capture.log" 2>&1 || capture_exit=$?
           if [[ "$ordinary_before" == 0 ]]; then test ! -e "$ordinary_marker"; fi
           python3 script/test-native-capture-diagnostic.py
           python3 script/native-capture-diagnostic.py --log "$RUNNER_TEMP/collaboration-capture.log" --output "$WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code "$capture_exit"
@@ -359,7 +366,7 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = len(fixtures) * 8 + 170
+          expected = (len(fixtures) * 8 + 170) * 3
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs'
           PY
       - name: Upload macOS native UI captures

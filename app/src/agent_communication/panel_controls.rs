@@ -1007,7 +1007,12 @@ impl CollaborationPanel {
             }
             if form.kind == Kind::Purge {
                 if let Some(preview) = &form.purge_preview {
-                    body.add_child(builder.span(format!("Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.", preview.tasks, preview.messages, preview.sequence)).with_soft_wrap().build().finish());
+                    body.add_child(builder.span({
+                        let __warpai_locale_argument_0 = &(preview.tasks);
+                        let __warpai_locale_argument_1 = &(preview.messages);
+                        let __warpai_locale_argument_2 = &(preview.sequence);
+                        warpui::localization::format_text("Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.", &[("0", format!("{__warpai_locale_argument_0}").as_str()), ("1", format!("{__warpai_locale_argument_1}").as_str()), ("2", format!("{__warpai_locale_argument_2}").as_str())])
+                    }).with_soft_wrap().build().finish());
                 }
             }
             if form.kind == Kind::Archive {

@@ -892,8 +892,36 @@ impl CollaborationPanel {
             ] });
             if let Some(workspace) = &self.workspace_preview {
                 fixture.sections.push(Section { title: "Reviewed workspace admission".into(), rows: vec![
-                    format!("Space {} · workspace {} · {}", workspace.space_id, workspace.id, workspace.root),
-                    format!("Repository {} · model {} · branch {} · base {}", workspace.repository_id.as_deref().unwrap_or("not linked"), workspace.model, workspace.branch.as_deref().unwrap_or("unspecified"), workspace.base_commit.as_deref().unwrap_or("unspecified")),
+                    {
+                        let __warpai_locale_argument_0 = &(workspace.space_id);
+                        let __warpai_locale_argument_1 = &(workspace.id);
+                        let __warpai_locale_argument_2 = &(workspace.root);
+                        warpui::localization::format_text(
+                            "Space {} · workspace {} · {}",
+                            &[
+                                ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                            ],
+                        )
+                    },
+                    {
+                        let __warpai_locale_argument_0 =
+                            &(workspace.repository_id.as_deref().unwrap_or("not linked"));
+                        let __warpai_locale_argument_1 = &(workspace.model);
+                        let __warpai_locale_argument_2 = &(workspace.branch.as_deref().unwrap_or("unspecified"));
+                        let __warpai_locale_argument_3 =
+                            &(workspace.base_commit.as_deref().unwrap_or("unspecified"));
+                        warpui::localization::format_text(
+                            "Repository {} · model {} · branch {} · base {}",
+                            &[
+                                ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                ("3", format!("{__warpai_locale_argument_3}").as_str()),
+                            ],
+                        )
+                    },
                     "Confirmation opens one new local tab in exactly this reviewed mapping. A changed mapping fails closed.".into(),
                 ] });
             }
@@ -1003,9 +1031,49 @@ impl CollaborationPanel {
                             .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string())
                             .unwrap_or_else(|| "not set".into());
                         vec![
-                            format!("Start by {} · execution deadline {} · review deadline {}", deadline(task.start_deadline), deadline(task.execution_deadline), deadline(task.review_deadline)),
-                            format!("Execution timeout {} · review timeout {} · review overdue {}", task.execution_timeout_seconds.map(|seconds| format!("{seconds}s")).unwrap_or_else(|| "not set".into()), task.review_timeout_seconds.map(|seconds| format!("{seconds}s")).unwrap_or_else(|| "not set".into()), task.review_overdue),
-                            format!("Eligible pool participants: {}", if task.eligible.is_empty() { "assigned task".into() } else { task.eligible.join(", ") }),
+                            {
+                                let __warpai_locale_argument_0 = &(deadline(task.start_deadline));
+                                let __warpai_locale_argument_1 = &(deadline(task.execution_deadline));
+                                let __warpai_locale_argument_2 = &(deadline(task.review_deadline));
+                                warpui::localization::format_text(
+                                    "Start by {} · execution deadline {} · review deadline {}",
+                                    &[
+                                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                        ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                    ],
+                                )
+                            },
+                            {
+                                let __warpai_locale_argument_0 = &(task
+                                    .execution_timeout_seconds
+                                    .map(|seconds| format!("{seconds}s"))
+                                    .unwrap_or_else(|| "not set".into()));
+                                let __warpai_locale_argument_1 = &(task
+                                    .review_timeout_seconds
+                                    .map(|seconds| format!("{seconds}s"))
+                                    .unwrap_or_else(|| "not set".into()));
+                                let __warpai_locale_argument_2 = &(task.review_overdue);
+                                warpui::localization::format_text(
+                                    "Execution timeout {} · review timeout {} · review overdue {}",
+                                    &[
+                                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                        ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                    ],
+                                )
+                            },
+                            {
+                                let __warpai_locale_argument_0 = &(if task.eligible.is_empty() {
+                                    "assigned task".into()
+                                } else {
+                                    task.eligible.join(", ")
+                                });
+                                warpui::localization::format_text(
+                                    "Eligible pool participants: {}",
+                                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                                )
+                            },
                             "Expiry changes coordination state; it does not stop a process or assert that file writes ended.".into(),
                             if task.history_truncated { "Earlier attempts or review feedback are outside this bounded detail. Use history retrieval for older records.".into() } else { "All retained attempt and feedback records fit this detail.".into() },
                         ]
@@ -1069,22 +1137,22 @@ impl CollaborationPanel {
                         let activity = row
                             .activity
                             .map(|activity| match activity {
-                                warp_agent_bus::readiness::Activity::Starting => "starting",
-                                warp_agent_bus::readiness::Activity::Idle => "idle",
-                                warp_agent_bus::readiness::Activity::Working => "working",
+                                warp_agent_bus::readiness::Activity::Starting => warpui::localization::text("starting"),
+                                warp_agent_bus::readiness::Activity::Idle => warpui::localization::text("idle"),
+                                warp_agent_bus::readiness::Activity::Working => warpui::localization::text("working"),
                                 warp_agent_bus::readiness::Activity::WaitingApproval => {
-                                    "waiting for approval"
+                                    warpui::localization::text("waiting for approval")
                                 }
                                 warp_agent_bus::readiness::Activity::WaitingInput => {
-                                    "waiting for input"
+                                    warpui::localization::text("waiting for input")
                                 }
-                                warp_agent_bus::readiness::Activity::Cancelled => "cancelled",
-                                warp_agent_bus::readiness::Activity::Error => "error",
+                                warp_agent_bus::readiness::Activity::Cancelled => warpui::localization::text("cancelled"),
+                                warp_agent_bus::readiness::Activity::Error => warpui::localization::text("error"),
                             })
-                            .unwrap_or("unknown activity");
+                            .unwrap_or(warpui::localization::text("unknown activity"));
                         format!("{} · {}{}", row.agent.name,
-                            if self.remote.is_some() && !self.connected { "disconnected" } else { activity },
-                            if row.blocked { " · approval required" } else if row.paused { " · paused" } else { "" })
+                            if self.remote.is_some() && !self.connected { warpui::localization::text("disconnected") } else { activity },
+                            if row.blocked { warpui::localization::text(" · approval required") } else if row.paused { warpui::localization::text(" · paused") } else { "" })
                     })
                     .collect(),
             });
@@ -1545,15 +1613,31 @@ impl View for CollaborationPanel {
     fn accessibility_contents(&self, _: &AppContext) -> Option<AccessibilityContent> {
         if !self.preview {
             return Some(AccessibilityContent::new(
-                format!("Agent collaboration. {}", self.status),
-                "Enter refreshes. Page Up and Page Down scroll. Escape returns to terminal. Tasks and pagination use native buttons.",
+                {
+                    let __warpai_locale_argument_0 = &(self.status);
+                    warpui::localization::format_text(
+                        "Agent collaboration. {}",
+                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                    )
+                },
+                warpui::localization::text("Enter refreshes. Page Up and Page Down scroll. Escape returns to terminal. Tasks and pagination use native buttons."),
                 WarpA11yRole::ScrollareaRole,
             ));
         }
         let fixture = &self.fixtures[self.selected];
         Some(AccessibilityContent::new(
-            format!("Agent collaboration, sample data. {}. {}", fixture.state, fixture.guidance),
-            "Left and Right or Enter change preview state. Page Up and Page Down scroll. Escape returns to terminal.",
+            {
+                let __warpai_locale_argument_0 = &(fixture.state);
+                let __warpai_locale_argument_1 = &(fixture.guidance);
+                warpui::localization::format_text(
+                    "Agent collaboration, sample data. {}. {}",
+                    &[
+                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                    ],
+                )
+            },
+            warpui::localization::text("Left and Right or Enter change preview state. Page Up and Page Down scroll. Escape returns to terminal."),
             WarpA11yRole::ScrollareaRole,
         ))
     }
@@ -1587,7 +1671,13 @@ impl View for CollaborationPanel {
             header.add_child(modes.finish());
         }
         if self.preview {
-            header.add_child(note(appearance, format!("Preview · {}", fixture.state)));
+            header.add_child(note(appearance, {
+                let __warpai_locale_argument_0 = &(fixture.state);
+                warpui::localization::format_text(
+                    "Preview · {}",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }));
         } else if !self.connected {
             header.add_child(note(appearance, self.status.clone()));
         }
@@ -1606,7 +1696,7 @@ impl View for CollaborationPanel {
                 };
                 let button = builder
                     .button(variant, self.remote_buttons[index].clone())
-                    .with_text_label(label.into());
+                    .with_text_label(warpui::localization::text(label).into());
                 let button = if (index != 1 && self.form.is_some())
                     || !self.communication_enabled(app)
                 {
@@ -1633,7 +1723,7 @@ impl View for CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let render_section = |section: &Section| {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
-            column.add_child(heading(appearance, section.title.clone()));
+            column.add_child(heading(appearance, warpui::localization::text(&section.title).to_owned()));
             for (index, row) in section.rows.iter().enumerate() {
                 let record = detail(appearance, row.clone());
                 column.add_child(if section.title == "History" {
@@ -1728,7 +1818,13 @@ impl View for CollaborationPanel {
                         if self.worktree_mode && task.state == "accepted" {
                             body.add_child(note(appearance, match &task.integration {
                                 Some(integration) => match &integration.commit {
-                                    Some(commit) => format!("Integration commit recorded · {}", commit.chars().take(8).collect::<String>()),
+                                    Some(commit) => {
+                                        let __warpai_locale_argument_0 = &(commit.chars().take(8).collect::<String>());
+                                        warpui::localization::format_text(
+                                            "Integration commit recorded · {}",
+                                            &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                                        )
+                                    },
                                     None => "Selected for integration".into(),
                                 },
                                 None => "Reviewed · awaiting Coordinator integration choice".into(),
@@ -1765,7 +1861,7 @@ impl View for CollaborationPanel {
                             buttons.push(
                                 builder
                                     .button(ButtonVariant::Text, self.page_buttons[index].clone())
-                                    .with_text_label(label.into())
+                                    .with_text_label(warpui::localization::text(label).into())
                                     .build()
                                     .on_click(move |ctx, _, _| {
                                         ctx.dispatch_typed_action(action.clone())
@@ -1858,7 +1954,7 @@ impl View for CollaborationPanel {
             ] {
                 let button = builder
                     .button(ButtonVariant::Text, self.history_buttons[index].clone())
-                    .with_text_label(label.into());
+                    .with_text_label(warpui::localization::text(label).into());
                 if let Some(action) = action.filter(|_| self.connected) {
                     buttons.push(
                         button
@@ -1892,7 +1988,7 @@ impl View for CollaborationPanel {
                                     ButtonVariant::Text,
                                     self.message_page_buttons[index].clone(),
                                 )
-                                .with_text_label(label.into())
+                                .with_text_label(warpui::localization::text(label).into())
                                 .build()
                                 .on_click(move |ctx, _, _| {
                                     ctx.dispatch_typed_action(action.clone())
@@ -1948,7 +2044,7 @@ impl View for CollaborationPanel {
                         buttons.push(
                             builder
                                 .button(ButtonVariant::Text, self.scope_buttons[index].clone())
-                                .with_text_label(label.into())
+                                .with_text_label(warpui::localization::text(label).into())
                                 .build()
                                 .on_click(move |ctx, _, _| {
                                     ctx.dispatch_typed_action(action.clone())
@@ -1993,7 +2089,7 @@ impl View for CollaborationPanel {
                         buttons.push(
                             builder
                                 .button(ButtonVariant::Text, self.page_buttons[index].clone())
-                                .with_text_label(label.into())
+                                .with_text_label(warpui::localization::text(label).into())
                                 .build()
                                 .on_click(move |ctx, _, _| {
                                     ctx.dispatch_typed_action(action.clone())
@@ -2343,11 +2439,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     };
     use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
+    let language_code = std::env::var("WARPAI_CAPTURE_LANGUAGE").unwrap_or_else(|_| "en".into());
+    let capture_language: warpui::localization::Language =
+        serde_json::from_value(serde_json::Value::String(language_code.clone()))?;
 
     std::fs::create_dir_all(&directory)?;
     let directory = directory
         .canonicalize()?
-        .join(format!("capture-{}", std::process::id()));
+        .join(format!("capture-{}-{language_code}", std::process::id()));
     std::fs::create_dir(&directory)?;
     let worktree_fixture = directory.join("owned-worktree-checkout");
     std::fs::create_dir(&worktree_fixture)?;
@@ -2395,13 +2494,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     let mut driver = Builder::new(std::env::temp_dir())
         .use_tmp_filesystem_for_test_root_directory()
         .with_setup(move |utils| {
+            use std::io::Write as _;
             utils.set_env("WARP_INTEGRATION", Some("1"));
             utils.set_env("WARPUI_USE_REAL_DISPLAY_IN_INTEGRATION_TESTS", Some("1"));
             utils.set_env("WARP_COLLABORATION_PREVIEW", Some("1"));
             utils.set_env(
                 "WARP_DATA_PROFILE",
-                Some(format!("collaboration-capture-{}", std::process::id())),
+                Some(format!("collaboration-capture-{}-{language_code}", std::process::id())),
             );
+            assert!(!warp_core::paths::data_dir().exists(), "Capture profile must be fresh");
+            crate::user_data_migration::migrate().expect("Create private capture profile");
+            let mut preferences = std::fs::OpenOptions::new().write(true).create_new(true)
+                .open(crate::settings::user_preferences_toml_file_path())
+                .expect("Create owned capture preferences");
+            write!(preferences, "[appearance]\nlanguage = {}\n", serde_json::to_string(&capture_language).unwrap())
+                .expect("Write owned capture language");
             utils.set_env(ARTIFACTS_DIR_ENV_VAR, Some(&output));
             // Worker subprocesses must take their normal worker entrypoint.
             utils.set_env::<_, &str>("WARP_COLLABORATION_CAPTURE", None);
@@ -2411,6 +2518,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             |app, window| {
                 warpui::async_assert!(app.root_view::<RootView>(window).is_some_and(|root| {
                     root.read(app, |root, _| root.workspace_view().is_some())
+                }))
+            },
+        ))
+        .with_step(TestStep::new("verify persisted interface language").add_named_assertion(
+            "interface language loaded from isolated preferences",
+            move |app, _| {
+                warpui::async_assert!(app.read(|ctx| {
+                    *crate::settings::LanguageSettings::as_ref(ctx).language.value() == capture_language
+                        && warpui::localization::language() == capture_language
                 }))
             },
         ))

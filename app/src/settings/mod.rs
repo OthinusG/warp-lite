@@ -222,9 +222,9 @@ pub enum CtrlTabBehavior {
 impl CtrlTabBehavior {
     pub fn as_dropdown_label(&self) -> &str {
         match self {
-            Self::ActivatePrevNextTab => "Activate previous/next tab",
-            Self::CycleMostRecentSession => "Cycle most recent session",
-            Self::CycleMostRecentTab => "Cycle most recent tab",
+            Self::ActivatePrevNextTab => warpui::localization::text("Activate previous/next tab"),
+            Self::CycleMostRecentSession => warpui::localization::text("Cycle most recent session"),
+            Self::CycleMostRecentTab => warpui::localization::text("Cycle most recent tab"),
         }
     }
 }
@@ -272,9 +272,9 @@ pub enum GlobalHotkeyMode {
 impl GlobalHotkeyMode {
     pub fn as_dropdown_label(&self) -> &str {
         match self {
-            Self::Disabled => "Disabled",
-            Self::QuakeMode => "Dedicated hotkey window",
-            Self::ActivationHotkey => "Show/hide all windows",
+            Self::Disabled => warpui::localization::text("Disabled"),
+            Self::QuakeMode => warpui::localization::text("Dedicated hotkey window"),
+            Self::ActivationHotkey => warpui::localization::text("Show/hide all windows"),
         }
     }
 }

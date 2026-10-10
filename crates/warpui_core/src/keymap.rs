@@ -165,7 +165,10 @@ impl BindingDescription {
     pub fn resolve(&self, ctx: &AppContext, context: DescriptionContext) -> Cow<'_, str> {
         match &self.dynamic_override {
             Some(f) => match f(ctx) {
-                Some(description) => Cow::Owned(titlecase(&description)),
+                Some(description) => {
+                    let description = titlecase(&description);
+                    Cow::Owned(crate::localization::text(&description).to_owned())
+                }
                 None => Cow::Borrowed(self.in_context(context)),
             },
             None => Cow::Borrowed(self.in_context(context)),

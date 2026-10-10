@@ -158,4 +158,26 @@ mod tests {
             "{literal} {value}"
         );
     }
+
+    #[test]
+    fn translated_confirmation_keeps_argument_identity_when_reordered() {
+        let source = "Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.";
+        let values = [("0", "3"), ("1", "7"), ("2", "42")];
+        assert!(format_text_in(Language::English, source, &values)
+            .starts_with("Delete up to 3 archived tasks and 7 acknowledged messages from original preview sequence 42."));
+        assert!(format_text_in(Language::SimplifiedChinese, source, &values)
+            .starts_with("从原始预览序列 42 中最多删除 3 个已归档任务和 7 条已确认消息。"));
+        assert!(
+            format_text_in(Language::TraditionalChinese, source, &values)
+                .starts_with("從原始預覽序列 42 中最多刪除 3 個已封存任務與 7 則已確認訊息。")
+        );
+        assert_eq!(
+            format_text_in(
+                Language::SimplifiedChinese,
+                "Balance ${:.2}",
+                &[("0:.2", "12.34")]
+            ),
+            "余额 $12.34"
+        );
+    }
 }

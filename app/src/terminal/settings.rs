@@ -44,9 +44,9 @@ impl Osc52ClipboardAccess {
 
     pub fn as_dropdown_label(self) -> &'static str {
         match self {
-            Self::Deny => "Deny",
-            Self::WriteOnly => "Write only",
-            Self::ReadWrite => "Read and write",
+            Self::Deny => warpui::localization::text("Deny"),
+            Self::WriteOnly => warpui::localization::text("Write only"),
+            Self::ReadWrite => warpui::localization::text("Read and write"),
         }
     }
 }

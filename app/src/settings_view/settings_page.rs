@@ -71,6 +71,35 @@ const GREY_TEXT_OPACITY: u8 = 60;
 const MIN_PAGE_WIDTH: f32 = 520.;
 const MAX_PAGE_WIDTH: f32 = 800.;
 
+fn search_terms_match(terms: &str, query: &str) -> bool {
+    use warpui::localization::{text_in, Language};
+    let terms_lower = format!(
+        "{terms} {} {}",
+        text_in(Language::SimplifiedChinese, terms),
+        text_in(Language::TraditionalChinese, terms),
+    )
+    .to_lowercase();
+    query
+        .to_lowercase()
+        .split_whitespace()
+        .all(|word| terms_lower.contains(word))
+}
+
+#[cfg(test)]
+mod localization_search_tests {
+    use super::search_terms_match;
+
+    #[test]
+    fn settings_search_preserves_english_and_matches_both_chinese_forms() {
+        let terms = "text terminal font family font size line height monospace";
+        assert!(search_terms_match(terms, "FONT terminal"));
+        assert!(search_terms_match(terms, "字体 行高"));
+        assert!(search_terms_match(terms, "字型 終端機"));
+        assert!(search_terms_match(terms, ""));
+        assert!(!search_terms_match(terms, "字体 鼠标"));
+    }
+}
+
 /// Left margin for top-level sidebar nav items (pages and umbrella labels).
 pub(super) const NAV_ITEM_LEFT_MARGIN: f32 = 12.;
 
@@ -1339,18 +1368,6 @@ impl<V: warpui::View> PageType<V> {
     /// Uses all-words matching: every word in the query must appear somewhere in the
     /// widget's search terms (but not necessarily contiguously).
     pub(super) fn update_filter(&mut self, query: &str, app: &AppContext) -> MatchData {
-        /// Returns true if every whitespace-delimited word in `query` appears
-        /// somewhere in `terms` (case-insensitive). An empty query matches everything.
-        fn search_terms_match(terms: &str, query: &str) -> bool {
-            if query.is_empty() {
-                return true;
-            }
-            let terms_lower = terms.to_lowercase();
-            query
-                .to_lowercase()
-                .split_whitespace()
-                .all(|word| terms_lower.contains(word))
-        }
         match self {
             Self::Monolith { widget, filter, .. } => {
                 *filter =

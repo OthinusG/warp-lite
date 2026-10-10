@@ -389,11 +389,17 @@ impl CodeEditorFind {
     pub fn emit_result_a11y_content(&mut self, ctx: &mut ViewContext<Self>) {
         let content = if let Some(match_index) = self.searcher.as_ref(ctx).selected_match() {
             AccessibilityContent::new(
-                format!(
-                    "Result {} of {}.",
-                    match_index + 1,
-                    self.searcher.as_ref(ctx).match_count()
-                ),
+                {
+                    let __warpai_locale_argument_0 = &(match_index + 1);
+                    let __warpai_locale_argument_1 = &(self.searcher.as_ref(ctx).match_count());
+                    warpui::localization::format_text(
+                        "Result {} of {}.",
+                        &[
+                            ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                            ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                        ],
+                    )
+                },
                 "Use enter and shift-enter to navigate between matches. Escape to quit.",
                 WarpA11yRole::UserAction,
             )
@@ -942,12 +948,19 @@ impl View for CodeEditorFind {
         let selected_match = self.searcher.as_ref(app).selected_match();
         let description = match (match_count, selected_match) {
             (0, _) | (_, None) => "Find bar for searching text in the editor.".to_string(),
-            (count, Some(current)) => format!(
-                "Find bar with {} matches found. Currently on match {} of {}.",
-                count,
-                current + 1,
-                count
-            ),
+            (count, Some(current)) => {
+                let __warpai_locale_argument_0 = &(count);
+                let __warpai_locale_argument_1 = &(current + 1);
+                let __warpai_locale_argument_2 = &(count);
+                warpui::localization::format_text(
+                    "Find bar with {} matches found. Currently on match {} of {}.",
+                    &[
+                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                        ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                    ],
+                )
+            },
         };
 
         let is_replace_focused = self.is_replace_open && self.replace_editor.is_focused(app);

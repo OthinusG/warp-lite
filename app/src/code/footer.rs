@@ -367,7 +367,13 @@ impl CodeFooterView {
         // Create a button that dispatches EnableLSP action
         // The action handler will check lsp_repo_status to decide whether to install first
         let enable_lsp_button = server_type.map(|st| {
-            let label = format!("Enable {}", st.binary_name());
+            let label = {
+                let __warpai_locale_argument_0 = &(st.binary_name());
+                warpui::localization::format_text(
+                    "Enable {}",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            };
             ctx.add_typed_action_view(|_ctx| {
                 ActionButton::new(label, NakedTheme)
                     .with_size(ButtonSize::Small)
@@ -654,10 +660,22 @@ impl CodeFooterView {
     fn button_label_for_status(status: &LspRepoStatus) -> Option<String> {
         match status {
             LspRepoStatus::DisabledAndNotInstalled { server_type } => {
-                Some(format!("Install {}", server_type.binary_name()))
+                Some({
+                    let __warpai_locale_argument_0 = &(server_type.binary_name());
+                    warpui::localization::format_text(
+                        "Install {}",
+                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                    )
+                })
             }
             LspRepoStatus::DisabledAndInstalled { server_type } => {
-                Some(format!("Enable {}", server_type.binary_name()))
+                Some({
+                    let __warpai_locale_argument_0 = &(server_type.binary_name());
+                    warpui::localization::format_text(
+                        "Enable {}",
+                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                    )
+                })
             }
             _ => None,
         }
@@ -1480,9 +1498,21 @@ impl CodeFooterView {
                 .filter(|msg| !msg.trim().is_empty())
                 .map(|msg| format!("{}: {msg}", server.server_name())),
             LspModelState::Stopped { .. } | LspModelState::Stopping { .. } => {
-                Some(format!("{}: stopped", server.server_name()))
+                Some({
+                    let __warpai_locale_argument_0 = &(server.server_name());
+                    warpui::localization::format_text(
+                        "{}: stopped",
+                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                    )
+                })
             }
-            LspModelState::Failed { .. } => Some(format!("{}: error", server.server_name())),
+            LspModelState::Failed { .. } => Some({
+                let __warpai_locale_argument_0 = &(server.server_name());
+                warpui::localization::format_text(
+                    "{}: error",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }),
         }
     }
 
@@ -1563,7 +1593,13 @@ impl CodeFooterView {
                     LspModelState::Stopped { .. } | LspModelState::Stopping { .. }
                 ) {
                     return (
-                        Some(format!("{}: stopped", server_ref.server_name())),
+                        Some({
+                            let __warpai_locale_argument_0 = &(server_ref.server_name());
+                            warpui::localization::format_text(
+                                "{}: stopped",
+                                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                            )
+                        }),
                         false,
                     );
                 }
@@ -1609,7 +1645,13 @@ impl CodeFooterView {
                         true,
                     ),
                     LspRepoStatus::Installing { server_type } => (
-                        Some(format!("Installing {}...", server_type.binary_name())),
+                        Some({
+                            let __warpai_locale_argument_0 = &(server_type.binary_name());
+                            warpui::localization::format_text(
+                                "Installing {}...",
+                                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                            )
+                        }),
                         false,
                     ),
                 },
@@ -1639,7 +1681,13 @@ impl CodeFooterView {
                 for status in lsp_repo_statuses.values() {
                     if let LspRepoStatus::Installing { server_type } = status {
                         return (
-                            Some(format!("Installing {}...", server_type.binary_name())),
+                            Some({
+                                let __warpai_locale_argument_0 = &(server_type.binary_name());
+                                warpui::localization::format_text(
+                                    "Installing {}...",
+                                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                                )
+                            }),
                             false,
                         );
                     }
