@@ -1,6 +1,27 @@
 # Warpai releases
 
-## Current delivery: 1.5.0 with Companion 4.0.0
+## Current delivery: 1.5.1 with unchanged Companion 4.0.0
+
+Owner authorization 2026-10-10: complete both patch scopes, validate combined
+1.5.5 directly, then package/publish the independent 1.5.1 source checkpoint.
+Data usage belongs to 1.5.5 and must remain absent from 1.5.1. Retain historical
+releases and the active workflows; do not resume the stopped 1.5.0 audit.
+
+1. Keep 1.5.1 UI source on `patch/1.5.1`, with shared fixes backported from the
+   combined implementation. Verify the checkpoint has no usage module, settings,
+   footer or provider/credential dependencies and no Companion source changes.
+2. Accept combined macOS/Windows builds, focused tests and native walkthroughs;
+   record the immutable source/run and visual results in the patch contract.
+   Do not repeat an intermediate 1.5.1 walkthrough. Apply shared fixes to both.
+3. Integrate accepted 1.5.1 and release preparation into main. Keep Companion
+   RELEASE_VERSION 4.0.0 and protocol major 1. Publish immutable `v1.5.1` through
+   release-macos.yml with auto_publish=true; Windows follows existing gates.
+4. Retain native source/version/installer/reinstall/checksum/runtime acceptance.
+   Monitor cloud jobs at the owner's 30-minute cadence. Verify five versioned
+   installers and both checksum lists before recording public delivery. No local
+   Rust build, personal installation or automatic 1.5.5 publication is authorized.
+
+## Historical delivery: 1.5.0 with Companion 4.0.0
 
 Owner authorization 2026-10-10: merge all accepted fixes into main, clean unused
 branches/workflows, and package/publish desktop 1.5.0 with Companion 4.0.0.
