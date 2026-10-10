@@ -165,7 +165,7 @@ pub fn render_warpification_banner(
                 ButtonVariant::Text,
                 state.dont_ask_button_mouse_state.clone(),
             )
-            .with_text_label("Do not show again".to_owned())
+            .with_text_label(warpui::localization::text("Do not show again").to_owned())
             .build()
             .on_click(move |ctx, _, _| {
                 ctx.dispatch_typed_action(TerminalAction::DismissWarpifyBanner(
@@ -213,7 +213,7 @@ pub fn render_warpification_banner(
                     ButtonVariant::Text,
                     state.powershell_button_mouse_state.clone(),
                 )
-                .with_text_label("Integrate PowerShell".into())
+                .with_text_label(warpui::localization::text("Integrate PowerShell").into())
                 .build()
                 .on_click(|ctx, _, _| {
                     ctx.dispatch_typed_action(TerminalAction::IntegratePowerShellSsh);

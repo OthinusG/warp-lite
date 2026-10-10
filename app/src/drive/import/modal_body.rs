@@ -387,7 +387,7 @@ impl ImportModalBody {
 
         let file_picker_button = if is_loading {
             base_button
-                .with_centered_text_label("Preparing...".to_string())
+                .with_centered_text_label(warpui::localization::text("Preparing...").to_string())
                 .disabled()
         } else {
             base_button.with_text_and_icon_label(
@@ -433,7 +433,7 @@ impl ImportModalBody {
         let link_to_document = appearance
             .ui_builder()
             .link(
-                "Learn about file support and formatting".to_string(),
+                warpui::localization::text("Learn about file support and formatting").to_string(),
                 Some(FILE_TYPE_DOCS_URL.to_string()),
                 None,
                 self.link_mouse_state.clone(),

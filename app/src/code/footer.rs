@@ -1517,9 +1517,7 @@ impl CodeFooterView {
                 .and_then(|s| s.to_str())
                 .unwrap_or("this workspace");
             Some((
-                Some(format!(
-                    "Language support is not currently enabled for {root_name}"
-                )),
+                Some(warpui::localization::format_text("Language support is not currently enabled for {root_name}", &[("root_name", format!("{root_name}").as_str())])),
                 true,
             ))
         } else {
@@ -1657,7 +1655,7 @@ impl CodeFooterView {
 
                 // All servers are enabled/ready but no live servers — unavailable
                 (
-                    Some(format!("Language support is unavailable for {root_name}")),
+                    Some(warpui::localization::format_text("Language support is unavailable for {root_name}", &[("root_name", format!("{root_name}").as_str())])),
                     false,
                 )
             }

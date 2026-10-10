@@ -139,7 +139,7 @@ impl SettingsWidget for WarpDriveHeaderWidget {
 
         let message = Container::new(
             Text::new_inline(
-                "To use Warpai Drive, please create an account.".to_string(),
+                warpui::localization::text("To use Warpai Drive, please create an account.").to_string(),
                 appearance.ui_font_family(),
                 14.,
             )
@@ -171,7 +171,7 @@ impl SettingsWidget for WarpDriveHeaderWidget {
                     }),
                     ..Default::default()
                 })
-                .with_text_label("Sign up".to_owned())
+                .with_text_label(warpui::localization::text("Sign up").to_owned())
                 .build()
                 .on_click(move |ctx, _, _| {
                     ctx.dispatch_typed_action(WarpDriveSettingsPageAction::SignUp);

@@ -510,16 +510,16 @@ impl ConversationDetailsPanel {
 
         #[cfg(not(target_family = "wasm"))]
         let continue_locally_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("Continue locally", PrimaryTheme)
-                .with_tooltip("Fork this conversation locally")
+            ActionButton::new(warpui::localization::text("Continue locally"), PrimaryTheme)
+                .with_tooltip(warpui::localization::text("Fork this conversation locally"))
                 .with_size(ButtonSize::Small)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(ConversationDetailsPanelAction::ContinueLocally);
                 })
         });
         let open_in_oz_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("View in Oz", SecondaryTheme)
-                .with_tooltip("View this run in the Oz web app")
+            ActionButton::new(warpui::localization::text("View in Oz"), SecondaryTheme)
+                .with_tooltip(warpui::localization::text("View this run in the Oz web app"))
                 .with_size(ButtonSize::Small)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(ConversationDetailsPanelAction::OpenInOz);
@@ -832,7 +832,7 @@ impl ConversationDetailsPanel {
         let ui_font_size = appearance.ui_font_size();
 
         let label_text = Text::new(
-            "Error".to_string(),
+            warpui::localization::text("Error").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -872,7 +872,7 @@ impl ConversationDetailsPanel {
 
         // Section header
         let header = Text::new(
-            "Status".to_string(),
+            warpui::localization::text("Status").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -937,7 +937,7 @@ impl ConversationDetailsPanel {
         let ui_font_size = appearance.ui_font_size();
 
         let label_text = Text::new(
-            "Harness".to_string(),
+            warpui::localization::text("Harness").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -1014,7 +1014,7 @@ impl ConversationDetailsPanel {
         let oz_link = appearance
             .ui_builder()
             .link(
-                "Open in Oz".to_string(),
+                warpui::localization::text("Open in Oz").to_string(),
                 Some(skill_url),
                 None,
                 self.mouse_states.skill_link.clone(),
@@ -1050,7 +1050,7 @@ impl ConversationDetailsPanel {
                 let source_link = appearance
                     .ui_builder()
                     .link(
-                        "Open in GitHub".to_string(),
+                        warpui::localization::text("Open in GitHub").to_string(),
                         Some(github_url),
                         None,
                         self.mouse_states.skill_source_link.clone(),
@@ -1082,7 +1082,7 @@ impl ConversationDetailsPanel {
         let ui_font_size = appearance.ui_font_size();
 
         let label_text = Text::new(
-            "Artifacts".to_string(),
+            warpui::localization::text("Artifacts").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -1121,7 +1121,7 @@ impl ConversationDetailsPanel {
         let ui_font_size = appearance.ui_font_size();
 
         let header_text = Text::new(
-            "Environment setup commands".to_string(),
+            warpui::localization::text("Environment setup commands").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -1186,7 +1186,7 @@ impl ConversationDetailsPanel {
 
         // Section header
         let header = Text::new(
-            "Environment details".to_string(),
+            warpui::localization::text("Environment details").to_string(),
             appearance.ui_font_family(),
             ui_font_size,
         )
@@ -1342,7 +1342,7 @@ impl ConversationDetailsPanel {
         let theme = appearance.theme();
 
         let label_text = Text::new(
-            "Credits used".to_string(),
+            warpui::localization::text("Credits used").to_string(),
             appearance.ui_font_family(),
             appearance.ui_font_size(),
         )

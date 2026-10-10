@@ -252,7 +252,7 @@ fn render_changes_section(state: &PrState, appearance: &Appearance) -> Box<dyn E
     let main_color = theme.main_text_color(theme.surface_1()).into_solid();
 
     let label = Text::new(
-        "Changes",
+        warpui::localization::text("Changes"),
         appearance.ui_font_family(),
         appearance.ui_font_size(),
     )

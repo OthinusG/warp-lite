@@ -440,7 +440,7 @@ impl UpdateEnvironmentForm {
 
         // Create buttons
         let submit_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("Create", PrimaryTheme)
+            ActionButton::new(warpui::localization::text("Create"), PrimaryTheme)
                 .with_icon(Icon::Check)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(UpdateEnvironmentFormAction::Submit);
@@ -448,7 +448,7 @@ impl UpdateEnvironmentForm {
         });
 
         let delete_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("Delete environment", DangerSecondaryTheme)
+            ActionButton::new(warpui::localization::text("Delete environment"), DangerSecondaryTheme)
                 .with_icon(Icon::Trash)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(UpdateEnvironmentFormAction::Delete);
@@ -1505,7 +1505,7 @@ impl UpdateEnvironmentForm {
                         theme.active_ui_text_color()
                     };
 
-                    Text::new_inline("Share with team", font_family, font_size)
+                    Text::new_inline(warpui::localization::text("Share with team"), font_family, font_size)
                         .with_color(color.into())
                         .finish()
                 },
@@ -1735,7 +1735,7 @@ impl UpdateEnvironmentForm {
             });
 
         let helper_text = Text::new(
-            "Setup commands run independently. Each command runs from the workspace root (/workspace). If a command depends on the previous one, combine them with &&.",
+            warpui::localization::text("Setup commands run independently. Each command runs from the workspace root (/workspace). If a command depends on the previous one, combine them with &&."),
             appearance.ui_font_family(),
             appearance.ui_font_size() * 0.85,
         )
@@ -1783,7 +1783,7 @@ impl UpdateEnvironmentForm {
 
         field.add_child(
             Text::new(
-                "Description",
+                warpui::localization::text("Description"),
                 appearance.ui_font_family(),
                 appearance.ui_font_size(),
             )
@@ -1845,7 +1845,7 @@ impl UpdateEnvironmentForm {
     fn render_repos_field_label(&self, appearance: &Appearance) -> Box<dyn Element> {
         let theme = appearance.theme();
         Text::new(
-            "Repo(s)",
+            warpui::localization::text("Repo(s)"),
             appearance.ui_font_family(),
             appearance.ui_font_size(),
         )
@@ -1877,7 +1877,7 @@ impl UpdateEnvironmentForm {
                     .with_child(
                         Container::new(
                             Text::new(
-                                "Loading...",
+                                warpui::localization::text("Loading..."),
                                 appearance.ui_font_family(),
                                 appearance.ui_font_size(),
                             )
@@ -1969,7 +1969,7 @@ impl UpdateEnvironmentForm {
                         )
                         .with_child(
                             Text::new(
-                                "Auth with GitHub",
+                                warpui::localization::text("Auth with GitHub"),
                                 appearance.ui_font_family(),
                                 appearance.ui_font_size(),
                             )
@@ -2086,7 +2086,7 @@ impl UpdateEnvironmentForm {
                             )
                             .with_child(
                                 Text::new(
-                                    "Retry",
+                                    warpui::localization::text("Retry"),
                                     appearance.ui_font_family(),
                                     appearance.ui_font_size(),
                                 )
@@ -2318,7 +2318,7 @@ impl UpdateEnvironmentForm {
     fn render_repo_helper_text_row(&self, appearance: &Appearance) -> Box<dyn Element> {
         let theme = appearance.theme();
         let helper = Text::new(
-            "Type owner/repo and press Enter to add, or select from dropdown.",
+            warpui::localization::text("Type owner/repo and press Enter to add, or select from dropdown."),
             appearance.ui_font_family(),
             appearance.ui_font_size() * 0.85,
         )
@@ -2344,7 +2344,7 @@ impl UpdateEnvironmentForm {
             // Plain text part
             text_row.add_child(
                 Text::new(
-                    "Missing a repo?",
+                    warpui::localization::text("Missing a repo?"),
                     appearance.ui_font_family(),
                     appearance.ui_font_size() * 0.85,
                 )
@@ -2362,7 +2362,7 @@ impl UpdateEnvironmentForm {
                         theme.accent()
                     };
                     Text::new(
-                        "Configure access on GitHub",
+                        warpui::localization::text("Configure access on GitHub"),
                         appearance.ui_font_family(),
                         appearance.ui_font_size() * 0.85,
                     )
@@ -2531,7 +2531,7 @@ impl UpdateEnvironmentForm {
             content.add_child(
                 Container::new(
                     Text::new(
-                        "No repositories found",
+                        warpui::localization::text("No repositories found"),
                         appearance.ui_font_family(),
                         appearance.ui_font_size(),
                     )

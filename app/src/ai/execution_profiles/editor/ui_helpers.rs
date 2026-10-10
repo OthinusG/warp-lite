@@ -63,7 +63,7 @@ pub fn render_header_section(
 }
 
 fn render_header_title(appearance: &Appearance) -> Box<dyn Element> {
-    Text::new_inline("Edit Profile", appearance.ui_font_family(), 16.)
+    Text::new_inline(warpui::localization::text("Edit Profile"), appearance.ui_font_family(), 16.)
         .with_style(Properties::default().weight(Weight::Bold))
         .with_color(appearance.theme().active_ui_text_color().into())
         .finish()
@@ -71,7 +71,7 @@ fn render_header_title(appearance: &Appearance) -> Box<dyn Element> {
 
 fn render_header_name_label(appearance: &Appearance) -> Box<dyn Element> {
     Container::new(
-        Text::new("Name", appearance.ui_font_family(), 13.)
+        Text::new(warpui::localization::text("Name"), appearance.ui_font_family(), 13.)
             .with_color(appearance.theme().active_ui_text_color().into())
             .finish(),
     )
@@ -656,7 +656,7 @@ pub fn render_plan_auto_sync_toggle(
     .finish();
 
     let label_elem = Text::new(
-        "Plan auto-sync".to_string(),
+        warpui::localization::text("Plan auto-sync").to_string(),
         appearance.ui_font_family(),
         13.,
     )
@@ -664,7 +664,7 @@ pub fn render_plan_auto_sync_toggle(
     .finish();
 
     let desc_elem = Text::new(
-        "The plans this agent creates will be automatically added and synced to Warpai Drive."
+        warpui::localization::text("The plans this agent creates will be automatically added and synced to Warpai Drive.")
             .to_string(),
         appearance.ui_font_family(),
         11.,
@@ -730,7 +730,7 @@ pub fn render_web_search_toggle(
     .finish();
 
     let label_elem = Text::new(
-        "Call web tools".to_string(),
+        warpui::localization::text("Call web tools").to_string(),
         appearance.ui_font_family(),
         13.,
     )
@@ -738,7 +738,7 @@ pub fn render_web_search_toggle(
     .finish();
 
     let desc_elem = Text::new(
-        "The agent may use web search when helpful for completing tasks.".to_string(),
+        warpui::localization::text("The agent may use web search when helpful for completing tasks.").to_string(),
         appearance.ui_font_family(),
         11.,
     )

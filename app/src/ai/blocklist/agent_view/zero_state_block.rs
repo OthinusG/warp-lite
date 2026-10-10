@@ -628,7 +628,7 @@ fn render_title_and_description(props: HeaderProps, app: &AppContext) -> Vec<Box
             items.push(
                 Container::new(
                     Text::new(
-                        "Run your agent task in an isolated cloud environment.",
+                        warpui::localization::text("Run your agent task in an isolated cloud environment."),
                         appearance.ui_font_family(),
                         appearance.monospace_font_size(),
                     )
@@ -862,7 +862,7 @@ fn render_recent_conversations_section(
         .with_child(
             Container::new(
                 Text::new(
-                    "RECENT ACTIVITY",
+                    warpui::localization::text("RECENT ACTIVITY"),
                     appearance.ui_font_family(),
                     header_font_size,
                 )
@@ -1093,7 +1093,7 @@ fn render_oz_updates(props: OzUpdatesProps<'_>, app: &AppContext) -> Option<Box<
                                 .with_child(
                                     Container::new(
                                         Text::new(
-                                            "View changelog",
+                                            warpui::localization::text("View changelog"),
                                             appearance.ui_font_family(),
                                             appearance.monospace_font_size() - 2.,
                                         )

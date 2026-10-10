@@ -193,7 +193,7 @@ fn render_commits_section(state: &PushState, appearance: &Appearance) -> Box<dyn
     let sub_color = theme.sub_text_color(theme.surface_1()).into_solid();
 
     let label = Text::new(
-        "Included commits",
+        warpui::localization::text("Included commits"),
         appearance.ui_font_family(),
         appearance.ui_font_size(),
     )
@@ -320,7 +320,7 @@ fn render_commits_section(state: &PushState, appearance: &Appearance) -> Box<dyn
             } else {
                 let loading = Container::new(
                     Text::new(
-                        "Loading…",
+                        warpui::localization::text("Loading…"),
                         appearance.ui_font_family(),
                         appearance.ui_font_size(),
                     )

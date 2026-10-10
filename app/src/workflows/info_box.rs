@@ -439,7 +439,7 @@ impl WorkflowsMoreInfoView {
             .with_child(
                 Container::new(
                     Text::new_inline(
-                        "Command edited.",
+                        warpui::localization::text("Command edited."),
                         appearance.ui_font_family(),
                         appearance.monospace_font_size(),
                     )
@@ -504,7 +504,7 @@ impl WorkflowsMoreInfoView {
                     1.,
                     Container::new(
                         Text::new_inline(
-                            "to cycle parameters",
+                            warpui::localization::text("to cycle parameters"),
                             appearance.ui_font_family(),
                             appearance.monospace_font_size(),
                         )
@@ -1009,7 +1009,7 @@ impl WorkflowsMoreInfoView {
             appearance
                 .ui_builder()
                 .link(
-                    "View Context".into(),
+                    warpui::localization::text("View Context").into(),
                     Some(workflow_source),
                     None,
                     self.button_mouse_states.view_context.clone(),

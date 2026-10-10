@@ -180,7 +180,7 @@ pub(super) fn render_beta_chip(appearance: &Appearance) -> Box<dyn Element> {
     let theme = appearance.theme();
     let chip_color = theme.sub_text_color(theme.surface_3()).into_solid();
     Container::new(
-        Text::new_inline("BETA", appearance.ui_font_family(), 10.)
+        Text::new_inline(warpui::localization::text("BETA"), appearance.ui_font_family(), 10.)
             .with_color(chip_color)
             .finish(),
     )
@@ -2305,7 +2305,7 @@ impl SettingsView {
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_children([
                         Text::new(
-                            "No settings match your search.",
+                            warpui::localization::text("No settings match your search."),
                             appearance.ui_font_family(),
                             appearance.ui_font_size(),
                         )
@@ -2313,7 +2313,7 @@ impl SettingsView {
                         .with_color(theme.sub_text_color(theme.background()).into_solid())
                         .finish(),
                         Text::new(
-                            "You may want to try using different keywords or checking for any possible typos.",
+                            warpui::localization::text("You may want to try using different keywords or checking for any possible typos."),
                             appearance.ui_font_family(),
                             appearance.ui_font_size(),
                         )

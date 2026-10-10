@@ -100,7 +100,7 @@ where
             Some(click_button_style),
             None,
         )
-        .with_centered_text_label("Learn more".into())
+        .with_centered_text_label(warpui::localization::text("Learn more").into())
         .build()
         .on_click(move |ctx, _, _| {
             ctx.dispatch_typed_action(action.clone());
@@ -186,7 +186,7 @@ where
                 Container::new(
                     appearance
                         .ui_builder()
-                        .span("Using Warpai Offline")
+                        .span(warpui::localization::text("Using Warpai Offline"))
                         .with_style(header_styles)
                         .build()
                         .finish(),
@@ -364,7 +364,7 @@ pub fn render_privacy_settings_overlay_body<A: Action + Clone + 'static>(
             .with_child(
                 Container::new(
                     ui_builder
-                        .span("Privacy Settings")
+                        .span(warpui::localization::text("Privacy Settings"))
                         .with_style(header_styles)
                         .build()
                         .finish(),
@@ -478,7 +478,7 @@ pub fn render_privacy_settings_toggles<A: Action + Clone + 'static>(
             appearance
                 .ui_builder()
                 .link(
-                    "Learn more".into(),
+                    warpui::localization::text("Learn more").into(),
                     Some(PRIVACY_URL.into()),
                     None,
                     handles.telemetry_docs_mouse.clone(),

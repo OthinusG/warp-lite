@@ -182,7 +182,7 @@ pub fn render_never_warpify_ssh_link(
     let link = appearance
         .ui_builder()
         .link(
-            "Never Warpify this host".into(),
+            warpui::localization::text("Never Warpify this host").into(),
             None,
             Some(Box::new({
                 let ssh_host = ssh_host.clone();

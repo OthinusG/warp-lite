@@ -111,7 +111,7 @@ impl CodeSubpage {
 
     pub fn title(&self) -> &'static str {
         match self {
-            Self::Indexing => "Codebase Indexing",
+            Self::Indexing => warpui::localization::text("Codebase Indexing"),
             Self::EditorAndCodeReview => "Editor and Code Review",
         }
     }
@@ -147,7 +147,7 @@ pub struct CodeSettingsPageView {
     lsp_row_mouse_states: Vec<LspServerRowMouseStates>,
     open_project_rules_mouse_states: Vec<MouseStateHandle>,
     /// Tracks installation status for suggested LSP servers so the UI can decide
-    /// whether to show "Available for download" vs "Installed" and whether the
+    /// whether to show warpui::localization::text("Available for download") vs warpui::localization::text("Installed") and whether the
     /// "+" button should trigger install or just enable.
     suggested_server_statuses: HashMap<(PathBuf, LSPServerType), LspRepoStatus>,
     #[cfg(feature = "local_fs")]
@@ -265,7 +265,7 @@ impl CodeSettingsPageView {
         });
 
         let manual_add_directory_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("Index new folder", SecondaryTheme)
+            ActionButton::new(warpui::localization::text("Index new folder"), SecondaryTheme)
                 .with_icon(Icon::FindAll)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(CodeSettingsPageAction::ManualAddDirectory);
@@ -311,8 +311,8 @@ impl CodeSettingsPageView {
                 Box::new(AutoSaveToggleWidget::default()),
             ]);
             let categories = vec![
-                Category::new("Codebase Indexing", codebase_indexing_widgets),
-                Category::new("Code Editor and Review", code_editor_review_widgets),
+                Category::new(warpui::localization::text("Codebase Indexing"), codebase_indexing_widgets),
+                Category::new(warpui::localization::text("Code Editor and Review"), code_editor_review_widgets),
             ];
             PageType::new_categorized(categories, None)
         } else {
@@ -354,7 +354,7 @@ impl CodeSettingsPageView {
             // or the full categorized page when subpage is None.
             if let Some(subpage) = subpage {
                 let manual_add_directory_button = ctx.add_typed_action_view(|_| {
-                    ActionButton::new("Index new folder", SecondaryTheme)
+                    ActionButton::new(warpui::localization::text("Index new folder"), SecondaryTheme)
                         .with_icon(Icon::FindAll)
                         .on_click(|ctx| {
                             ctx.dispatch_typed_action(CodeSettingsPageAction::ManualAddDirectory);
@@ -405,7 +405,7 @@ impl CodeSettingsPageView {
     fn build_full_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
         if FeatureFlag::OpenWarpNewSettingsModes.is_enabled() {
             let manual_add_directory_button = ctx.add_typed_action_view(|_| {
-                ActionButton::new("Index new folder", SecondaryTheme)
+                ActionButton::new(warpui::localization::text("Index new folder"), SecondaryTheme)
                     .with_icon(Icon::FindAll)
                     .on_click(|ctx| {
                         ctx.dispatch_typed_action(CodeSettingsPageAction::ManualAddDirectory);
@@ -439,13 +439,13 @@ impl CodeSettingsPageView {
                 Box::new(AutoSaveToggleWidget::default()),
             ]);
             let categories = vec![
-                Category::new("Codebase Indexing", codebase_indexing_widgets),
-                Category::new("Code Editor and Review", code_editor_review_widgets),
+                Category::new(warpui::localization::text("Codebase Indexing"), codebase_indexing_widgets),
+                Category::new(warpui::localization::text("Code Editor and Review"), code_editor_review_widgets),
             ];
             PageType::new_categorized(categories, None)
         } else {
             let manual_add_directory_button = ctx.add_typed_action_view(|_| {
-                ActionButton::new("Index new folder", SecondaryTheme)
+                ActionButton::new(warpui::localization::text("Index new folder"), SecondaryTheme)
                     .with_icon(Icon::FindAll)
                     .on_click(|ctx| {
                         ctx.dispatch_typed_action(CodeSettingsPageAction::ManualAddDirectory);
@@ -824,12 +824,12 @@ impl SettingsWidget for CodePageWidget {
         ));
         content.add_child(self.render_settings_subtext(
             global_ai_enabled,
-            CODEBASE_INDEX_DESCRIPTION,
+            warpui::localization::text(CODEBASE_INDEX_DESCRIPTION),
             appearance,
         ));
         content.add_child(self.render_settings_subtext(
             global_ai_enabled,
-            WARP_INDEXING_IGNORE_DESCRIPTION,
+            warpui::localization::text(WARP_INDEXING_IGNORE_DESCRIPTION),
             appearance,
         ));
 
@@ -875,7 +875,7 @@ impl CodePageWidget {
             // Use subtext styling for description (gray color per Figma)
             self.render_settings_subtext(
                 codebase_indexing_enabled,
-                AUTO_INDEX_DESCRIPTION,
+                warpui::localization::text(AUTO_INDEX_DESCRIPTION),
                 appearance,
             ),
         ];
@@ -884,7 +884,7 @@ impl CodePageWidget {
         {
             rows.push(self.render_settings_subtext(
                 false,
-                CODEBASE_INDEX_LIMIT_REACHED,
+                warpui::localization::text(CODEBASE_INDEX_LIMIT_REACHED),
                 appearance,
             ));
         }
@@ -911,7 +911,7 @@ impl CodePageWidget {
                 .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
                 .with_child(
                     ui_builder
-                        .span(AUTO_INDEX_FEATURE_NAME)
+                        .span(warpui::localization::text(AUTO_INDEX_FEATURE_NAME))
                         .with_style(UiComponentStyles {
                             font_size: Some(16.0),
                             font_weight: Some(Weight::Semibold),
@@ -972,7 +972,7 @@ impl CodePageWidget {
 
         Container::new(
             ui_builder
-                .span(CODE_FEATURE_NAME)
+                .span(warpui::localization::text(CODE_FEATURE_NAME))
                 .with_style(UiComponentStyles {
                     font_size: Some(24.0),
                     font_weight: Some(Weight::Bold),
@@ -986,14 +986,14 @@ impl CodePageWidget {
         .finish()
     }
 
-    /// Renders the "Initialization Settings" section header.
+    /// Renders the warpui::localization::text("Initialization Settings") section header.
     fn render_initialization_settings_header(&self, appearance: &Appearance) -> Box<dyn Element> {
         let ui_builder = appearance.ui_builder();
         let theme = appearance.theme();
 
         Container::new(
             ui_builder
-                .span(INITIALIZATION_SETTINGS_HEADER)
+                .span(warpui::localization::text(INITIALIZATION_SETTINGS_HEADER))
                 .with_style(UiComponentStyles {
                     font_size: Some(18.0),
                     font_weight: Some(Weight::Semibold),
@@ -1008,7 +1008,7 @@ impl CodePageWidget {
         .finish()
     }
 
-    /// Renders the "Codebase indexing" toggle row (legacy layout).
+    /// Renders the warpui::localization::text("Codebase indexing") toggle row (legacy layout).
     fn render_codebase_indexing_toggle_row(
         &self,
         global_ai_enabled: bool,
@@ -1020,7 +1020,7 @@ impl CodePageWidget {
         let admin_setting = UserWorkspaces::as_ref(app).team_allows_codebase_context();
 
         let label = ui_builder
-            .span(CODEBASE_INDEXING_LABEL)
+            .span(warpui::localization::text(CODEBASE_INDEXING_LABEL))
             .with_style(UiComponentStyles {
                 font_size: Some(16.0),
                 font_weight: Some(Weight::Semibold),
@@ -1035,10 +1035,10 @@ impl CodePageWidget {
             .check(UserWorkspaces::as_ref(app).is_codebase_context_enabled(app));
 
         let disabled_tooltip_text = match admin_setting {
-            AdminEnablementSetting::Enable => Some(INDEXING_WORKSPACE_ENABLED_ADMIN_TEXT),
-            AdminEnablementSetting::Disable => Some(INDEXING_DISABLED_ADMIN_TEXT),
+            AdminEnablementSetting::Enable => Some(warpui::localization::text(INDEXING_WORKSPACE_ENABLED_ADMIN_TEXT)),
+            AdminEnablementSetting::Disable => Some(warpui::localization::text(INDEXING_DISABLED_ADMIN_TEXT)),
             AdminEnablementSetting::RespectUserSetting if !global_ai_enabled => {
-                Some(INDEXING_DISABLED_GLOBAL_AI_TEXT)
+                Some(warpui::localization::text(INDEXING_DISABLED_GLOBAL_AI_TEXT))
             }
             AdminEnablementSetting::RespectUserSetting => None,
         };
@@ -1078,7 +1078,7 @@ impl CodePageWidget {
         .finish()
     }
 
-    /// Renders the "Initialized / indexed folders" section.
+    /// Renders the warpui::localization::text("Initialized / indexed folders") section.
     fn render_initialized_folders(
         &self,
         mouse_states: InitializedFoldersMouseStates,
@@ -1107,7 +1107,7 @@ impl CodePageWidget {
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_child(
                         ui_builder
-                            .span("Initialized / indexed folders")
+                            .span(warpui::localization::text("Initialized / indexed folders"))
                             .with_style(UiComponentStyles {
                                 font_size: Some(16.0),
                                 font_weight: Some(Weight::Semibold),
@@ -1134,7 +1134,7 @@ impl CodePageWidget {
                 Container::new(
                     appearance
                         .ui_builder()
-                        .paragraph("No folders have been initialized yet.")
+                        .paragraph(warpui::localization::text("No folders have been initialized yet."))
                         .build()
                         .finish(),
                 )
@@ -1293,7 +1293,7 @@ impl CodePageWidget {
                 .with_text_and_icon_label(
                     warpui::ui_components::button::TextAndIcon::new(
                         warpui::ui_components::button::TextAndIconAlignment::IconFirst,
-                        "Open project rules",
+                        warpui::localization::text("Open project rules"),
                         warpui::elements::Icon::new(
                             "bundled/svg/file-code-02.svg",
                             theme.foreground(),
@@ -1364,7 +1364,7 @@ impl CodePageWidget {
         // "INDEXING" label on its own row
         column.add_child(
             ui_builder
-                .span("INDEXING")
+                .span(warpui::localization::text("INDEXING"))
                 .with_style(UiComponentStyles {
                     font_size: Some(11.0),
                     font_weight: Some(Weight::Semibold),
@@ -1417,7 +1417,7 @@ impl CodePageWidget {
                     )
                     .with_child(
                         ui_builder
-                            .label("No index created")
+                            .label(warpui::localization::text("No index created"))
                             .with_style(UiComponentStyles {
                                 font_color: Some(status_color),
                                 font_size: Some(12.),
@@ -1454,37 +1454,37 @@ impl CodePageWidget {
         let (status_text, status_color) = if index_state.has_pending() {
             let progress_text = match index_state.sync_progress() {
                 Some(SyncProgress::Discovering { total_nodes }) => {
-                    Cow::from(format!("Discovered {total_nodes} chunks"))
+                    Cow::from(warpui::localization::format_text("Discovered {total_nodes} chunks", &[("total_nodes", format!("{total_nodes}").as_str())]))
                 }
                 Some(SyncProgress::Syncing {
                     completed_nodes,
                     total_nodes,
-                }) => Cow::from(format!("Syncing - {completed_nodes} / {total_nodes}")),
-                None => Cow::from("Syncing..."),
+                }) => Cow::from(warpui::localization::format_text("Syncing - {completed_nodes} / {total_nodes}", &[("completed_nodes", format!("{completed_nodes}").as_str()), ("total_nodes", format!("{total_nodes}").as_str())])),
+                None => Cow::from(warpui::localization::text("Syncing...")),
             };
             (progress_text, theme.disabled_ui_text_color().into_solid())
         } else if let Some(completed_successfully) = index_state.last_sync_successful() {
             should_render_retry = true;
             let (text, color, status_icon) = if completed_successfully {
-                ("Synced", theme.ansi_fg_green(), Icon::Check)
+                (warpui::localization::text("Synced"), theme.ansi_fg_green(), Icon::Check)
             } else if let Some(CodebaseIndexFinishedStatus::Failed(
                 CodebaseIndexingError::ExceededMaxFileLimit
                 | CodebaseIndexingError::MaxDepthExceeded,
             )) = index_state.last_sync_result()
             {
                 (
-                    "Codebase too large",
+                    warpui::localization::text("Codebase too large"),
                     theme.ui_warning_color(),
                     Icon::AlertTriangle,
                 )
             } else if index_state.has_synced_version() {
                 (
-                    "Stale",
+                    warpui::localization::text("Stale"),
                     theme.nonactive_ui_detail().into_solid(),
                     Icon::ClockRefresh,
                 )
             } else {
-                ("Failed", theme.ui_error_color(), Icon::AlertTriangle)
+                (warpui::localization::text("Failed"), theme.ui_error_color(), Icon::AlertTriangle)
             };
 
             label_row.add_child(
@@ -1588,7 +1588,7 @@ impl CodePageWidget {
         // "LSP SERVERS" label
         content.add_child(
             ui_builder
-                .span("LSP SERVERS")
+                .span(warpui::localization::text("LSP SERVERS"))
                 .with_style(UiComponentStyles {
                     font_size: Some(11.0),
                     font_weight: Some(Weight::Semibold),
@@ -1701,10 +1701,10 @@ impl CodePageWidget {
         );
 
         let (description, is_installing) = match &repo_status {
-            Some(LspRepoStatus::DisabledAndInstalled { .. }) => ("Installed", false),
-            Some(LspRepoStatus::Installing { .. }) => ("Installing...", true),
-            Some(LspRepoStatus::CheckingForInstallation) => ("Checking...", true),
-            _ => ("Available for download", false),
+            Some(LspRepoStatus::DisabledAndInstalled { .. }) => (warpui::localization::text("Installed"), false),
+            Some(LspRepoStatus::Installing { .. }) => (warpui::localization::text("Installing..."), true),
+            Some(LspRepoStatus::CheckingForInstallation) => (warpui::localization::text("Checking..."), true),
+            _ => (warpui::localization::text("Available for download"), false),
         };
 
         name_desc_column.add_child(
@@ -1886,7 +1886,7 @@ impl CodePageWidget {
                         background: Some(theme.surface_3().into()),
                         ..Default::default()
                     })
-                    .with_text_label("Restart server".to_owned())
+                    .with_text_label(warpui::localization::text("Restart server").to_owned())
                     .build()
                     .with_cursor(Cursor::PointingHand)
                     .on_click(move |ctx, _, _| {
@@ -1917,7 +1917,7 @@ impl CodePageWidget {
                         font_size: Some(12.),
                         ..Default::default()
                     })
-                    .with_text_label("View logs".to_owned())
+                    .with_text_label(warpui::localization::text("View logs").to_owned())
                     .build()
                     .with_cursor(Cursor::PointingHand)
                     .on_click(move |ctx, _, _| {
@@ -1973,26 +1973,26 @@ impl CodePageWidget {
                         AnsiColorIdentifier::Green
                             .to_ansi_color(&theme.terminal_colors().normal)
                             .into(),
-                        "Available",
+                        warpui::localization::text("Available"),
                     ),
                     LspState::Starting | LspState::Available { .. } => (
                         AnsiColorIdentifier::Yellow
                             .to_ansi_color(&theme.terminal_colors().normal)
                             .into(),
-                        "Busy",
+                        warpui::localization::text("Busy"),
                     ),
                     LspState::Failed { .. } => (
                         AnsiColorIdentifier::Red
                             .to_ansi_color(&theme.terminal_colors().normal)
                             .into(),
-                        "Failed",
+                        warpui::localization::text("Failed"),
                     ),
                     LspState::Stopped { .. } | LspState::Stopping { .. } => {
-                        (theme.disabled_ui_text_color().into_solid(), "Stopped")
+                        (theme.disabled_ui_text_color().into_solid(), warpui::localization::text("Stopped"))
                     }
                 }
             }
-            None => (theme.disabled_ui_text_color().into_solid(), "Not running"),
+            None => (theme.disabled_ui_text_color().into_solid(), warpui::localization::text("Not running")),
         }
     }
 }
@@ -2051,10 +2051,10 @@ impl SettingsWidget for CodebaseIndexingCategorizedWidget {
             .check(codebase_context_enabled);
 
         let disabled_tooltip_text = match admin_setting {
-            AdminEnablementSetting::Enable => Some(INDEXING_WORKSPACE_ENABLED_ADMIN_TEXT),
-            AdminEnablementSetting::Disable => Some(INDEXING_DISABLED_ADMIN_TEXT),
+            AdminEnablementSetting::Enable => Some(warpui::localization::text(INDEXING_WORKSPACE_ENABLED_ADMIN_TEXT)),
+            AdminEnablementSetting::Disable => Some(warpui::localization::text(INDEXING_DISABLED_ADMIN_TEXT)),
             AdminEnablementSetting::RespectUserSetting if !global_ai_enabled => {
-                Some(INDEXING_DISABLED_GLOBAL_AI_TEXT)
+                Some(warpui::localization::text(INDEXING_DISABLED_GLOBAL_AI_TEXT))
             }
             AdminEnablementSetting::RespectUserSetting => None,
         };
@@ -2078,13 +2078,13 @@ impl SettingsWidget for CodebaseIndexingCategorizedWidget {
         };
 
         content.add_child(render_body_item::<CodeSettingsPageAction>(
-            CODEBASE_INDEXING_LABEL.into(),
+            warpui::localization::text(CODEBASE_INDEXING_LABEL).into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
             appearance,
             toggle_element,
-            Some(CODEBASE_INDEX_DESCRIPTION.into()),
+            Some(warpui::localization::text(CODEBASE_INDEX_DESCRIPTION).into()),
         ));
 
         // Auto-indexing toggle (only shown when codebase indexing is enabled)
@@ -2092,7 +2092,7 @@ impl SettingsWidget for CodebaseIndexingCategorizedWidget {
             let auto_indexing_enabled = *CodeSettings::as_ref(app).auto_indexing_enabled;
 
             content.add_child(render_body_item::<CodeSettingsPageAction>(
-                AUTO_INDEX_FEATURE_NAME.into(),
+                warpui::localization::text(AUTO_INDEX_FEATURE_NAME).into(),
                 None,
                 LocalOnlyIconState::Hidden,
                 ToggleState::Enabled,
@@ -2105,13 +2105,13 @@ impl SettingsWidget for CodebaseIndexingCategorizedWidget {
                         ctx.dispatch_typed_action(CodeSettingsPageAction::ToggleAutoIndexing);
                     })
                     .finish(),
-                Some(AUTO_INDEX_DESCRIPTION.into()),
+                Some(warpui::localization::text(AUTO_INDEX_DESCRIPTION).into()),
             ));
 
             if !CodebaseIndexManager::as_ref(app).can_create_new_indices() {
                 content.add_child(
                     ui_builder
-                        .paragraph(CODEBASE_INDEX_LIMIT_REACHED)
+                        .paragraph(warpui::localization::text(CODEBASE_INDEX_LIMIT_REACHED))
                         .with_style(UiComponentStyles {
                             font_color: Some(appearance.theme().disabled_ui_text_color().into()),
                             ..Default::default()
@@ -2186,7 +2186,7 @@ impl SettingsWidget for AutoOpenCodeReviewPaneCodeWidget {
     ) -> Box<dyn Element> {
         let general_settings = GeneralSettings::as_ref(app);
         render_body_item::<CodeSettingsPageAction>(
-            "Auto open code review panel".into(),
+            warpui::localization::text("Auto open code review panel").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2200,7 +2200,7 @@ impl SettingsWidget for AutoOpenCodeReviewPaneCodeWidget {
                     ctx.dispatch_typed_action(CodeSettingsPageAction::ToggleAutoOpenCodeReviewPane);
                 })
                 .finish(),
-            Some("When this setting is on, the code review panel will open on the first accepted diff of a conversation".into()),
+            Some(warpui::localization::text("When this setting is on, the code review panel will open on the first accepted diff of a conversation").into()),
         )
     }
 }
@@ -2263,7 +2263,7 @@ impl SettingsWidget for CodeReviewPanelToggleWidget {
         let tab_settings = TabSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Show code review button".into(),
+            warpui::localization::text("Show code review button").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2278,7 +2278,7 @@ impl SettingsWidget for CodeReviewPanelToggleWidget {
                 })
                 .finish(),
             Some(
-                "Show a button in the top right of the window to toggle the code review panel."
+                warpui::localization::text("Show a button in the top right of the window to toggle the code review panel.")
                     .into(),
             ),
         )
@@ -2306,7 +2306,7 @@ impl SettingsWidget for CodeReviewDiffStatsToggleWidget {
         let tab_settings = TabSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Show diff stats on code review button".into(),
+            warpui::localization::text("Show diff stats on code review button").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2322,7 +2322,7 @@ impl SettingsWidget for CodeReviewDiffStatsToggleWidget {
                     );
                 })
                 .finish(),
-            Some("Show lines added and removed counts on the code review button.".into()),
+            Some(warpui::localization::text("Show lines added and removed counts on the code review button.").into()),
         )
     }
 }
@@ -2348,7 +2348,7 @@ impl SettingsWidget for ProjectExplorerToggleWidget {
         let code_settings = CodeSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Project explorer".into(),
+            warpui::localization::text("Project explorer").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2363,7 +2363,7 @@ impl SettingsWidget for ProjectExplorerToggleWidget {
                 })
                 .finish(),
             Some(
-                "Adds an IDE-style project explorer / file tree to the left side tools panel."
+                warpui::localization::text("Adds an IDE-style project explorer / file tree to the left side tools panel.")
                     .into(),
             ),
         )
@@ -2391,7 +2391,7 @@ impl SettingsWidget for GlobalSearchToggleWidget {
         let code_settings = CodeSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Global file search".into(),
+            warpui::localization::text("Global file search").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2405,7 +2405,7 @@ impl SettingsWidget for GlobalSearchToggleWidget {
                     ctx.dispatch_typed_action(CodeSettingsPageAction::ToggleGlobalSearch);
                 })
                 .finish(),
-            Some("Adds global file search to the left side tools panel.".into()),
+            Some(warpui::localization::text("Adds global file search to the left side tools panel.").into()),
         )
     }
 }
@@ -2430,7 +2430,7 @@ impl SettingsWidget for ShowHiddenFilesToggleWidget {
         let code_settings = CodeSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Show hidden files in project explorer".into(),
+            warpui::localization::text("Show hidden files in project explorer").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2445,7 +2445,7 @@ impl SettingsWidget for ShowHiddenFilesToggleWidget {
                 })
                 .finish(),
             Some(
-                "Show dotfiles and hidden files (starting with .) in the project explorer.".into(),
+                warpui::localization::text("Show dotfiles and hidden files (starting with .) in the project explorer.").into(),
             ),
         )
     }
@@ -2472,7 +2472,7 @@ impl SettingsWidget for AutoSaveToggleWidget {
         let code_settings = CodeSettings::as_ref(app);
 
         render_body_item::<CodeSettingsPageAction>(
-            "Auto save".into(),
+            warpui::localization::text("Auto save").into(),
             None,
             LocalOnlyIconState::Hidden,
             ToggleState::Enabled,
@@ -2487,7 +2487,7 @@ impl SettingsWidget for AutoSaveToggleWidget {
                 })
                 .finish(),
             Some(
-                "Automatically saves changes in the Warpai text editor as you type and when the editor loses focus."
+                warpui::localization::text("Automatically saves changes in the Warpai text editor as you type and when the editor loses focus.")
                     .into(),
             ),
         )

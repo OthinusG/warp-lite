@@ -1519,7 +1519,7 @@ impl EditorElement {
                 .with_margin_right(self.view_snapshot.em_width)
                 .finish(),
                 Text::new(
-                    "Cycle suggestions",
+                    warpui::localization::text("Cycle suggestions"),
                     self.view_snapshot.font_family,
                     font_size,
                 )

@@ -145,9 +145,9 @@ consult it only when a specific historical question requires it.
 ## Product defaults, CLI integration and website
 
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
-  1.6.2 migrates desktop data/settings to ~/.config/warpai, preserving old sources,
-  new values/profiles. Owner preferences become typed defaults;
-  no account/path/credential/server/history defaults. Add English/zh-Hans/zh-Hant UI.
+  1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
+  Defaults exclude account/path/credential/server/history; English/zh-Hans/zh-Hant UI.
+  Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
 - Ordinary Codex invocations (including --yolo/resume) adapt at Warpai's execution

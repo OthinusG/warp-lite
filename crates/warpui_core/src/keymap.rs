@@ -111,8 +111,9 @@ impl fmt::Debug for BindingDescription {
 
 impl BindingDescription {
     pub fn new<S: Into<String>>(description: S) -> Self {
+        let description = description.into();
         BindingDescription {
-            description: titlecase(&description.into()),
+            description: titlecase(crate::localization::text(&description)),
             ..Default::default()
         }
     }
@@ -202,13 +203,14 @@ impl BindingDescription {
     /// already-materialized descriptions, or that genuinely cannot plumb
     /// a context through.
     pub fn in_context(&self, context: DescriptionContext) -> &str {
-        match (context, &self.custom) {
+        let description = match (context, &self.custom) {
             (DescriptionContext::Custom(key), Some(map)) => map
                 .get(key)
                 .map(|s| s.as_str())
                 .unwrap_or_else(|| self.description.as_str()),
             _ => self.description.as_str(),
-        }
+        };
+        crate::localization::text(description)
     }
 }
 

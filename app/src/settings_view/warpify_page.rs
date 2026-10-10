@@ -173,7 +173,7 @@ impl WarpifyPageView {
     fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
         let mut categories = vec![
             Category::new("", vec![Box::new(TitleWidget::default())]),
-            Category::new("Subshells", vec![Box::new(SubshellsWidget::default())])
+            Category::new(warpui::localization::text("Subshells"), vec![Box::new(SubshellsWidget::default())])
                 .with_subtitle("Subshells supported: bash, zsh, and fish."),
         ];
 

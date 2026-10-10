@@ -406,7 +406,7 @@ impl RightPanelView {
         let maximize_button = ctx.add_typed_action_view(|ctx| {
             let mut button = ActionButton::new("", PaneHeaderTheme)
                 .with_icon(Icon::Maximize)
-                .with_tooltip("Maximize")
+                .with_tooltip(warpui::localization::text("Maximize"))
                 .with_tooltip_positioning_provider(Arc::new(MenuPositioning::BelowInputBox))
                 .on_click(|ctx| ctx.dispatch_typed_action(RightPanelAction::ToggleMaximize));
 
@@ -422,9 +422,9 @@ impl RightPanelView {
 
         #[cfg(feature = "local_fs")]
         let open_repository_button = ctx.add_typed_action_view(|_| {
-            ActionButton::new("Open repository", NakedTheme)
+            ActionButton::new(warpui::localization::text("Open repository"), NakedTheme)
                 .with_size(crate::view_components::action_button::ButtonSize::Small)
-                .with_tooltip("Navigate to a repo and initialize it for coding")
+                .with_tooltip(warpui::localization::text("Navigate to a repo and initialize it for coding"))
                 .with_tooltip_alignment(TooltipAlignment::Center)
                 .on_click(|ctx| ctx.dispatch_typed_action(RightPanelAction::OpenRepository))
         });
@@ -515,7 +515,7 @@ impl RightPanelView {
                 Ok(files) => {
                     me.attach_ssh_review(files, ctx);
                 }
-                Err(error) => me.ssh_error = Some(format!("Remote Review unavailable: {error}. Check Git and Warpai Companion on the remote host.")),
+                Err(error) => me.ssh_error = Some(warpui::localization::format_text("Remote Review unavailable: {error}. Check Git and Warpai Companion on the remote host.", &[("error", format!("{error}").as_str())])),
             }
             ctx.notify();
         });
@@ -881,7 +881,7 @@ impl RightPanelView {
                         if let Some(error) = &self.ssh_error {
                             warpui::elements::EventHandler::new(
                                 appearance.ui_builder()
-                                    .span(format!("{error} Click to reconnect."))
+                                    .span(warpui::localization::format_text("{error} Click to reconnect.", &[("error", format!("{error}").as_str())]))
                                     .with_soft_wrap().build().finish(),
                             ).on_left_mouse_up(|ctx, _, _| {
                                 ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
@@ -1071,7 +1071,7 @@ impl RightPanelView {
 
         let title = Shrinkable::new(
             1.0,
-            Text::new_inline("Code review".to_string(), appearance.ui_font_family(), 12.)
+            Text::new_inline(warpui::localization::text("Code review").to_string(), appearance.ui_font_family(), 12.)
                 .with_style(Properties::default().weight(Weight::Bold))
                 .with_color(sub_text_color.into())
                 .finish(),

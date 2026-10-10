@@ -107,7 +107,7 @@ impl SettingsWidget for AboutPageWidget {
         let updates = ReleaseUpdates::as_ref(app);
         let update = ui_builder
             .button(ButtonVariant::Accent, self.update_button.clone())
-            .with_text_label("Update".into());
+            .with_text_label(warpui::localization::text("Update").into());
         let update = if updates.checking {
             update.disabled()
         } else {
@@ -118,7 +118,7 @@ impl SettingsWidget for AboutPageWidget {
                 .with_spacing(8.)
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_child(Shrinkable::new(1., ui_builder
-                    .span("Check for updates on startup")
+                    .span(warpui::localization::text("Check for updates on startup"))
                     .with_soft_wrap()
                     .build().finish()).finish())
                 .with_child(ui_builder
@@ -142,7 +142,7 @@ impl SettingsWidget for AboutPageWidget {
             update_controls.add_child(
                 ui_builder
                     .button(ButtonVariant::Accent, self.download_button.clone())
-                    .with_text_label("Download".into())
+                    .with_text_label(warpui::localization::text("Download").into())
                     .build()
                     .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::Download))
                     .finish(),
@@ -164,7 +164,7 @@ impl SettingsWidget for AboutPageWidget {
                 update_controls.add_child(
                     ui_builder
                         .button(ButtonVariant::Text, self.releases_button.clone())
-                        .with_text_label("GitHub Releases".into())
+                        .with_text_label(warpui::localization::text("GitHub Releases").into())
                         .build()
                         .on_click(|ctx, _, _| ctx.dispatch_typed_action(AboutAction::OpenReleases))
                         .finish(),
@@ -232,7 +232,7 @@ impl SettingsWidget for AboutPageWidget {
                 )
                 .with_child(
                     ui_builder
-                        .span("Warpai by OthinusG · Based on Warp")
+                        .span(warpui::localization::text("Warpai by OthinusG · Based on Warp"))
                         .with_soft_wrap()
                         .build()
                         .with_margin_top(16.)

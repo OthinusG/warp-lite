@@ -178,7 +178,7 @@ impl View for UsageSettingsView {
         let builder = appearance.ui_builder();
         let model = AgentUsage::as_ref(app);
         let mut body = Flex::column().with_spacing(8.);
-        body.add_child(render_sub_header(appearance, "Data usage", None));
+        body.add_child(render_sub_header(appearance, warpui::localization::text("Data usage"), None));
         body.add_child(ChildView::new(&self.selector).finish());
         body.add_child(ChildView::new(&self.label).finish());
         if self.provider != Provider::Antigravity {
@@ -279,7 +279,7 @@ impl View for UsageSettingsView {
                 body.add_child(builder.span(*error).with_soft_wrap().build().finish());
             }
         }
-        body.add_child(builder.paragraph("Other agents: usage unsupported. Qoder CN has no verified background usage interface.".to_owned())
+        body.add_child(builder.paragraph(warpui::localization::text("Other agents: usage unsupported. Qoder CN has no verified background usage interface.").to_owned())
             .with_style(UiComponentStyles { font_size: Some(12.), ..Default::default() }).build().finish());
         body.finish()
     }

@@ -265,7 +265,7 @@ impl BuildPlanMigrationModal {
             })
             .finish();
 
-        let label = FormattedTextElement::from_str("Auto-reload", appearance.ui_font_family(), 12.)
+        let label = FormattedTextElement::from_str(warpui::localization::text("Auto-reload"), appearance.ui_font_family(), 12.)
             .with_color(blended_colors::text_sub(
                 theme,
                 blended_colors::neutral_4(theme),

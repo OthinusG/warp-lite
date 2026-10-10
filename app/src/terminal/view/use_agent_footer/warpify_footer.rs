@@ -34,10 +34,10 @@ impl WarpifyFooterView {
         let button_size = ButtonSize::XSmall;
 
         let warpify_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new("Warpify subshell", AgentFooterButtonTheme::new(None))
+            ActionButton::new(warpui::localization::text("Warpify subshell"), AgentFooterButtonTheme::new(None))
                 .with_icon(Icon::Warp)
                 .with_size(button_size)
-                .with_tooltip("Enable Warpai shell integration in this session")
+                .with_tooltip(warpui::localization::text("Enable Warpai shell integration in this session"))
                 .with_tooltip_alignment(TooltipAlignment::Left)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(WarpifyFooterViewAction::Warpify);
@@ -45,18 +45,18 @@ impl WarpifyFooterView {
         });
 
         let powershell_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new("Integrate PowerShell", AgentFooterButtonTheme::new(None))
+            ActionButton::new(warpui::localization::text("Integrate PowerShell"), AgentFooterButtonTheme::new(None))
                 .with_size(button_size)
-                .with_tooltip("Select only after logging into a remote PowerShell prompt")
+                .with_tooltip(warpui::localization::text("Select only after logging into a remote PowerShell prompt"))
                 .on_click(|ctx| ctx.dispatch_typed_action(WarpifyFooterViewAction::PowerShell))
         });
 
         let use_agent_button = ctx.add_typed_action_view(|ctx| {
-            ActionButton::new("Use agent", AgentFooterButtonTheme::new(None))
+            ActionButton::new(warpui::localization::text("Use agent"), AgentFooterButtonTheme::new(None))
                 .with_icon(Icon::Oz)
                 .with_keybinding(KeystrokeSource::Fixed(USE_AGENT_KEYSTROKE.clone()), ctx)
                 .with_size(button_size)
-                .with_tooltip("Ask the Warpai agent to assist")
+                .with_tooltip(warpui::localization::text("Ask the Warpai agent to assist"))
                 .with_tooltip_alignment(TooltipAlignment::Left)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(WarpifyFooterViewAction::UseAgent);
@@ -64,7 +64,7 @@ impl WarpifyFooterView {
         });
 
         let dismiss_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new("Dismiss", AgentFooterButtonTheme::new(None))
+            ActionButton::new(warpui::localization::text("Dismiss"), AgentFooterButtonTheme::new(None))
                 .with_size(button_size)
                 .on_click(|ctx| {
                     ctx.dispatch_typed_action(WarpifyFooterViewAction::Dismiss);

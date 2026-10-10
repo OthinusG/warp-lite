@@ -1933,7 +1933,7 @@ impl LocalCodeEditorView {
                         Shrinkable::new(
                             1.,
                             Text::new_inline(
-                                "Add as context",
+                                warpui::localization::text("Add as context"),
                                 appearance.ui_font_family(),
                                 appearance.ui_font_size(),
                             )
@@ -2502,7 +2502,7 @@ pub fn render_unsaved_changes_banner(
             Shrinkable::new(
                 1.,
                 Text::new(
-                    "This file has saved changes that are not reflected here.",
+                    warpui::localization::text("This file has saved changes that are not reflected here."),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )
@@ -2520,7 +2520,7 @@ pub fn render_unsaved_changes_banner(
             appearance
                 .ui_builder()
                 .button(ButtonVariant::Text, discard_mouse_state)
-                .with_text_label("Discard this version".into())
+                .with_text_label(warpui::localization::text("Discard this version").into())
                 .with_style(UiComponentStyles {
                     height: Some(24.),
                     padding: Some(Coords {
@@ -2542,7 +2542,7 @@ pub fn render_unsaved_changes_banner(
                 appearance
                     .ui_builder()
                     .button(ButtonVariant::Outlined, overwrite_mouse_state)
-                    .with_text_label("Overwrite".into())
+                    .with_text_label(warpui::localization::text("Overwrite").into())
                     .with_style(UiComponentStyles {
                         font_color: Some(appearance.theme().active_ui_text_color().into()),
                         ..Default::default()
@@ -2599,7 +2599,7 @@ pub fn render_remote_disconnected_banner(appearance: &Appearance) -> Box<dyn Ele
             Shrinkable::new(
                 1.,
                 Text::new(
-                    "Remote host disconnected. Your edits are preserved. Click to reconnect before saving.",
+                    warpui::localization::text("Remote host disconnected. Your edits are preserved. Click to reconnect before saving."),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )

@@ -797,7 +797,7 @@ pub fn render_autonomy_checkbox_setting_speedbump_footer(
                     appearance
                         .ui_builder()
                         .link(
-                            "Manage AI Autonomy permissions".into(),
+                            warpui::localization::text("Manage AI Autonomy permissions").into(),
                             None,
                             Some(Box::new(move |ctx| {
                                 ctx.dispatch_typed_action(

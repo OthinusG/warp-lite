@@ -764,7 +764,7 @@ impl CategoriesView {
             appearance
                 .ui_builder()
                 .link(
-                    "creating your own workflow".into(),
+                    warpui::localization::text("creating your own workflow").into(),
                     Some(
                         "https://docs.warp.dev/knowledge-and-collaboration/warp-drive/workflows"
                             .into(),

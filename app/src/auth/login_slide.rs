@@ -512,7 +512,7 @@ impl LoginSlideView {
         let tos_line = Flex::row()
             .with_child(
                 ui_builder
-                    .span("By continuing, you agree to Warpai's ")
+                    .span(warpui::localization::text("By continuing, you agree to Warpai's "))
                     .with_style(disclaimer_styles)
                     .build()
                     .finish(),
@@ -520,7 +520,7 @@ impl LoginSlideView {
             .with_child(
                 ui_builder
                     .link(
-                        "Terms of Service".into(),
+                        warpui::localization::text("Terms of Service").into(),
                         Some(TOS_URL.into()),
                         None,
                         self.tos_mouse_state.clone(),
@@ -546,7 +546,7 @@ impl LoginSlideView {
             .with_child(
                 ui_builder
                     .link(
-                        "Privacy Settings".into(),
+                        warpui::localization::text("Privacy Settings").into(),
                         None,
                         Some(Box::new(|ctx| {
                             ctx.dispatch_typed_action(LoginSlideAction::ShowPrivacySettings);
@@ -669,7 +669,7 @@ impl LoginSlideView {
         };
 
         let title = FormattedTextElement::from_str(
-            "Sign in on your browser to continue",
+            warpui::localization::text("Sign in on your browser to continue"),
             appearance.ui_font_family(),
             36.,
         )
@@ -686,7 +686,7 @@ impl LoginSlideView {
                 Flex::row()
                     .with_child(
                         ui_builder
-                            .span("If your browser hasn't launched, ")
+                            .span(warpui::localization::text("If your browser hasn't launched, "))
                             .with_style(sub_text_styles)
                             .build()
                             .finish(),
@@ -694,7 +694,7 @@ impl LoginSlideView {
                     .with_child(
                         ui_builder
                             .link(
-                                "copy the URL".into(),
+                                warpui::localization::text("copy the URL").into(),
                                 None,
                                 Some(Box::new(|ctx| {
                                     ctx.dispatch_typed_action(LoginSlideAction::CopyLoginUrl);
@@ -707,7 +707,7 @@ impl LoginSlideView {
                     )
                     .with_child(
                         ui_builder
-                            .span(" and open")
+                            .span(warpui::localization::text(" and open"))
                             .with_style(sub_text_styles)
                             .build()
                             .finish(),
@@ -716,7 +716,7 @@ impl LoginSlideView {
             )
             .with_child(
                 ui_builder
-                    .span("the page manually.")
+                    .span(warpui::localization::text("the page manually."))
                     .with_style(sub_text_styles)
                     .build()
                     .finish(),
@@ -770,7 +770,7 @@ impl LoginSlideView {
                 .with_child(
                     ui_builder
                         .link(
-                            "Click here to paste your token from the browser".into(),
+                            warpui::localization::text("Click here to paste your token from the browser").into(),
                             None,
                             Some(Box::new(|ctx| {
                                 ctx.dispatch_typed_action(LoginSlideAction::EnterToken);
@@ -828,7 +828,7 @@ impl LoginSlideView {
         let theme = appearance.theme();
 
         let title =
-            FormattedTextElement::from_str("Privacy Settings", appearance.ui_font_family(), 36.)
+            FormattedTextElement::from_str(warpui::localization::text("Privacy Settings"), appearance.ui_font_family(), 36.)
                 .with_color(internal_colors::text_main(
                     theme,
                     theme.background().into_solid(),

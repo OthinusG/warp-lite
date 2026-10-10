@@ -206,8 +206,8 @@ impl ConversationEndedTombstoneView {
         #[cfg(not(target_family = "wasm"))]
         let continue_locally_button = conversation_id.map(|conv_id| {
             ctx.add_typed_action_view(move |_| {
-                ActionButton::new("Continue locally", PrimaryTheme)
-                    .with_tooltip("Fork this conversation locally")
+                ActionButton::new(warpui::localization::text("Continue locally"), PrimaryTheme)
+                    .with_tooltip(warpui::localization::text("Fork this conversation locally"))
                     .on_click(move |ctx| {
                         ctx.dispatch_typed_action(
                             ConversationEndedTombstoneAction::ContinueLocally(conv_id),
@@ -221,8 +221,8 @@ impl ConversationEndedTombstoneView {
         #[cfg(target_family = "wasm")]
         let open_in_warp_button = conversation_id.map(|conv_id| {
             ctx.add_typed_action_view(move |_| {
-                ActionButton::new("Open in Warpai", PrimaryTheme)
-                    .with_tooltip("Open this conversation in the Warpai desktop app")
+                ActionButton::new(warpui::localization::text("Open in Warpai"), PrimaryTheme)
+                    .with_tooltip(warpui::localization::text("Open this conversation in the Warpai desktop app"))
                     .on_click(move |ctx| {
                         ctx.dispatch_typed_action(ConversationEndedTombstoneAction::OpenInWarp(
                             conv_id,
@@ -304,7 +304,7 @@ impl ConversationEndedTombstoneView {
 
         if is_transcript {
             return Text::new(
-                "You're viewing a snapshot",
+                warpui::localization::text("You're viewing a snapshot"),
                 appearance.overline_font_family(),
                 appearance.monospace_font_size(),
             )
@@ -363,8 +363,8 @@ impl ConversationEndedTombstoneView {
         let theme = appearance.theme();
         Container::new(
             Text::new(
-                "This shared conversation shows the state when you opened it. \
-                 If the agent is still running, refresh to see the latest progress.",
+                warpui::localization::text("This shared conversation shows the state when you opened it. \
+                 If the agent is still running, refresh to see the latest progress."),
                 appearance.overline_font_family(),
                 appearance.monospace_font_size(),
             )

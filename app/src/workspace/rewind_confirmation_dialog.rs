@@ -107,7 +107,7 @@ impl View for RewindConfirmationDialog {
         let rewind_button_label = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_child(
-                Text::new_inline("Rewind", appearance.ui_font_family(), 14.)
+                Text::new_inline(warpui::localization::text("Rewind"), appearance.ui_font_family(), 14.)
                     .with_color(text_color)
                     .finish(),
             )
@@ -161,7 +161,7 @@ impl View for RewindConfirmationDialog {
                 } else {
                     cancel_text_color
                 };
-                Text::new_inline("Cancel", appearance.ui_font_family(), 14.)
+                Text::new_inline(warpui::localization::text("Cancel"), appearance.ui_font_family(), 14.)
                     .with_color(color.into_solid())
                     .finish()
             })
@@ -188,7 +188,7 @@ impl View for RewindConfirmationDialog {
             )
             .with_child(
                 Text::new_inline(
-                    "Rewinding does not affect files edited manually or via shell commands.",
+                    warpui::localization::text("Rewinding does not affect files edited manually or via shell commands."),
                     appearance.ui_font_family(),
                     12.,
                 )

@@ -1286,7 +1286,7 @@ impl EnvironmentsPageWidget {
         let theme = appearance.theme();
         Container::new(
             Text::new(
-                "No environments match your search.",
+                warpui::localization::text("No environments match your search."),
                 appearance.ui_font_family(),
                 appearance.ui_font_size(),
             )
@@ -1484,7 +1484,7 @@ impl EnvironmentsPageWidget {
         .finish();
 
         let header = Text::new(
-            "You haven’t set up any environments yet.",
+            warpui::localization::text("You haven’t set up any environments yet."),
             appearance.ui_font_family(),
             appearance.ui_font_size() * 1.1,
         )
@@ -1493,7 +1493,7 @@ impl EnvironmentsPageWidget {
         .finish();
 
         let subheader = Text::new(
-            "Choose how you’d like to set up your environment:",
+            warpui::localization::text("Choose how you’d like to set up your environment:"),
             appearance.ui_font_family(),
             appearance.ui_font_size() * 0.95,
         )
@@ -1858,7 +1858,7 @@ impl EnvironmentsPageWidget {
             let view_runs_link = appearance
                 .ui_builder()
                 .link(
-                    "View my runs".to_string(),
+                    warpui::localization::text("View my runs").to_string(),
                     None,
                     Some(Box::new(move |ctx| {
                         ctx.dispatch_typed_action(WorkspaceAction::ViewAgentRunsForEnvironment {

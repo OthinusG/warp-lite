@@ -435,7 +435,7 @@ impl CollaborationPanel {
             return;
         }
         self.coordinator_dropdown.update(ctx, |dropdown, ctx| {
-            let mut items = vec![super::DropdownItem::new("Select Coordinator", Action::ChooseCoordinator {
+            let mut items = vec![super::DropdownItem::new(warpui::localization::text("Select Coordinator"), Action::ChooseCoordinator {
                 project: snapshot.project.clone(), agent: String::new(), run: String::new(),
             })];
             let mut selected_index = 0;
@@ -459,21 +459,21 @@ impl CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let Some(snapshot) = &self.snapshot else { return body.finish(); };
         if !snapshot.worktree_available {
-            body.add_child(note(appearance, "Open a Git repository to use Worktree mode."));
+            body.add_child(note(appearance, warpui::localization::text("Open a Git repository to use Worktree mode.")));
             return body.finish();
         }
         let coordinator = snapshot.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some());
-        body.add_child(heading(appearance, "Coordinator"));
+        body.add_child(heading(appearance, warpui::localization::text("Coordinator")));
         body.add_child(ChildView::new(&self.coordinator_dropdown).finish());
         if self.remote.is_none() {
             body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[1].clone())
-                .with_text_label("New worktree".into()).build().on_click(|ctx, _, _|
+                .with_text_label(warpui::localization::text("New worktree").into()).build().on_click(|ctx, _, _|
                     ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::OpenNewWorktreeModal)).finish());
         }
         if snapshot.candidates.is_empty() {
-            body.add_child(note(appearance, "Start an Agent in this project."));
+            body.add_child(note(appearance, warpui::localization::text("Start an Agent in this project.")));
         }
-        body.add_child(heading(appearance, "Worktrees"));
+        body.add_child(heading(appearance, warpui::localization::text("Worktrees")));
         for checkout in &snapshot.worktrees {
             let branch = checkout.branch.as_deref().unwrap_or("detached HEAD");
             let mut summary: String = branch.chars().take(48).collect();
@@ -487,7 +487,7 @@ impl CollaborationPanel {
                         ctx.dispatch_typed_action(Action::ExpandWorker(root.clone()))).finish());
             }
             let agents: Vec<_> = snapshot.candidates.iter().filter(|candidate| candidate.root == checkout.root).collect();
-            if agents.is_empty() { body.add_child(note(appearance, "No online Agents")); }
+            if agents.is_empty() { body.add_child(note(appearance, warpui::localization::text("No online Agents"))); }
             for candidate in agents {
                 let selected = coordinator.is_some_and(|role| role.agent == candidate.agent.id);
                 body.add_child(Flex::row().with_spacing(super::GAP_ROW)
@@ -506,7 +506,7 @@ impl CollaborationPanel {
                     let repository = std::path::PathBuf::from(&snapshot.worktree_root);
                     let root = std::path::PathBuf::from(&checkout.root);
                     body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[0].clone())
-                        .with_text_label("Remove worktree".into()).build().on_click(move |ctx, _, _|
+                        .with_text_label(warpui::localization::text("Remove worktree").into()).build().on_click(move |ctx, _, _|
                             ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::RemoveLocalWorktree {
                                 repository: repository.clone(), checkout: root.clone(),
                             })).finish());
@@ -945,7 +945,7 @@ impl CollaborationPanel {
                     form.error = if remote && error.downcast_ref::<warp_agent_bus::DomainError>().is_none() {
                         "Outcome unknown. Original content, version and request are retained. Reconnect, then explicitly retry this unchanged intent to reconcile its receipt.".into()
                     } else {
-                        format!("Operation rejected ({code}). Original version and request were preserved. Resolve the blocker or close this form, refresh and confirm a new intent.")
+                        warpui::localization::format_text("Operation rejected ({code}). Original version and request were preserved. Resolve the blocker or close this form, refresh and confirm a new intent.", &[("code", format!("{code}").as_str())])
                     };
                 }
             }
@@ -962,12 +962,12 @@ impl CollaborationPanel {
         if let Some(form) = &self.form {
             if form.kind == Kind::SelectCoordinator {
                 if !form.error.is_empty() { body.add_child(detail(appearance, form.error.clone())); }
-                if form.submitting { body.add_child(note(appearance, "Updating Coordinator…")); }
+                if form.submitting { body.add_child(note(appearance, warpui::localization::text("Updating Coordinator…"))); }
                 else if !form.error.is_empty() {
                     body.add_child(builder.button(ButtonVariant::Secondary, form.buttons[0].clone())
-                        .with_text_label("Retry".into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::ConfirmControl)).finish());
+                        .with_text_label(warpui::localization::text("Retry").into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::ConfirmControl)).finish());
                     body.add_child(builder.button(ButtonVariant::Text, form.buttons[1].clone())
-                        .with_text_label("Dismiss".into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::CancelControl)).finish());
+                        .with_text_label(warpui::localization::text("Dismiss").into()).build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::CancelControl)).finish());
                 }
                 return body.finish();
             }
@@ -982,10 +982,10 @@ impl CollaborationPanel {
                 ));
             }
             if form.kind.overrides() {
-                body.add_child(builder.span("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.").with_soft_wrap().build().finish());
+                body.add_child(builder.span(warpui::localization::text("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.")).with_soft_wrap().build().finish());
             }
             if matches!(form.kind, Kind::RenewReservation | Kind::ReleaseReservation) {
-                body.add_child(builder.span("Use an ID from the original reservation page. Renewal requires a confirmed active owner; release removes advisory coordination only and does not stop execution or file writes.").with_soft_wrap().build().finish());
+                body.add_child(builder.span(warpui::localization::text("Use an ID from the original reservation page. Renewal requires a confirmed active owner; release removes advisory coordination only and does not stop execution or file writes.")).with_soft_wrap().build().finish());
                 let id = form.fields[0].as_ref(app).buffer_text(app);
                 if let Some(reservation) = form
                     .reservations
@@ -1013,14 +1013,14 @@ impl CollaborationPanel {
             if form.kind == Kind::Archive {
                 body.add_child(note(
                     appearance,
-                    "Archive this terminal task while retaining its evidence and history.",
+                    warpui::localization::text("Archive this terminal task while retaining its evidence and history."),
                 ));
             }
             if form.kind == Kind::MapWorkspace {
-                body.add_child(builder.span("This mapping applies only to new explicitly joined panes. Changing a checkout's space revokes its earlier shared admissions. Existing private work remains private; matching Git remotes never joins projects.").with_soft_wrap().build().finish());
+                body.add_child(builder.span(warpui::localization::text("This mapping applies only to new explicitly joined panes. Changing a checkout's space revokes its earlier shared admissions. Existing private work remains private; matching Git remotes never joins projects.")).with_soft_wrap().build().finish());
             }
             if form.kind == Kind::LeaveSpace {
-                body.add_child(builder.span("Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.").with_soft_wrap().build().finish());
+                body.add_child(builder.span(warpui::localization::text("Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.")).with_soft_wrap().build().finish());
             }
             if matches!(form.kind, Kind::JoinWorktree | Kind::LeaveWorktree) {
                 body.add_child(detail(appearance, form.worktree_root.clone()));
@@ -1032,7 +1032,7 @@ impl CollaborationPanel {
             }
             if matches!(form.kind, Kind::SelectCoordinator) {
                 if form.candidates.is_empty() {
-                    body.add_child(note(appearance, "No eligible active Agents. Start an Agent in the intended checkout using Agent management, then reopen this selector."));
+                    body.add_child(note(appearance, warpui::localization::text("No eligible active Agents. Start an Agent in the intended checkout using Agent management, then reopen this selector.")));
                 }
                 for candidate in &form.candidates {
                     let selected = form.selected_candidate.as_ref() == Some(&candidate.agent.id);
@@ -1173,7 +1173,7 @@ impl CollaborationPanel {
             }
             if !self.query.history && !self.show_spaces && self.query.selected_task.is_none() {
                 buttons.push(builder.button(ButtonVariant::Secondary, self.history_buttons[0].clone())
-                    .with_text_label("History".into()).build()
+                    .with_text_label(warpui::localization::text("History").into()).build()
                     .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::History)).finish());
             }
             if let Some(buttons) = button_row(buttons) {

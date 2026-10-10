@@ -437,7 +437,7 @@ impl LaunchConfigSaveModal {
                     1.0,
                     Align::new(
                         Text::new_inline(
-                            "Save Current Configuration",
+                            warpui::localization::text("Save Current Configuration"),
                             appearance.header_font_family(),
                             appearance.header_font_size(),
                         )
@@ -514,7 +514,7 @@ impl LaunchConfigSaveModal {
                 appearance
                     .ui_builder()
                     .link(
-                        "Link to Documentation".to_string(),
+                        warpui::localization::text("Link to Documentation").to_string(),
                         Some(
                             "https://docs.warp.dev/terminal/sessions/launch-configurations"
                                 .to_string(),

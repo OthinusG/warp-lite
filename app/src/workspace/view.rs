@@ -10101,7 +10101,7 @@ impl Workspace {
                                 .with_main_axis_size(MainAxisSize::Max)
                                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                                 .with_child(
-                                    Text::new_inline(" + Add new repo", font_family, font_size)
+                                    Text::new_inline(warpui::localization::text(" + Add new repo"), font_family, font_size)
                                         .with_color(text_color.into())
                                         .finish(),
                                 )
@@ -13335,7 +13335,7 @@ impl Workspace {
         };
 
         WorkspaceToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-            let toast = DismissibleToast::default(format!("Forked \"{title}\""));
+            let toast = DismissibleToast::default(warpui::localization::format_text("Forked \"{title}\"", &[("title", format!("{title}").as_str())]));
             toast_stack.add_ephemeral_toast(toast, window_id, ctx);
         });
     }
@@ -19001,7 +19001,7 @@ impl Workspace {
                         Shrinkable::new(
                             1.,
                             Text::new_inline(
-                                "Search sessions, agents, files...",
+                                warpui::localization::text("Search sessions, agents, files..."),
                                 appearance.ui_font_family(),
                                 14.,
                             )

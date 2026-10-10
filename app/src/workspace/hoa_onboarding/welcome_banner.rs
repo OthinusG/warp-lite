@@ -86,7 +86,7 @@ pub fn render_welcome_banner(
 
     // "New" badge
     let badge = Container::new(
-        Text::new_inline("New".to_string(), appearance.ui_font_family(), 14.)
+        Text::new_inline(warpui::localization::text("New").to_string(), appearance.ui_font_family(), 14.)
             .with_color(PhenomenonStyle::modal_badge_text())
             .finish(),
     )
@@ -98,7 +98,7 @@ pub fn render_welcome_banner(
 
     // Title
     let title = Text::new(
-        "Introducing universal agent support: level up any coding agent with Warpai",
+        warpui::localization::text("Introducing universal agent support: level up any coding agent with Warpai"),
         appearance.ui_font_family(),
         20.,
     )

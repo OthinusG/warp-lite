@@ -37,7 +37,7 @@ jobs:
   protocol:
     runs-on: windows-latest
     env:
-      GIT_RELEASE_TAG: v1.6.0
+      GIT_RELEASE_TAG: v1.6.2
     timeout-minutes: 180
     defaults:
       run:
@@ -50,6 +50,8 @@ jobs:
         run: |
           git config core.autocrlf false
           git checkout-index --force --all
+      - name: Verify interface translation coverage
+        run: python script/check-interface-locales.py --strict
       - name: Install pinned Rust
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Prepare Windows protobuf compiler
@@ -238,6 +240,8 @@ jobs:
   macos:
     if: ${{ !inputs.native_windows_only && !inputs.windows_only }}
     runs-on: macos-15
+    env:
+      GIT_RELEASE_TAG: v1.6.2
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -245,6 +249,8 @@ jobs:
           lfs: true
       - name: Verify source hygiene
         run: git diff --check
+      - name: Verify interface translation coverage
+        run: python3 script/check-interface-locales.py --strict
       - name: Prepare build tools
         run: |
           rustup toolchain install 1.92.0 --profile minimal

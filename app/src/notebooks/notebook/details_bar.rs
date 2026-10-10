@@ -174,13 +174,13 @@ impl DetailsBar {
         match editor.state {
             EditorState::None => appearance
                 .ui_builder()
-                .span("Viewing")
+                .span(warpui::localization::text("Viewing"))
                 .with_style(base_text_styles)
                 .build()
                 .finish(),
             EditorState::CurrentUser => appearance
                 .ui_builder()
-                .span("Editing")
+                .span(warpui::localization::text("Editing"))
                 .with_style(base_text_styles)
                 .build()
                 .finish(),

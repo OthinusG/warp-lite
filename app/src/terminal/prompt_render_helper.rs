@@ -429,7 +429,7 @@ impl PromptRenderHelper {
             let prompt = PromptAndPadding {
                 element: PromptAndPaddingElement::Text(Box::new(
                     Text::new_inline(
-                        "Loading prompt...",
+                        warpui::localization::text("Loading prompt..."),
                         appearance.monospace_font_family(),
                         appearance.monospace_font_size(),
                     )

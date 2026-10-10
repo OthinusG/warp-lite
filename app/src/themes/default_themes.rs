@@ -326,6 +326,39 @@ pub(super) fn claude_warm_light() -> WarpTheme {
     )
 }
 
+pub(super) fn catppuccin_latte() -> WarpTheme {
+    let normal = AnsiColors::new(
+        AnsiColor::from_u32(0x5C5F77FF),
+        AnsiColor::from_u32(0xD20F39FF),
+        AnsiColor::from_u32(0x40A02BFF),
+        AnsiColor::from_u32(0xDF8E1DFF),
+        AnsiColor::from_u32(0x1E66F5FF),
+        AnsiColor::from_u32(0xEA76CBFF),
+        AnsiColor::from_u32(0x179299FF),
+        AnsiColor::from_u32(0xACB0BEFF),
+    );
+    let bright = AnsiColors::new(
+        AnsiColor::from_u32(0x6C6F85FF),
+        AnsiColor::from_u32(0xD20F39FF),
+        AnsiColor::from_u32(0x40A02BFF),
+        AnsiColor::from_u32(0xDF8E1DFF),
+        AnsiColor::from_u32(0x1E66F5FF),
+        AnsiColor::from_u32(0xEA76CBFF),
+        AnsiColor::from_u32(0x179299FF),
+        AnsiColor::from_u32(0xBCC0CCFF),
+    );
+    WarpTheme::new(
+        Fill::Solid(ColorU::from_u32(0xEFF1F5FF)),
+        ColorU::from_u32(0x1E1E2EFF),
+        Fill::Solid(ColorU::from_u32(0xDC8A78FF)),
+        None,
+        Some(Details::Lighter),
+        TerminalColors::new(normal, bright),
+        None,
+        Some("Catppuccin Latte".to_string()),
+    )
+}
+
 pub(super) fn dracula() -> WarpTheme {
     WarpTheme::new(
         Fill::Solid(ColorU::from_u32(0x282A36FF)),

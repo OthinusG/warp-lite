@@ -838,7 +838,7 @@ impl AIAssistantPanelView {
             .with_children([
                 Container::new(
                     Text::new_inline(
-                        "Character limit exceeded.",
+                        warpui::localization::text("Character limit exceeded."),
                         appearance.ui_font_family(),
                         BODY_FONT_SIZE,
                     )

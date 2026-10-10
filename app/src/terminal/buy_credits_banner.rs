@@ -230,7 +230,7 @@ impl BuyCreditsBanner {
 
         let sub_text_color = theme.sub_text_color(theme.surface_1());
 
-        let label = Text::new_inline("Auto reload", appearance.ui_font_family(), 12.)
+        let label = Text::new_inline(warpui::localization::text("Auto reload"), appearance.ui_font_family(), 12.)
             .with_color(sub_text_color.into())
             .finish();
 
@@ -402,7 +402,7 @@ impl BuyCreditsBanner {
             .with_children([
                 appearance
                     .ui_builder()
-                    .paragraph("Monthly limit reached")
+                    .paragraph(warpui::localization::text("Monthly limit reached"))
                     .with_style(UiComponentStyles {
                         font_size: Some(14.),
                         ..Default::default()
@@ -453,7 +453,7 @@ impl BuyCreditsBanner {
                     }),
                     ..Default::default()
                 })
-                .with_text_label("Manage billing".to_string())
+                .with_text_label(warpui::localization::text("Manage billing").to_string())
                 .build()
                 .on_click(|ctx, _, _| {
                     ctx.dispatch_typed_action(Action::ManageBilling);
@@ -538,7 +538,7 @@ impl BuyCreditsBanner {
         let make_banner_text = || {
             let mut banner_text_children = vec![appearance
                 .ui_builder()
-                .paragraph("Out of credits")
+                .paragraph(warpui::localization::text("Out of credits"))
                 .with_style(UiComponentStyles {
                     font_size: Some(14.),
                     ..Default::default()

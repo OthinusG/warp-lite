@@ -251,7 +251,7 @@ pub trait Options {
 /// # fn example(appearance: &Appearance) {
 /// let options = SwitchOptions {
 ///     label: Some(Box::new(|appearance: &Appearance| {
-///         Text::new("My Label", appearance.ui_font_family(), appearance.ui_font_size())
+///         Text::new(warpui::localization::text("My Label"), appearance.ui_font_family(), appearance.ui_font_size())
 ///             .finish()
 ///     })),
 ///     ..Options::default(&appearance)

@@ -913,7 +913,7 @@ impl SecretRedactionWidget {
 
         if enterprise_regex_list.is_empty() {
             return ui_builder
-                .paragraph("No enterprise regexes have been configured by your organization.")
+                .paragraph(warpui::localization::text("No enterprise regexes have been configured by your organization."))
                 .with_style(UiComponentStyles {
                     font_color: Some(description_text_color),
                     ..Default::default()
@@ -1256,7 +1256,7 @@ impl SettingsWidget for SecretRedactionWidget {
                     Container::new(
                         ui_builder
                             .paragraph(
-                                "Choose how secrets are visually presented in the block list while keeping them searchable. This setting only affects what you see in the block list.",
+                                warpui::localization::text("Choose how secrets are visually presented in the block list while keeping them searchable. This setting only affects what you see in the block list."),
                             )
                             .with_style(UiComponentStyles {
                                 font_color: Some(description_text_color),
@@ -1575,7 +1575,7 @@ impl SettingsWidget for AppAnalyticsWidget {
             Align::new(
                 ui_builder
                     .link(
-                        "Read more about Warpai's use of data".into(),
+                        warpui::localization::text("Read more about Warpai's use of data").into(),
                         Some(TELEMETRY_DOCS_URL.into()),
                         None,
                         self.docs_link_mouse_state.clone(),
@@ -1644,7 +1644,7 @@ impl SettingsWidget for CrashReportsWidget {
             .with_child(
                 ui_builder
                     .paragraph(
-                        "Crash reports assist with debugging and stability improvements."
+                        warpui::localization::text("Crash reports assist with debugging and stability improvements.")
                             .to_owned(),
                     )
                     .with_style(UiComponentStyles {
@@ -1815,9 +1815,9 @@ impl SettingsWidget for NetworkLogWidget {
             .with_child(
                 ui_builder
                     .paragraph(
-                        "We've built a native console that allows you to view all communications \
+                        warpui::localization::text("We've built a native console that allows you to view all communications \
                         from Warpai to external servers to ensure you feel comfortable that your \
-                        work is always kept safe."
+                        work is always kept safe.")
                             .to_owned(),
                     )
                     .with_style(UiComponentStyles {
@@ -1841,7 +1841,7 @@ impl SettingsWidget for NetworkLogWidget {
                 Align::new(
                     ui_builder
                         .link(
-                            "View network logging".to_owned(),
+                            warpui::localization::text("View network logging").to_owned(),
                             None,
                             Some(Box::new(|ctx| {
                                 ctx.dispatch_typed_action(PrivacyPageAction::LaunchNetworkLogging);

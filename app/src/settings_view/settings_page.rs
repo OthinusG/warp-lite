@@ -188,7 +188,7 @@ impl SettingsPage {
                 },
                 self.button_state_handle.clone(),
             )
-            .with_text_label(self.section.to_string() + &match_data.to_string())
+            .with_text_label(warpui::localization::text(&self.section.to_string()).to_owned() + &match_data.to_string())
             .with_style(
                 UiComponentStyles::default()
                     .set_border_width(0.)
@@ -561,7 +561,7 @@ pub fn render_info_icon<T: Clone + Action>(
             13.,
             additional_info
                 .tooltip_override_text
-                .unwrap_or("Click to learn more in docs".to_owned()),
+                .unwrap_or(warpui::localization::text("Click to learn more in docs").to_owned()),
             additional_info.mouse_state.clone(),
         )
         .on_click(move |ctx, _, _| {
@@ -587,7 +587,7 @@ pub fn render_local_only_icon(
         .ui_builder()
         .local_only_icon_with_tooltip(
             13.,
-            custom_tooltip.unwrap_or("This setting is not synced to your other devices".to_owned()),
+            custom_tooltip.unwrap_or(warpui::localization::text("This setting is not synced to your other devices").to_owned()),
             mouse_state.clone(),
         )
         .finish();
@@ -1162,7 +1162,7 @@ fn render_alternating_color_list_item<SettingsPageAction: Action + Clone>(
     .finish()
 }
 
-/// Adds a setting (e.g., "Background opacity") to the parent flex if it is supported on the current platform. Returns
+/// Adds a setting (e.g., warpui::localization::text("Background opacity")) to the parent flex if it is supported on the current platform. Returns
 /// true if the setting was added to the flex, false if not.
 ///
 /// This is the default method to use when rendering a setting in the settings menu, across all pages
@@ -1864,5 +1864,5 @@ pub(super) fn build_reset_button(
             font_size: Some(appearance.ui_font_size() * 0.8),
             ..Default::default()
         })
-        .with_text_label("Reset to default".to_owned())
+        .with_text_label(warpui::localization::text("Reset to default").to_owned())
 }

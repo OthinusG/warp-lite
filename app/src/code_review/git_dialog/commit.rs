@@ -145,7 +145,7 @@ pub(super) fn new_state(
     });
 
     let commit_button = ctx.add_typed_action_view(|_ctx| {
-        ActionButton::new("Commit", SecondaryTheme)
+        ActionButton::new(warpui::localization::text("Commit"), SecondaryTheme)
             .with_size(ButtonSize::XSmall)
             .with_height(32.)
             .with_icon(Icon::GitCommit)
@@ -169,7 +169,7 @@ pub(super) fn new_state(
 
     let commit_and_create_pr_button = if allow_create_pr {
         Some(ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new("Commit and create PR", SecondaryTheme)
+            ActionButton::new(warpui::localization::text("Commit and create PR"), SecondaryTheme)
                 .with_size(ButtonSize::XSmall)
                 .with_height(32.)
                 .with_icon(Icon::Github)
@@ -555,7 +555,7 @@ fn render_changes_section(state: &CommitState, appearance: &Appearance) -> Box<d
     let sub_color = theme.sub_text_color(theme.surface_1()).into_solid();
 
     let changes_label = Text::new(
-        "Changes",
+        warpui::localization::text("Changes"),
         appearance.ui_font_family(),
         appearance.ui_font_size(),
     )
@@ -563,7 +563,7 @@ fn render_changes_section(state: &CommitState, appearance: &Appearance) -> Box<d
     .finish();
 
     let include_label = Text::new(
-        "Include unstaged",
+        warpui::localization::text("Include unstaged"),
         appearance.ui_font_family(),
         appearance.ui_font_size(),
     )
@@ -617,7 +617,7 @@ fn render_message_editor(
     app: &AppContext,
 ) -> Box<dyn Element> {
     let label = Text::new(
-        "Commit message",
+        warpui::localization::text("Commit message"),
         appearance.ui_font_family(),
         appearance.ui_font_size(),
     )

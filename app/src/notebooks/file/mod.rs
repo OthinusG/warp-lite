@@ -925,7 +925,7 @@ impl FileNotebookView {
         Align::new(
             appearance
                 .ui_builder()
-                .paragraph("Missing source file".to_string())
+                .paragraph(warpui::localization::text("Missing source file").to_string())
                 .with_style(self.state_style(appearance))
                 .build()
                 .finish(),

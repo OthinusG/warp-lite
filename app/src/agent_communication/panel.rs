@@ -761,13 +761,13 @@ impl CollaborationPanel {
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::CompanionUnavailable) => "Warpai Companion is missing or cannot run. Install the Companion package in the selected environment, then reconnect.".into(),
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::SshAuthenticationUnavailable) => "The companion connection requires system OpenSSH authentication. Unlock your SSH key agent, then reconnect. Warpai does not store SSH passwords.".into(),
                                 Some(warp_agent_bus::ssh_remote::ConnectionError::IncompatibleVersion) => "Warpai Companion is incompatible. Update Companion in the selected environment, then reconnect.".into(),
-                                _ => format!("SSH project unavailable ({code}). Last received state is stale. Check the terminal connection, then reconnect."),
+                                _ => warpui::localization::format_text("SSH project unavailable ({code}). Last received state is stale. Check the terminal connection, then reconnect.", &[("code", format!("{code}").as_str())]),
                             } }
                         } else {
-                            format!("Could not update the remote view ({code}). Last state is stale; change the view or refresh.")
+                            warpui::localization::format_text("Could not update the remote view ({code}). Last state is stale; change the view or refresh.", &[("code", format!("{code}").as_str())])
                         };
                     } else {
-                        panel.status = format!("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.");
+                        panel.status = warpui::localization::format_text("Could not update collaboration ({code}). Last received state may be stale; refresh or restart Warpai.", &[("code", format!("{code}").as_str())]);
                     }
                 }
             }
@@ -991,7 +991,7 @@ impl CollaborationPanel {
                         .chain(
                             task.dependencies
                                 .iter()
-                                .map(|id| format!("Prerequisite {id}")),
+                                .map(|id| warpui::localization::format_text("Prerequisite {id}", &[("id", format!("{id}").as_str())])),
                         )
                         .collect(),
                 },
@@ -1041,17 +1041,17 @@ impl CollaborationPanel {
                                     "agent-reported"
                                 },
                                 [
-                                    evidence.commit.as_ref().map(|value| format!("commit {value}")),
-                                    evidence.hash.as_ref().map(|value| format!("hash {value}")),
-                                    evidence.repository.as_ref().map(|value| format!("repository {value}")),
-                                    evidence.branch.as_ref().map(|value| format!("branch {value}")),
-                                    evidence.base.as_ref().map(|value| format!("base {value}")),
-                                    evidence.head.as_ref().map(|value| format!("head {value}")),
-                                    evidence.command.as_ref().map(|value| format!("command {value}")),
-                                    evidence.outcome.as_ref().map(|value| format!("outcome {value}")),
-                                    evidence.exit_code.map(|value| format!("exit {value}")),
-                                    evidence.summary.as_ref().map(|value| format!("summary {value}")),
-                                    evidence.device.as_ref().map(|value| format!("device {value}; remote metadata, content not fetched")),
+                                    evidence.commit.as_ref().map(|value| warpui::localization::format_text("commit {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.hash.as_ref().map(|value| warpui::localization::format_text("hash {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.repository.as_ref().map(|value| warpui::localization::format_text("repository {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.branch.as_ref().map(|value| warpui::localization::format_text("branch {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.base.as_ref().map(|value| warpui::localization::format_text("base {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.head.as_ref().map(|value| warpui::localization::format_text("head {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.command.as_ref().map(|value| warpui::localization::format_text("command {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.outcome.as_ref().map(|value| warpui::localization::format_text("outcome {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.exit_code.map(|value| warpui::localization::format_text("exit {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.summary.as_ref().map(|value| warpui::localization::format_text("summary {value}", &[("value", format!("{value}").as_str())])),
+                                    evidence.device.as_ref().map(|value| warpui::localization::format_text("device {value}; remote metadata, content not fetched", &[("value", format!("{value}").as_str())])),
                                 ].into_iter().flatten().map(|value| format!(" · {value}")).collect::<String>()
                             )
                         }))
@@ -1572,7 +1572,7 @@ impl View for CollaborationPanel {
             .as_ref()
             .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
-        header.add_child(heading(appearance, "Agents Collaboration Mode"));
+        header.add_child(heading(appearance, warpui::localization::text("Agents Collaboration Mode")));
         if !self.preview {
             let mut modes = Flex::row().with_spacing(GAP_ROW);
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {
@@ -1624,7 +1624,7 @@ impl View for CollaborationPanel {
         }
         if self.preview {
             connection_controls.add_child(builder.button(ButtonVariant::Secondary, self.next.clone())
-                .with_text_label("Next preview".into()).build()
+                .with_text_label(warpui::localization::text("Next preview").into()).build()
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFixture)).finish());
         }
         if self.preview || self.remote.is_some() {
@@ -1681,16 +1681,16 @@ impl View for CollaborationPanel {
                         navigation.add_child(
                             builder
                                 .button(ButtonVariant::Text, self.page_buttons[0].clone())
-                                .with_text_label("Back".into())
+                                .with_text_label(warpui::localization::text("Back").into())
                                 .build()
                                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
                                 .finish(),
                         );
                     }
                 } else {
-                    body.add_child(heading(appearance, "Tasks"));
+                    body.add_child(heading(appearance, warpui::localization::text("Tasks")));
                     if snapshot.tasks.is_empty() {
-                        body.add_child(note(appearance, "No tasks on this page."));
+                        body.add_child(note(appearance, warpui::localization::text("No tasks on this page.")));
                     }
                     for task in &snapshot.tasks {
                         let id = task.id.clone();

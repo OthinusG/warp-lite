@@ -142,7 +142,7 @@ impl OpenWarpLaunchModal {
         });
 
         let cta_button = ctx.add_view(|_ctx| {
-            ActionButton::new("Visit the repo", CtaButtonTheme)
+            ActionButton::new(warpui::localization::text("Visit the repo"), CtaButtonTheme)
                 .with_full_width(true)
                 .on_click(|ctx| ctx.dispatch_typed_action(OpenWarpLaunchModalAction::VisitRepo))
         });
@@ -191,7 +191,7 @@ impl OpenWarpLaunchModal {
 
     fn render_badge(appearance: &Appearance) -> Box<dyn Element> {
         Container::new(
-            Text::new_inline("New".to_string(), appearance.ui_font_family(), 14.)
+            Text::new_inline(warpui::localization::text("New").to_string(), appearance.ui_font_family(), 14.)
                 .with_color(PhenomenonStyle::modal_badge_text())
                 .finish(),
         )
@@ -204,7 +204,7 @@ impl OpenWarpLaunchModal {
 
     fn render_title(appearance: &Appearance) -> Box<dyn Element> {
         Text::new(
-            "Warpai is now open-source",
+            warpui::localization::text("Warpai is now open-source"),
             appearance.ui_font_family(),
             20.,
         )
@@ -215,7 +215,7 @@ impl OpenWarpLaunchModal {
 
     fn render_description(appearance: &Appearance) -> Box<dyn Element> {
         Text::new(
-            "You, our community, can participate in building Warpai using an agent-first workflow.",
+            warpui::localization::text("You, our community, can participate in building Warpai using an agent-first workflow."),
             appearance.ui_font_family(),
             14.,
         )

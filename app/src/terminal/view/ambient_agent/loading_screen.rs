@@ -234,7 +234,7 @@ pub fn render_cloud_mode_error_screen(
 
     // Error title text
     let title_text = Text::new(
-        "Failed to start environment",
+        warpui::localization::text("Failed to start environment"),
         appearance.ui_font_family(),
         appearance.monospace_font_size() + 2.,
     )
@@ -324,7 +324,7 @@ pub fn render_cloud_mode_github_auth_required_screen(
 
     // Title text - "GitHub Authentication Required"
     let title_text = Text::new(
-        "GitHub Authentication Required",
+        warpui::localization::text("GitHub Authentication Required"),
         appearance.ui_font_family(),
         appearance.monospace_font_size() + 2.,
     )
@@ -334,7 +334,7 @@ pub fn render_cloud_mode_github_auth_required_screen(
 
     // Message text - "Please authenticate with GitHub to continue"
     let message_text = Text::new(
-        "Please authenticate with GitHub to continue",
+        warpui::localization::text("Please authenticate with GitHub to continue"),
         appearance.ui_font_family(),
         appearance.monospace_font_size(),
     )
@@ -346,7 +346,7 @@ pub fn render_cloud_mode_github_auth_required_screen(
     let auth_button = appearance
         .ui_builder()
         .button(ButtonVariant::Accent, auth_button_mouse_state.clone())
-        .with_centered_text_label("Authenticate with GitHub".to_string())
+        .with_centered_text_label(warpui::localization::text("Authenticate with GitHub").to_string())
         .build()
         .on_click(move |_, app, _| {
             app.open_url(&auth_url_clone);
@@ -411,7 +411,7 @@ pub fn render_cloud_mode_cancelled_screen(appearance: &Appearance) -> Box<dyn El
 
     // Title text - "Cloud Agent Run Cancelled"
     let title_text = Text::new(
-        "Cloud Agent Run Cancelled",
+        warpui::localization::text("Cloud Agent Run Cancelled"),
         appearance.ui_font_family(),
         appearance.monospace_font_size() + 2.,
     )
@@ -421,7 +421,7 @@ pub fn render_cloud_mode_cancelled_screen(appearance: &Appearance) -> Box<dyn El
 
     // Subtitle text - "No cloud environment was started"
     let subtitle_text = Text::new(
-        "No cloud environment was started",
+        warpui::localization::text("No cloud environment was started"),
         appearance.ui_font_family(),
         appearance.monospace_font_size(),
     )

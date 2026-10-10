@@ -146,7 +146,7 @@ impl FreeTierLimitHitModal {
                         .with_child(
                             Container::new(
                                 FormattedTextElement::from_str(
-                                    "You’re out of credits",
+                                    warpui::localization::text("You’re out of credits"),
                                     appearance.ui_font_family(),
                                     24.,
                                 )
@@ -163,7 +163,7 @@ impl FreeTierLimitHitModal {
                         .with_child(
                             Container::new(
                                 FormattedTextElement::from_str(
-                                    "To continue using AI, please upgrade your plan.",
+                                    warpui::localization::text("To continue using AI, please upgrade your plan."),
                                     appearance.ui_font_family(),
                                     14.,
                                 )
@@ -326,7 +326,7 @@ impl FreeTierLimitHitModal {
                                 width: Some(296.),
                                 ..Default::default()
                             })
-                            .with_centered_text_label("Upgrade plan".to_string())
+                            .with_centered_text_label(warpui::localization::text("Upgrade plan").to_string())
                             .build()
                             .with_cursor(Cursor::PointingHand)
                             .on_click(move |ctx, _, _| {

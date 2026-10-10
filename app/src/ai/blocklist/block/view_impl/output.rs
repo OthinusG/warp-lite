@@ -1287,7 +1287,7 @@ fn render_search_codebase(
                                 appearance
                                     .ui_builder()
                                     .link(
-                                        "Manage AI Autonomy permissions".into(),
+                                        warpui::localization::text("Manage AI Autonomy permissions").into(),
                                         None,
                                         Some(Box::new(move |ctx| {
                                             ctx.dispatch_typed_action(
@@ -2060,7 +2060,7 @@ fn render_requested_edits_output_message(
         match requested_edit.view.as_ref(app).display_mode() {
             DisplayMode::FullPane => Align::new(
                 Text::new_inline(
-                    "This suggestion is being edited in another tab.",
+                    warpui::localization::text("This suggestion is being edited in another tab."),
                     appearance.ui_font_family(),
                     appearance.monospace_font_size(),
                 )
@@ -2813,7 +2813,7 @@ fn render_references_footer(
     )?;
 
     let title = Text::new_inline(
-        "References",
+        warpui::localization::text("References"),
         appearance.ui_font_family(),
         appearance.monospace_font_size(),
     )
@@ -2898,7 +2898,7 @@ fn render_suggested_rules_and_prompts_footer(
     let theme = appearance.theme();
     let title_row_color = theme.sub_text_color(theme.background());
     let title_text = Text::new_inline(
-        "Suggestions:",
+        warpui::localization::text("Suggestions:"),
         appearance.ui_font_family(),
         appearance.monospace_font_size(),
     )
@@ -3615,7 +3615,7 @@ fn render_collapsible_debug_output(
         // "Debug output" label
         row.add_child(
             Text::new(
-                "Debug output".to_string(),
+                warpui::localization::text("Debug output").to_string(),
                 appearance.ai_font_family(),
                 appearance.monospace_font_size(),
             )

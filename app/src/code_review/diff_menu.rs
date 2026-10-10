@@ -282,7 +282,7 @@ impl CodeReviewDiffMenu {
         let theme = appearance.theme();
         Container::new(
             Text::new(
-                "No matches",
+                warpui::localization::text("No matches"),
                 appearance.ui_font_family(),
                 appearance.ui_font_size(),
             )

@@ -165,7 +165,7 @@ impl Component for Lightbox {
                 }
                 // No images provided at all.
                 _ if image_count == 0 => {
-                    Text::new("No images", appearance.ui_font_family(), text_size)
+                    Text::new(warpui::localization::text("No images"), appearance.ui_font_family(), text_size)
                         .with_color(ColorU::white())
                         .finish()
                 }
@@ -284,7 +284,7 @@ impl Component for Lightbox {
 /// and as the `before_load` fallback while the `AssetCache` fetches image bytes.
 fn loading_element(appearance: &Appearance) -> Box<dyn Element> {
     Text::new(
-        "Loading...",
+        warpui::localization::text("Loading..."),
         appearance.ui_font_family(),
         lightbox_text_size(appearance),
     )

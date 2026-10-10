@@ -766,7 +766,7 @@ impl RequestedCommandView {
                 )
                 .with_child(
                     Text::new(
-                        "Your profile is set to always ask for permission to execute commands.",
+                        warpui::localization::text("Your profile is set to always ask for permission to execute commands."),
                         appearance.ui_font_family(),
                         font_size,
                     )
@@ -781,7 +781,7 @@ impl RequestedCommandView {
                             appearance
                                 .ui_builder()
                                 .link(
-                                    "Manage command execution setting".into(),
+                                    warpui::localization::text("Manage command execution setting").into(),
                                     None,
                                     Some(Box::new(move |ctx| {
                                         ctx.dispatch_typed_action(

@@ -453,7 +453,7 @@ impl FileTreeView {
                         // ConnectionError contains only fixed variants, never runtime payloads.
                         eprintln!("Native SSH file failure: {error:?}");
                     }
-                    view.ssh_error = Some(format!("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation."));
+                    view.ssh_error = Some(warpui::localization::format_text("Remote file tools unavailable: {error}. Check the matching Warpai Companion and SFTP installation.", &[("error", format!("{error}").as_str())]));
                 },
             }
             ctx.notify();
@@ -1801,7 +1801,7 @@ impl FileTreeView {
                         Ok(snapshot) => view.apply_ssh_snapshot(snapshot, false, ctx),
                         Err(error) => {
                             view.ssh_error =
-                                Some(format!("Could not load the remote directory: {error}"));
+                                Some(warpui::localization::format_text("Could not load the remote directory: {error}", &[("error", format!("{error}").as_str())]));
                             ctx.notify();
                         }
                     }
@@ -3210,7 +3210,7 @@ impl FileTreeView {
             )
             .with_child(
                 Text::new(
-                    "Project explorer unavailable",
+                    warpui::localization::text("Project explorer unavailable"),
                     appearance.ui_font_family(),
                     appearance.ui_font_size() + 2.,
                 )
@@ -3410,7 +3410,7 @@ impl View for FileTreeView {
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         if let Some(error) = &self.ssh_error {
             return warpui::elements::EventHandler::new(
-                self.render_error_state(format!("{error} Click to reconnect."), app),
+                self.render_error_state(warpui::localization::format_text("{error} Click to reconnect.", &[("error", format!("{error}").as_str())]), app),
             )
             .on_left_mouse_up(|ctx, _, _| {
                 ctx.dispatch_typed_action(FileTreeAction::RefreshRemote);

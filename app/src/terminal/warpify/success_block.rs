@@ -194,7 +194,7 @@ impl WarpifySuccessBlock {
         appearance
             .ui_builder()
             .link(
-                "Learn more".into(),
+                warpui::localization::text("Learn more").into(),
                 None,
                 Some(Box::new({
                     move |ctx| {

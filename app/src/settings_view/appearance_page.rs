@@ -1217,7 +1217,7 @@ impl AppearanceSettingsPageView {
 
     fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
         let mut categories = vec![Category::new(
-            "Themes",
+            warpui::localization::text("Themes"),
             vec![
                 Box::new(CreateCustomThemeWidget::default()),
                 Box::new(ThemeSelectWidget::default()),
@@ -1227,7 +1227,7 @@ impl AppearanceSettingsPageView {
 
         if AppIconSettings::as_ref(ctx).is_supported_on_current_platform() {
             categories.push(Category::new(
-                "Icon",
+                warpui::localization::text("Icon"),
                 vec![Box::new(CustomAppIconWidget::default())],
             ));
         }
@@ -1271,7 +1271,7 @@ impl AppearanceSettingsPageView {
         }
 
         if !window_settings_widgets.is_empty() {
-            categories.push(Category::new("Window", window_settings_widgets));
+            categories.push(Category::new(warpui::localization::text("Window"), window_settings_widgets));
         }
 
         // Create the Input category with all widgets
@@ -1283,10 +1283,10 @@ impl AppearanceSettingsPageView {
             Box::new(InputModeWidget::default()),
         ];
 
-        categories.push(Category::new("Input", category_widgets));
+        categories.push(Category::new(warpui::localization::text("Input"), category_widgets));
 
         categories.push(Category::new(
-            "Panes",
+            warpui::localization::text("Panes"),
             vec![
                 Box::new(DimInactivePanesWidget::default()),
                 Box::new(FocusFollowsMouseWidget::default()),
@@ -1300,7 +1300,7 @@ impl AppearanceSettingsPageView {
         if FeatureFlag::MinimalistUI.is_enabled() {
             block_settings_widgets.push(Box::new(ShowBlockDividersWidget::default()));
         }
-        categories.push(Category::new("Blocks", block_settings_widgets));
+        categories.push(Category::new(warpui::localization::text("Blocks"), block_settings_widgets));
 
         let font_settings = FontSettings::as_ref(ctx);
         let mut text_settings_widgets: Vec<Box<dyn SettingsWidget<View = Self>>> = vec![
@@ -1329,10 +1329,10 @@ impl AppearanceSettingsPageView {
             text_settings_widgets.push(Box::new(LigaturesWidget::default()));
         }
 
-        categories.push(Category::new("Text", text_settings_widgets));
+        categories.push(Category::new(warpui::localization::text("Text"), text_settings_widgets));
 
         categories.push(Category::new(
-            "Cursor",
+            warpui::localization::text("Cursor"),
             vec![
                 Box::new(CursorTypeWidget::default()),
                 Box::new(BlinkingCursorWidget::default()),
@@ -1381,10 +1381,10 @@ impl AppearanceSettingsPageView {
             tab_settings_widgets.push(Box::new(DirectoryTabColorsWidget { add_picker }));
         }
 
-        categories.push(Category::new("Tabs", tab_settings_widgets));
+        categories.push(Category::new(warpui::localization::text("Tabs"), tab_settings_widgets));
 
         categories.push(Category::new(
-            "Full-screen Apps",
+            warpui::localization::text("Full-screen Apps"),
             vec![Box::new(AltScreenPaddingWidget::default())],
         ));
 
@@ -1493,17 +1493,17 @@ impl AppearanceSettingsPageView {
 
     fn input_mode_dropdown_item_label(val: InputMode) -> &'static str {
         match val {
-            InputMode::PinnedToBottom => "Pin to the bottom (Warpai mode)",
-            InputMode::PinnedToTop => "Pin to the top (Reverse mode)",
-            InputMode::Waterfall => "Start at the top (Classic mode)",
+            InputMode::PinnedToBottom => warpui::localization::text("Pin to the bottom (Warpai mode)"),
+            InputMode::PinnedToTop => warpui::localization::text("Pin to the top (Reverse mode)"),
+            InputMode::Waterfall => warpui::localization::text("Start at the top (Classic mode)"),
         }
     }
 
     fn thin_strokes_dropdown_item_label(val: ThinStrokes) -> &'static str {
         match val {
             ThinStrokes::Never => "Never",
-            ThinStrokes::OnLowDpiDisplays => "On low-DPI displays",
-            ThinStrokes::OnHighDpiDisplays => "On high-DPI displays",
+            ThinStrokes::OnLowDpiDisplays => warpui::localization::text("On low-DPI displays"),
+            ThinStrokes::OnHighDpiDisplays => warpui::localization::text("On high-DPI displays"),
             ThinStrokes::Always => "Always",
         }
     }
@@ -1511,7 +1511,7 @@ impl AppearanceSettingsPageView {
     fn enforce_minimum_contrast_dropdown_item_label(val: EnforceMinimumContrast) -> &'static str {
         match val {
             EnforceMinimumContrast::Always => "Always",
-            EnforceMinimumContrast::OnlyNamedColors => "Only for named colors",
+            EnforceMinimumContrast::OnlyNamedColors => warpui::localization::text("Only for named colors"),
             EnforceMinimumContrast::Never => "Never",
         }
     }
@@ -1521,8 +1521,8 @@ impl AppearanceSettingsPageView {
     ) -> &'static str {
         match value {
             WorkspaceDecorationVisibility::AlwaysShow => "Always",
-            WorkspaceDecorationVisibility::HideFullscreen => "When windowed",
-            WorkspaceDecorationVisibility::OnHover => "Only on hover",
+            WorkspaceDecorationVisibility::HideFullscreen => warpui::localization::text("When windowed"),
+            WorkspaceDecorationVisibility::OnHover => warpui::localization::text("Only on hover"),
         }
     }
 
@@ -2477,7 +2477,7 @@ impl SettingsWidget for CreateCustomThemeWidget {
             appearance
                 .ui_builder()
                 .link(
-                    "Create your own custom theme".to_string(),
+                    warpui::localization::text("Create your own custom theme").to_string(),
                     Some("https://docs.warp.dev/terminal/appearance/custom-themes".to_string()),
                     None,
                     self.mouse_state.clone(),
@@ -2514,7 +2514,7 @@ impl ThemeSelectWidget {
         let mode_ui_label = match theme_chooser_mode {
             ThemeChooserMode::SystemLight => "Light",
             ThemeChooserMode::SystemDark => "Dark",
-            ThemeChooserMode::SystemAgnostic => "Current theme",
+            ThemeChooserMode::SystemAgnostic => warpui::localization::text("Current theme"),
         };
 
         ConstrainedBox::new(
@@ -2633,7 +2633,7 @@ impl SettingsWidget for ThemeSelectWidget {
         Flex::column()
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
             .with_child(render_body_item::<AppearancePageAction>(
-                "Sync with OS".into(),
+                warpui::localization::text("Sync with OS").into(),
                 None,
                 LocalOnlyIconState::for_setting(
                     UseSystemTheme::storage_key(),
@@ -2661,7 +2661,7 @@ impl SettingsWidget for ThemeSelectWidget {
                 appearance
                     .ui_builder()
                     .span(
-                        "Automatically switch between light and dark themes when your system does."
+                        warpui::localization::text("Automatically switch between light and dark themes when your system does.")
                             .to_string(),
                     )
                     .with_style(
@@ -2698,7 +2698,7 @@ impl SettingsWidget for CustomAppIconWidget {
         app: &AppContext,
     ) -> Box<dyn Element> {
         let show_dock_icon_toggle = render_body_item::<AppearancePageAction>(
-            "Show Warpai in Dock".into(),
+            warpui::localization::text("Show Warpai in Dock").into(),
             None,
             LocalOnlyIconState::for_setting(
                 ShowDockIconState::storage_key(),
@@ -2757,7 +2757,7 @@ impl SettingsWidget for CustomWindowSizeWidget {
         let row_border_color: Option<Fill> =
             (!view.valid_new_window_rows).then(|| themes::theme::Fill::error().into());
         let mut column = Flex::column().with_child(render_body_item::<AppearancePageAction>(
-            "Open new windows with custom size".into(),
+            warpui::localization::text("Open new windows with custom size").into(),
             None,
             LocalOnlyIconState::for_setting(
                 OpenWindowsAtCustomSize::storage_key(),
@@ -2781,7 +2781,7 @@ impl SettingsWidget for CustomWindowSizeWidget {
         if *window_settings.open_windows_at_custom_size.value() {
             column.add_child(
                 Container::new(render_body_item::<AppearancePageAction>(
-                    "Columns".into(),
+                    warpui::localization::text("Columns").into(),
                     None,
                     // We show the local-only icon for this with the toggle, not the individual inputs.
                     LocalOnlyIconState::Hidden,
@@ -2817,7 +2817,7 @@ impl SettingsWidget for CustomWindowSizeWidget {
             );
             column.add_child(
                 Container::new(render_body_item::<AppearancePageAction>(
-                    "Rows".into(),
+                    warpui::localization::text("Rows").into(),
                     None,
                     // We show the local-only icon for this with the toggle, not the individual inputs.
                     LocalOnlyIconState::Hidden,
@@ -2882,7 +2882,7 @@ impl SettingsWidget for WindowOpacityWidget {
             return Flex::column()
                 .with_child(
                     Container::new(render_body_item_label::<AppearancePageAction>(
-                        "Window Opacity:".to_owned(),
+                        warpui::localization::text("Window Opacity:").to_owned(),
                         None,
                         None,
                         LocalOnlyIconState::Hidden,
@@ -2894,7 +2894,7 @@ impl SettingsWidget for WindowOpacityWidget {
                 .with_child(
                     Container::new(
                         FormattedTextElement::from_str(
-                            "Transparency is not supported with your graphics drivers.",
+                            warpui::localization::text("Transparency is not supported with your graphics drivers."),
                             appearance.ui_font_family(),
                             appearance.ui_font_size(),
                         )
@@ -2909,7 +2909,7 @@ impl SettingsWidget for WindowOpacityWidget {
 
         let opacity_value = *window_settings.background_opacity;
         let mut col = Flex::column().with_child(render_body_item::<AppearancePageAction>(
-            format!("Window Opacity: {opacity_value}"),
+            warpui::localization::format_text("Window Opacity: {opacity_value}", &[("opacity_value", format!("{opacity_value}").as_str())]),
             // TODO(CORE-3384) add AdditionalInfo here.
             None,
             LocalOnlyIconState::for_setting(
@@ -2946,7 +2946,7 @@ impl SettingsWidget for WindowOpacityWidget {
             // supporting alpha.
             if !window.supports_transparency() && window.graphics_backend() != GraphicsBackend::Gl {
                 let mut message = Cow::Borrowed(
-                    "The selected graphics settings may not support rendering transparent windows.",
+                    warpui::localization::text("The selected graphics settings may not support rendering transparent windows."),
                 );
                 let gpu_settings = GPUSettings::as_ref(app);
                 if (gpu_settings
@@ -3014,7 +3014,7 @@ impl SettingsWidget for WindowBlurWidget {
 
         Flex::column()
             .with_child(render_body_item::<AppearancePageAction>(
-                format!("Window Blur Radius: {blur_value}"),
+                warpui::localization::format_text("Window Blur Radius: {blur_value}", &[("blur_value", format!("{blur_value}").as_str())]),
                 Some(label_info),
                 LocalOnlyIconState::for_setting(
                     BackgroundBlurRadius::storage_key(),
@@ -3097,7 +3097,7 @@ impl SettingsWidget for WindowBlurTextureWidget {
                 col.add_child(
                     Container::new(
                         FormattedTextElement::from_str(
-                            "The selected hardware may not support rendering transparent windows.",
+                            warpui::localization::text("The selected hardware may not support rendering transparent windows."),
                             appearance.ui_font_family(),
                             appearance.ui_font_size(),
                         )
@@ -3629,7 +3629,7 @@ impl SettingsWidget for AIFontWidget {
         ai_font_row.add_child(
             appearance
                 .ui_builder()
-                .span("Match terminal".to_string())
+                .span(warpui::localization::text("Match terminal").to_string())
                 .build()
                 .with_margin_left(2.)
                 .with_margin_right(16.)
@@ -3657,7 +3657,7 @@ impl TerminalFontWidget {
         line_height.add_child(
             appearance
                 .ui_builder()
-                .label("Line height".to_string())
+                .label(warpui::localization::text("Line height").to_string())
                 .with_style(UiComponentStyles {
                     margin: Some(Coords {
                         left: 12.,
@@ -3724,7 +3724,7 @@ impl TerminalFontWidget {
                     font_size: Some(appearance.ui_font_size() * 0.8),
                     ..Default::default()
                 })
-                .with_text_label("Reset to default".to_string());
+                .with_text_label(warpui::localization::text("Reset to default").to_string());
 
             button
                 .build()
@@ -3798,7 +3798,7 @@ impl SettingsWidget for TerminalFontWidget {
                             1.,
                             appearance
                                 .ui_builder()
-                                .span("View all available system fonts".to_string())
+                                .span(warpui::localization::text("View all available system fonts").to_string())
                                 .build()
                                 .with_margin_left(2.)
                                 .finish(),
@@ -3819,7 +3819,7 @@ impl SettingsWidget for TerminalFontWidget {
         font_weight.add_child(
             appearance
                 .ui_builder()
-                .label("Font weight".to_string())
+                .label(warpui::localization::text("Font weight").to_string())
                 .with_style(UiComponentStyles {
                     font_size: Some(CONTENT_FONT_SIZE),
                     ..Default::default()
@@ -3842,7 +3842,7 @@ impl SettingsWidget for TerminalFontWidget {
         font_size.add_child(
             appearance
                 .ui_builder()
-                .label("Font size (px)".to_string())
+                .label(warpui::localization::text("Font size (px)").to_string())
                 .with_style(UiComponentStyles {
                     margin: Some(Coords {
                         left: 2.,
@@ -3926,7 +3926,7 @@ impl SettingsWidget for NotebookFontSizeWidget {
                         Align::new(
                             appearance
                                 .ui_builder()
-                                .span("Notebook font size".to_string())
+                                .span(warpui::localization::text("Notebook font size").to_string())
                                 .build()
                                 .with_margin_right(16.)
                                 .finish(),
@@ -3952,7 +3952,7 @@ impl SettingsWidget for NotebookFontSizeWidget {
                 .with_child(
                     appearance
                         .ui_builder()
-                        .span("Match terminal".to_string())
+                        .span(warpui::localization::text("Match terminal").to_string())
                         .build()
                         .with_margin_left(2.)
                         .with_margin_right(16.)
@@ -4161,7 +4161,7 @@ impl SettingsWidget for CursorTypeWidget {
                     .with_child(
                         appearance
                             .ui_builder()
-                            .span("Cursor type is disabled in Vim mode".to_string())
+                            .span(warpui::localization::text("Cursor type is disabled in Vim mode").to_string())
                             .build()
                             .finish(),
                     )
@@ -4728,7 +4728,7 @@ impl SettingsWidget for DirectoryTabColorsWidget {
             .with_spacing(4.)
             .with_child(
                 Text::new(
-                    "Directory tab colors",
+                    warpui::localization::text("Directory tab colors"),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )
@@ -4738,7 +4738,7 @@ impl SettingsWidget for DirectoryTabColorsWidget {
             )
             .with_child(
                 Text::new(
-                    "Automatically color tabs based on the directory or repo you're working in.",
+                    warpui::localization::text("Automatically color tabs based on the directory or repo you're working in."),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )
@@ -4973,7 +4973,7 @@ impl SettingsWidget for AltScreenPaddingWidget {
                     Container::new(
                         Align::new(
                             Text::new(
-                                "Uniform padding (px)",
+                                warpui::localization::text("Uniform padding (px)"),
                                 appearance.ui_font_family(),
                                 appearance.ui_font_size(),
                             )

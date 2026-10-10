@@ -118,7 +118,7 @@ impl WebFetchView {
 
         if pages.is_empty() {
             let no_results = Text::new_inline(
-                "No URLs fetched".to_string(),
+                warpui::localization::text("No URLs fetched").to_string(),
                 appearance.ui_font_family(),
                 appearance.monospace_font_size(),
             )

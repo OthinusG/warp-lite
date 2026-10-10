@@ -1059,7 +1059,7 @@ fn format_summary_primary_labels(labels: &[String], visible_limit: usize) -> Opt
     let mut rendered = labels[..visible_count].join(SEPARATOR);
     let overflow_count = summary_overflow_count(labels.len(), visible_limit);
     if overflow_count > 0 {
-        rendered.push_str(&format!(" + {overflow_count} more"));
+        rendered.push_str(&warpui::localization::format_text(" + {overflow_count} more", &[("overflow_count", format!("{overflow_count}").as_str())]));
     }
     Some(rendered)
 }
@@ -1696,7 +1696,7 @@ fn render_groups(
 
     if workspace.tabs.is_empty() {
         return Container::new(
-            Text::new_inline("No tabs open", appearance.ui_font_family(), 12.)
+            Text::new_inline(warpui::localization::text("No tabs open"), appearance.ui_font_family(), 12.)
                 .with_color(theme.sub_text_color(theme.background()).into())
                 .finish(),
         )
@@ -1832,7 +1832,7 @@ fn render_groups(
         } else {
             return Container::new(
                 Text::new_inline(
-                    "No tabs match your search.",
+                    warpui::localization::text("No tabs match your search."),
                     appearance.ui_font_family(),
                     12.,
                 )
@@ -2722,7 +2722,7 @@ fn render_grouped_tabs_header(
     let subtitle_text = if member_count == 1 {
         "1 tab".to_string()
     } else {
-        format!("{member_count} tabs")
+        warpui::localization::format_text("{member_count} tabs", &[("member_count", format!("{member_count}").as_str())])
     };
     let subtitle = Text::new_inline(subtitle_text, font_family, 10.)
         .with_clip(ClipConfig::ellipsis())
@@ -4582,7 +4582,7 @@ fn render_summary_tab_item(
         text_col.add_child(
             Container::new(
                 Text::new_inline(
-                    format!("+ {hidden_branch_count} more"),
+                    warpui::localization::format_text("+ {hidden_branch_count} more", &[("hidden_branch_count", format!("{hidden_branch_count}").as_str())]),
                     appearance.ui_font_family(),
                     10.,
                 )
@@ -5394,7 +5394,7 @@ pub(super) fn render_settings_popup(
     let sub_text = theme.sub_text_color(theme.background());
     let view_as_header = Container::new(
         Text::new_inline(
-            "View as".to_string(),
+            warpui::localization::text("View as").to_string(),
             appearance.ui_font_family(),
             SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
         )
@@ -5453,7 +5453,7 @@ pub(super) fn render_settings_popup(
 
     let tab_item_header = Container::new(
         Text::new_inline(
-            "Tab item".to_string(),
+            warpui::localization::text("Tab item").to_string(),
             appearance.ui_font_family(),
             SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
         )
@@ -5491,7 +5491,7 @@ pub(super) fn render_settings_popup(
 
     let density_header = Container::new(
         Text::new_inline(
-            "Density".to_string(),
+            warpui::localization::text("Density").to_string(),
             appearance.ui_font_family(),
             SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
         )
@@ -5568,7 +5568,7 @@ pub(super) fn render_settings_popup(
 
     let pane_title_header = Container::new(
         Text::new_inline(
-            "Pane title as".to_string(),
+            warpui::localization::text("Pane title as").to_string(),
             appearance.ui_font_family(),
             SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
         )
@@ -5639,7 +5639,7 @@ pub(super) fn render_settings_popup(
 
             let subtitle_header = Container::new(
                 Text::new_inline(
-                    "Additional metadata".to_string(),
+                    warpui::localization::text("Additional metadata").to_string(),
                     appearance.ui_font_family(),
                     SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
                 )
@@ -5673,7 +5673,7 @@ pub(super) fn render_settings_popup(
 
             let show_header = Container::new(
                 Text::new_inline(
-                    "Show".to_string(),
+                    warpui::localization::text("Show").to_string(),
                     appearance.ui_font_family(),
                     SETTINGS_POPUP_MENU_ITEM_FONT_SIZE,
                 )
@@ -6538,7 +6538,7 @@ fn render_code_detail_section(
 
     if extra_open_tabs > 0 {
         section.add_child(render_detail_wrapping_text(
-            format!("and {extra_open_tabs} more"),
+            warpui::localization::format_text("and {extra_open_tabs} more", &[("extra_open_tabs", format!("{extra_open_tabs}").as_str())]),
             12.,
             text_colors.sub,
             None,

@@ -70,6 +70,8 @@ pub enum ThemeKind {
     #[default]
     #[schemars(description = "Claude Warm Light")]
     ClaudeWarmLight,
+    #[schemars(description = "Catppuccin Latte")]
+    CatppuccinLatte,
     #[schemars(description = "Dark City")]
     DarkCity,
     #[schemars(description = "Gruvbox Dark")]
@@ -116,6 +118,7 @@ impl std::fmt::Display for ThemeKind {
         let value = match &self {
             ThemeKind::Light => "Light",
             ThemeKind::ClaudeWarmLight => "Claude Warm Light",
+            ThemeKind::CatppuccinLatte => "Catppuccin Latte",
             ThemeKind::Dark => "Dark",
             ThemeKind::Dracula => "Dracula",
             ThemeKind::SolarizedDark => "Solarized Dark",
@@ -479,6 +482,7 @@ impl WarpThemeConfig {
             (ThemeKind::Dark, dark_theme()),
             (ThemeKind::Light, light_theme()),
             (ThemeKind::ClaudeWarmLight, claude_warm_light()),
+            (ThemeKind::CatppuccinLatte, catppuccin_latte()),
             (ThemeKind::SolarizedDark, solarized_dark()),
             (ThemeKind::SolarizedLight, solarized_light()),
             (ThemeKind::Dracula, dracula()),

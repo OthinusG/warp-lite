@@ -54,7 +54,7 @@ impl View for NeedsSsoLinkView {
                         ButtonVariant::Accent,
                         self.mouse_state_handles.link_sso_handle.clone(),
                     )
-                    .with_text_label("Link SSO".to_string())
+                    .with_text_label(warpui::localization::text("Link SSO").to_string())
                     .with_style(UiComponentStyles {
                         padding: Some(Coords {
                             top: 10.,

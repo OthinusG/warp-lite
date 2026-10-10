@@ -129,7 +129,7 @@ impl ExternalEditorView {
 
         let mut items = vec![default_app];
         items.push(DropdownItem::new(
-            "New Tab",
+            warpui::localization::text("New Tab"),
             ExternalEditorAction::SetLayout(EditorLayout::NewTab),
         ));
 
@@ -240,7 +240,7 @@ impl View for ExternalEditorView {
 
         let default_editor = render_dropdown_item(
             appearance,
-            "Choose an editor to open file links",
+            warpui::localization::text("Choose an editor to open file links"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -255,7 +255,7 @@ impl View for ExternalEditorView {
 
         let code_panels_editor = render_dropdown_item(
             appearance,
-            "Choose an editor to open files from the code review panel, project explorer, and global search",
+            warpui::localization::text("Choose an editor to open files from the code review panel, project explorer, and global search"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -270,7 +270,7 @@ impl View for ExternalEditorView {
 
         let default_layout = render_dropdown_item(
             appearance,
-            "Choose a layout to open files in Warpai",
+            warpui::localization::text("Choose a layout to open files in Warpai"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -318,7 +318,7 @@ impl View for ExternalEditorView {
         }
 
         column.add_child(render_body_item::<ExternalEditorAction>(
-            "Open Markdown files in Warpai's Markdown Viewer by default".to_string(),
+            warpui::localization::text("Open Markdown files in Warpai's Markdown Viewer by default").to_string(),
             Some(AdditionalInfo {
                 mouse_state: self.markdown_viewer_mouse_state.clone(),
                 on_click_action: Some(ExternalEditorAction::OpenUrl(

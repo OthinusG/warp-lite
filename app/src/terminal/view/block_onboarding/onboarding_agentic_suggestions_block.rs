@@ -650,7 +650,7 @@ impl OnboardingAgenticSuggestionsBlock {
                     )
                     .with_child(
                         Text::new(
-                            "Thinking...".to_owned(),
+                            warpui::localization::text("Thinking...").to_owned(),
                             appearance.ui_font_family(),
                             appearance.monospace_font_size(),
                         )

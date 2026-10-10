@@ -203,7 +203,7 @@ where
             .with_child(
                 appearance
                     .ui_builder()
-                    .span("*Secrets are not sent to Warpai's server.")
+                    .span(warpui::localization::text("*Secrets are not sent to Warpai's server."))
                     .with_style(UiComponentStyles {
                         font_size: Some(12.),
                         margin: Some(Coords::default().top(4.)),

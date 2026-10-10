@@ -444,7 +444,7 @@ impl InstallationModalBody {
         let cancel_button = appearance
             .ui_builder()
             .button(ButtonVariant::Text, self.cancel_mouse_state.clone())
-            .with_text_label("Cancel".into())
+            .with_text_label(warpui::localization::text("Cancel").into())
             .with_style(UiComponentStyles {
                 font_weight: Some(Weight::Bold),
                 font_color: Some(appearance.theme().active_ui_text_color().into()),
@@ -481,7 +481,7 @@ impl InstallationModalBody {
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_child(
                 Text::new_inline(
-                    "Install",
+                    warpui::localization::text("Install"),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )
@@ -612,7 +612,7 @@ impl View for InstallationModalBody {
                 .finish()
         } else {
             Text::new(
-                "No MCP server selected",
+                warpui::localization::text("No MCP server selected"),
                 appearance.ui_font_family(),
                 appearance.ui_font_size(),
             )

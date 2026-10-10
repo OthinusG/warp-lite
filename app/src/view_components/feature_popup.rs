@@ -57,7 +57,7 @@ impl FeaturePopup {
         match self.badge {
             FeaturePopupBadge::New => Container::new(
                 Text::new(
-                    "NEW",
+                    warpui::localization::text("NEW"),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )

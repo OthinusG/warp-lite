@@ -242,7 +242,7 @@ impl View for PasteAuthTokenModalView {
         let ui_builder = appearance.ui_builder();
 
         let title = FormattedTextElement::from_str(
-            "Paste your auth token below",
+            warpui::localization::text("Paste your auth token below"),
             appearance.ui_font_family(),
             16.,
         )
@@ -269,7 +269,7 @@ impl View for PasteAuthTokenModalView {
 
         let subtitle_color = internal_colors::text_sub(theme, dialog_surface_solid);
         let subtitle = FormattedTextElement::from_str(
-            "Paste your auth token from the browser to get complete login.",
+            warpui::localization::text("Paste your auth token from the browser to get complete login."),
             appearance.ui_font_family(),
             14.,
         )

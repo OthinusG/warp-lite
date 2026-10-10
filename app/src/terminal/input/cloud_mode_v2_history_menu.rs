@@ -134,7 +134,7 @@ impl View for CloudModeV2HistoryMenuView {
 
         let content: Box<dyn Element> = if row_count == 0 {
             let no_results_text = Text::new(
-                "No results".to_string(),
+                warpui::localization::text("No results").to_string(),
                 appearance.ui_font_family(),
                 inline_menu_styles::font_size(appearance),
             )

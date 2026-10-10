@@ -98,7 +98,7 @@ impl CommunicationSettingsView {
         use crate::view_components::DropdownItem;
         let settings = &AgentCommunication::as_ref(ctx).wsl;
         let selected = settings.selected_target();
-        let mut items = vec![DropdownItem::new("Select logged-in WSL account", Action::WslSelect(None))];
+        let mut items = vec![DropdownItem::new(warpui::localization::text("Select logged-in WSL account"), Action::WslSelect(None))];
         let busy = settings.busy;
         let mut index = 0;
         for target in &settings.targets {
@@ -154,7 +154,7 @@ impl View for CommunicationSettingsView {
         let switch = if model.busy { switch.disable() } else { switch };
         let mut body = Flex::column();
         body.add_child(render_body_item::<Action>(
-            "Agent communication".into(),
+            warpui::localization::text("Agent communication").into(),
             None,
             LocalOnlyIconState::Hidden,
             if model.busy {
@@ -170,7 +170,7 @@ impl View for CommunicationSettingsView {
             Some("Configure local MCP access for selected CLI agents. Communication stays within each project.".into()),
         ));
         if model.preferences.enabled || !model.preferences.selected.is_empty() {
-            body.add_child(render_sub_header(appearance, "Agents", None));
+            body.add_child(render_sub_header(appearance, warpui::localization::text("Agents"), None));
             let mut rows = model.available.clone();
             // Keep removed executables visible so owned configuration can still be cleaned up.
             for (command, installed) in &model.preferences.selected {
@@ -186,7 +186,7 @@ impl View for CommunicationSettingsView {
             if rows.is_empty() && !model.busy {
                 body.add_child(
                     builder
-                        .paragraph("No installed managed CLI agents were found.".to_owned())
+                        .paragraph(warpui::localization::text("No installed managed CLI agents were found.").to_owned())
                         .build()
                         .finish(),
                 );
@@ -240,7 +240,7 @@ impl View for CommunicationSettingsView {
         if model.preferences.enabled {
             let refresh = builder
                 .button(ButtonVariant::Secondary, self.refresh.clone())
-                .with_text_label("Rescan agents".to_owned());
+                .with_text_label(warpui::localization::text("Rescan agents").to_owned());
             let refresh = if model.busy {
                 refresh.disabled()
             } else {
@@ -258,7 +258,7 @@ impl View for CommunicationSettingsView {
             );
             let uninstall_all = builder
                 .button(ButtonVariant::Secondary, self.uninstall_all.clone())
-                .with_text_label("Remove Warpai MCP from all agents".to_owned());
+                .with_text_label(warpui::localization::text("Remove Warpai MCP from all agents").to_owned());
             let uninstall_all = if model.busy {
                 uninstall_all.disabled()
             } else {
@@ -280,13 +280,13 @@ impl View for CommunicationSettingsView {
             let wsl_switch = builder.switch(self.wsl_switch.clone()).check(model.wsl.preferences.enabled);
             let wsl_switch = if model.wsl.busy { wsl_switch.disable() } else { wsl_switch };
             body.add_child(render_body_item::<Action>(
-                "WSL communication".into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
+                warpui::localization::text("WSL communication").into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
                 wsl_switch.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslEnable)).finish(),
                 Some("Log into WSL in a Warpai terminal before configuring communication.".into()),
             ));
             if model.wsl.preferences.enabled {
                 body.add_child(render_body_item::<Action>(
-                    "WSL account".into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
+                    warpui::localization::text("WSL account").into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
                     ChildView::new(&self.wsl_distribution).finish(), None,
                 ));
                 if model.wsl.targets.is_empty() {

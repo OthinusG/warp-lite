@@ -88,7 +88,7 @@ impl SessionConfigModal {
         });
 
         let submit_button = ctx.add_view(|ctx| {
-            ActionButton::new("Get Warping", PrimaryTheme)
+            ActionButton::new(warpui::localization::text("Get Warping"), PrimaryTheme)
                 .with_full_width(true)
                 .with_keybinding(
                     KeystrokeSource::Fixed(Keystroke::parse("enter").unwrap_or_default()),
@@ -166,7 +166,7 @@ impl SessionConfigModal {
         let theme = appearance.theme();
 
         let title = FormattedTextElement::from_str(
-            "Create your first tab config",
+            warpui::localization::text("Create your first tab config"),
             appearance.ui_font_family(),
             24.,
         )

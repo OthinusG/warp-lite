@@ -11,7 +11,7 @@ impl CollaborationPanel {
         let usage = AgentUsage::as_ref(app);
         let mut header = Flex::row()
             .with_spacing(GAP_ROW)
-            .with_child(Shrinkable::new(1., heading(appearance, "Data usage")).finish());
+            .with_child(Shrinkable::new(1., heading(appearance, warpui::localization::text("Data usage"))).finish());
         for (index, icon, label, action) in [
             (
                 0,
@@ -79,7 +79,7 @@ impl CollaborationPanel {
                         window
                             .reset
                             .as_ref()
-                            .map(|time| format!(" · resets {time}"))
+                            .map(|time| warpui::localization::format_text(" · resets {time}", &[("time", format!("{time}").as_str())]))
                             .unwrap_or_default()
                     ));
                 }
@@ -160,7 +160,7 @@ impl CollaborationPanel {
             );
         }
         if accounts.is_empty() {
-            rows.add_child(note(appearance, "Connect accounts in Settings"));
+            rows.add_child(note(appearance, warpui::localization::text("Connect accounts in Settings")));
         }
         let scroll = ClippedScrollable::vertical(
             self.usage_scroll.clone(),

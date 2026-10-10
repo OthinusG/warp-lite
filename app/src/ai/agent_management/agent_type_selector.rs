@@ -126,7 +126,7 @@ impl AgentTypeSelector {
         let theme = appearance.theme();
 
         let title = Text::new(
-            "Choose your agent".to_string(),
+            warpui::localization::text("Choose your agent").to_string(),
             appearance.ui_font_family(),
             TITLE_FONT_SIZE,
         )
@@ -258,7 +258,7 @@ impl AgentTypeSelector {
 
             if is_suggested {
                 let suggested_text =
-                    Text::new("Suggested".to_string(), font_family, OPTION_DESC_FONT_SIZE)
+                    Text::new(warpui::localization::text("Suggested").to_string(), font_family, OPTION_DESC_FONT_SIZE)
                         .with_style(Properties::default().weight(Weight::Medium))
                         .with_color(badge_text_color)
                         .finish();

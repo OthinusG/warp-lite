@@ -49,3 +49,19 @@ Local preferences may include platform-only fonts/options; retain existing safe
 fallbacks. Chinese text can widen rows or change keyboard/search behavior. English
 runtime fallback is not evidence that Chinese interface coverage is complete.
 No new cloud translation runtime, telemetry, billing or bundled Agent capability.
+
+## Implementation progress
+
+The owner baseline contains 49 registered public preferences. Theme defaults use
+built-in Claude Warm Light, Catppuccin Latte and Dark; the owner explicitly chose
+Dark because the former LLM Dark file is unavailable. Saved explicit themes remain
+unchanged. No machine-specific theme paths are bundled.
+
+The explicit interface catalog currently covers marked static labels and selected
+named templates. script/check-interface-locales.py validates catalog arguments and
+common direct display boundaries, excluding reviewed brand/technical names and
+terminal preview content. Passing this checker does not establish complete UI
+coverage: indirect constants, optional help text, dynamic actions/statuses, search
+terms and accessibility labels still require review and native locale walkthroughs.
+The 1.6.2 workflow runs the checker and sets desktop version metadata to 1.6.2;
+cloud execution remains gated on successful 1.6.0 acceptance.
