@@ -492,6 +492,7 @@ impl CollaborationPanel {
         if self.worktree_mode == worktree || self.mode_pending || !self.connected || self.current_context(ctx) != self.context { return; }
         let Some(snapshot) = &self.snapshot else { return; };
         if worktree && !snapshot.worktree_available { return; }
+        self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.close(ctx));
         let project = snapshot.project.clone();
         let root = snapshot.worktree_root.clone();
         let remote = self.remote.is_some();
@@ -579,6 +580,7 @@ impl CollaborationPanel {
         let enabled = super::AgentCommunication::as_ref(ctx).preferences.enabled;
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
+            self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.close(ctx));
             self.generation += 1;
             self.mode_pending = false;
             if self.context.as_ref().map(|(root, _)| root) != context.as_ref().map(|(root, _)| root) {
@@ -2039,6 +2041,7 @@ fn checkpoint_draft(app: &warpui::App, window: warpui::WindowId) -> String {
 #[cfg(debug_assertions)]
 impl CollaborationPanel {
     fn worktree_layout_checkpoint(&mut self, state: &str, ctx: &mut ViewContext<Self>) {
+        self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.close(ctx));
         self.preview = false;
         self.worktree_mode = true;
         self.in_flight = true;

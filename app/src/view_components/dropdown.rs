@@ -424,7 +424,7 @@ where
         self.close(ctx);
     }
 
-    fn close(&mut self, ctx: &mut ViewContext<Self>) {
+    pub(crate) fn close(&mut self, ctx: &mut ViewContext<Self>) {
         self.is_expanded = false;
         ctx.emit(DropdownEvent::Close);
         ctx.notify();
