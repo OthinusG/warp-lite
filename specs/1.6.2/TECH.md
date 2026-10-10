@@ -153,3 +153,7 @@ The outer native capture CI step allows 25 minutes for three sequential locale
 launches (330-second subprocess limit each), three existing bounded SSH/SFTP
 checks (120 seconds each), and fixture setup/cleanup. Per-process 300-second
 watchdogs and zero retries are unchanged; one stalled locale still fails early.
+
+Git push/publish/PR confirmation and progress labels, secret-display dropdown
+labels and terminal-kind badges translate their fixed display text. Typed actions,
+redaction modes, Git commands and CLI agent program names are unchanged.

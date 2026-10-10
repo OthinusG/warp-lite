@@ -4025,7 +4025,7 @@ fn terminal_kind_badge_label(is_oz_agent: bool, cli_agent: Option<CLIAgent>) -> 
     } else if is_oz_agent {
         "Oz".to_string()
     } else {
-        "Terminal".to_string()
+        warpui::localization::text("Terminal").to_string()
     }
 }
 

@@ -54,9 +54,9 @@ impl SecretDisplayMode {
     /// Display name for UI
     pub fn display_name(self) -> &'static str {
         match self {
-            SecretDisplayMode::Asterisks => "Asterisks",
-            SecretDisplayMode::Strikethrough => "Strikethrough",
-            SecretDisplayMode::AlwaysShow => "Always show secrets",
+            SecretDisplayMode::Asterisks => warpui::localization::text("Asterisks"),
+            SecretDisplayMode::Strikethrough => warpui::localization::text("Strikethrough"),
+            SecretDisplayMode::AlwaysShow => warpui::localization::text("Always show secrets"),
         }
     }
 

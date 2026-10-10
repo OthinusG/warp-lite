@@ -43,7 +43,7 @@ pub struct PrState {
 }
 
 pub(super) fn confirm_label_for() -> &'static str {
-    "Create PR"
+    warpui::localization::text("Create PR")
 }
 
 pub(super) fn confirm_icon_for() -> Icon {
@@ -51,7 +51,7 @@ pub(super) fn confirm_icon_for() -> Icon {
 }
 
 fn loading_label_for() -> &'static str {
-    "Creating\u{2026}"
+    warpui::localization::text("Creating\u{2026}")
 }
 
 /// PR mode has no prerequisites beyond a branch with commits; confirm is

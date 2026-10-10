@@ -531,6 +531,10 @@
     "始终自动运行",
     "一律自動執行"
   ],
+  "Always show secrets": [
+    "始终显示敏感信息",
+    "一律顯示敏感資訊"
+  ],
   "Ambient agent conversations cannot be deleted": [
     "无法删除后台智能体对话",
     "無法刪除背景智慧體對話"
@@ -626,6 +630,10 @@
   "Assign": [
     "指派",
     "指派"
+  ],
+  "Asterisks": [
+    "星号",
+    "星號"
   ],
   "Asynchronous find": [
     "异步查找",
@@ -1758,6 +1766,10 @@
   "Create your own custom theme": [
     "创建自定义主题",
     "建立自訂佈景主題"
+  ],
+  "Creating…": [
+    "正在创建…",
+    "正在建立…"
   ],
   "Credits used": [
     "已用额度",
@@ -5483,6 +5495,10 @@
     "发布",
     "發布"
   ],
+  "Publishing…": [
+    "正在发布…",
+    "正在發布…"
+  ],
   "Pull Request": [
     "拉取请求",
     "提取請求"
@@ -5506,6 +5522,10 @@
   "Push": [
     "推送",
     "推送"
+  ],
+  "Pushing…": [
+    "正在推送…",
+    "正在推送…"
   ],
   "Queued": [
     "已排队",
@@ -6894,6 +6914,10 @@
   "Store AI conversations in the cloud": [
     "在云端保存 AI 对话",
     "在雲端儲存 AI 對話"
+  ],
+  "Strikethrough": [
+    "删除线",
+    "刪除線"
   ],
   "Subject (optional)": [
     "主题（可选）",

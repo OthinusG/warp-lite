@@ -61,9 +61,9 @@ pub(super) fn new_state(publish: bool, commits: Vec<Commit>) -> PushState {
 
 pub(super) fn confirm_label(publish: bool) -> &'static str {
     if publish {
-        "Publish"
+        warpui::localization::text("Publish")
     } else {
-        "Push"
+        warpui::localization::text("Push")
     }
 }
 
@@ -77,9 +77,9 @@ pub(super) fn confirm_icon(publish: bool) -> Icon {
 
 fn loading_label(publish: bool) -> &'static str {
     if publish {
-        "Publishing…"
+        warpui::localization::text("Publishing…")
     } else {
-        "Pushing…"
+        warpui::localization::text("Pushing…")
     }
 }
 
