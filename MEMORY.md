@@ -29,6 +29,11 @@
   metadata locally and credentials through OS secure storage; cache readings in
   the application singleton. Restart restores accounts and fetches fresh usage.
   Workspace/panel context resets must never clear the usage model.
+- Combined patch run 38016331795 at da5a8a96 fails both desktop application
+  checks on three redundant Paragraph::with_soft_wrap calls in usage settings.
+  Paragraph wraps by default; remove the nonexistent method calls, retain Span
+  wrapping and rerun full combined acceptance. No native usage acceptance or
+  1.5.1 publication is implied by the implementation checkpoint.
 
 ## 1.5.0 release authorization — 2026-10-10
 

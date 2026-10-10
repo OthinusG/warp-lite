@@ -100,6 +100,7 @@ pub struct DropdownItem<A: Action + Clone> {
     /// Optional clip config controlling how `display_text` is clipped when it
     /// would overflow the row width. Forwarded to [`MenuItemFields`].
     clip_config: Option<ClipConfig>,
+    icon: Option<crate::ui_components::icons::Icon>,
 }
 
 impl<A> DropdownItem<A>
@@ -116,6 +117,7 @@ where
             family_id: None,
             tooltip: None,
             clip_config: None,
+            icon: None,
         }
     }
 
@@ -130,6 +132,11 @@ where
     /// shortened form of richer underlying data (e.g. a truncated path).
     pub fn with_tooltip(mut self, tooltip: impl Into<String>) -> Self {
         self.tooltip = Some(tooltip.into());
+        self
+    }
+
+    pub fn with_icon(mut self, icon: crate::ui_components::icons::Icon) -> Self {
+        self.icon = Some(icon);
         self
     }
 
@@ -156,6 +163,9 @@ where
         }
         if let Some(clip_config) = dropdown_item.clip_config {
             menu_item = menu_item.with_clip_config(clip_config);
+        }
+        if let Some(icon) = dropdown_item.icon {
+            menu_item = menu_item.with_icon(icon);
         }
         if let Some(family_id) = dropdown_item.family_id {
             menu_item.with_font_override(family_id).into_item()
@@ -424,7 +434,7 @@ where
         self.close(ctx);
     }
 
-    fn close(&mut self, ctx: &mut ViewContext<Self>) {
+    pub(crate) fn close(&mut self, ctx: &mut ViewContext<Self>) {
         self.is_expanded = false;
         ctx.emit(DropdownEvent::Close);
         ctx.notify();
@@ -504,7 +514,7 @@ where
             ctx.dispatch_typed_action(DropdownAction::<A>::ToggleExpanded);
         });
 
-        SavePosition::new(
+        let top_bar = SavePosition::new(
             Container::new(
                 ConstrainedBox::new(top_bar_element.finish())
                     .with_max_width(self.top_bar_max_width)
@@ -514,7 +524,15 @@ where
             .finish(),
             &self.top_bar_label(),
         )
-        .finish()
+        .finish();
+        if let Some(MenuItem::Item(fields)) = &self.selected_item {
+            if let Some(icon) = fields.icon() {
+                return warpui::elements::Flex::row().with_spacing(8.)
+                    .with_child(ConstrainedBox::new(icon.to_warpui_icon(appearance.theme().foreground()).finish()).with_width(16.).with_height(16.).finish())
+                    .with_child(warpui::elements::Shrinkable::new(1., top_bar).finish()).finish();
+            }
+        }
+        top_bar
     }
 
     fn top_bar_label(&self) -> String {

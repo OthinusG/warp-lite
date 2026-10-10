@@ -351,6 +351,10 @@ pub(crate) async fn fetch(
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|_| "Could not start usage query")?;
+    let mut secret = token
+        .parse::<reqwest::header::HeaderValue>()
+        .map_err(|_| "Invalid credential format")?;
+    secret.set_sensitive(true);
     let project;
     let context = if provider == Provider::Gemini && context.is_empty() {
         let response = client
@@ -389,7 +393,7 @@ pub(crate) async fn fetch(
     match provider {
         Provider::Cursor => {
             request = request
-                .header("Cookie", token)
+                .header("Cookie", secret.clone())
                 .header("Origin", "https://cursor.com")
                 .header("Referer", "https://cursor.com/dashboard");
         }
@@ -398,7 +402,7 @@ pub(crate) async fn fetch(
                 return Err("A workspace ID is required for Zen balance");
             }
             request = request
-                .header("Cookie", token)
+                .header("Cookie", secret.clone())
                 .header("x-org-id", context)
                 .header(
                     "Referer",
@@ -406,7 +410,7 @@ pub(crate) async fn fetch(
                 );
         }
         Provider::Zai | Provider::Zhipu => {
-            request = request.header("Authorization", token);
+            request = request.header("Authorization", secret);
         }
         Provider::Gemini => {
             request = client

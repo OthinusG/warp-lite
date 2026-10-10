@@ -95,6 +95,17 @@ and in MEMORY.md. Release/package only accepted version-specific source.
 
 ## Implementation checkpoint (acceptance pending)
 
+### CI repair plan — 2026-10-10
+
+Run 38016331795 at da5a8a96 fails both desktop application checks with the
+same three E0599 errors in the new usage settings view. Paragraph already
+wraps text; its API has no `with_soft_wrap` method. Remove those three redundant
+calls, preserving Span wrapping and all validation gates. Follow fix-errors
+with Rust syntax/diff checks locally and rerun both desktop builds, focused
+tests and native captures through the existing GitHub workflow. Include the
+pending shared dropdown/context and usage credential/cache review fixes in
+that immutable source checkpoint. Acceptance remains pending until it passes.
+
 Orca support inventory is [USAGE-PROVIDERS.md](USAGE-PROVIDERS.md). Native account
 settings, OS credential storage, bounded provider requests, CLI metadata queries,
 fixed four-row footer and Agent icons are integrated. No Companion source change.

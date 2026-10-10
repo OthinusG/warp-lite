@@ -176,7 +176,7 @@ impl AgentUsage {
             Ok(()) => {
                 self.accounts = next;
                 self.generation += 1;
-                self.updated = None;
+                self.refresh(ctx);
             }
             Err(error) => self.status = error.into(),
         }

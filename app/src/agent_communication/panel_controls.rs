@@ -138,6 +138,7 @@ pub(super) struct Form {
     fields: Vec<ViewHandle<EditorView>>,
     selectors: std::collections::HashMap<usize, ViewHandle<super::Dropdown<Action>>>,
     choices: std::collections::HashMap<usize, Vec<(String, String)>>,
+    agent_icons: std::collections::HashMap<String, crate::ui_components::icons::Icon>,
     choices_loading: bool,
     pub(super) submitting: bool,
     error: String,
@@ -443,7 +444,9 @@ impl CollaborationPanel {
                 items.push(super::DropdownItem::new(format!("{} · {} · {}", candidate.agent.name,
                     candidate.branch.as_deref().unwrap_or("detached"), candidate.agent.id.chars().take(8).collect::<String>()),
                     Action::ChooseCoordinator { project: snapshot.project.clone(), agent: candidate.agent.id.clone(), run: candidate.run.clone() })
-                    .with_tooltip(candidate.root.clone()));
+                    .with_icon(crate::agent_usage::agent_icon(&candidate.agent.program))
+                    .with_tooltip(format!("{}\n{}\n{}\n{}", candidate.agent.name,
+                        candidate.branch.as_deref().unwrap_or("detached"), candidate.agent.id, candidate.root)));
             }
             dropdown.set_items(items, ctx);
             dropdown.set_selected_by_index(selected_index, ctx);
@@ -641,6 +644,8 @@ impl CollaborationPanel {
             fields,
             selectors: Default::default(),
             choices: Default::default(),
+            agent_icons: snapshot.map(|s| s.agents.iter().map(|row| &row.agent).chain(s.candidates.iter().map(|candidate| &candidate.agent))
+                .map(|agent| (agent.id.clone(), crate::agent_usage::agent_icon(&agent.program))).collect()).unwrap_or_default(),
             choices_loading: false,
             request_id: uuid::Uuid::new_v4().to_string(),
             submitting: false,
@@ -677,9 +682,10 @@ impl CollaborationPanel {
             let request = form.request_id.clone();
             let dropdown = ctx.add_typed_action_view(|ctx| {
                 let mut dropdown = super::Dropdown::new(ctx);
-                dropdown.set_items(choices.iter().map(|(label, value)| super::DropdownItem::new(label.clone(), Action::SelectFormField {
-                    request: request.clone(), index, value: value.clone(),
-                })).collect(), ctx);
+                dropdown.set_items(choices.iter().map(|(label, value)| {
+                    let item = super::DropdownItem::new(label.clone(), Action::SelectFormField { request: request.clone(), index, value: value.clone() });
+                    if index != 3 && !value.is_empty() { item.with_icon(form.agent_icons.get(value).copied().unwrap_or(crate::ui_components::icons::Icon::Terminal)) } else { item }
+                }).collect(), ctx);
                 dropdown.set_selected_by_index(0, ctx);
                 dropdown
             });
@@ -709,6 +715,7 @@ impl CollaborationPanel {
             tokio::time::timeout(std::time::Duration::from_secs(30), async move {
                 let mut peers = Vec::new();
                 let mut tasks = Vec::new();
+                let mut icons = Vec::new();
                 loop {
                     let previous = (query.agent_after.clone(), query.task_after);
                     let mut value = if remote {
@@ -723,6 +730,7 @@ impl CollaborationPanel {
                     if let Some(scope) = value.get("collaboration_scope").cloned() { value["project"] = scope; }
                     let page: super::Snapshot = serde_json::from_value(value)?;
                     anyhow::ensure!(page.project == project, "Selection scope changed");
+                    icons.extend(page.agents.iter().filter(|row| row.online).map(|row| (row.agent.id.clone(), crate::agent_usage::agent_icon(&row.agent.program))));
                     peers.extend(page.agents.into_iter().filter(|row| row.online).map(|row| (row.agent.id, row.agent.name)));
                     tasks.extend(page.tasks.into_iter().map(|task| (task.id, format!("{} · {}", task.description, task.state))));
                     let complete = page.agent_cursor.is_none() && page.task_cursor.is_none();
@@ -731,13 +739,14 @@ impl CollaborationPanel {
                     if complete { break; }
                     anyhow::ensure!(previous != (query.agent_after.clone(), query.task_after), "Selection cursor did not advance");
                 }
-                Ok::<_, anyhow::Error>((peers, tasks))
+                Ok::<_, anyhow::Error>((peers, tasks, icons))
             }).await.map_err(|_| anyhow::anyhow!("Selection loading timed out"))?
         }, move |panel, result, ctx| {
             let Some(form) = panel.form.as_mut().filter(|form| form.request_id == response_request) else { return; };
             form.choices_loading = false;
             match result {
-                Ok((peers, tasks)) => {
+                Ok((peers, tasks, icons)) => {
+                    form.agent_icons.extend(icons);
                     for (&index, choices) in &mut form.choices {
                         for (value, label) in if index == 3 { &tasks } else { &peers } {
                             if !choices.iter().any(|(_, id)| id == value) { choices.push((label.clone(), value.clone())); }
@@ -745,9 +754,10 @@ impl CollaborationPanel {
                         let request = form.request_id.clone();
                         let selected = form.fields[index].as_ref(ctx).buffer_text(ctx);
                         form.selectors[&index].update(ctx, |dropdown, ctx| {
-                            dropdown.set_items(choices.iter().map(|(label, value)| super::DropdownItem::new(label.clone(), Action::SelectFormField {
-                                request: request.clone(), index, value: value.clone(),
-                            })).collect(), ctx);
+                            dropdown.set_items(choices.iter().map(|(label, value)| {
+                                let item = super::DropdownItem::new(label.clone(), Action::SelectFormField { request: request.clone(), index, value: value.clone() });
+                                if index != 3 && !value.is_empty() { item.with_icon(form.agent_icons.get(value).copied().unwrap_or(crate::ui_components::icons::Icon::Terminal)) } else { item }
+                            }).collect(), ctx);
                             dropdown.set_selected_by_index(choices.iter().position(|(_, value)| value == &selected).unwrap_or(0), ctx);
                         });
                     }

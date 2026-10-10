@@ -45,7 +45,10 @@ impl UsageSettingsView {
             selector.set_items(
                 Provider::ALL
                     .iter()
-                    .map(|p| DropdownItem::new(p.name(), Action::Provider(*p)))
+                    .map(|p| {
+                        DropdownItem::new(p.name(), Action::Provider(*p))
+                            .with_icon(agent_icon(p.program()))
+                    })
                     .collect(),
                 ctx,
             );
@@ -180,7 +183,6 @@ impl View for UsageSettingsView {
         body.add_child(
             builder
                 .paragraph(self.provider.credential_hint().to_owned())
-                .with_soft_wrap()
                 .build()
                 .finish(),
         );
@@ -210,13 +212,7 @@ impl View for UsageSettingsView {
         }
         body.add_child(buttons.finish());
         if !model.status.is_empty() {
-            body.add_child(
-                builder
-                    .paragraph(model.status.clone())
-                    .with_soft_wrap()
-                    .build()
-                    .finish(),
-            );
+            body.add_child(builder.paragraph(model.status.clone()).build().finish());
         }
         for account in &model.accounts {
             let states = self
@@ -274,7 +270,7 @@ impl View for UsageSettingsView {
             }
         }
         body.add_child(builder.paragraph("Other agents: usage unsupported. Qoder CN has no verified background usage interface.".to_owned())
-            .with_style(UiComponentStyles { font_size: Some(12.), ..Default::default() }).with_soft_wrap().build().finish());
+            .with_style(UiComponentStyles { font_size: Some(12.), ..Default::default() }).build().finish());
         body.finish()
     }
 }
