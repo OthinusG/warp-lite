@@ -135,3 +135,17 @@ override before opening WSL collaboration; keep production selection checks and
 real guest transport. Add all WSL assertion names to the existing safe diagnostic
 allowlist. The 276-image artifact includes both Explorer/editor WSL captures;
 no production login or terminal assertion is weakened. Focused cloud rerun pending.
+
+## WSL native attachment wait budget
+
+Full run https://github.com/OthinusG/warpai/actions/runs/38076260347 at
+d9dc6067 passes macOS but Windows captures 274 images and times out at
+`owned WSL tree populated`. Safe diagnostics show the WSL selection is current,
+with no connection error and attachment still pending. The UI driver defaults
+to ten seconds, while the real guest installation probe alone allows fifteen
+seconds before handshake, registration and file RPCs. Prior runs reached the
+Explorer/editor screenshots, consistent with an insufficient cold-start budget.
+Give only the six asynchronous WSL capture steps a sixty-second wait budget,
+as with existing remote capture steps. Preserve transport timeouts, assertions,
+zero retries and the process watchdog. This run did not reach collaboration,
+so the earlier override correction still requires cloud verification.

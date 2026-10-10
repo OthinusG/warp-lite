@@ -112,8 +112,8 @@ consult it only when a specific historical question requires it.
   WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
   logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
   Native Codex may add --no-daemon; no wrapper or host MCP injection.
-  WSL lifecycle/install and macOS pass; clear native fixture override before WSL
-  capture. Use private Git; gates: specs/wsl-1.6.0/CI-DIAGNOSIS.md.
+  WSL lifecycle/install and macOS pass; native captures await cold guest attach.
+  Isolate fixture overrides; bound WSL waits at 60s. CI-DIAGNOSIS.md owns receipts.
   Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),

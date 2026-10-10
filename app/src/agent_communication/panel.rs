@@ -5169,7 +5169,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(app.update(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window)
                 .is_some_and(|(profile, connection)| profile.remote_root == std::env::var("WARP_TEST_WSL_ROOT").unwrap()
                     && matches!(connection, SshConnection::Wsl { user, .. } if user == "warpai-test"))))
-        })).with_step(TestStep::new("open existing Explorer on WSL").with_action(|app, window, _| {
+        }))
+        // Guest probe and subsequent RPCs can exceed the default 10-second UI step budget.
+        .with_step(TestStep::new("open existing Explorer on WSL").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
@@ -5179,7 +5181,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)
                 .is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window))))
         }).with_take_screenshot("live-wsl-file-explorer.png"))
-        .with_step(TestStep::new("open WSL source in native editor").with_action(|app, window, _| {
+        .with_step(TestStep::new("open WSL source in native editor").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
             tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("example.rs", ctx));
@@ -5189,7 +5191,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(ctx).ssh_source(path)
                         .is_some_and(|source| matches!(source.files.connection, SshConnection::Wsl { .. })))))))
         }).with_take_screenshot("live-wsl-code-editor.png"))
-        .with_step(TestStep::new("open WSL collaboration using existing tools").with_action(|app, window, _| {
+        .with_step(TestStep::new("open WSL collaboration using existing tools").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let collaboration = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             collaboration.update(app, |panel, _| {
                 // The earlier native-Companion fixture override must not mask the real WSL selection.
@@ -5202,7 +5204,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, _| panel.visible && panel.connected
                 && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. }))))
         }).with_take_screenshot("live-wsl-collaboration.png"))
-        .with_step(TestStep::new("open WSL Markdown in existing Explorer").with_action(|app, window, _| {
+        .with_step(TestStep::new("open WSL Markdown in existing Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
@@ -5211,7 +5213,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(app.views_of_type::<crate::notebooks::file::FileNotebookView>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx| view.wsl_checkpoint_ready(ctx)))))
         }).with_take_screenshot("live-wsl-markdown-preview.png"))
-        .with_step(TestStep::new("open original Review on WSL").with_action(|app, window, _| {
+        .with_step(TestStep::new("open original Review on WSL").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
             workspace.update(app, |workspace, ctx| {
@@ -5227,7 +5229,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         files.connection.is_wsl() && files.canonical_root == std::env::var("WARP_TEST_WSL_ROOT").unwrap())
                     && view.loaded_diff_stats().is_some_and(|stats| stats.files_changed > 0)))))
         }).with_take_screenshot("live-wsl-file-review.png"))
-        .with_step(TestStep::new("show current-account WSL MCP settings").with_action(|app, window, _| {
+        .with_step(TestStep::new("show current-account WSL MCP settings").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.refresh_wsl_targets(ctx);
                 model.maintain_wsl(false, ctx);
