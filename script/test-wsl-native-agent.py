@@ -46,8 +46,10 @@ def main():
             while data := os.read(0, 65536):
                 os.write(terminal, data)
         finally:
-            os.close(terminal)
+            # Closing a master with a blocked reader does not deliver EOF to the Agent.
+            os.write(terminal, b"\x04")
             os.waitpid(child, 0)
+            os.close(terminal)
         return
     assert mode == "--agent" and os.isatty(0)
     config = json.loads((root / "native-mcp.json").read_text())

@@ -94,3 +94,11 @@ runtime on the debug test subprocess PATH only. Do not weaken worktree discovery
 or add a legacy Git fallback. The production guest now exercises the release
 payload, and debug guest regressions exercise its pinned Git. Rerun the focused
 Git-root registration test and real Windows-to-WSL acceptance, then both OS gates.
+
+Run 38061569038 at 1a136f09 passes Git/non-Git registration and reaches the
+final native exit wait after wake acknowledgement. The fixture closes its PTY
+master while the output thread remains blocked reading it, so the Agent does
+not receive input EOF and Windows waits indefinitely. Send the terminal's EOT
+on upstream stdin EOF, reap the shell/Agent, then close the master. Retain the
+bounded exit assertion and Coordinator actual-process-exit check; do not kill
+the fixture or extend timeouts to hide failed lifecycle behavior.
