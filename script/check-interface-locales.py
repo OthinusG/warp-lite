@@ -156,6 +156,20 @@ KEY_LABEL_FILES = {
 }
 
 
+def localized_constant_values(source):
+    constants = {}
+    for start, _, value in rust_strings(source):
+        prefix = source[max(0, start - 200):start]
+        declaration = re.search(
+            r"(?:const|static)\s+([A-Z_][A-Z_0-9]*):[^;]*=\s*"
+            r"(?:LazyLock::new\(\|\|\s*\{\s*)?$", prefix)
+        if declaration:
+            constants[declaration[1]] = value
+    return [constants[name] for name in re.findall(
+        r"localization::text\(\s*\*?([A-Z_][A-Z_0-9]*)\s*\)", source)
+        if name in constants]
+
+
 def validate(catalog):
     for source, translations in catalog.items():
         assert isinstance(translations, list) and len(translations) == 2, source
@@ -170,6 +184,9 @@ def validate(catalog):
                 continue
             source = path.read_text()
             relative = str(path.relative_to(ROOT))
+            for value in localized_constant_values(source):
+                assert value in catalog, f"Missing constant translation: {path}:{value}"
+                marked += 1
             for start, end, value in rust_strings(source):
                 prefix = source[max(0, start - 200):start]
                 if re.search(r"localization::(?:text|format_text)\(\s*$", prefix):
@@ -193,6 +210,9 @@ def self_check():
     assert [value for _, _, value in rust_strings(source)] == ["Open", 'raw " quoted', "last"]
     assert fields("{{literal}} {} {name} {:.2}") == Counter(["0", "name", "1:.2"])
     assert fields("{name} {0} {1:.2}") == fields("{} {name} {:.2}")
+    assert localized_constant_values('const TITLE: &str = "Find"; localization::text(TITLE)') == ["Find"]
+    assert localized_constant_values('static HELP: LazyLock<&str> = LazyLock::new(|| { "Help" }); localization::text(*HELP)') == ["Help"]
+    assert localized_constant_values('const TITLE: &str = "User"; view.title(TITLE)') == []
 
 
 def main():

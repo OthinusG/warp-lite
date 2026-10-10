@@ -100,3 +100,8 @@ Task state labels are translated at the task detail, task list, worktree expansi
 and task selector boundaries. Query state values and comparisons retain their
 protocol identity; user descriptions and task IDs remain unchanged. Catalog tests
 cover every current task lifecycle state in all three interface languages.
+
+Constant-based find tooltips/placeholders, secret-redaction descriptions and MCP
+empty states are localized at their callers. The catalog checker resolves local
+constant and LazyLock references used by explicit localization calls, with
+self-checks for both declaration forms; it does not translate arbitrary content.

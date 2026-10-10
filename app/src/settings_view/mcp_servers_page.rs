@@ -100,7 +100,7 @@ impl MCPServersSettingsPageView {
         Self {
             page: PageType::new_monolith(
                 MCPServersSettingsWidget::default(),
-                Some(PAGE_TITLE_TEXT),
+                Some(warpui::localization::text(PAGE_TITLE_TEXT)),
                 true,
             ),
             current_page: MCPServersSettingsPage::default(),

@@ -159,6 +159,10 @@
     "添加",
     "新增"
   ],
+  "Add MCP servers to extend the Warpai Agent's capabilities. MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. Add a custom server, or use the presets to get started with popular servers. You can also find team servers that have been shared with you here. ": [
+    "添加 MCP 服务器以扩展 Warpai Agent 的能力。MCP 服务器通过标准化接口向 Agent 提供数据源或工具，作用类似插件。你可以添加自定义服务器，或使用预设快速配置常见服务器。与您共享的团队服务器也会显示在这里。 ",
+    "新增 MCP 伺服器以擴充 Warpai Agent 的能力。MCP 伺服器透過標準化介面向 Agent 提供資料來源或工具，作用類似外掛程式。你可以新增自訂伺服器，或使用預設快速設定常見伺服器。與你共享的團隊伺服器也會顯示在這裡。 "
+  ],
   "Add Profile": [
     "添加配置方案",
     "新增設定檔"
@@ -619,6 +623,10 @@
     "规范检出目录根路径",
     "正規簽出目錄根路徑"
   ],
+  "Case sensitive search": [
+    "区分大小写搜索",
+    "區分大小寫搜尋"
+  ],
   "Case-insensitive completions and autosuggestions": [
     "补全和自动建议不区分大小写",
     "補完與自動建議不區分大小寫"
@@ -806,6 +814,10 @@
   "Cloud agents require an environment that they'll run in to get their task done. Create your first environment below. You'll be able to edit the environment later, or add new environments when you need them.": [
     "云端智能体需要运行环境来完成任务。请在下方创建第一个环境，之后可随时编辑或添加环境。",
     "雲端智慧體需要執行環境來完成工作。請在下方建立第一個環境，之後可隨時編輯或新增環境。"
+  ],
+  "Code": [
+    "代码",
+    "程式碼"
   ],
   "Code Editor and Review": [
     "代码编辑器和审阅",
@@ -1246,6 +1258,10 @@
   "Custom directory": [
     "自定义目录",
     "自訂目錄"
+  ],
+  "Custom secret redaction": [
+    "自定义敏感信息脱敏",
+    "自訂敏感資訊遮蔽"
   ],
   "Customizable in appearance settings.": [
     "可在外观设置中自定义。",
@@ -2639,6 +2655,10 @@
     "填写工作流参数，然后复制到终端会话中运行",
     "填寫工作流程參數，然後複製至終端機工作階段中執行"
   ],
+  "Find": [
+    "查找",
+    "尋找"
+  ],
   "Find bar with {} matches found. Currently on match {} of {}.": [
     "搜索栏找到 {} 个匹配项，当前选中第 {} 项，共 {} 项。",
     "搜尋列找到 {} 個符合項目，目前選取第 {} 項，共 {} 項。"
@@ -2654,6 +2674,10 @@
   "Find in code editor": [
     "在代码编辑器中查找",
     "在程式碼編輯器中尋找"
+  ],
+  "Find in selected block": [
+    "在选定区块中查找",
+    "在所選區塊中尋找"
   ],
   "Find the next occurrence of your search query": [
     "查找下一个搜索匹配项",
@@ -3239,6 +3263,10 @@
     "你的额度已用完。",
     "你的額度已用完。"
   ],
+  "MCP Servers": [
+    "MCP 服务器",
+    "MCP 伺服器"
+  ],
   "MODELS": [
     "模型",
     "模型"
@@ -3735,6 +3763,10 @@
     "没有符合筛选条件的结果",
     "沒有符合篩選條件的結果"
   ],
+  "No search results found": [
+    "未找到搜索结果",
+    "找不到搜尋結果"
+  ],
   "No settings match your search.": [
     "没有匹配搜索条件的设置。",
     "沒有符合搜尋條件的設定。"
@@ -3814,6 +3846,10 @@
   "On low-DPI displays": [
     "在低 DPI 显示器上",
     "在低 DPI 顯示器上"
+  ],
+  "Once you add a MCP server, it will be shown here.": [
+    "添加 MCP 服务器后，它会显示在这里。",
+    "新增 MCP 伺服器後，它會顯示在這裡。"
   ],
   "One-time purchase": [
     "一次性购买",
@@ -4383,6 +4419,10 @@
     "正则表达式",
     "正規表示式"
   ],
+  "Regex toggle": [
+    "切换正则表达式",
+    "切換正規表示式"
+  ],
   "Reinput selected commands": [
     "重新输入所选命令",
     "重新輸入所選命令"
@@ -4806,6 +4846,10 @@
   "Search text must fit 256 bytes": [
     "搜索文本不得超过 256 字节",
     "搜尋文字不得超過 256 位元組"
+  ],
+  "Secret redaction": [
+    "敏感信息脱敏",
+    "敏感資訊遮蔽"
   ],
   "See docs.": [
     "查看文档。",
@@ -5663,6 +5707,10 @@
     "请升级套餐以继续使用 AI。",
     "請升級方案以繼續使用 AI。"
   ],
+  "To exclude specific files or directories from indexing, add them to the .warpindexingignore file in your repository directory. These files will still be accessible to AI features, but they won't be included in codebase embeddings.": [
+    "要从索引中排除特定文件或目录，请将它们添加到仓库目录中的 .warpindexingignore 文件。这些文件仍可供 AI 功能访问，但不会包含在代码库嵌入中。",
+    "若要從索引中排除特定檔案或目錄，請將它們新增至儲存庫目錄中的 .warpindexingignore 檔案。這些檔案仍可供 AI 功能存取，但不會包含在程式碼庫嵌入中。"
+  ],
   "To use AI features, please create an account.": [
     "请创建账户以使用 AI 功能。",
     "請建立帳戶以使用 AI 功能。"
@@ -5995,6 +6043,10 @@
     "以最新用户提示作为标签页中的对话标题",
     "以最新使用者提示作為分頁中的對話標題"
   ],
+  "Use regex to define additional secrets or data you'd like to redact. This will take effect when the next command runs. You can use the inline (?i) flag as a prefix to your regex to make it case-insensitive.": [
+    "使用正则表达式定义需要脱敏的其他敏感信息或数据。此设置将在下一条命令运行时生效。你可以在正则表达式前添加内联标志 (?i)，以忽略大小写。",
+    "使用正規表示式定義需要遮蔽的其他敏感資訊或資料。此設定將在下一條命令執行時生效。你可以在正規表示式前加入行內旗標 (?i)，以忽略大小寫。"
+  ],
   "Use vertical tab layout": [
     "使用垂直标签页布局",
     "使用垂直分頁配置"
@@ -6167,6 +6219,10 @@
     "Warpai 由 OthinusG 开发 · 基于 Warp",
     "Warpai 由 OthinusG 開發 · 基於 Warp"
   ],
+  "Warpai can automatically index code repositories as you navigate them, helping agents quickly understand context and provide solutions. Code is never stored on the server. If a codebase is unable to be indexed, Warpai can still navigate your codebase and gain insights via grep and find tool calling.": [
+    "Warpai 可以在你浏览代码仓库时自动建立索引，帮助 Agent 快速理解上下文并提供解决方案。代码不会存储在服务器上。如果无法为代码库建立索引，Warpai 仍可通过调用 grep 和 find 工具浏览代码库并获取信息。",
+    "Warpai 可以在你瀏覽程式碼儲存庫時自動建立索引，協助 Agent 快速理解上下文並提供解決方案。程式碼不會儲存在伺服器上。如果無法為程式碼庫建立索引，Warpai 仍可透過呼叫 grep 與 find 工具瀏覽程式碼庫並取得資訊。"
+  ],
   "Warpai is now open-source": [
     "Warpai 现已开源",
     "Warpai 現已開放原始碼"
@@ -6214,6 +6270,14 @@
   "When a command takes longer than": [
     "当命令执行时间超过",
     "當指令執行時間超過"
+  ],
+  "When set to true, Warpai will automatically index code repositories as you navigate them - helping agents quickly understand context and provide targeted solutions.": [
+    "启用后，Warpai 会在你浏览代码仓库时自动建立索引，帮助 Agent 快速理解上下文并提供有针对性的解决方案。",
+    "啟用後，Warpai 會在你瀏覽程式碼儲存庫時自動建立索引，協助 Agent 快速理解上下文並提供有針對性的解決方案。"
+  ],
+  "When this setting is enabled, Warpai will scan blocks, the contents of Warpai Drive objects, and Oz prompts for potential sensitive information and prevent saving or sending this data to any servers. You can customize this list via regexes.": [
+    "启用后，Warpai 会扫描区块、Warpai Drive 对象内容和 Oz 提示中的潜在敏感信息，并阻止保存这些数据或将其发送到任何服务器。你可以通过正则表达式自定义此列表。",
+    "啟用後，Warpai 會掃描區塊、Warpai Drive 物件內容與 Oz 提示中的潛在敏感資訊，並阻止儲存這些資料或將其傳送至任何伺服器。你可以透過正規表示式自訂此清單。"
   ],
   "When this setting is on, the code review panel will open on the first accepted diff of a conversation": [
     "启用后，会话中首次接受修改时将打开代码审查面板",

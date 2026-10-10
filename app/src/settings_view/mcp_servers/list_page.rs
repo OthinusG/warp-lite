@@ -1171,7 +1171,7 @@ impl MCPServersListPageView {
 
     fn render_page_body(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
         let description_fragments = vec![
-            FormattedTextFragment::plain_text(DESCRIPTION_TEXT),
+            FormattedTextFragment::plain_text(warpui::localization::text(DESCRIPTION_TEXT)),
             FormattedTextFragment::hyperlink(
                 "Learn more.",
                 "https://docs.warp.dev/agent-platform/capabilities/mcp",
@@ -1486,7 +1486,7 @@ impl MCPServersListPageView {
                         .with_child(
                             appearance
                                 .ui_builder()
-                                .wrappable_text(EMPTY_STATE_TEXT, true)
+                                .wrappable_text(warpui::localization::text(EMPTY_STATE_TEXT), true)
                                 .with_style(style::description_text(appearance))
                                 .build()
                                 .finish(),
@@ -1517,7 +1517,7 @@ impl MCPServersListPageView {
                         .with_child(
                             appearance
                                 .ui_builder()
-                                .wrappable_text(NO_SEARCH_RESULTS_TEXT, true)
+                                .wrappable_text(warpui::localization::text(NO_SEARCH_RESULTS_TEXT), true)
                                 .with_style(style::description_text(appearance))
                                 .build()
                                 .finish(),

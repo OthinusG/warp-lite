@@ -163,7 +163,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> Find<T> {
                 },
                 ctx,
             );
-            editor.set_placeholder_text(FIND_PLACEHOLDER_TEXT, ctx);
+            editor.set_placeholder_text(warpui::localization::text(FIND_PLACEHOLDER_TEXT), ctx);
             editor
         });
 
@@ -514,7 +514,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> View for Find<T> {
             self.button_mouse_states.toggle_regex_search.clone(),
             FindAction::ToggleRegexSearch,
             editor_height,
-            Some(REGEX_TOGGLE_TOOLTIP),
+            Some(warpui::localization::text(REGEX_TOGGLE_TOOLTIP)),
             ICON_PADDING,
         );
         let case_sensitive_icon = Container::new(
@@ -526,7 +526,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> View for Find<T> {
                     self.button_mouse_states.toggle_case_sensitivity.clone(),
                     FindAction::ToggleCaseSensitivity,
                     editor_height,
-                    Some(CASE_SENSITIVE_TOOLTIP),
+                    Some(warpui::localization::text(CASE_SENSITIVE_TOOLTIP)),
                     ICON_PADDING,
                 ),
                 "case_sensitive_button",
@@ -543,7 +543,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> View for Find<T> {
                     self.button_mouse_states.toggle_find_in_block.clone(),
                     FindAction::ToggleFindInBlock,
                     editor_height,
-                    Some(FIND_WITHIN_BLOCK_TOOLTIP),
+                    Some(warpui::localization::text(FIND_WITHIN_BLOCK_TOOLTIP)),
                     0.,
                 ),
                 "find_in_block_button",

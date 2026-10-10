@@ -1181,7 +1181,7 @@ impl SettingsWidget for SecretRedactionWidget {
                 .with_child(
                     Shrinkable::new(
                         1.0,
-                        render_sub_header(appearance, SAFE_MODE_TITLE, Some(local_only_icon_state)),
+                        render_sub_header(appearance, warpui::localization::text(SAFE_MODE_TITLE), Some(local_only_icon_state)),
                     )
                     .finish(),
                 )
@@ -1216,7 +1216,7 @@ impl SettingsWidget for SecretRedactionWidget {
             .with_child(secret_redaction_title_row)
             .with_child(
                 ui_builder
-                    .paragraph((*SAFE_MODE_DESCRIPTION).to_owned())
+                    .paragraph(warpui::localization::text(*SAFE_MODE_DESCRIPTION).to_owned())
                     .with_style(UiComponentStyles {
                         font_color: Some(description_text_color),
                         font_size: Some(FONT_SIZE + 1.), // One size up from current 12px to 13px
@@ -1305,11 +1305,11 @@ impl SettingsWidget for SecretRedactionWidget {
                             1.,
                             Flex::column()
                                 .with_child(self.render_section_title(
-                                    USER_SECRET_REGEX_TITLE.to_string(),
+                                    warpui::localization::text(USER_SECRET_REGEX_TITLE).to_string(),
                                     appearance,
                                 ))
                                 .with_child(self.render_description(
-                                    USER_SECRET_REGEX_DESCRIPTION.to_owned(),
+                                    warpui::localization::text(USER_SECRET_REGEX_DESCRIPTION).to_owned(),
                                     appearance,
                                     if privacy_settings.user_secret_regex_list.iter().count() > 0 {
                                         10.
