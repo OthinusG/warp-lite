@@ -5,6 +5,20 @@ fn entries() -> Vec<&'static SettingSchemaEntry> {
     inventory::iter::<SettingSchemaEntry>.into_iter().collect()
 }
 
+#[test]
+fn owner_defaults_match_registered_typed_file_defaults() {
+    let entries = entries();
+    for (path, expected) in settings::defaults::owner_defaults() {
+        let entry = entries.iter().find(|entry| {
+            entry.hierarchy.map(|hierarchy| format!("{hierarchy}.{}", entry.storage_key))
+                .as_deref() == Some(path.as_str())
+        }).unwrap_or_else(|| panic!("Unregistered public default: {path}"));
+        assert!(!entry.is_private, "Private default: {path}");
+        let actual: serde_json::Value = serde_json::from_str(&(entry.file_default_value_fn)()).unwrap();
+        assert_eq!(&actual, expected, "Invalid typed default: {path}");
+    }
+}
+
 /// Validates that every registered setting's file default value conforms to
 /// its generated JSON schema.
 ///

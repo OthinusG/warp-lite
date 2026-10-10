@@ -83,13 +83,13 @@ macro_rules! submit_schema_entry {
                 feature_flag: $flag,
                 supported_platforms_fn: || $plat,
                 default_value_fn: || {
-                    let val: $type = $default;
+                    let val: $type = $crate::defaults::configured_default($toml_path, $private, $default);
                     serde_json::to_string(&val).expect("default value should serialize")
                 },
                 schema_fn: <$type as $crate::_settings_value::SettingsValue>::file_schema,
                 file_default_value_fn: || {
                     use $crate::_settings_value::SettingsValue as _;
-                    let val: $type = $default;
+                    let val: $type = $crate::defaults::configured_default($toml_path, $private, $default);
                     let file_value = val.to_file_value();
                     serde_json::to_string(&file_value).expect("default file value should serialize")
                 },

@@ -45,8 +45,9 @@ consult it only when a specific historical question requires it.
 - 1.5.5 is tagged at fc6f3487, including corrected captures at 61d50dbe.
   Runs 38025511405 / 38028454517 passed; 1.5.5 is public.
   Retain all five installers and checksum receipts.
-- WSL 1.6.0 descends from both immutable patch tags; retain their full UI/usage
-  changes. Worktree: /private/tmp/warpai-wsl-1.5.8, feature/wsl-1.5.8.
+- 1.6.0: feature/wsl-1.5.8 in /private/tmp/warpai-wsl-1.5.8. Release after acceptance.
+  1.6.2: feature/1.6.2 in /private/tmp/warpai-1.6.2; merge later 1.6.0 fixes.
+  Specs: specs/1.6.2/{PRODUCT,TECH}.md; CI waits for 1.6.0 acceptance.
 
 ## Project, worktree and Agent ownership
 
@@ -143,13 +144,12 @@ consult it only when a specific historical question requires it.
 
 ## Product defaults, CLI integration and website
 
-- Identity: warpai package/binary, Warpai app, dev.warpai.Warpai bundle,
-  OthinusG/warpai repository; retain internal/protocol/WARP_* compatibility.
-  Data/settings: ~/.config/.warpai on both desktops. Migration preserves new
-  settings/recovery files and runs after isolated capture profile setup.
-- Fresh installs use built-in Claude Warm Light; preserve saved themes. Keep-awake
-  is session-only, holds a guard only during tracked Agent activity, and permits
-  display/user-initiated sleep. No cloud AI/login/billing/telemetry restoration.
+- Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
+  1.6.2 migrates desktop data/settings to ~/.config/warpai, preserving old sources,
+  new values/profiles. Owner preferences become typed defaults;
+  no account/path/credential/server/history defaults. Add English/zh-Hans/zh-Hant UI.
+- Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
+  during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
 - Ordinary Codex invocations (including --yolo/resume) adapt at Warpai's execution
   event while communication is enabled: official per-session MCP and --no-daemon,
   preserving original CLI/args/cwd/PATH and package-manager ownership. Do not proxy

@@ -55,6 +55,7 @@ pub struct UserDefaultsOnStartup {
 /// and hierarchy info for every setting. It does not set up appearance,
 /// rendering config, or event subscriptions.
 pub fn register_all_settings(ctx: &mut AppContext) {
+    super::LanguageSettings::register(ctx);
     crate::release_updates::UpdateSettings::register(ctx);
     BlockListSettings::register(ctx);
     BlockVisibilitySettings::register(ctx);
@@ -126,6 +127,8 @@ pub fn init(
     if needs_settings_file_migration(ctx) {
         migrate_native_settings_to_settings_file(ctx);
     }
+
+    warpui::localization::set_language(*super::LanguageSettings::as_ref(ctx).language.value());
 
     let use_thin_strokes = *FontSettings::as_ref(ctx).use_thin_strokes;
 

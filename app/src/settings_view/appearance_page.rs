@@ -423,6 +423,7 @@ impl FontType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppearancePageAction {
+    SetLanguage(warpui::localization::Language),
     LineHeightEditorResetRatio,
     SetNewWindowsCustomColumns,
     SetNewWindowsCustomRows,
@@ -484,6 +485,7 @@ pub enum AppearancePageAction {
 }
 
 pub struct AppearanceSettingsPageView {
+    language_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
     page: PageType<Self>,
     window_id: WindowId,
     local_only_icon_tooltip_states: RefCell<HashMap<String, MouseStateHandle>>,
@@ -552,6 +554,15 @@ impl TypedActionView for AppearanceSettingsPageView {
             SetLineHeight => self.set_line_height_ratio(ctx),
             SetOpacity(value) => self.set_opacity(*value, true, ctx),
             SetBlur(value) => self.set_blur(*value, true, ctx),
+            SetLanguage(language) => {
+                crate::settings::LanguageSettings::handle(ctx).update(ctx, |settings, ctx| {
+                    report_if_error!(settings.language.set_value(*language, ctx));
+                });
+                self.language_dropdown.update(ctx, |dropdown, ctx| {
+                    dropdown.set_selected_by_name(language.display_name(), ctx);
+                });
+                ctx.notify();
+            }
             SetFontFamily(name) => self.set_font_family(name, ctx),
             SetAIFontFamily(name) => {
                 self.set_ai_font_family(name, ctx);
@@ -1154,6 +1165,14 @@ impl AppearanceSettingsPageView {
             ctx.add_typed_action_view(HeaderToolbarInlineEditor::new);
 
         AppearanceSettingsPageView {
+            language_dropdown: ctx.add_typed_action_view(|ctx| {
+                let mut dropdown = Dropdown::new(ctx);
+                dropdown.add_items(warpui::localization::Language::ALL.into_iter().map(|language| {
+                    DropdownItem::new(language.display_name(), AppearancePageAction::SetLanguage(language))
+                }).collect(), ctx);
+                dropdown.set_selected_by_name(crate::settings::LanguageSettings::as_ref(ctx).language.value().display_name(), ctx);
+                dropdown
+            }),
             page: Self::build_page(ctx),
             window_id: ctx.window_id(),
             local_only_icon_tooltip_states: Default::default(),
@@ -1204,6 +1223,7 @@ impl AppearanceSettingsPageView {
                 Box::new(ThemeSelectWidget::default()),
             ],
         )];
+        categories.insert(0, Category::new(warpui::localization::text("Language"), vec![Box::new(LanguageWidget)]));
 
         if AppIconSettings::as_ref(ctx).is_supported_on_current_platform() {
             categories.push(Category::new(
@@ -2416,6 +2436,28 @@ fn render_group(
 #[derive(Default)]
 struct CreateCustomThemeWidget {
     mouse_state: MouseStateHandle,
+}
+
+struct LanguageWidget;
+
+impl SettingsWidget for LanguageWidget {
+    type View = AppearanceSettingsPageView;
+
+    fn search_terms(&self) -> &str {
+        "language english chinese simplified traditional 语言 語言 中文 简体 繁體"
+    }
+
+    fn render(&self, view: &Self::View, appearance: &Appearance, _app: &AppContext) -> Box<dyn Element> {
+        render_dropdown_item(
+            appearance,
+            warpui::localization::text("Language"),
+            Some(warpui::localization::text("Restart Warpai to apply this language.")),
+            None,
+            LocalOnlyIconState::Hidden,
+            None,
+            &view.language_dropdown,
+        )
+    }
 }
 
 impl SettingsWidget for CreateCustomThemeWidget {

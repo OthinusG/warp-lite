@@ -1,6 +1,6 @@
 //! Import legacy local data before any settings or durable state are opened.
 
-use std::{collections::BTreeMap, fs, io, path::Path};
+use std::{collections::BTreeMap, fs, io, io::Read, path::Path};
 
 use warp_core::{
     channel::{Channel, ChannelState},
@@ -26,6 +26,16 @@ fn migrate_to(
     channel: Channel,
 ) -> anyhow::Result<()> {
     private_directory(root)?;
+    let root_marker = root.join(".config-root-migration-complete");
+    if !root_marker.try_exists()? {
+        let relative = root.strip_prefix(home.join(".config/warpai"))?;
+        let former = home.join(".config/.warpai").join(relative);
+        if former.symlink_metadata().is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+            anyhow::bail!("Former managed root is a symlink");
+        }
+        import_directory(&former, root)?;
+        mark_complete(root, &root_marker)?;
+    }
     let marker = root.join(".legacy-migration-complete");
     if marker.try_exists()? {
         return Ok(());
@@ -80,12 +90,17 @@ fn migrate_to(
     if public.is_file() {
         import_file(&public, &root.join("private_preferences.json"))?;
     }
+    mark_complete(root, &marker)?;
+    Ok(())
+}
+
+fn mark_complete(root: &Path, marker: &Path) -> io::Result<()> {
     let temporary = tempfile::NamedTempFile::new_in(root)?;
     temporary.as_file().sync_all()?;
     match temporary.persist_noclobber(marker) {
         Ok(_) => (),
         Err(e) if e.error.kind() == io::ErrorKind::AlreadyExists => (),
-        Err(e) => return Err(e.error.into()),
+        Err(e) => return Err(e.error),
     }
     Ok(())
 }
@@ -137,6 +152,9 @@ fn import_directory(source: &Path, destination: &Path) -> io::Result<()> {
             }
             import_directory(&entry.path(), &target)?;
         } else if kind.is_file() {
+            if sqlite_sidecar(&entry.path())? {
+                continue;
+            }
             import_file(&entry.path(), &target)?;
         }
     }
@@ -148,7 +166,11 @@ fn import_file(source: &Path, destination: &Path) -> io::Result<()> {
         return Ok(());
     }
     let mut temporary = tempfile::NamedTempFile::new_in(destination.parent().unwrap())?;
-    io::copy(&mut fs::File::open(source)?, temporary.as_file_mut())?;
+    if is_sqlite(source)? {
+        snapshot_sqlite(source, temporary.path())?;
+    } else {
+        io::copy(&mut fs::File::open(source)?, temporary.as_file_mut())?;
+    }
     temporary
         .as_file()
         .set_permissions(source.metadata()?.permissions())?;
@@ -158,6 +180,58 @@ fn import_file(source: &Path, destination: &Path) -> io::Result<()> {
         Err(e) if e.error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
         Err(e) => Err(e.error),
     }
+}
+
+fn is_sqlite(path: &Path) -> io::Result<bool> {
+    let mut header = [0_u8; 16];
+    match fs::File::open(path)?.read_exact(&mut header) {
+        Ok(()) => Ok(&header == b"SQLite format 3\0"),
+        Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+fn sqlite_sidecar(path: &Path) -> io::Result<bool> {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else { return Ok(false); };
+    for suffix in ["-wal", "-shm", "-journal"] {
+        if let Some(base) = name.strip_suffix(suffix) {
+            let database = path.with_file_name(base);
+            if database.symlink_metadata().is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink()) {
+                return is_sqlite(&database);
+            }
+        }
+    }
+    Ok(false)
+}
+
+/// Preserve row IDs and include committed WAL data in one native SQLite snapshot.
+fn snapshot_sqlite(source: &Path, destination: &Path) -> io::Result<()> {
+    use libsqlite3_sys as sqlite;
+    let filename = |path: &Path| {
+        std::ffi::CString::new(path.to_str().ok_or_else(|| io::Error::other("Invalid database path"))?)
+            .map_err(|_| io::Error::other("Invalid database path"))
+    };
+    let source = filename(source)?;
+    let destination = filename(destination)?;
+    let mut input = std::ptr::null_mut();
+    let mut output = std::ptr::null_mut();
+    // SAFETY: filenames outlive both connections; every opened handle and backup is closed.
+    let success = unsafe {
+        let opened = sqlite::sqlite3_open_v2(source.as_ptr(), &mut input, sqlite::SQLITE_OPEN_READONLY, std::ptr::null()) == sqlite::SQLITE_OK
+            && sqlite::sqlite3_open_v2(destination.as_ptr(), &mut output, sqlite::SQLITE_OPEN_READWRITE, std::ptr::null()) == sqlite::SQLITE_OK;
+        let mut success = false;
+        if opened {
+            let backup = sqlite::sqlite3_backup_init(output, c"main".as_ptr(), input, c"main".as_ptr());
+            if !backup.is_null() {
+                let copied = sqlite::sqlite3_backup_step(backup, -1) == sqlite::SQLITE_DONE;
+                success = sqlite::sqlite3_backup_finish(backup) == sqlite::SQLITE_OK && copied;
+            }
+        }
+        if !output.is_null() { success &= sqlite::sqlite3_close(output) == sqlite::SQLITE_OK; }
+        if !input.is_null() { success &= sqlite::sqlite3_close(input) == sqlite::SQLITE_OK; }
+        success
+    };
+    if success { Ok(()) } else { Err(io::Error::other("Cannot snapshot managed SQLite database")) }
 }
 
 fn import_native_preferences(home: &Path, root: &Path, channel: Channel) -> anyhow::Result<()> {

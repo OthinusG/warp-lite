@@ -206,7 +206,7 @@ jobs:
             $env:WARP_TEST_WSL_ROOT = '/home/warpai-test/project spaces 多语言'
             $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion'
           }
-          $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/.warpai/.legacy-migration-complete'
+          $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
           $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
@@ -338,7 +338,7 @@ jobs:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion
         run: |
-          ordinary_marker="$HOME/.config/.warpai/.legacy-migration-complete"
+          ordinary_marker="$HOME/.config/warpai/.legacy-migration-complete"
           ordinary_before=0
           if [[ -e "$ordinary_marker" ]]; then ordinary_before=1; fi
           capture_exit=0

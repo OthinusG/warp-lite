@@ -32,7 +32,7 @@ pub const WARP_LOGS_DIR: &str = "logs";
 
 /// Returns the home-relative managed root. Debug profiles remain inside it.
 pub fn warp_home_config_dir_name() -> String {
-    let root = PathBuf::from(".config").join(".warpai");
+    let root = PathBuf::from(".config").join("warpai");
     let root = match ChannelState::channel() {
         Channel::Oss | Channel::Stable => root,
         channel => root.join("channels").join(channel.to_string()),

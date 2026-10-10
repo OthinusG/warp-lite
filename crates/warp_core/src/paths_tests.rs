@@ -7,7 +7,7 @@ fn test_managed_directories_share_warpai_root() {
     let mut expected = home_dir()
         .expect("Home directory")
         .join(".config")
-        .join(".warpai");
+        .join("warpai");
     if let Some(profile) = ChannelState::data_profile() {
         expected = expected.join("profiles").join(profile);
     }

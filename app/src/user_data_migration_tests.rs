@@ -1,11 +1,76 @@
 use super::*;
 
 #[test]
+fn managed_root_migration_preserves_new_values_and_reset_intent() {
+    let home = tempfile::tempdir().unwrap();
+    let old = home.path().join(".config/.warpai");
+    let new = home.path().join(".config/warpai");
+    fs::create_dir_all(old.join("themes")).unwrap();
+    fs::create_dir_all(&new).unwrap();
+    fs::write(old.join("settings.toml"), "old settings").unwrap();
+    fs::write(old.join("themes/owned.yaml"), "theme").unwrap();
+    fs::write(old.join(".legacy-migration-complete"), "").unwrap();
+    fs::write(new.join("settings.toml"), "new settings").unwrap();
+    migrate_to(home.path(), &new, None, Channel::Oss).unwrap();
+    assert_eq!(fs::read_to_string(new.join("settings.toml")).unwrap(), "new settings");
+    assert_eq!(fs::read_to_string(new.join("themes/owned.yaml")).unwrap(), "theme");
+    assert!(old.join("settings.toml").is_file());
+    assert!(new.join(".config-root-migration-complete").is_file());
+    fs::remove_file(new.join("settings.toml")).unwrap();
+    migrate_to(home.path(), &new, None, Channel::Oss).unwrap();
+    assert!(!new.join("settings.toml").exists());
+}
+
+#[test]
+fn managed_root_migration_keeps_capture_profiles_isolated() {
+    let home = tempfile::tempdir().unwrap();
+    let old = home.path().join(".config/.warpai");
+    let profile = old.join("profiles/owned");
+    fs::create_dir_all(&profile).unwrap();
+    fs::write(old.join("ordinary-only"), "private ordinary fixture").unwrap();
+    fs::write(profile.join("profile-only"), "profile fixture").unwrap();
+    let new = home.path().join(".config/warpai/profiles/owned");
+    migrate_to(home.path(), &new, Some("owned"), Channel::Oss).unwrap();
+    assert!(new.join("profile-only").is_file());
+    assert!(!new.join("ordinary-only").exists());
+    assert!(!home.path().join(".config/warpai/.config-root-migration-complete").exists());
+}
+
+#[test]
+fn managed_database_copy_includes_live_wal_and_preserves_row_ids() {
+    use diesel::{Connection, RunQueryDsl, SqliteConnection};
+    let directory = tempfile::tempdir().unwrap();
+    let old = directory.path().join("old");
+    let new = directory.path().join("new");
+    fs::create_dir_all(&old).unwrap();
+    let database = old.join("history.sqlite");
+    let mut connection = SqliteConnection::establish(database.to_str().unwrap()).unwrap();
+    diesel::sql_query("PRAGMA journal_mode=WAL").execute(&mut connection).unwrap();
+    diesel::sql_query("CREATE TABLE evidence (body TEXT)").execute(&mut connection).unwrap();
+    diesel::sql_query("INSERT INTO evidence (rowid, body) VALUES (17, 'owned fixture')").execute(&mut connection).unwrap();
+    assert!(old.join("history.sqlite-wal").is_file());
+    import_directory(&old, &new).unwrap();
+    assert!(!new.join("history.sqlite-wal").exists());
+    assert!(!new.join("history.sqlite-shm").exists());
+    let mut copied = SqliteConnection::establish(new.join("history.sqlite").to_str().unwrap()).unwrap();
+    #[derive(diesel::QueryableByName)]
+    struct Evidence {
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
+        id: i64,
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        body: String,
+    }
+    let evidence = diesel::sql_query("SELECT rowid AS id, body FROM evidence").get_result::<Evidence>(&mut copied).unwrap();
+    assert_eq!(evidence.id, 17);
+    assert_eq!(evidence.body, "owned fixture");
+}
+
+#[test]
 fn legacy_import_preserves_precedence_nested_data_and_recovery_sources() {
     let temp = tempfile::tempdir().unwrap();
     let primary = temp.path().join(".warp-oss");
     let fallback = temp.path().join(".warp");
-    let target = temp.path().join(".config/.warpai");
+    let target = temp.path().join(".config/warpai");
     fs::create_dir_all(primary.join("themes")).unwrap();
     fs::create_dir_all(&fallback).unwrap();
     fs::write(primary.join("settings.toml"), "primary").unwrap();
@@ -131,7 +196,7 @@ fn native_preferences_import_preserves_values_and_existing_destination() {
     };
     let temp = tempfile::tempdir().unwrap();
     let legacy = temp.path().join("Library/Preferences");
-    let root = temp.path().join(".config/.warpai");
+    let root = temp.path().join(".config/warpai");
     fs::create_dir_all(&legacy).unwrap();
     private_directory(&root).unwrap();
     let mut values = plist::Dictionary::new();
@@ -170,7 +235,7 @@ fn native_preferences_import_preserves_values_and_existing_destination() {
 fn completed_migration_does_not_restore_intentionally_reset_settings() {
     let home = tempfile::tempdir().unwrap();
     let source = home.path().join(".warp-oss-isolated-test");
-    let root = home.path().join(".config/.warpai");
+    let root = home.path().join(".config/warpai");
     fs::create_dir(&source).unwrap();
     fs::write(source.join("settings.toml"), "old").unwrap();
     migrate_to(home.path(), &root, Some("isolated-test"), Channel::Oss).unwrap();
@@ -189,7 +254,7 @@ fn completed_migration_does_not_restore_intentionally_reset_settings() {
 fn failed_migration_never_marks_completion_or_discards_legacy_data() {
     let home = tempfile::tempdir().unwrap();
     let source = home.path().join(".warp-oss-test");
-    let root = home.path().join(".config/.warpai");
+    let root = home.path().join(".config/warpai");
     fs::create_dir_all(&source).unwrap();
     fs::create_dir_all(&root).unwrap();
     fs::create_dir(source.join("themes")).unwrap();
@@ -209,7 +274,7 @@ fn failed_migration_never_marks_completion_or_discards_legacy_data() {
 fn isolated_profile_never_imports_ordinary_user_settings() {
     let home = tempfile::tempdir().unwrap();
     let source = home.path().join(".warp-oss");
-    let root = home.path().join(".config/.warpai/profiles/test");
+    let root = home.path().join(".config/warpai/profiles/test");
     fs::create_dir(&source).unwrap();
     fs::write(source.join("settings.toml"), "ordinary settings").unwrap();
     migrate_to(home.path(), &root, Some("test"), Channel::Oss).unwrap();
@@ -225,7 +290,7 @@ fn channel_migration_does_not_import_other_channel_settings() {
     fs::write(home.path().join(".warp-dev-test/settings.toml"), "Dev").unwrap();
     let root = home
         .path()
-        .join(".config/.warpai/channels/dev/profiles/test");
+        .join(".config/warpai/channels/dev/profiles/test");
     migrate_to(home.path(), &root, Some("test"), Channel::Dev).unwrap();
     assert_eq!(
         fs::read_to_string(root.join("settings.toml")).unwrap(),

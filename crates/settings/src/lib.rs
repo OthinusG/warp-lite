@@ -1,6 +1,7 @@
 #[macro_use]
 pub mod macros;
 pub mod manager;
+pub mod defaults;
 pub mod schema;
 
 // Re-export commonly used types and traits

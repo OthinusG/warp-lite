@@ -379,7 +379,7 @@ macro_rules! define_setting {
             }
 
             fn default_value() -> Self::Value {
-                $default
+                $crate::defaults::configured_default(Self::toml_path(), $private, $default)
             }
 
             fn is_supported_on_current_platform(&self) -> bool {
@@ -645,7 +645,7 @@ macro_rules! implement_setting_for_enum {
             }
 
             fn default_value() -> Self::Value {
-                Self::default()
+                $crate::defaults::configured_default(Self::toml_path(), $private, Self::default())
             }
 
             fn is_supported_on_current_platform(&self) -> bool {
