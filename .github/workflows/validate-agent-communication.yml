@@ -103,6 +103,8 @@ jobs:
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warpai --lib release_updates::tests --locked
+          cargo test -p warpai --lib prerequisite_selector_toggles_stable_ids_and_clears_explicitly --locked
+          cargo test -p warpai --lib remove_worktree_preserves_protected_checkouts_and_branch --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked
           cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
@@ -244,6 +246,8 @@ jobs:
           cargo test -p warpai --lib user_data_migration::tests --locked
           cargo test -p warpai --lib settings::init::tests --locked
           cargo test -p warpai --lib release_updates::tests --locked
+          cargo test -p warpai --lib prerequisite_selector_toggles_stable_ids_and_clears_explicitly --locked
+          cargo test -p warpai --lib remove_worktree_preserves_protected_checkouts_and_branch --locked
           cargo test -p warp_core --features local_fs --lib paths::tests --locked
           cargo test -p warpui_extras --lib --features secure_storage keychain_access_errors_do_not_prove_missing_credentials --locked
           cargo test -p warpai --lib legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection --locked

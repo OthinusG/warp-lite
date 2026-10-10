@@ -40,24 +40,8 @@ const GAP_TIGHT: f32 = 8.;
 const GAP_ROW: f32 = 8.;
 const GAP_SECTION: f32 = 8.;
 
-// Text roles: the 14px semibold primary title outranks semibold section headings;
+// Text roles: semibold function headings;
 // 12px secondary text carries status and guidance.
-fn panel_title(appearance: &Appearance, text: &'static str) -> Box<dyn Element> {
-    let theme = appearance.theme();
-    appearance
-        .ui_builder()
-        .span(text)
-        .with_style(UiComponentStyles {
-            font_size: Some(14.),
-            font_weight: Some(Weight::Semibold),
-            font_color: Some(theme.active_ui_text_color().into()),
-            ..Default::default()
-        })
-        .with_soft_wrap()
-        .build()
-        .finish()
-}
-
 fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<dyn Element> {
     let text = text.into();
     use crate::ui_components::icons::Icon;
@@ -82,7 +66,7 @@ fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<d
         .finish();
     if let Some(icon) = icon {
         Flex::row().with_spacing(GAP_ROW)
-            .with_child(icon.to_warpui_icon(appearance.theme().foreground()).finish())
+            .with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(appearance.theme().foreground()).finish()).with_width(16.).with_height(16.).finish())
             .with_child(Shrinkable::new(1., label).finish()).finish()
     } else { label }
 }
@@ -1049,6 +1033,7 @@ impl CollaborationPanel {
                 rows: snapshot
                     .agents
                     .iter()
+                    .filter(|row| row.online)
                     .map(|row| {
                         let activity = row
                             .activity
@@ -1148,6 +1133,7 @@ impl TypedActionView for CollaborationPanel {
                     if self.form.is_some() || !self.worktree_mode || !self.connected
                         || self.snapshot.as_ref().is_none_or(|snapshot| snapshot.project != *project
                             || !snapshot.candidates.iter().any(|candidate| candidate.agent.id == *agent && candidate.run == *run)) {
+                        if let Some(snapshot) = &self.snapshot { self.sync_coordinator_dropdown(snapshot, ctx); }
                         return;
                     }
                     self.open_control(controls::Kind::SelectCoordinator, ctx);
@@ -2085,7 +2071,7 @@ impl CollaborationPanel {
         } else { self.expanded_worker = None; }
         self.sync_coordinator_dropdown(&snapshot, ctx);
         self.snapshot = Some(snapshot);
-        if state == "selector" { self.open_control(controls::Kind::SelectCoordinator, ctx); }
+        if state == "selector" { self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.toggle_expanded(ctx)); }
         ctx.notify();
     }
 }

@@ -160,42 +160,42 @@ impl View for CommunicationSettingsView {
             ));
         }
         if model.preferences.enabled {
-        let refresh = builder
-            .button(ButtonVariant::Secondary, self.refresh.clone())
-            .with_text_label("Rescan agents".to_owned());
-        let refresh = if model.busy {
-            refresh.disabled()
-        } else {
-            refresh
-        };
-        body.add_child(
-            Container::new(
+            let refresh = builder
+                .button(ButtonVariant::Secondary, self.refresh.clone())
+                .with_text_label("Rescan agents".to_owned());
+            let refresh = if model.busy {
+                refresh.disabled()
+            } else {
                 refresh
-                    .build()
-                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
-                    .finish(),
-            )
-            .with_margin_top(12.)
-            .finish(),
-        );
-        let uninstall_all = builder
-            .button(ButtonVariant::Secondary, self.uninstall_all.clone())
-            .with_text_label("Remove Warpai MCP from all agents".to_owned());
-        let uninstall_all = if model.busy {
-            uninstall_all.disabled()
-        } else {
-            uninstall_all
-        };
-        body.add_child(
-            Container::new(
+            };
+            body.add_child(
+                Container::new(
+                    refresh
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Refresh))
+                        .finish(),
+                )
+                .with_margin_top(12.)
+                .finish(),
+            );
+            let uninstall_all = builder
+                .button(ButtonVariant::Secondary, self.uninstall_all.clone())
+                .with_text_label("Remove Warpai MCP from all agents".to_owned());
+            let uninstall_all = if model.busy {
+                uninstall_all.disabled()
+            } else {
                 uninstall_all
-                    .build()
-                    .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::UninstallAll))
-                    .finish(),
-            )
-            .with_margin_top(8.)
-            .finish(),
-        );
+            };
+            body.add_child(
+                Container::new(
+                    uninstall_all
+                        .build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::UninstallAll))
+                        .finish(),
+                )
+                .with_margin_top(8.)
+                .finish(),
+            );
         }
         Container::new(body.finish())
             .with_margin_bottom(16.)

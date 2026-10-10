@@ -2,7 +2,7 @@
 
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
-Warpai 1.5.0 uses the remote component installed for the SSH account. Install it
+Warpai 1.5.1 uses the remote component installed for the SSH account. Install it
 once on each remote machine, then connect from an ordinary Warpai terminal:
 
 ```sh
@@ -24,9 +24,9 @@ Choose the installer for the **remote** operating system and architecture.
 
 | Remote system | Package | Installation |
 | --- | --- | --- |
-| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-linux-x64.run) | Run `sh WarpaiCompanion-4.0.0-linux-x64.run`. |
-| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.5.0/WarpaiCompanion-4.0.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
+| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-linux-x64.run) | Run `sh WarpaiCompanion-4.0.0-linux-x64.run`. |
+| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
 
 The packages contain the correct executable, checksum, version/source manifest and
 license notices. No manual extraction or executable-path entry is required. Unix

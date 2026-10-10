@@ -25,6 +25,15 @@
   Data usage out of 1.5.1. Retain required tagged packaging checks, but skip a
   redundant intermediate native walkthrough. Companion stays 4.0.0 if unchanged.
 
+## Independent 1.5.1 checkpoint — 2026-10-10
+
+- Base checkpoint be59a359 excludes Data usage. Shared dropdown state, icon sizing,
+  recipient validation, prerequisite selection and native fixture corrections are
+  backported before packaging. Companion source remains unchanged at 4.0.0.
+- Release preparation updates download links and patch notes; source acceptance,
+  main integration, tagged packaging and public delivery remain pending. Reuse
+  the combined 1.5.5 validation and retain all formal installer gates.
+
 ## 1.5.0 release authorization — 2026-10-10
 
 - Owner authorizes main integration, unused branch/workflow cleanup, and public

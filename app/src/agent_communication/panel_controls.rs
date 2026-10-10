@@ -396,6 +396,14 @@ fn command(
     })
 }
 
+fn toggle_prerequisite(text: &str, value: &str) -> String {
+    if value.is_empty() { return String::new(); }
+    let mut selected: Vec<_> = text.split(',').filter(|id| !id.is_empty()).map(str::to_owned).collect();
+    if selected.iter().any(|id| id == value) { selected.retain(|id| id != value); }
+    else { selected.push(value.to_owned()); }
+    selected.join(",")
+}
+
 impl CollaborationPanel {
     pub(super) fn select_form_field(&mut self, request: &str, index: usize, value: &str, ctx: &mut ViewContext<Self>) {
         let Some(form) = self.form.as_ref().filter(|form| form.request_id == request && !form.submitting && form.submitted_fields.is_none()) else { return; };
@@ -403,10 +411,7 @@ impl CollaborationPanel {
         if !choices.iter().any(|(_, choice)| choice == value) { return; }
         let value = if index == 3 && matches!(form.kind, Kind::Assign | Kind::Pool) && !value.is_empty() {
             let text = form.fields[index].as_ref(ctx).buffer_text(ctx);
-            let mut selected: Vec<_> = text.split(',').filter(|id| !id.is_empty()).map(str::to_owned).collect();
-            if selected.iter().any(|id| id == value) { selected.retain(|id| id != value); }
-            else { selected.push(value.to_owned()); }
-            selected.join(",")
+            toggle_prerequisite(&text, value)
         } else { value.to_owned() };
         form.fields[index].update(ctx, |editor, ctx| editor.set_buffer_text(&value, ctx));
         ctx.notify();
@@ -414,9 +419,17 @@ impl CollaborationPanel {
 
     pub(super) fn sync_coordinator_dropdown(&self, snapshot: &super::Snapshot, ctx: &mut ViewContext<Self>) {
         let selected = snapshot.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some()).map(|role| &role.agent);
+        self.coordinator_dropdown.update(ctx, |dropdown, ctx| {
+            if snapshot.candidates.is_empty() || !self.connected || self.form.is_some() { dropdown.set_disabled(ctx); }
+            else { dropdown.set_enabled(ctx); }
+            if self.form.is_none() {
+                let index = selected.and_then(|id| snapshot.candidates.iter().position(|candidate| &candidate.agent.id == id)).map_or(0, |index| index + 1);
+                dropdown.set_selected_by_index(index, ctx);
+            }
+        });
         if self.snapshot.as_ref().is_some_and(|previous| previous.project == snapshot.project
-            && previous.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name))
-                .eq(snapshot.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name)))
+            && previous.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name, &candidate.branch))
+                .eq(snapshot.candidates.iter().map(|candidate| (&candidate.agent.id, &candidate.run, &candidate.root, &candidate.agent.name, &candidate.branch)))
             && previous.roles.iter().find(|role| role.role == "coordinator" && role.run.is_some()).map(|role| &role.agent) == selected) {
             return;
         }
@@ -434,7 +447,6 @@ impl CollaborationPanel {
             }
             dropdown.set_items(items, ctx);
             dropdown.set_selected_by_index(selected_index, ctx);
-            if snapshot.candidates.is_empty() { dropdown.set_disabled(ctx); } else { dropdown.set_enabled(ctx); }
         });
     }
 
@@ -636,6 +648,7 @@ impl CollaborationPanel {
         });
         self.build_form_selectors(ctx);
         self.load_remaining_choices(ctx);
+        if self.worktree_mode { self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.set_disabled(ctx)); }
         self.scroll = Default::default();
         ctx.notify();
     }
@@ -751,6 +764,7 @@ impl CollaborationPanel {
             return;
         }
         self.form = None;
+        if let Some(snapshot) = &self.snapshot { self.sync_coordinator_dropdown(snapshot, ctx); }
         ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::FocusLeftPanel);
         ctx.notify();
     }
@@ -1059,7 +1073,8 @@ impl CollaborationPanel {
                 let button = builder
                     .button(if index == 0 { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.buttons[index].clone())
                     .with_text_label(label.into());
-                let button = if form.submitting || (index == 0 && (!self.connected || form.choices_loading ||
+                let missing_recipient = form.selectors.contains_key(&0) && form.fields[0].as_ref(app).buffer_text(app).is_empty();
+                let button = if form.submitting || (index == 0 && (!self.connected || form.choices_loading || missing_recipient ||
                     (matches!(form.kind, Kind::SelectCoordinator) && form.selected_candidate.is_none()))) {
                     button.disabled()
                 } else {
@@ -1184,6 +1199,13 @@ impl CollaborationPanel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn prerequisite_selector_toggles_stable_ids_and_clears_explicitly() {
+        assert_eq!(toggle_prerequisite("", "task-a"), "task-a");
+        assert_eq!(toggle_prerequisite("task-a", "task-b"), "task-a,task-b");
+        assert_eq!(toggle_prerequisite("task-a,task-b", "task-a"), "task-b");
+        assert_eq!(toggle_prerequisite("task-a,task-b", ""), "");
+    }
     #[test]
     fn native_intent_requires_explicit_fields_and_typed_override() {
         let message = vec![
