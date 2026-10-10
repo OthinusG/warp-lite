@@ -2,6 +2,11 @@
 
 ## Collaboration patch scope — 2026-10-10
 
+- Owner scope correction: cross-host task federation is not a product goal or
+  acceptance item. Do not add it, propose it as follow-up work or call out its
+  absence in product copy/delivery summaries. Continue the requested SSH Remote
+  project communication and project/worktree coordination scope.
+
 - Owner b.txt has eight items with duplicate numbering. Confirmed: icon entry,
   native local worktree management, Coordinator dropdown, mode title, section
   separators/icons, History secondary view and Message/Assign dropdowns belong

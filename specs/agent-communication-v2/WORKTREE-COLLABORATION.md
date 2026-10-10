@@ -129,7 +129,7 @@ remote services/accounts and unrelated repositories remain isolated.
 
 Reuse existing worktree creation/tab configuration, native Agent launch, Git
 commands, tasks and reviews. No separate worktree manager, automatic cleanup,
-Git writes over the file protocol or cross-host federation.
+Git writes over the file protocol.
 
 ## Roles and ownership contract
 

@@ -36,7 +36,7 @@ Two Agents in separate SSH terminals of the same selected remote project share
 one remote Broker/Store. Other remote roots/accounts/hosts remain isolated.
 The remote machine needs only the repository companion and user-managed vendor
 CLI/authentication. SSH credentials remain system-owned. Local communication
-continues working. No cross-host/local-remote task federation is implied.
+continues working.
 
 A simple remote target/root/helper selection and status section are sufficient.
 A file manager, transfer queue, automatic installer, session dashboard, full
