@@ -200,7 +200,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Bundled WSL installation acceptance failed' }
       - name: Capture Windows static collaboration UI
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
-        timeout-minutes: 7
+        timeout-minutes: 25
         shell: pwsh
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
@@ -348,7 +348,7 @@ jobs:
           retention-days: 7
       - name: Capture macOS static collaboration UI
         if: ${{ inputs.capture_ui }}
-        timeout-minutes: 7
+        timeout-minutes: 25
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion

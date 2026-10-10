@@ -148,3 +148,8 @@ in each Appearance variant. Existing About state captures remain in place.
 This adds 32 images per locale (macOS 918 total; Windows with WSL 936 total).
 Use isolated profiles and the existing 300-second watchdog; runtime and visual
 results must pass the cloud gate before release.
+
+The outer native capture CI step allows 25 minutes for three sequential locale
+launches (330-second subprocess limit each), three existing bounded SSH/SFTP
+checks (120 seconds each), and fixture setup/cleanup. Per-process 300-second
+watchdogs and zero retries are unchanged; one stalled locale still fails early.
