@@ -294,7 +294,8 @@ impl ServerHandler for Bridge {
         })
         .await
         .map_err(|_| ErrorData::internal_error("Bridge unavailable", None))?
-        .map_err(|_| ErrorData::internal_error("No live local Warp agent binding", None))?;
+        .map_err(|error| ErrorData::internal_error("No live local Warp agent binding",
+            Some(json!({"code": DomainError::from_error(error).code}))))?;
         Ok(ListToolsResult {
             tools: tools(),
             ..Default::default()

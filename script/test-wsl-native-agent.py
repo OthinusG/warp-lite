@@ -64,7 +64,7 @@ def main():
             assert line, "Native guest MCP disconnected"
             value = json.loads(line)
             if value.get("id") == sequence:
-                assert "error" not in value
+                assert "error" not in value, value.get("error", {}).get("data", {}).get("code", "MCP request failed")
                 return value["result"]
     def tool(name, arguments):
         result = rpc("tools/call", {"name": name, "arguments": arguments})

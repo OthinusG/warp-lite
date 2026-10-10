@@ -364,8 +364,16 @@ mod tests {
     }
     #[test]
     fn native_binding_survives_attachment_and_ends_with_process() {
+        check_native_binding(false);
+    }
+    #[test]
+    fn native_git_binding_registers_and_ends_with_process() {
+        check_native_binding(true);
+    }
+    fn check_native_binding(git_project: bool) {
         let directory = tempfile::tempdir().unwrap();
         let project = tempfile::tempdir().unwrap();
+        if git_project { crate::worktrees::tests::git(project.path(), &["init", "-q"]); }
         let projects = tasks::Projects::new(directory.path());
         let installed = crate::setup::Installed {
             active: true,
@@ -434,6 +442,14 @@ mod tests {
                 "fixture",
             )
             .unwrap();
+        let registered = crate::transport::call(&first.endpoint, &crate::transport::Request {
+            protocol_major: crate::transport::PROTOCOL_MAJOR,
+            terminal: first.terminal.clone(), capability: first.capability.clone(),
+            run: None, defer_initial_ready: true, native_activity: None,
+            directory: Some(project.path().to_str().unwrap().into()),
+            operation: crate::Operation::AgentRegister { name: String::new() },
+        }).unwrap();
+        assert_eq!(registered["run"].as_str(), Some(first.run.as_str()));
         let mut later = fence.clone();
         later.connection_id = Uuid::new_v4().to_string();
         let second = projects

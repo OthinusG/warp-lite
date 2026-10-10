@@ -71,3 +71,10 @@ The fixture and test previously discarded child stderr/stdout, obscuring the
 failed registration guard. Capture bounded owned-fixture output and stop waiting
 when the child exits; rerun focused WSL acceptance before changing production
 admission. Preserve UID, ancestry, foreground and enabled-program checks.
+
+Run 38059372783 at b67189a8 reaches MCP initialization but tools/list fails
+during automatic registration. Preserve only the domain error code in MCP error
+data, and print that code in the owned fixture. Extend the guest lifecycle test
+to register through the actual broker for both Git and non-Git roots; successful
+kernel binding alone does not prove MCP registration. Keep diagnostic streams
+on one shared file offset to preserve ordering.

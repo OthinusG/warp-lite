@@ -71,8 +71,8 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     let mut native = tokio::process::Command::new("wsl.exe")
         .args(["--distribution", &distribution, "--user", &user, "--exec", "python3",
             "/home/warpai-test/native-agent-fixture.py", "--terminal", &profile.companion_path, &root])
-        .stdin(std::process::Stdio::piped()).stdout(native_log.reopen().unwrap())
-        .stderr(native_log.reopen().unwrap()).kill_on_drop(true).spawn().unwrap();
+        .stdin(std::process::Stdio::piped()).stdout(native_log.as_file().try_clone().unwrap())
+        .stderr(native_log.as_file().try_clone().unwrap()).kill_on_drop(true).spawn().unwrap();
     let metadata_path = format!("{root}/native-session.json");
     let mut metadata = None;
     for _ in 0..100 {
