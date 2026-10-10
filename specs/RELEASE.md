@@ -1,6 +1,21 @@
 # Warpai releases
 
-## Current delivery: 1.5.1 with unchanged Companion 4.0.0
+## Sequential patch delivery: 1.5.1, then 1.5.5
+
+Owner authorization 2026-10-10 supersedes the earlier single-publication limit.
+Publish 1.5.1 first, then 1.5.5; both use unchanged Companion 4.0.0 and protocol 1.
+Add no telemetry. Do not begin 1.6.0 until the owner supplies its scope.
+
+- 1.5.1 source: immutable tag v1.5.1 at 30ad76bb. Formal macOS/Companion run
+  38022801330 uses auto_publish=true; Windows follows and publishes after gates.
+- 1.5.5 source is prepared on release/1.5.5, retaining 1.5.1 ancestry and accepted
+  native provider/UI implementation. Usage fixture visibility correction needs
+  capture acceptance in run 38022957210 before tagging/publication.
+- Retain native source/version/installer/reinstall/runtime checks and all five
+  installers/checksum receipts. Confirm 1.5.1 public delivery before dispatching
+  the 1.5.5 release; only the second release becomes latest afterward.
+
+## 1.5.1 preparation contract (superseded publication limit)
 
 Owner authorization 2026-10-10: complete both patch scopes, validate combined
 1.5.5 directly, then package/publish the independent 1.5.1 source checkpoint.

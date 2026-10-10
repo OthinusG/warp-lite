@@ -38,12 +38,13 @@ consult it only when a specific historical question requires it.
   Both artifacts contain 274 CRC-valid PNGs, exact source, exit 0 and no failed
   assertions. Review exposed the new usage fixtures' closed Tools panel after
   SSH Review; explicitly restore visibility and assert it before usage captures.
-  Recheck these images before 1.5.5 publication; shared 1.5.1 captures are visible.
+  Corrected visibility/assertions pass both OS in run 38022957210; usage images
+  are visible. Source 61d50dbe is approved for 1.5.5 release packaging.
 - Independent 1.5.1 is tagged at 30ad76bb on patch/1.5.1, excluding Data usage.
   [Formal release 38022801330](https://github.com/OthinusG/warpai/actions/runs/38022801330)
   was dispatched with auto_publish=true; Windows follows. Publication is pending.
 - Combined branch: feature/collaboration-patches-1.5.1-1.5.5. Independent worktree:
-  /private/tmp/warpai-patch-1.5.1. Main still holds the delivered baseline.
+  /private/tmp/warpai-patch-1.5.1. Main contains independent 1.5.1 source.
 - Remaining: finish 1.5.1 native package/public-asset gates; fix and review usage
   captures; prepare/tag/release 1.5.5 only after 1.5.1 is public. Retain existing
   release checks; no redundant intermediate 1.5.1 walkthrough is requested.

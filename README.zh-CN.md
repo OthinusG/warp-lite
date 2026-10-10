@@ -14,11 +14,11 @@
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.5.1](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.5.5](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/badge/release-1.5.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.5.1)
+[![版本](https://img.shields.io/badge/release-1.5.5-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.5.5)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
@@ -104,6 +104,12 @@ Agent 就绪，Warpai 不会代替你处理权限请求。
 Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
 Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。
 
+协作面板底部的 **Data usage** 显示已连接服务商账户的用量。在
+**Settings > Features > Data usage** 中添加账户并选择显示项。用量区域独立滚动，
+最多显示四行，浏览任务时仍可查看账户名称、Agent 图标、配额进度条和可用余额。
+账户配置跨工作区和重启保留；重启后重新获取用量。认证使用本机 CLI 当前登录或保存在
+系统安全存储中的凭据。[服务商指南](specs/agent-communication-v2/USAGE-PROVIDERS.md)列出可用来源。
+
 <a id="remote-workflow"></a>
 
 ## 远程也能完成同样的工作流
@@ -174,13 +180,13 @@ SSH 项目由匹配版本的 Warpai companion 提供远端支持。
 <a id="get-warpai"></a>
 ## 下载与安装
 
-**[Warpai 1.5.1](https://github.com/OthinusG/warpai/releases/tag/v1.5.1)** 将 Agent 协作、文件管理、
+**[Warpai 1.5.5](https://github.com/OthinusG/warpai/releases/tag/v1.5.5)** 将 Agent 协作、文件管理、
 应用内编辑和预览整合进本地与 SSH 项目的完整工作流。
 
 | 平台 | 下载 | 安装 |
 | --- | --- | --- |
-| **macOS 11.0（Big Sur）或更高版本 · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.1/Warpai-1.5.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiSetup-1.5.1-windows-x64.exe) | 运行安装器。 |
+| **macOS 11.0（Big Sur）或更高版本 · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.5/Warpai-1.5.5-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
+| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiSetup-1.5.5-windows-x64.exe) | 运行安装器。 |
 
 macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
 **System Settings > Privacy & Security > Open Anyway** 中批准打开。Windows 可能要求确认
@@ -199,9 +205,9 @@ Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Compani
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-linux-x64.run) |
-| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.5.1/WarpaiCompanion-4.0.0-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-linux-x64.run) |
+| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-windows-x64-setup.exe) |
 
 ## 本地优先
 
