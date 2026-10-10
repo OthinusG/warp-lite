@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-10. Current decisions and unfinished work only. Read this with
+Updated 2026-10-11. Current decisions and unfinished work only. Read this with
 [AGENTS.md](AGENTS.md) and [README.md](README.md). Detailed historical receipts
 and superseded decisions are in [the archive](docs/history/MEMORY-2026-10-10.md);
 consult it only when a specific historical question requires it.
@@ -112,8 +112,8 @@ consult it only when a specific historical question requires it.
   WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
   logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
   Native Codex may add --no-daemon; no wrapper or host MCP injection.
-  e00caf1f passes macOS; 1a136f09 passes WSL registration/wake, times out on
-  fixture EOF. Install private Git; gates: specs/wsl-1.6.0/CI-DIAGNOSIS.md.
+  16631452 passes WSL lifecycle/install and macOS; Windows capture lacks Reset
+  Grid OSC. Use installed private Git; gates: specs/wsl-1.6.0/CI-DIAGNOSIS.md.
   Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),

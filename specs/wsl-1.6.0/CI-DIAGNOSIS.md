@@ -102,3 +102,22 @@ not receive input EOF and Windows waits indefinitely. Send the terminal's EOT
 on upstream stdin EOF, reap the shell/Agent, then close the master. Retain the
 bounded exit assertion and Coordinator actual-process-exit check; do not kill
 the fixture or extend timeouts to hide failed lifecycle behavior.
+
+## Verification receipts
+
+Focused run https://github.com/OthinusG/warpai/actions/runs/38062689536
+passes at 16631452523f51436dba71c036c6b13984652b2d, including packaged private
+Git, Git/non-Git guest registration and the real Windows-to-WSL workspace test.
+The latter covers file conflicts, guest authority, wake/cancel/acknowledgement
+and actual native process exit. Full both-OS acceptance uses the same source in
+https://github.com/OthinusG/warpai/actions/runs/38063840642.
+
+The full run passes macOS, Windows default/platform builds, actual WSL workspace
+acceptance and bundled installation/removal isolation. Windows native capture
+produces 274 images, then panics at grid/ansi_handler.rs:186 when the simulated
+WSL prompt inputs characters without the required Reset Grid OSC. All six WSL
+captures are missing. Mirror the existing SSH banner fixture's on_reset_grid()
+after starting the block and before input; retain the production debug assertion.
+Verify source parsing locally, then source-matched Windows native captures and
+complete both-OS acceptance. Do not classify the other warning source locations
+in panic_locations as actual panics.
