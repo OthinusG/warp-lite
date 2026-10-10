@@ -152,3 +152,13 @@ Build the guest payload in Ubuntu 22.04 WSL for the same libc baseline as SSH.
 Combined source-matched Windows CI, executable assertions and capture inspection
 remain the acceptance gates; parsing and older architecture runs are not receipts.
 Test WSL package 3.x previews when available without claiming unrun compatibility.
+
+## Native SSH regression correction
+
+Run 38050697525 at 8efd3867 passed the bus unit and coordination suites, then
+failed managed_agent_fences_input_project_and_owned_stop: the default SSH service
+correctly rejects the WSL-only launch-directory capability, while the test expected
+WSL path validation. Keep production admission unchanged. Assert feature-unavailable
+for default SSH and invalid input for relative paths in the WSL feature build;
+also cover a valid directory rejected by default SSH. Rerun the Windows regression,
+then source-matched default/platform checks, real WSL acceptance and native captures.

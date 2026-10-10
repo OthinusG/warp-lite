@@ -384,8 +384,21 @@ async fn managed_agent_fences_input_project_and_owned_stop() {
     let mut invalid_directory = launch.clone();
     invalid_directory.session_id = Uuid::new_v4().to_string();
     invalid_directory.working_directory = Some("relative-workspace".into());
+    let directory_error = if cfg!(feature = "wsl_companion") {
+        ManagedErrorCode::ManagedInvalidInput
+    } else {
+        ManagedErrorCode::ManagedFeatureUnavailable
+    };
     assert!(matches!(first.call(managed_request::Operation::TerminalLaunch(invalid_directory)).await,
-        managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedInvalidInput as i32));
+        managed_response::Result::Error(ManagedError { code }) if code == directory_error as i32));
+    #[cfg(not(feature = "wsl_companion"))]
+    {
+        let mut unsupported_directory = launch.clone();
+        unsupported_directory.session_id = Uuid::new_v4().to_string();
+        unsupported_directory.working_directory = Some(root.to_str().unwrap().into());
+        assert!(matches!(first.call(managed_request::Operation::TerminalLaunch(unsupported_directory)).await,
+            managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedFeatureUnavailable as i32));
+    }
     let mut changed = launch;
     changed.rows = 30;
     assert!(
